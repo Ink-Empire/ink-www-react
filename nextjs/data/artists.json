@@ -1,0 +1,119 @@
+[
+  {
+    "id": 1,
+    "name": "Burt Bear",
+    "shop": "InkWell",
+    "primaryImageId": 1,
+    "twitter": "ionicframework",
+    "about": "Burt is a Bear with tattoos.",
+    "location": "Nashville, TN, USA",
+    "email": "burt@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["japanese"],
+    "image" : {
+      "uri": "/assets/img/artists/bear.jpg",
+      "artistId": 1
+    },
+    "tattoos": [
+      {
+        "id": 1,
+        "description": "skull and dagger",
+        "tags": "",
+        "image": {
+          "id": 1,
+          "uri": "/assets/img/tattoos/tattoo1.jpg"
+        }
+      },
+      {
+        "id": 2,
+        "description": "bear wearing dress",
+        "tags": "neotrad",
+        "image": {
+          "id": 2,
+          "uri": "/assets/img/tattoos/tattoo2.jpg"
+        }
+      },
+      {
+        "id": 3,
+        "description": "flowers",
+        "tags": "new school",
+        "image": {
+          "id": 1,
+          "uri": "/assets/img/tattoos/tattoo3.jpg"
+        }
+      },
+      {
+        "id": 4,
+        "description": "castle",
+        "tags": "neotrad",
+        "image": {
+          "id": 2,
+          "uri": "/assets/img/tattoos/tattoo4.jpg",
+          "artistId": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Charlie Cheetah",
+    "shop": "Infinite Skin",
+    "primaryImageId": 2,
+    "twitter": "ionicframework",
+    "about": "Charlie is a Cheetah.",
+    "location": "Everywhere",
+    "email": "charlie@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["neotraditional", "traditional"],
+    "image" : {
+      "title" : "Charlie Cheetah",
+      "uri": "/assets/img/artists/cheetah.jpg",
+      "artistId": 2
+    }
+  },
+  {
+    "id": 3,
+    "name": "Donald Duck",
+    "shop": "Anchor and Dagger",
+    "primaryImageId": 3,
+    "twitter": "ionicframework",
+    "about": "Donald is a Duck.",
+    "location": "Everywhere",
+    "email": "donald@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["new school", "neotraditional", "traditional"],
+    "image" : {
+      "uri": "/assets/img/artists/duck.jpg"
+    }
+  },
+  {
+    "id": 4,
+    "name": "Eva Eagle",
+    "shop": "Tattoo Salvation",
+    "primaryImageId": 4,
+    "twitter": "ionicframework",
+    "about": "Eva is an Eagle.",
+    "location": "Everywhere",
+    "email": "eva@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["trash polka"],
+    "image" : {
+      "uri": "/assets/img/artists/eagle.jpg"
+    }
+  },
+  {
+    "id": 5,
+    "name": "Ellie Elephant",
+    "shop": "Cheetah Prints",
+    "primaryImageId": 5,
+    "twitter": "ionicframework",
+    "about": "Ellie is an Elephant.",
+    "location": "Everywhere",
+    "email": "ellie@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["neotraditional", "traditional"],
+    "image" : {
+      "uri": "/assets/img/artists/elephant.jpg"
+    }
+  }
+]

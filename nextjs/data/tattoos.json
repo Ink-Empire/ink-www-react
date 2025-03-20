@@ -1,0 +1,151 @@
+[
+  {
+    "id": 1,
+    "title": "ink title",
+    "shopName": "InkWell",
+    "location": "Everywhere",
+    "description": "lorem ipsum",
+    "artist": {
+      "id": 1,
+      "name": "Burt Bear",
+      "shop": "InkWell",
+      "primaryImageId": 1,
+      "twitter": "ionicframework",
+      "about": "Burt is a Bear with tattoos.",
+      "location": "Nashville, TN, USA",
+      "email": "burt@example.com",
+      "phone": "+1-541-754-3010",
+      "styles": [
+        "japanese"
+      ],
+      "image": {
+        "uri": "/assets/img/artists/bear.jpg",
+        "artistId": 1
+      }
+    },
+    "image": {
+      "id": 1,
+      "name": "Burt Bear",
+      "uri": "/assets/img/tattoos/tattoo1.jpg"
+    },
+    "styles": ["portraits", "black and gray", "japanese","portraits", "black and gray", "japanese"]
+  },
+  {
+    "id": 2,
+    "title": "ink title",
+    "shopName": "Infinite Skin",
+    "location": "Everywhere",
+    "description": "lorem ipsum",
+    "artist": {
+      "id": 2,
+      "name": "Charlie Cheetah",
+      "shop": "Infinite Skin",
+      "primaryImageId": 2,
+      "twitter": "ionicframework",
+      "about": "Charlie is a Cheetah.",
+      "location": "Everywhere",
+      "email": "charlie@example.com",
+      "phone": "+1-541-754-3010",
+      "styles": [
+        "neotraditional",
+        "traditional"
+      ],
+      "image": {
+        "title": "Charlie Cheetah",
+        "uri": "/assets/img/artists/cheetah.jpg",
+        "artistId": 2
+      }
+    },
+    "image": {
+      "id": 1,
+      "name": "Burt Bear",
+      "uri": "/assets/img/tattoos/tattoo2.jpg"
+    },
+    "styles": ["portraits"]
+  },
+  {
+    "id": 3,
+    "title": "ink title",
+    "shopName": "Anchor and Dagger",
+    "location": "Everywhere",
+    "description": "lorem ipsum",
+    "artist": {
+      "id": 3,
+      "name": "Donald Duck",
+      "shop": "Anchor and Dagger",
+      "primaryImageId": 3,
+      "twitter": "ionicframework",
+      "about": "Donald is a Duck.",
+      "location": "Everywhere",
+      "email": "donald@example.com",
+      "phone": "+1-541-754-3010",
+      "styles": [
+        "new school",
+        "neotraditional",
+        "traditional"
+      ],
+      "image": {
+        "uri": "/assets/img/artists/duck.jpg"
+      }
+    },
+    "image": {
+      "id": 1,
+      "name": "Burt Bear",
+      "uri": "/assets/img/tattoos/tattoo3.jpg"
+    },
+    "styles": ["color realism"]
+  },
+  {
+    "id": 4,
+    "title": "ink title",
+    "name": "Eva Eagle",
+    "primaryImage": "/assets/img/artists/eagle.jpg",
+    "shopName": "Tattoo Salvation",
+    "location": "Everywhere",
+    "description": "lorem ipsum",
+    "artist": {
+      "id": 4,
+      "name": "Eva Eagle",
+      "primaryImage": "/assets/img/artists/eagle.jpg"
+    },
+    "image": {
+      "id": 1,
+      "name": "Burt Bear",
+      "uri": "/assets/img/tattoos/tattoo4.jpg"
+    }
+  },
+  {
+    "id": 5,
+    "title": "ink title",
+    "shopName": "Grim Reaper",
+    "location": "Everywhere",
+    "description": "lorem ipsum",
+    "artist": {
+      "id": 4,
+      "name": "Eva Eagle",
+      "shop": "Tattoo Salvation",
+      "primaryImageId": 4,
+      "twitter": "ionicframework",
+      "about": "Eva is an Eagle.",
+      "location": "Everywhere",
+      "email": "eva@example.com",
+      "phone": "+1-541-754-3010",
+      "styles": [
+        "trash polka"
+      ],
+      "image": {
+        "uri": "/assets/img/artists/eagle.jpg"
+      }
+    },
+    "image": {
+      "id": 1,
+      "name": "Burt Bear",
+      "uri": "/assets/img/tattoos/tattoo5.jpg"
+    },
+    "styles": [
+      "new school",
+      "neotraditional",
+      "traditional"
+    ]
+  }
+]

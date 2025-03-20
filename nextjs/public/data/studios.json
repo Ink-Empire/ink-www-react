@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1,
+    "name": "Inkwell",
+    "primaryImageId": 1,
+    "twitter": "ionicframework",
+    "about": "Inkwell is a shop that tattoos",
+    "location": "Nashville, TN, USA",
+    "business_hours": {
+      "Monday": {
+        "open_time": "8:00",
+        "close_time": "5:00"
+      },
+      "Tuesday": {
+        "open_time": "8:00",
+        "close_time": "5:00"
+      },
+      "Wednesday": {
+        "open_time": "8:00",
+        "close_time": "5:00"
+      },
+      "Thursday": {
+        "open_time": "8:00",
+        "close_time": "5:00"
+      },
+      "Friday": {
+        "open_time": "8:00",
+        "close_time": "5:00"
+      },
+      "Saturday": {
+        "open_time": "8:00",
+        "close_time": "5:00"
+      },
+      "Sunday": {
+        "open_time": "8:00",
+        "close_time": "5:00"
+      }
+    },
+    "email": "inkwell@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["japanese"],
+    "image" : {
+      "uri": "/assets/img/artists/bear.jpg",
+      "studioId": 1
+    },
+    "tattoos": [
+      {
+        "id": 1,
+        "description": "skull and dagger",
+        "tags": "",
+        "image": {
+          "id": 1,
+          "uri": "/assets/img/tattoos/tattoo1.jpg"
+        }
+      },
+      {
+        "id": 2,
+        "description": "bear wearing dress",
+        "tags": "neotrad",
+        "image": {
+          "id": 2,
+          "uri": "/assets/img/tattoos/tattoo2.jpg"
+        }
+      },
+      {
+        "id": 3,
+        "description": "flowers",
+        "tags": "new school",
+        "image": {
+          "id": 1,
+          "uri": "/assets/img/tattoos/tattoo3.jpg"
+        }
+      },
+      {
+        "id": 4,
+        "description": "castle",
+        "tags": "neotrad",
+        "image": {
+          "id": 2,
+          "uri": "/assets/img/tattoos/tattoo4.jpg",
+          "artistId": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": 1,
+    "name": "Pain Cave",
+    "primaryImageId": 1,
+    "twitter": "ionicframework",
+    "about": "Pain Cave hurts so good",
+    "location": "Nashville, TN, USA",
+    "business_hours": {
+      "Monday": {
+        "open_time": "10:00",
+        "close_time": "4:00"
+      },
+      "Tuesday": {
+        "open_time": "10:00",
+        "close_time": "4:00"
+      },
+      "Wednesday": {
+        "open_time": "10:00",
+        "close_time": "4:00"
+      },
+      "Thursday": {
+        "open_time": "10:00",
+        "close_time": "4:00"
+      },
+      "Friday": {
+        "open_time": "10:00",
+        "close_time": "4:00"
+      }
+    },
+    "email": "paincave@example.com",
+    "phone": "+1-502-754-2124",
+    "styles": ["black and gray"],
+    "image" : {
+      "uri": "/assets/img/artists/duck.jpg",
+      "studioId": 1
+    },
+    "tattoos": [
+      {
+        "id": 1,
+        "description": "skull and dagger",
+        "tags": "",
+        "image": {
+          "id": 1,
+          "uri": "/assets/img/tattoos/tattoo1.jpg"
+        }
+      },
+      {
+        "id": 2,
+        "description": "bear wearing dress",
+        "tags": "neotrad",
+        "image": {
+          "id": 2,
+          "uri": "/assets/img/tattoos/tattoo2.jpg"
+        }
+      },
+      {
+        "id": 3,
+        "description": "flowers",
+        "tags": "new school",
+        "image": {
+          "id": 1,
+          "uri": "/assets/img/tattoos/tattoo3.jpg"
+        }
+      },
+      {
+        "id": 4,
+        "description": "castle",
+        "tags": "neotrad",
+        "image": {
+          "id": 2,
+          "uri": "/assets/img/tattoos/tattoo4.jpg",
+          "artistId": 1
+        }
+      }
+    ]
+  }
+]

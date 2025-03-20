@@ -1,0 +1,238 @@
+[
+  {
+    "id": 1,
+    "name": "Burt Bear",
+    "shop": "InkWell",
+    "primaryImageId": 1,
+    "twitter": "ionicframework",
+    "about": "Burt is a Bear with tattoos.",
+    "location": "Nashville, TN, USA",
+    "email": "burt@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["japanese"],
+    "image" : {
+      "uri": "/assets/img/artists/bear.jpg",
+      "artistId": 1
+    },
+    "tattoos": [
+      {
+        "id": 1,
+        "description": "skull and dagger",
+        "tags": "",
+        "image": {
+          "id": 1,
+          "uri": "/assets/img/tattoos/tattoo1.jpg"
+        }
+      },
+      {
+        "id": 2,
+        "description": "bear wearing dress",
+        "tags": "neotrad",
+        "image": {
+          "id": 2,
+          "uri": "/assets/img/tattoos/tattoo2.jpg"
+        }
+      },
+      {
+        "id": 3,
+        "description": "flowers",
+        "tags": "new school",
+        "image": {
+          "id": 1,
+          "uri": "/assets/img/tattoos/tattoo3.jpg"
+        }
+      },
+      {
+        "id": 4,
+        "description": "castle",
+        "tags": "neotrad",
+        "image": {
+          "id": 2,
+          "uri": "/assets/img/tattoos/tattoo4.jpg",
+          "artistId": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Charlie Cheetah",
+    "shop": "Infinite Skin",
+    "primaryImageId": 2,
+    "twitter": "ionicframework",
+    "about": "Charlie is a Cheetah.",
+    "location": "Everywhere",
+    "email": "charlie@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["neotraditional", "traditional"],
+    "image" : {
+      "title" : "Charlie Cheetah",
+      "uri": "/assets/img/artists/cheetah.jpg",
+      "artistId": 2
+    }
+  },
+  {
+    "id": 3,
+    "name": "Donald Duck",
+    "shop": "Anchor and Dagger",
+    "primaryImageId": 3,
+    "twitter": "ionicframework",
+    "about": "Donald is a Duck.",
+    "location": "Everywhere",
+    "email": "donald@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["new school", "neotraditional", "traditional"],
+    "image" : {
+      "uri": "/assets/img/artists/duck.jpg"
+    }
+  },
+  {
+    "id": 4,
+    "name": "Eva Eagle",
+    "shop": "Tattoo Salvation",
+    "primaryImageId": 4,
+    "twitter": "ionicframework",
+    "about": "Eva is an Eagle.",
+    "location": "Everywhere",
+    "email": "eva@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["trash polka"],
+    "image" : {
+      "uri": "/assets/img/artists/eagle.jpg"
+    }
+  },
+  {
+    "id": 5,
+    "name": "Ellie Elephant",
+    "shop": "Cheetah Prints",
+    "primaryImageId": 5,
+    "twitter": "ionicframework",
+    "about": "Ellie is an Elephant.",
+    "location": "Everywhere",
+    "email": "ellie@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["neotraditional", "traditional"],
+    "image" : {
+      "uri": "/assets/img/artists/elephant.jpg"
+    }
+  },
+  {
+    "id": 6,
+    "name": "Gino Giraffe",
+    "shop": "Grim Reaper",
+    "primaryImageId": 6,
+    "twitter": "ionicframework",
+    "about": "Gino is a Giraffe.",
+    "location": "Everywhere",
+    "email": "gino@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["portraits"],
+    "image" : {
+      "uri": "/assets/img/artists/giraffe.jpg"
+    }
+  },
+  {
+    "id": 7,
+    "name": "Isabella Iguana",
+    "shop": "Mama Tried",
+    "primaryImageId": 7,
+    "twitter": "ionicframework",
+    "about": "Isabella is an Iguana.",
+    "location": "Everywhere",
+    "email": "isabella@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["neotraditional", "traditional"],
+    "image" : {
+      "uri": "/assets/img/artists/iguana.jpg"
+    }
+  },
+  {
+    "id": 8,
+    "name": "Karl Kitten",
+    "shop": "Sneaky Pete's",
+    "primaryImageId": 8,
+    "twitter": "ionicframework",
+    "about": "Karl is a Kitten.",
+    "location": "Everywhere",
+    "email": "karl@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["color realism"],
+    "image" : {
+      "uri": "/assets/img/artists/kitten.jpg"
+    }
+  },
+  {
+    "id": 9,
+    "name": "Lionel Lion",
+    "shop": "Tats4U",
+    "primaryImageId": 9,
+    "twitter": "ionicframework",
+    "about": "Lionel is a Lion.",
+    "location": "Everywhere",
+    "email": "lionel@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["japanese", "new school"],
+    "image" : {
+      "uri": "/assets/img/artists/lion.jpg"
+    }
+  },
+  {
+    "id": 10,
+    "name": "Molly Mouse",
+    "shop": "Monkey's Uncle",
+    "primaryImageId": 10,
+    "twitter": "ionicframework",
+    "about": "Molly is a Mouse.",
+    "location": "Everywhere",
+    "email": "molly@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["color realism"],
+    "image" : {
+      "uri": "/assets/img/artists/mouse.jpg"
+    }
+  },
+  {
+    "id": 11,
+    "name": "Paul Puppy",
+    "shop": "Electric Ladyland",
+    "primaryImageId": 11,
+    "twitter": "ionicframework",
+    "about": "Paul is a Puppy.",
+    "location": "Everywhere",
+    "email": "paul@example.com",
+    "phone": "+1-541-754-3010",
+    "image" : {
+      "uri": "/assets/img/artists/puppy.jpg"
+    }
+  },
+  {
+    "id": 12,
+    "name": "Rachel Rabbit",
+    "shop": "Knives Out",
+    "primaryImageId": 12,
+    "twitter": "ionicframework",
+    "about": "Rachel is a Rabbit.",
+    "location": "Everywhere",
+    "email": "rachel@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["japanese", "new school"],
+    "image" : {
+      "uri": "/assets/img/artists/rabbit.jpg"
+    }
+  },
+  {
+    "id": 13,
+    "name": "Ted Turtle",
+    "shop": "Art and Soul",
+    "primaryImageId": 13,
+    "twitter": "ionicframework",
+    "about": "Ted is a Turtle.",
+    "location": "Everywhere",
+    "email": "ted@example.com",
+    "phone": "+1-541-754-3010",
+    "styles": ["traditional"],
+    "image" : {
+      "uri": "/assets/img/artists/turtle.jpg"
+    }
+  }
+]

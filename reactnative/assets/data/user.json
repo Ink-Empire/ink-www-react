@@ -1,0 +1,20 @@
+{
+  "id": 1,
+  "name": "Caro Line",
+  "about": "Blah blah di blah",
+  "location": "Louisville, KY, USA",
+  "email": "caro@example.com",
+  "phone": "+1-541-754-3010",
+  "userType": "user",
+  "isAuthenticated": true,
+  "styles": [
+    "neotraditional",
+    "japanese",
+    "new school"
+  ],
+  "image" : {
+    "id": 1,
+    "filename": "caroline.jpg",
+    "uri": "/test.jpg"
+  }
+}

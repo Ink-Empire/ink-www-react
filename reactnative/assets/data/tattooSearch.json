@@ -1,0 +1,101 @@
+[{
+  "id": 1,
+  "title": "Tree with Fire Leaves",
+  "shop": "InkWell",
+  "primaryImage": "/assets/img/artists/bear.jpg",
+  "twitter": "ionicframework",
+  "about": "Burt is a Bear.",
+  "location": "Everywhere",
+  "email": "burt@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 2,
+  "title": "Bird",
+  "shop": "Infinite Skin",
+  "primaryImage": "/assets/img/artists/cheetah.jpg",
+  "twitter": "ionicframework",
+  "about": "Charlie is a Cheetah.",
+  "location": "Everywhere",
+  "email": "charlie@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 3,
+  "title": "Mother Portrait",
+  "shop": "Anchor and Dagger",
+  "primaryImage": "/assets/img/artists/duck.jpg",
+  "twitter": "ionicframework",
+  "about": "Donald is a Duck.",
+  "location": "Everywhere",
+  "email": "donald@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 4,
+  "title": "Eagle",
+  "shop": "Tattoo Salvation",
+  "primaryImage": "/assets/img/artists/eagle.jpg",
+  "twitter": "ionicframework",
+  "about": "Eva is an Eagle.",
+  "location": "Everywhere",
+  "email": "eva@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 5,
+  "title": "Neotrad Mouse",
+  "shop": "Cheetah Prints",
+  "primaryImage": "/assets/img/artists/elephant.jpg",
+  "twitter": "ionicframework",
+  "about": "Ellie is an Elephant.",
+  "location": "Everywhere",
+  "email": "ellie@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 6,
+  "title": "Death Dancing",
+  "shop": "Grim Reaper",
+  "primaryImage": "/assets/img/artists/giraffe.jpg",
+  "twitter": "ionicframework",
+  "about": "Gino is a Giraffe.",
+  "location": "Everywhere",
+  "email": "gino@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 7,
+  "title": "Skeleton",
+  "shop": "Mama Tried",
+  "primaryImage": "/assets/img/artists/iguana.jpg",
+  "twitter": "ionicframework",
+  "about": "Isabella is an Iguana.",
+  "location": "Everywhere",
+  "email": "isabella@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 8,
+  "title": "Piglet",
+  "shop": "Sneaky Pete's",
+  "primaryImage": "/assets/img/artists/kitten.jpg",
+  "twitter": "ionicframework",
+  "about": "Karl is a Kitten.",
+  "location": "Everywhere",
+  "email": "karl@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 9,
+  "title": "Mickey and Minnie",
+  "shop": "Tats4U",
+  "primaryImage": "/assets/img/artists/lion.jpg",
+  "twitter": "ionicframework",
+  "about": "Lionel is a Lion.",
+  "location": "Everywhere",
+  "email": "lionel@example.com",
+  "phone": "+1-541-754-3010"
+}, {
+  "id": 10,
+  "title": "Smiling Dog",
+  "shop": "Monkey's Uncle",
+  "primaryImage": "/assets/img/artists/mouse.jpg",
+  "twitter": "ionicframework",
+  "about": "Molly is a Mouse.",
+  "location": "Everywhere",
+  "email": "molly@example.com",
+  "phone": "+1-541-754-3010"
+}]
