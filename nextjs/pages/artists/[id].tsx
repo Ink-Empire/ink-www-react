@@ -2,15 +2,23 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
-import { GetStaticProps, GetStaticPaths } from 'next';
-import { ArtistType } from '../../models/artist.interface';
-import artistData from '../../data/artists.json';
+import { useRouter } from 'next/router';
+import { useArtist, useArtistPortfolio } from '../../hooks';
 
-interface ArtistDetailProps {
-  artist: ArtistType;
-}
+export default function ArtistDetail() {
+  const router = useRouter();
+  const { id } = router.query;
+  const { artist, loading: artistLoading, error: artistError } = useArtist(id as string);
+  const { portfolio, loading: portfolioLoading, error: portfolioError } = useArtistPortfolio(id as string);
 
-export default function ArtistDetail({ artist }: ArtistDetailProps) {
+  if (artistLoading) {
+    return <div className="loading">Loading artist details...</div>;
+  }
+
+  if (artistError) {
+    return <div className="error">Error: {artistError.message}</div>;
+  }
+
   if (!artist) {
     return <div>Artist not found</div>;
   }
@@ -82,11 +90,15 @@ export default function ArtistDetail({ artist }: ArtistDetailProps) {
               {artist.twitter && <p>Twitter: @{artist.twitter}</p>}
             </div>
 
-            {artist.tattoos && artist.tattoos.length > 0 && (
-              <div className="artist-work">
-                <h2>Recent Work</h2>
+            <div className="artist-work">
+              <h2>Recent Work</h2>
+              {portfolioLoading ? (
+                <div className="loading">Loading portfolio...</div>
+              ) : portfolioError ? (
+                <div className="error">Error loading portfolio: {portfolioError.message}</div>
+              ) : portfolio.length > 0 ? (
                 <div className="tattoo-grid">
-                  {artist.tattoos.map(tattoo => (
+                  {portfolio.map(tattoo => (
                     <div key={tattoo.id} className="tattoo-item">
                       {tattoo.image && (
                         <Image 
@@ -102,8 +114,10 @@ export default function ArtistDetail({ artist }: ArtistDetailProps) {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p>No portfolio items found.</p>
+              )}
+            </div>
           </div>
         </div>
       </main>
@@ -114,25 +128,3 @@ export default function ArtistDetail({ artist }: ArtistDetailProps) {
     </div>
   );
 }
-
-export const getStaticPaths: GetStaticPaths = async () => {
-  const paths = artistData.map(artist => ({
-    params: { id: artist.id.toString() }
-  }));
-
-  return { paths, fallback: false };
-};
-
-export const getStaticProps: GetStaticProps = async ({ params }) => {
-  const artist = artistData.find(a => a.id.toString() === params?.id);
-
-  if (!artist) {
-    return { notFound: true };
-  }
-
-  return {
-    props: {
-      artist
-    }
-  };
-};

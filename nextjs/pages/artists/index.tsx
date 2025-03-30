@@ -2,16 +2,14 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
-import { GetStaticProps } from 'next';
-import { ArtistType } from '../../models/artist.interface';
 import ArtistCard from '../../components/ArtistCard';
-import artistData from '../../data/artists.json';
+import { useArtists } from '@/hooks';
 
-interface ArtistListProps {
-  artists: ArtistType[];
-}
+export default function ArtistList() {
+  const { artists, loading, error } = useArtists();
 
-export default function ArtistList({ artists }: ArtistListProps) {
+  console.log(artists);
+
   return (
     <div className="container">
       <Head>
@@ -34,11 +32,17 @@ export default function ArtistList({ artists }: ArtistListProps) {
       </header>
 
       <main className="main">
-        <div className="artist-grid">
-          {artists.map(artist => (
-            <ArtistCard key={artist.id} artist={artist} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="loading">Loading artists...</div>
+        ) : error ? (
+          <div className="error">Error: {error.message}</div>
+        ) : (
+          <div className="artist-grid">
+            {artists.map(artist => (
+              <ArtistCard key={artist.id} artist={artist} />
+            ))}
+          </div>
+        )}
       </main>
 
       <footer className="footer">
@@ -46,12 +50,4 @@ export default function ArtistList({ artists }: ArtistListProps) {
       </footer>
     </div>
   );
-}
-
-export const getStaticProps: GetStaticProps = async () => {
-  return {
-    props: {
-      artists: artistData
-    }
-  };
 }

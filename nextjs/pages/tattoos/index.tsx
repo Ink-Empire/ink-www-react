@@ -2,15 +2,12 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
-import { GetStaticProps } from 'next';
 import TattooCard from '../../components/TattooCard';
-import tattooData from '../../data/tattoos.json';
+import { useTattoos } from '../../hooks';
 
-interface TattooListProps {
-  tattoos: any[];
-}
+export default function TattooList() {
+  const { tattoos, loading, error } = useTattoos();
 
-export default function TattooList({ tattoos }: TattooListProps) {
   return (
     <div className="container">
       <Head>
@@ -33,11 +30,17 @@ export default function TattooList({ tattoos }: TattooListProps) {
       </header>
 
       <main className="main">
-        <div className="tattoo-grid">
-          {tattoos.map(tattoo => (
-            <TattooCard key={tattoo.id} tattoo={tattoo} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="loading">Loading tattoos...</div>
+        ) : error ? (
+          <div className="error">Error: {error.message}</div>
+        ) : (
+          <div className="tattoo-grid">
+            {tattoos.map(tattoo => (
+              <TattooCard key={tattoo.id} tattoo={tattoo} />
+            ))}
+          </div>
+        )}
       </main>
 
       <footer className="footer">
@@ -45,12 +48,4 @@ export default function TattooList({ tattoos }: TattooListProps) {
       </footer>
     </div>
   );
-}
-
-export const getStaticProps: GetStaticProps = async () => {
-  return {
-    props: {
-      tattoos: tattooData
-    }
-  };
 }

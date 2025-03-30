@@ -3,20 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 4000",
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor/geolocation": "^7.1.1",
+    "@hookform/resolvers": "^3.3.4",
+    "axios": "^1.6.7",
     "next": "^14.1.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.50.1",
+    "swr": "^2.2.5",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
     "@types/react": "^18.2.63",
     "@types/react-dom": "^18.2.19",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.3.3"
   }
 }

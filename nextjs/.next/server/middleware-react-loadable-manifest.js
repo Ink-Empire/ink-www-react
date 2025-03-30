@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST="{\"node_modules/@capacitor/geolocation/dist/esm/index.js -> ./web\":{\"id\":\"node_modules/@capacitor/geolocation/dist/esm/index.js -> ./web\",\"files\":[\"static/chunks/node_modules_capacitor_geolocation_dist_esm_web_js.js\"]}}"

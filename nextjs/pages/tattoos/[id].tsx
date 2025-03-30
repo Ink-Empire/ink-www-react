@@ -2,14 +2,22 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
-import { GetStaticProps, GetStaticPaths } from 'next';
-import tattooData from '../../data/tattoos.json';
+import { useRouter } from 'next/router';
+import { useTattoo } from '../../hooks';
 
-interface TattooDetailProps {
-  tattoo: any; // Using any for now as the tattoo JSON doesn't match the interface exactly
-}
+export default function TattooDetail() {
+  const router = useRouter();
+  const { id } = router.query;
+  const { tattoo, loading, error } = useTattoo(id as string);
 
-export default function TattooDetail({ tattoo }: TattooDetailProps) {
+  if (loading) {
+    return <div className="loading">Loading tattoo details...</div>;
+  }
+
+  if (error) {
+    return <div className="error">Error: {error.message}</div>;
+  }
+
   if (!tattoo) {
     return <div>Tattoo not found</div>;
   }
@@ -107,25 +115,3 @@ export default function TattooDetail({ tattoo }: TattooDetailProps) {
     </div>
   );
 }
-
-export const getStaticPaths: GetStaticPaths = async () => {
-  const paths = tattooData.map(tattoo => ({
-    params: { id: tattoo.id.toString() }
-  }));
-
-  return { paths, fallback: false };
-};
-
-export const getStaticProps: GetStaticProps = async ({ params }) => {
-  const tattoo = tattooData.find(t => t.id.toString() === params?.id);
-
-  if (!tattoo) {
-    return { notFound: true };
-  }
-
-  return {
-    props: {
-      tattoo
-    }
-  };
-};

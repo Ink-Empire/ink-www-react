@@ -1,0 +1,15 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json first for better caching
+COPY package*.json ./
+
+# Install dependencies with clean slate
+RUN npm ci || npm install
+
+# Expose port 3000
+EXPOSE 4000
+
+# Run Next.js in development mode with the correct host to allow external connections
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

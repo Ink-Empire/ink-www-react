@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --primary-color: #5221d4;
   --secondary-color: #f472b6;
@@ -415,5 +419,27 @@ a {
 
   .artist-work {
     grid-column: auto;
+  }
+}
+
+/* Tailwind Component Layer */
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded font-medium focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  .btn-primary {
+    @apply btn bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500;
+  }
+  .btn-secondary {
+    @apply btn bg-pink-400 text-white hover:bg-pink-500 focus:ring-pink-300;
+  }
+  .input {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500;
+  }
+  .card {
+    @apply p-6 rounded-lg shadow-sm bg-white border border-gray-200 transition-all duration-200 ease-in-out;
+  }
+  .card-hover {
+    @apply hover:shadow-md hover:-translate-y-1;
   }
 }
