@@ -1,10 +1,20 @@
 import { getToken } from './auth';
+import { 
+  generateCacheKey, 
+  getCacheItem, 
+  setCacheItem, 
+  clearCacheItem
+} from './apiCache';
 
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: any;
   headers?: HeadersInit;
   requiresAuth?: boolean;
+  // Cache options
+  useCache?: boolean;        // Whether to use cache at all
+  cacheTTL?: number;         // Cache time-to-live in milliseconds
+  invalidateCache?: boolean; // Force a fresh request even if cache exists
 }
 
 // Function to get CSRF token from cookies
@@ -56,7 +66,28 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     body,
     headers = {},
     requiresAuth = false,
+    // Cache options with defaults
+    useCache = method === 'GET', // Only cache GET requests by default
+    cacheTTL = 5 * 60 * 1000,    // 5 minutes default TTL
+    invalidateCache = false,      // Don't invalidate by default
   } = options;
+  
+  // Generate a cache key for this request
+  const cacheKey = generateCacheKey(endpoint, method, body);
+  
+  // Check if we should try to use the cache
+  if (useCache && !invalidateCache && method === 'GET') {
+    const cachedData = getCacheItem<T>(cacheKey);
+    if (cachedData !== null) {
+      console.log(`Using cached data for ${method} ${endpoint}`);
+      return cachedData;
+    }
+  }
+  
+  // If we're invalidating the cache, clear the item now
+  if (invalidateCache) {
+    clearCacheItem(cacheKey);
+  }
 
   // For all non-GET requests, ensure we have a CSRF token
   if (method !== 'GET' && typeof window !== 'undefined') {
@@ -126,21 +157,29 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     
     // Handle non-JSON responses (like file downloads)
     const contentType = response.headers.get('content-type');
+    let responseData: any;
+    
     if (contentType && contentType.indexOf('application/json') !== -1) {
-      const data = await response.json();
+      responseData = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'API request failed');
+        throw new Error(responseData.message || 'API request failed');
       }
-      
-      return data as T;
     } else {
       if (!response.ok) {
         throw new Error('API request failed');
       }
       
-      return await response.text() as unknown as T;
+      responseData = await response.text();
     }
+    
+    // Cache the successful response if caching is enabled
+    if (useCache && method === 'GET' && response.ok) {
+      console.log(`Caching response for ${method} ${endpoint}`);
+      setCacheItem(cacheKey, responseData, cacheTTL);
+    }
+    
+    return responseData as T;
   } catch (error) {
     console.error('API request error:', error);
     throw error;
@@ -149,15 +188,52 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
 
 // Convenience methods for common API operations
 export const api = {
+  // GET requests with caching enabled by default
   get: <T>(endpoint: string, options: Omit<ApiOptions, 'method' | 'body'> = {}) => 
-    fetchApi<T>(endpoint, { ...options, method: 'GET' }),
+    fetchApi<T>(endpoint, { 
+      ...options, 
+      method: 'GET',
+      useCache: options.useCache !== undefined ? options.useCache : true
+    }),
   
-  post: <T>(endpoint: string, data: any, options: Omit<ApiOptions, 'method'> = {}) => 
-    fetchApi<T>(endpoint, { ...options, method: 'POST', body: data }),
+  // POST requests with caching disabled by default
+  post: <T>(endpoint: string, data: any, options: Omit<ApiOptions, 'method'> = {}) => {
+    // For idempotent POST requests that act like GET (e.g. search with complex params),
+    // we can optionally enable caching
+    const useCache = options.useCache === true;
+    
+    return fetchApi<T>(endpoint, { 
+      ...options, 
+      method: 'POST', 
+      body: data,
+      useCache 
+    });
+  },
   
-  put: <T>(endpoint: string, data: any, options: Omit<ApiOptions, 'method'> = {}) => 
-    fetchApi<T>(endpoint, { ...options, method: 'PUT', body: data }),
+  // PUT requests with cache invalidation
+  put: <T>(endpoint: string, data: any, options: Omit<ApiOptions, 'method'> = {}) => {
+    // When we update a resource, invalidate related GET caches
+    const relatedGetEndpoint = endpoint.split('/').slice(0, -1).join('/');
+    clearCacheItem(generateCacheKey(relatedGetEndpoint, 'GET'));
+    
+    return fetchApi<T>(endpoint, { 
+      ...options, 
+      method: 'PUT', 
+      body: data,
+      useCache: false 
+    });
+  },
   
-  delete: <T>(endpoint: string, options: Omit<ApiOptions, 'method'> = {}) => 
-    fetchApi<T>(endpoint, { ...options, method: 'DELETE' })
+  // DELETE requests with cache invalidation
+  delete: <T>(endpoint: string, options: Omit<ApiOptions, 'method'> = {}) => {
+    // When we delete a resource, invalidate related GET caches
+    const relatedGetEndpoint = endpoint.split('/').slice(0, -1).join('/');
+    clearCacheItem(generateCacheKey(relatedGetEndpoint, 'GET'));
+    
+    return fetchApi<T>(endpoint, { 
+      ...options, 
+      method: 'DELETE',
+      useCache: false 
+    });
+  }
 };

@@ -29,24 +29,86 @@ export const StyleProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // Cache key for styles in localStorage
+    const STYLES_CACHE_KEY = 'styles_cache';
+    
+    // Try to load styles from localStorage first for instant display
+    const tryLoadFromCache = () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedStyles = localStorage.getItem(STYLES_CACHE_KEY);
+          if (cachedStyles) {
+            const stylesData = JSON.parse(cachedStyles);
+            // Check if cache is still valid (less than 24 hours old)
+            const cacheTime = stylesData.timestamp || 0;
+            const currentTime = Date.now();
+            const cacheAge = currentTime - cacheTime;
+            const cacheTTL = 24 * 60 * 60 * 1000; // 24 hours
+            
+            if (cacheAge < cacheTTL && stylesData.styles && stylesData.styles.length > 0) {
+              setStyles(stylesData.styles);
+              // Still fetch fresh data in the background, but no need to show loading
+              return true;
+            }
+          }
+        } catch (err) {
+          console.warn('Error reading styles from cache', err);
+        }
+      }
+      return false;
+    };
+    
+    // Save styles to localStorage
+    const saveToCache = (stylesData: Style[]) => {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(STYLES_CACHE_KEY, JSON.stringify({
+            styles: stylesData,
+            timestamp: Date.now()
+          }));
+        } catch (err) {
+          console.warn('Error saving styles to cache', err);
+        }
+      }
+    };
+    
     const fetchStyles = async () => {
-      setLoading(true);
+      // If we loaded from cache, don't show loading state
+      if (!tryLoadFromCache()) {
+        setLoading(true);
+      }
       
       try {
-        // Replace with your actual API endpoint
-        const response = await api.get<{ styles: Style[] }>('/styles');
+        // Get styles with caching enabled
+        const response = await api.get<{ styles: Style[] }>('/styles', {
+          useCache: true,
+          cacheTTL: 24 * 60 * 60 * 1000 // 24 hours TTL (styles rarely change)
+        });
+        
+        if (!isMounted) return;
+        
         if (response.styles) {
           setStyles(response.styles);
+          saveToCache(response.styles);
         }
       } catch (err) {
+        if (!isMounted) return;
         console.error('Error fetching styles', err);
         setError('Failed to load styles');
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
     fetchStyles();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Function to get style name by ID

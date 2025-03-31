@@ -16,9 +16,8 @@ export const artistService = {
 
   // Search artists
   search: async (params: Record<string, any>): Promise<IArtist[]> => {
-    // Convert params object to URL query string
-    const queryString = new URLSearchParams(params).toString();
-    return api.get<IArtist[]>(`/artists/search?${queryString}`, {
+    // Use POST with params in request body
+    return api.post<IArtist[]>('/artists', params, {
       headers: { 'X-Account-Type': 'artist' }
     });
   },

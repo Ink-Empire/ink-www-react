@@ -9,11 +9,13 @@ export interface ArtistType {
     twitter?: string;
     location?: string;
     phone?: string;
-    styles?: string[];
-    image?: {
+    styles?: (string | {id: number, name: string, parent_id?: number})[];
+    primary_image?: {
+        id: number;
         uri: string;
         artistId?: number;
         title?: string;
+        filename?: string;
     };
     tattoos?: any[];
 }

@@ -12,10 +12,10 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist }) => {
     <div className="artist-card">
       <Link href={`/artists/${artist.id}`}>
         <div className="artist-card-inner">
-          {artist.image && (
+          {artist.primary_image && (
             <div className="artist-image">
               <Image 
-                src={artist.image.uri} 
+                src={artist.primary_image.uri}
                 alt={artist.name || 'Artist'} 
                 width={150}
                 height={150}
@@ -29,9 +29,18 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist }) => {
             {artist.location && <p className="location">{artist.location}</p>}
             {artist.styles && artist.styles.length > 0 && (
               <div className="styles">
-                {artist.styles.map((style, index) => (
-                  <span key={index} className="style-tag">{style}</span>
-                ))}
+                {artist.styles.map((style, index) => {
+                  // Handle both string styles and object styles
+                  const styleText = typeof style === 'string' 
+                    ? style 
+                    : style && typeof style === 'object' && 'name' in style
+                      ? style.name
+                      : '';
+                  
+                  return styleText ? (
+                    <span key={index} className="style-tag">{styleText}</span>
+                  ) : null;
+                })}
               </div>
             )}
           </div>

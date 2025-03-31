@@ -8,14 +8,21 @@ interface TattooCardProps {
 }
 
 const TattooCard: React.FC<TattooCardProps> = ({ tattoo }) => {
+
+  // Log image info for debugging
+  console.log('Tattoo data:', tattoo);
+
+  // Determine the image URI from either primary_image or image
+  const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+  
   return (
     <div className="tattoo-card">
       <Link href={`/tattoos/${tattoo.id}`}>
         <div className="tattoo-card-inner">
-          {tattoo.image && (
+          {imageUri && (
             <div className="tattoo-image-container">
               <Image 
-                src={tattoo.image.uri} 
+                src={imageUri}
                 alt={tattoo.title || 'Tattoo'} 
                 width={200}
                 height={200}
@@ -25,15 +32,24 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo }) => {
           )}
           <div className="tattoo-info">
             <h3>{tattoo.title}</h3>
-            <p className="shop">{tattoo.shopName}</p>
-            {tattoo.artist && <p className="artist">By {tattoo.artist.name}</p>}
+            <p className="shop">{tattoo?.studio?.name}</p>
+
+            {tattoo.artist && <p className="artist">{tattoo.artist.name}</p>}
             {tattoo.styles && tattoo.styles.length > 0 && (
-              <div className="styles">
-                {tattoo.styles.slice(0, 3).map((style: string, index: number) => (
-                  <span key={index} className="style-tag">{style}</span>
-                ))}
-                {tattoo.styles.length > 3 && <span className="more-styles">+{tattoo.styles.length - 3} more</span>}
-              </div>
+                <div className="styles">
+                  {tattoo.styles.map((style, index) => {
+                    // Handle both string styles and object styles
+                    const styleText = typeof style === 'string'
+                        ? style
+                        : style && typeof style === 'object' && 'name' in style
+                            ? style.name
+                            : '';
+
+                    return styleText ? (
+                        <span key={index} className="style-tag">{styleText}</span>
+                    ) : null;
+                  })}
+                </div>
             )}
           </div>
         </div>

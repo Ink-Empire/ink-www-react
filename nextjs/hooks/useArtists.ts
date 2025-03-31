@@ -1,37 +1,117 @@
 import { useState, useEffect } from 'react';
 import { artistService } from '@/services/artistService';
 import { ArtistType } from '@/models/artist.interface';
-import { api } from '../utils/api';
+import { api } from '@/utils/api';
 
 // Hook for fetching artists list
 export function useArtists(searchParams?: Record<string, any>) {
   const [artists, setArtists] = useState<ArtistType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  
+  // Use JSON.stringify to compare searchParams objects
+  const searchParamsKey = JSON.stringify(searchParams || {});
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // Use localStorage caching for artist lists to reduce initial loading time
+    const ARTISTS_CACHE_KEY = `artists_cache:${searchParamsKey}`;
+    
+    // Try to load from localStorage first
+    const tryLoadFromCache = () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedData = localStorage.getItem(ARTISTS_CACHE_KEY);
+          if (cachedData) {
+            const parsedData = JSON.parse(cachedData);
+            
+            // Check if cache is fresh (less than 5 minutes old)
+            const cacheFreshness = 5 * 60 * 1000; // 5 minutes
+            if (parsedData.timestamp && Date.now() - parsedData.timestamp < cacheFreshness) {
+              if (parsedData.artists && Array.isArray(parsedData.artists)) {
+                console.log('Using cached artists data:', parsedData.artists.length, 'artists');
+                setArtists(parsedData.artists);
+                return true;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Error reading artists from cache', e);
+        }
+      }
+      return false;
+    };
+    
+    // Save to localStorage
+    const saveToCache = (artistsData: ArtistType[]) => {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(ARTISTS_CACHE_KEY, JSON.stringify({
+            artists: artistsData,
+            timestamp: Date.now()
+          }));
+        } catch (e) {
+          console.warn('Error saving artists to cache', e);
+        }
+      }
+    };
+    
     const fetchArtists = async () => {
-      try {
+      // If we successfully loaded from cache, don't show loading state
+      // but still fetch fresh data in the background
+      const loadedFromCache = tryLoadFromCache();
+      if (!loadedFromCache) {
         setLoading(true);
+      }
+      
+      try {
+        // Construct the request body from searchParams if provided
+        const requestBody = searchParams || {};
         
-        // Explicitly use POST method, bypassing any cached references to artistService
-        const data = await api.post<ArtistType[]>('/artists', {}, {
-          headers: { 'X-Account-Type': 'artist' }
+        console.log('Fetching artists with search params:', requestBody);
+        
+        // Explicitly use POST method, passing searchParams in the request body
+        // Enable caching for search results
+        const response = await api.post<{ data: ArtistType[] }>('/artists', requestBody, {
+          headers: { 'X-Account-Type': 'artist' },
+          useCache: true, // Enable caching for this POST request as it's idempotent
+          cacheTTL: 5 * 60 * 1000 // 5 minute cache for artist searches
         });
         
-        console.log('Artists fetched successfully via POST:', data.length);
-        setArtists(data.data);
+        if (!isMounted) return;
+        
+        // Process the response
+        let artistsData: ArtistType[] = [];
+        
+        if (response) {
+          console.log('Artists fetched successfully via POST:', response.length);
+          artistsData = response;
+        }
+        setArtists(artistsData);
+        saveToCache(artistsData);
         setError(null);
       } catch (err) {
-        console.error('Error fetching artists:', err);
-        setError(err instanceof Error ? err : new Error('Failed to fetch artists'));
+        if (!isMounted) return;
+        
+        // Only set error if we didn't load from cache
+        if (!loadedFromCache) {
+          console.error('Error fetching artists:', err);
+          setError(err instanceof Error ? err : new Error('Failed to fetch artists'));
+        }
       } finally {
-        setLoading(false);
+        if (isMounted && !loadedFromCache) {
+          setLoading(false);
+        }
       }
     };
 
     fetchArtists();
-  }, [searchParams]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [searchParamsKey]); // Use the stringified version for dependency tracking
 
   return { artists, loading, error };
 }
