@@ -1,14 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import ArtistCard from '../../components/ArtistCard';
-import {useArtists} from '@/hooks';
+import SearchFilters from '../../components/SearchFilters';
+import { useArtists } from '@/hooks';
 
 export default function ArtistList() {
-    const {artists, loading, error} = useArtists();
+    const [searchParams, setSearchParams] = useState<Record<string, any>>({});
+    const [sidebarExpanded, setSidebarExpanded] = useState(true);
+    const { artists, loading, error } = useArtists(searchParams);
 
-    console.log(artists);
+    // Handle filter changes from SearchFilters component
+    const handleFilterChange = (filters: {
+        searchString: string;
+        styles: number[];
+        distance: number;
+    }) => {
+        const params: Record<string, any> = {};
+        
+        // Only add parameters that have values
+        if (filters.searchString) {
+            params.searchString = filters.searchString;
+        }
+        
+        if (filters.styles && filters.styles.length > 0) {
+            params.styles = filters.styles;
+        }
+        
+        if (filters.distance) {
+            params.distance = filters.distance;
+        }
+        
+        setSearchParams(params);
+    };
 
     return (
         <div className="container">
@@ -31,7 +56,20 @@ export default function ArtistList() {
                 <h1>Tattoo Artists</h1>
             </header>
 
-            <main className="main">
+            <main className={`main transition-all duration-300 ${sidebarExpanded ? 'pl-16 md:pl-72' : 'pl-16'}`}>
+                {/* Search Filters Component */}
+                <SearchFilters 
+                    type="artists"
+                    onFilterChange={handleFilterChange}
+                    initialFilters={{
+                        searchString: searchParams.searchString,
+                        styles: searchParams.styles,
+                        distance: searchParams.distance
+                    }}
+                    onSidebarToggle={setSidebarExpanded}
+                    initialExpanded={sidebarExpanded}
+                />
+                
                 {loading ? (
                     <div className="loading">Loading artists...</div>
                 ) : error ? (

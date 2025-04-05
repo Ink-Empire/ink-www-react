@@ -91,6 +91,7 @@ export function useTattoos(searchParams?: Record<string, any>) {
         
         if (response) {
           console.log('Tattoos fetched successfully via POST:', response.length);
+           console.log('Tattoos fetched successfully via POST:', response.length);
           tattoosData = response;
         }
         setTattoos(tattoosData);
