@@ -4,7 +4,7 @@ export interface ArtistType {
     about: string;
     email: string;
     name?: string;
-    shop?: string;
+    studio_name?: string;
     primaryImageId?: number;
     twitter?: string;
     location?: string;

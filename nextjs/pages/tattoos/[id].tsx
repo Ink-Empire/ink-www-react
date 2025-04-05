@@ -3,6 +3,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
+import Layout from '../../components/Layout';
+import LogoText from '../../components/LogoText';
+import { Box } from '@mui/material';
 import { useTattoo } from '../../hooks';
 
 export default function TattooDetail() {
@@ -23,29 +26,23 @@ export default function TattooDetail() {
   }
 
   return (
-    <div className="container">
+    <Layout>
       <Head>
-        <title>{tattoo.title || 'Tattoo Detail'} | Inked In</title>
+        <title>{tattoo.title || 'Tattoo Detail'} | InkedIn</title>
         <meta name="description" content={`View details about this tattoo work`} />
-        <link rel="icon" href="/assets/img/appicon.svg" />
+        <link rel="icon" href="/assets/img/logo.png" />
+        <link rel="preload" href="/fonts/Tattoo-dKGR.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
       </Head>
 
-      <header className="page-header">
-        <Link href="/" className="home-link">
-          <Image 
-            src="/assets/img/appicon.svg" 
-            alt="Inked In Logo" 
-            width={40} 
-            height={40}
-          />
-          <span>Inked In</span>
-        </Link>
-        <Link href="/tattoos" className="back-link">
-          &larr; All Tattoos
-        </Link>
-      </header>
-
-      <main className="main">
+      <div className="py-6">
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Link href="/tattoos" className="back-link" style={{ color: '#339989' }}>
+            &larr; All Tattoos
+          </Link>
+          <h1 className="tattoo-heading">{tattoo.title || 'Tattoo Detail'}</h1>
+          <div style={{ width: '80px' }}></div> {/* Spacer for alignment */}
+        </Box>
         <div className="tattoo-detail">
           <div className="tattoo-header">
             {tattoo.image && (
@@ -107,11 +104,7 @@ export default function TattooDetail() {
             )}
           </div>
         </div>
-      </main>
-
-      <footer className="footer">
-        <p>Powered by Inked In</p>
-      </footer>
-    </div>
+      </div>
+    </Layout>
   );
 }

@@ -1,5 +1,80 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStyles } from '@/contexts/StyleContext';
+
+// MUI Material imports
+import { styled, alpha } from '@mui/material/styles';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import InputBase from '@mui/material/InputBase';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import IconButton from '@mui/material/IconButton';
+import Divider from '@mui/material/Divider';
+import Paper from '@mui/material/Paper';
+
+// MUI Icons
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+
+// Styled components
+const Search = styled('div')(({ theme }) => ({
+  position: 'relative',
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: alpha(theme.palette.common.white, 0.15),
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.common.white, 0.25),
+  },
+  marginBottom: theme.spacing(2),
+  width: '100%',
+  border: `1px solid #e8dbc5`,
+}));
+
+const SearchIconWrapper = styled('div')(({ theme }) => ({
+  padding: theme.spacing(0, 2),
+  height: '100%',
+  position: 'absolute',
+  pointerEvents: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: theme.palette.text.secondary,
+}));
+
+const StyledInputBase = styled(InputBase)(({ theme }) => ({
+  color: 'inherit',
+  width: '100%',
+  '& .MuiInputBase-input': {
+    padding: theme.spacing(1, 1, 1, 0),
+    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+    transition: theme.transitions.create('width'),
+    width: '100%',
+  },
+}));
+
+const FilterPaper = styled(Paper)(({ theme }) => ({
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'space-between',
+  boxShadow: theme.shadows[3],
+  borderRadius: 0,
+}));
+
+const StylesContainer = styled(Box)(({ theme }) => ({
+  maxHeight: 200,
+  overflow: 'auto',
+  padding: theme.spacing(1),
+  border: `1px solid #e8dbc5`,
+  borderRadius: theme.shape.borderRadius,
+  marginTop: theme.spacing(1),
+}));
 
 interface SearchFiltersProps {
   initialFilters?: {
@@ -15,6 +90,7 @@ interface SearchFiltersProps {
   type: 'artists' | 'tattoos';
   onSidebarToggle?: (isExpanded: boolean) => void;
   initialExpanded?: boolean;
+  isLoading?: boolean;
 }
 
 const SearchFilters: React.FC<SearchFiltersProps> = ({
@@ -22,7 +98,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   onFilterChange,
   type,
   onSidebarToggle,
-  initialExpanded = true
+  initialExpanded = true,
+  isLoading = false
 }) => {
   // Get styles from context
   const { styles, loading: stylesLoading } = useStyles();
@@ -32,6 +109,9 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   const [selectedStyles, setSelectedStyles] = useState<number[]>(initialFilters.styles || []);
   const [distance, setDistance] = useState<number>(initialFilters.distance || 50);
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
+  
+  // Debounce search with timer ref
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Distance options in miles
   const distanceOptions = [25, 50, 75, 100];
@@ -41,27 +121,64 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     if (initialFilters.searchString || initialFilters.styles?.length || initialFilters.distance) {
       handleApplyFilters();
     }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
   }, []);
 
-  // Handle search string change
+  // Handle search string change with debounce (500ms)
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchString(e.target.value);
+    const newSearchString = e.target.value;
+    setSearchString(newSearchString);
+    
+    // Clear any existing timer
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    
+    // Set a new timer to apply the filter after typing stops
+    searchTimerRef.current = setTimeout(() => {
+      onFilterChange({
+        searchString: newSearchString,
+        styles: selectedStyles,
+        distance
+      });
+    }, 500);
   };
 
   // Handle style checkbox change
   const handleStyleChange = (styleId: number) => {
-    setSelectedStyles(prev => {
-      if (prev.includes(styleId)) {
-        return prev.filter(id => id !== styleId);
-      } else {
-        return [...prev, styleId];
-      }
+    // Create new styles array first
+    const newStyles = selectedStyles.includes(styleId)
+      ? selectedStyles.filter(id => id !== styleId)
+      : [...selectedStyles, styleId];
+    
+    // Update state
+    setSelectedStyles(newStyles);
+    
+    // Immediately trigger search with updated styles
+    onFilterChange({
+      searchString,
+      styles: newStyles,
+      distance
     });
   };
 
   // Handle distance change
   const handleDistanceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setDistance(Number(e.target.value));
+    const newDistance = Number(e.target.value);
+    setDistance(newDistance);
+    
+    // Immediately apply filter with new distance
+    onFilterChange({
+      searchString,
+      styles: selectedStyles,
+      distance: newDistance
+    });
   };
 
   // Apply all filters
@@ -98,102 +215,206 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   };
 
   return (
-    <div className={`fixed left-0 top-24 h-[calc(100%-96px)] bg-white shadow-lg transition-all duration-300 z-10 flex ${isExpanded ? 'w-64' : 'w-10'}`}>
-      {/* Toggle button */}
-      <button 
-        onClick={toggleSidebar}
-        className="absolute right-0 transform translate-x-1/2 top-10 bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-md focus:outline-none"
-        aria-label={isExpanded ? 'Collapse filter sidebar' : 'Expand filter sidebar'}
-      >
-        {isExpanded ? '←' : '→'}
-      </button>
-
-      {/* Filter content - only show when expanded */}
-      {isExpanded && (
-        <div className="w-full h-full overflow-y-auto p-4 flex flex-col">
-          <h2 className="text-lg font-medium text-gray-800 mb-6 sticky top-0 bg-white pt-2">
-            Filter {type === 'artists' ? 'Artists' : 'Tattoos'}
-          </h2>
-          
-          {/* Search input */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <input
-              type="text"
-              className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder={type === 'artists' ? "Artist name or studio" : "Tattoo description or tags"}
-              value={searchString}
-              onChange={handleSearchChange}
-            />
-          </div>
-          
-          {/* Styles selection as checkboxes */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Styles
-            </label>
-            <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-2">
-              {stylesLoading ? (
-                <div className="text-gray-500 text-sm py-2">Loading styles...</div>
-              ) : (
-                <div className="space-y-2">
-                  {styles.map(style => (
-                    <div key={style.id} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`style-${style.id}`}
-                        checked={selectedStyles.includes(style.id)}
-                        onChange={() => handleStyleChange(style.id)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor={`style-${style.id}`} className="ml-2 block text-sm text-gray-700">
-                        {style.name}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Distance selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Distance (miles)
-            </label>
-            <select
-              className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              value={distance}
-              onChange={handleDistanceChange}
-            >
-              {distanceOptions.map(option => (
-                <option key={option} value={option}>{option} miles</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Filter buttons */}
-          <div className="mt-auto space-y-2 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              onClick={handleApplyFilters}
-            >
-              Apply Filters
-            </button>
-            <button
-              type="button"
-              className="w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              onClick={handleClearFilters}
-            >
-              Clear
-            </button>
-          </div>
-        </div>
+    <>
+      {/* Loading Overlay */}
+      {isLoading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <Paper
+            elevation={4}
+            sx={{
+              p: 4,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              borderRadius: 2
+            }}
+          >
+            <CircularProgress color="primary" size={48} sx={{ mb: 2 }} />
+            <Typography variant="body1" color="text.secondary">
+              Loading {type}...
+            </Typography>
+          </Paper>
+        </Box>
       )}
-    </div>
+
+      {/* Sidebar */}
+      <FilterPaper
+        sx={{
+          position: 'fixed',
+          left: 0,
+          top: '96px',
+          height: 'calc(100% - 96px)',
+          width: isExpanded ? '260px' : '40px',
+          transition: 'width 0.3s ease',
+          zIndex: 10
+        }}
+      >
+        {/* Toggle button */}
+        <IconButton
+          onClick={toggleSidebar}
+          aria-label={isExpanded ? 'Collapse filter sidebar' : 'Expand filter sidebar'}
+          sx={{
+            position: 'absolute',
+            right: -5,
+            top: '20px',
+            transform: 'translateX(50%)',
+            backgroundColor: 'secondary.main',
+             color: 'white',
+            '&:hover': {
+              backgroundColor: 'secondary.dark',
+            },
+            width: 32,
+            height: 32,
+            boxShadow: 2,
+            zIndex: 2
+          }}
+        >
+          {isExpanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+        </IconButton>
+
+        {/* Filter content - only show when expanded */}
+        {isExpanded && (
+          <Box sx={{ 
+            width: '100%', 
+            height: '100%', 
+            overflowY: 'auto',
+            p: 2,
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            
+            {/* Search input */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Search
+              </Typography>
+              <Search>
+                <SearchIconWrapper>
+                  <SearchIcon />
+                </SearchIconWrapper>
+                <StyledInputBase
+                  placeholder={type === 'artists' ? "Artist name or studio" : "Tattoo description or tags"}
+                  value={searchString}
+                  onChange={handleSearchChange}
+                  inputProps={{ 'aria-label': 'search' }}
+                  endAdornment={
+                    searchString ? (
+                      <IconButton 
+                        size="small" 
+                        onClick={() => {
+                          setSearchString('');
+                          onFilterChange({
+                            searchString: '',
+                            styles: selectedStyles,
+                            distance
+                          });
+                        }}
+                        sx={{ mr: 1 }}
+                      >
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    ) : null
+                  }
+                />
+              </Search>
+            </Box>
+
+            {/* Distance selection */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Distance (miles)
+              </Typography>
+              <FormControl fullWidth variant="outlined" size="small" sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8dbc5' } }}>
+                <Select
+                  value={distance}
+                  onChange={handleDistanceChange}
+                  displayEmpty
+                  sx={{ borderColor: '#e8dbc5' }}
+                >
+                  {distanceOptions.map(option => (
+                    <MenuItem key={option} value={option}>{option} miles</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            
+            {/* Styles */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Styles
+              </Typography>
+              <StylesContainer>
+                {stylesLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <CircularProgress size={20} />
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {styles.map(style => (
+                      <FormControlLabel
+                        key={style.id}
+                        control={
+                          <Checkbox 
+                            checked={selectedStyles.includes(style.id)} 
+                            onChange={() => handleStyleChange(style.id)}
+                            size="small"
+                            color="primary"
+                          />
+                        }
+                        label={
+                          <Typography variant="body2">{style.name}</Typography>
+                        }
+                      />
+                    ))}
+                  </Box>
+                )}
+              </StylesContainer>
+            </Box>
+            
+            {/* Filter buttons */}
+            <Box sx={{ 
+              mt: 'auto', 
+              pt: 2, 
+              borderTop: 1, 
+              borderColor: 'divider',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1
+            }}>
+              <Button
+                variant="contained"
+                color="secondary"
+                fullWidth
+                onClick={handleApplyFilters}
+              >
+                Apply Filters
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                fullWidth
+                onClick={handleClearFilters}
+              >
+                Clear
+              </Button>
+            </Box>
+          </Box>
+        )}
+      </FilterPaper>
+    </>
   );
 };
 

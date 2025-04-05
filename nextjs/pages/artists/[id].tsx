@@ -3,6 +3,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
+import Layout from '../../components/Layout';
+import LogoText from '../../components/LogoText';
+import { Box } from '@mui/material';
 import { useArtist, useArtistPortfolio } from '../../hooks';
 
 export default function ArtistDetail() {
@@ -24,29 +27,23 @@ export default function ArtistDetail() {
   }
 
   return (
-    <div className="container">
+    <Layout>
       <Head>
-        <title>{artist.name} | Inked In</title>
+        <title>{artist.name} | InkedIn</title>
         <meta name="description" content={`Learn more about ${artist.name} and their tattoo work`} />
-        <link rel="icon" href="/assets/img/appicon.svg" />
+        <link rel="icon" href="/assets/img/logo.png" />
+        <link rel="preload" href="/fonts/Tattoo-dKGR.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
       </Head>
 
-      <header className="page-header">
-        <Link href="/" className="home-link">
-          <Image 
-            src="/assets/img/appicon.svg" 
-            alt="Inked In Logo" 
-            width={40} 
-            height={40}
-          />
-          <span>Inked In</span>
-        </Link>
-        <Link href="/artists" className="back-link">
-          &larr; All Artists
-        </Link>
-      </header>
-
-      <main className="main">
+      <div className="py-6">
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Link href="/artists" className="back-link" style={{ color: '#339989' }}>
+            &larr; All Artists
+          </Link>
+          <h1 className="tattoo-heading">{artist.name}</h1>
+          <div style={{ width: '80px' }}></div> {/* Spacer for alignment */}
+        </Box>
         <div className="artist-detail">
           <div className="artist-header">
             {artist.image && (
@@ -120,11 +117,7 @@ export default function ArtistDetail() {
             </div>
           </div>
         </div>
-      </main>
-
-      <footer className="footer">
-        <p>Powered by Inked In</p>
-      </footer>
-    </div>
+      </div>
+    </Layout>
   );
 }

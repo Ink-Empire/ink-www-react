@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { GetStaticProps } from 'next';
 import { ArtistType } from '../models/artist.interface';
 import ArtistCard from '../components/ArtistCard';
+import Layout from '../components/Layout';
+import LogoText from '../components/LogoText';
 import artistData from '../data/artists.json';
 
 interface SearchProps {
@@ -28,27 +30,18 @@ export default function Search({ artists, styles }: SearchProps) {
   });
 
   return (
-    <div className="container">
+    <Layout>
       <Head>
-        <title>Search Artists | Inked In</title>
+        <title>Search Artists | InkedIn</title>
         <meta name="description" content="Search for tattoo artists by name, style, or location" />
-        <link rel="icon" href="/assets/img/appicon.svg" />
+        <link rel="icon" href="/assets/img/logo.png" />
+        <link rel="preload" href="/fonts/Tattoo-dKGR.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
       </Head>
 
-      <header className="page-header">
-        <Link href="/" className="home-link">
-          <Image 
-            src="/assets/img/appicon.svg" 
-            alt="Inked In Logo" 
-            width={40} 
-            height={40}
-          />
-          <span>Inked In</span>
-        </Link>
-        <h1>Search Artists</h1>
-      </header>
-
-      <main className="main">
+      <div className="py-6">
+        <h1 className="tattoo-heading text-center mb-8">Search Artists</h1>
+      
         <div className="search-container">
           <div className="search-form">
             <div className="form-group">
@@ -109,11 +102,7 @@ export default function Search({ artists, styles }: SearchProps) {
             )}
           </div>
         </div>
-      </main>
-
-      <footer className="footer">
-        <p>Powered by Inked In</p>
-      </footer>
+      </div>
 
       <style jsx>{`
         .search-container {
@@ -127,9 +116,10 @@ export default function Search({ artists, styles }: SearchProps) {
           grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
           gap: 1.5rem;
           padding: 1.5rem;
-          background: var(--card-background);
+          background: #2a1a1e;
           border-radius: 10px;
-          border: 1px solid var(--border-color);
+          border: 1px solid #382932;
+          color: white;
         }
         
         .form-group {
@@ -152,17 +142,18 @@ export default function Search({ artists, styles }: SearchProps) {
         
         .search-results h2 {
           margin-bottom: 1.5rem;
-          color: var(--primary-color);
+          color: #339989;
         }
         
         .no-results {
           text-align: center;
           padding: 3rem;
-          background: var(--card-background);
+          background: #2a1a1e;
+          color: white;
           border-radius: 10px;
         }
       `}</style>
-    </div>
+    </Layout>
   );
 }
 

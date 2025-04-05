@@ -10,7 +10,12 @@
   },
   "dependencies": {
     "@capacitor/geolocation": "^7.1.1",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
     "@hookform/resolvers": "^3.3.4",
+    "@mui/icons-material": "^7.0.1",
+    "@mui/joy": "^5.0.0-beta.52",
+    "@mui/material": "^7.0.1",
     "axios": "^1.6.7",
     "next": "^14.1.0",
     "react": "^18.2.0",

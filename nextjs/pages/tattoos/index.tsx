@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import TattooCard from '../../components/TattooCard';
 import SearchFilters from '../../components/SearchFilters';
-import { useTattoos } from '../../hooks';
-import { useUserData } from "@/contexts/UserContext";
+import LogoText from '../../components/LogoText';
+import Layout from '../../components/Layout';
+import {useTattoos} from '../../hooks';
+import {useUserData} from "@/contexts/UserContext";
 
 export default function TattooList() {
     const me = useUserData();
-    
+
     // Initialize with user preferences
     const initialSearchParams = {
         searchString: '',
@@ -22,7 +24,7 @@ export default function TattooList() {
 
     const [searchParams, setSearchParams] = useState<Record<string, any>>(initialSearchParams);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
-    const { tattoos, loading, error } = useTattoos(searchParams);
+    const {tattoos, loading, error} = useTattoos(searchParams);
 
     // Handle filter changes from SearchFilters component
     const handleFilterChange = (filters: {
@@ -40,58 +42,46 @@ export default function TattooList() {
     };
 
     return (
-        <div className="container">
+        <Layout>
             <Head>
-                <title>Tattoo Gallery | Inked In</title>
+                <title>Tattoo Gallery | InkedIn</title>
                 <meta name="description" content="Browse our collection of amazing tattoos"/>
-                <link rel="icon" href="/assets/img/appicon.svg"/>
+                <link rel="icon" href="/assets/img/logo.png"/>
+                <link rel="preload" href="/fonts/Tattoo-dKGR.ttf" as="font" type="font/ttf" crossOrigin="anonymous"/>
+                <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous"/>
             </Head>
 
-            <header className="page-header">
-                <Link href="/" className="home-link">
-                    <Image
-                        src="/assets/img/appicon.svg"
-                        alt="Inked In Logo"
-                        width={40}
-                        height={40}
+            <div className="py-6">
+                <div className={`transition-all duration-300 ${sidebarExpanded ? 'pl-16 md:pl-64' : 'pl-16'}`}>
+                    <h1 className="tattoo-heading text-center mb-8">Tattoo Gallery</h1>
+
+                    {/* Search Filters Component */}
+                    <SearchFilters
+                        type="tattoos"
+                        onFilterChange={handleFilterChange}
+                        initialFilters={{
+                            searchString: searchParams.searchString,
+                            styles: searchParams.styles,
+                            distance: searchParams.distance
+                        }}
+                        onSidebarToggle={setSidebarExpanded}
+                        initialExpanded={sidebarExpanded}
+                        isLoading={loading}
                     />
-                    <span>Inked In</span>
-                </Link>
-                <h1>Tattoo Gallery</h1>
-            </header>
 
-            <main className={`main transition-all duration-300 ${sidebarExpanded ? 'pl-16 md:pl-72' : 'pl-16'}`}>
-                {/* Search Filters Component */}
-                <SearchFilters 
-                    type="tattoos"
-                    onFilterChange={handleFilterChange}
-                    initialFilters={{
-                        searchString: searchParams.searchString,
-                        styles: searchParams.styles,
-                        distance: searchParams.distance
-                    }}
-                    onSidebarToggle={setSidebarExpanded}
-                    initialExpanded={sidebarExpanded}
-                />
-                
-                {loading ? (
-                    <div className="loading">Loading tattoos...</div>
-                ) : error ? (
-                    <div className="error">Error: {error.message}</div>
-                ) : (
-                    <div className="artist-grid">
-                        {tattoos && tattoos.response &&
-                            Array.isArray(tattoos.response) &&
-                            tattoos.response.map(tattoo => (
-                                <TattooCard key={tattoo.id} tattoo={tattoo}/>
-                            ))}
-                    </div>
-                )}
-            </main>
-
-            <footer className="footer">
-                <p>Powered by Inked In</p>
-            </footer>
-        </div>
+                    {error ? (
+                        <div className="error">Error: {error.message}</div>
+                    ) : (
+                        <div className="artist-grid">
+                            {tattoos && tattoos.response &&
+                                Array.isArray(tattoos.response) &&
+                                tattoos.response.map(tattoo => (
+                                    <TattooCard key={tattoo.id} tattoo={tattoo}/>
+                                ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </Layout>
     );
 }

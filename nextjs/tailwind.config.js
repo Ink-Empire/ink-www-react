@@ -24,6 +24,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        'tattoo': ['Tattoo-Font', 'Arial', 'cursive'],
       },
     },
   },

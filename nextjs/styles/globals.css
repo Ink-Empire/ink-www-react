@@ -2,14 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Tattoo-Font';
+  src: url('/fonts/tatFont.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --primary-color: #5221d4;
-  --secondary-color: #f472b6;
-  --background-color: #ffffff;
-  --text-color: #333333;
-  --card-background: #f9f9f9;
-  --card-hover: #f1f1f1;
-  --border-color: #e5e5e5;
+  --primary-color: #339989;
+  --secondary-color: #bc6c25;
+  --accent-color: #DC0F38;
+  --background-color: #1c0f13;
+  --text-color: #ffffff;
+  --card-background: #2a1a1e;
+  --card-hover: #382932;
+  --border-color: #382932;
 }
 
 * {
@@ -25,6 +34,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   color: var(--text-color);
+  background-color: var(--background-color);
+  min-height: 100vh;
 }
 
 a {
@@ -422,24 +433,35 @@ a {
   }
 }
 
+/* Custom Classes */
+.tattoo-font {
+  font-family: 'Tattoo-Font' !important;
+}
+
 /* Tailwind Component Layer */
 @layer components {
   .btn {
     @apply px-4 py-2 rounded font-medium focus:outline-none focus:ring-2 focus:ring-offset-2;
   }
   .btn-primary {
-    @apply btn bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500;
+    @apply btn bg-[#339989] text-white hover:bg-[#247c6c] focus:ring-[#339989];
   }
   .btn-secondary {
-    @apply btn bg-pink-400 text-white hover:bg-pink-500 focus:ring-pink-300;
+    @apply btn bg-[#bc6c25] text-white hover:bg-[#9e5b1e] focus:ring-[#bc6c25];
+  }
+  .btn-accent {
+    @apply btn bg-[#DC0F38] text-white hover:bg-[#b00929] focus:ring-[#DC0F38];
   }
   .input {
-    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500;
+    @apply block w-full px-3 py-2 border border-[#d6c9b3] rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#339989] focus:border-[#339989];
   }
   .card {
-    @apply p-6 rounded-lg shadow-sm bg-white border border-gray-200 transition-all duration-200 ease-in-out;
+    @apply p-6 rounded-lg shadow-sm bg-[#2a1a1e] text-white border border-[#382932] transition-all duration-200 ease-in-out;
   }
   .card-hover {
-    @apply hover:shadow-md hover:-translate-y-1;
+    @apply hover:shadow-md hover:-translate-y-1 hover:bg-[#382932];
+  }
+  .tattoo-heading {
+    @apply font-tattoo text-[#339989] text-2xl md:text-4xl;
   }
 }

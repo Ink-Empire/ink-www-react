@@ -12,6 +12,11 @@ interface UserData {
   location_x?: number;
   location_y?: number;
   image?: string;
+  favorites?: {
+    artist?: number[];
+    tattoo?: number[];
+    studio?: number[];
+  };
   profilePhoto?: {
     filepath?: string;
     webviewPath?: string;
@@ -22,6 +27,7 @@ interface UserData {
 interface EnhancedUserData extends UserData {
   updateUser: (data: Partial<UserData>) => Promise<void>;
   updateStyles: (styles: number[]) => Promise<void>;
+  toggleFavorite: (type: "artist" | "tattoo | studio", id: number | undefined) => Promise<void>;
   logout: () => void;
   loading: boolean;
   error: string | null;
@@ -34,6 +40,7 @@ interface UserContextType {
   error: string | null;
   updateUser: (data: Partial<UserData>) => Promise<void>;
   updateStyles: (styles: number[]) => Promise<void>;
+  toggleFavorite: (type: 'artist' | 'tattoo |  studio', id: number) => Promise<void>;
   logout: () => void;
 }
 
@@ -43,6 +50,7 @@ const UserContext = createContext<UserContextType>({
   error: null,
   updateUser: async () => {},
   updateStyles: async () => {},
+  toggleFavorite: async () => {},
   logout: () => {},
 });
 
@@ -196,6 +204,64 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return updateUser({ styles });
   };
 
+  // Toggle favorite for an artist or tattoo
+  const toggleFavorite = async (type: 'artist' | 'tattoo | studio', id: number): Promise<void> => {
+    if (!userData.id) {
+      setError('User is not logged in');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Initialize favorites structure if it doesn't exist
+      const currentFavorites = userData.favorites || { artists: [], tattoos: [] };
+      const currentTypeList = currentFavorites[type] || [];
+      
+      // Check if item is already in favorites
+      const isAlreadyFavorite = currentTypeList.includes(id);
+      
+      // Update favorite list 
+      let updatedFavorites;
+      if (isAlreadyFavorite) {
+        // Remove from favorites
+        updatedFavorites = {
+          ...currentFavorites,
+          [type]: currentTypeList.filter(itemId => itemId !== id)
+        };
+      } else {
+        // Add to favorites
+        updatedFavorites = {
+          ...currentFavorites,
+          [type]: [...currentTypeList, id]
+        };
+      }
+      
+      // Perform API call to update favorites on the server
+      await api.post(`/users/favorites/${type}`, {
+        ids: id,
+        action: isAlreadyFavorite ? 'remove' : 'add'
+      }, { requiresAuth: true });
+      
+      // Update local state
+      const updatedUserData = {
+        ...userData,
+        favorites: updatedFavorites
+      };
+      
+      setUserData(updatedUserData);
+      saveUserToStorage(updatedUserData);
+      
+      console.log(`${isAlreadyFavorite ? 'Removed from' : 'Added to'} favorites: ${type} with ID ${id}`);
+    } catch (err) {
+      console.error('Error updating favorites', err);
+      setError('Failed to update favorites');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Logout user
   const logout = (): void => {
     setUserData({});
@@ -213,6 +279,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         error,
         updateUser,
         updateStyles,
+        toggleFavorite,
         logout,
       }}
     >
@@ -233,6 +300,7 @@ export const useUserData = (): EnhancedUserData => {
     ...context.userData,
     updateUser: context.updateUser,
     updateStyles: context.updateStyles,
+    toggleFavorite: context.toggleFavorite,
     logout: context.logout,
     loading: context.loading,
     error: context.error,

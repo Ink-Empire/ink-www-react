@@ -5,6 +5,14 @@ const nextConfig = {
     domains: [],
     unoptimized: true,
   },
+  webpack(config) {
+    // This config allows properly importing SVG files
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: ['@svgr/webpack']
+    });
+    return config;
+  },
   async rewrites() {
     return [
       {
