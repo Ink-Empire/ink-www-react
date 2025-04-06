@@ -75,7 +75,8 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
         <Card
             variant="outlined"
             sx={{
-                height: 450, // Fixed height for consistent cards
+                minHeight: 420, // Minimum height
+                height: 'auto', // Allow height to adjust based on content
                 display: 'flex',
                 flexDirection: 'column',
                 transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
@@ -147,7 +148,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
                     )}
                 </Box>
 
-                <CardContent sx={{flexGrow: 1, pt: 1}}>
+                <CardContent sx={{pt: 1, pb: '16px !important'}}>
                     <Stack spacing={1}>
                         <Typography
                             variant="h6"
@@ -204,19 +205,24 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
                                     flexWrap: 'wrap',
                                     justifyContent: 'center',
                                     mt: 1,
-                                    height: 64, // Fixed height for 2 rows of styles
-                                    overflow: 'hidden'
+                                    minHeight: 58,
+                                    maxHeight: 84, // Allow for up to 3 rows if needed
+                                    overflow: 'visible' // Don't hide overflowing content
                                 }}
                             >
                                 {getStyleTags()}
                                 {hasMoreStyles && (
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                        sx={{width: '100%', textAlign: 'center', mt: 0.5}}
-                                    >
-                                        +{artist.styles.length - 6} more
-                                    </Typography>
+                                    <Chip
+                                        label={`+${artist.styles.length - 6}`}
+                                        size="small"
+                                        variant="outlined"
+                                        color="secondary"
+                                        sx={{ 
+                                            m: 0.5,
+                                            borderRadius: 1,
+                                            fontSize: '0.7rem'
+                                        }}
+                                    />
                                 )}
                             </Box>
                         )}

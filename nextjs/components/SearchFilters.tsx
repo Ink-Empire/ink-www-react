@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStyles } from '@/contexts/StyleContext';
+import { useAppGeolocation } from '@/utils/geolocation';
 
 // MUI Material imports
 import { styled, alpha } from '@mui/material/styles';
@@ -10,11 +11,13 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import Checkbox from '@mui/material/Checkbox';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import TextField from '@mui/material/TextField';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
-import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 
 // MUI Icons
@@ -81,11 +84,39 @@ interface SearchFiltersProps {
     searchString?: string;
     styles?: number[];
     distance?: number;
+    distanceUnit?: 'mi' | 'km';
+    location?: string;
+    useMyLocation?: boolean;
+    useAnyLocation?: boolean;
+    locationCoords?: {
+      lat: number;
+      lng: number;
+    };
+  };
+  currentFilters?: {
+    searchString?: string;
+    styles?: number[];
+    distance?: number;
+    distanceUnit?: 'mi' | 'km';
+    location?: string;
+    useMyLocation?: boolean;
+    locationCoords?: {
+      lat: number;
+      lng: number;
+    };
   };
   onFilterChange: (filters: {
     searchString: string;
     styles: number[];
     distance: number;
+    distanceUnit?: 'mi' | 'km';
+    location?: string;
+    useMyLocation?: boolean;
+    useAnyLocation?: boolean;
+    locationCoords?: {
+      lat: number;
+      lng: number;
+    };
   }) => void;
   type: 'artists' | 'tattoos';
   onSidebarToggle?: (isExpanded: boolean) => void;
@@ -95,6 +126,7 @@ interface SearchFiltersProps {
 
 const SearchFilters: React.FC<SearchFiltersProps> = ({
   initialFilters = {},
+  currentFilters,
   onFilterChange,
   type,
   onSidebarToggle,
@@ -104,14 +136,73 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   // Get styles from context
   const { styles, loading: stylesLoading } = useStyles();
 
+  // Get geolocation service
+  const geoService = useAppGeolocation();
+  
   // Filter states
   const [searchString, setSearchString] = useState(initialFilters.searchString || '');
   const [selectedStyles, setSelectedStyles] = useState<number[]>(initialFilters.styles || []);
   const [distance, setDistance] = useState<number>(initialFilters.distance || 50);
+  const [distanceUnit, setDistanceUnit] = useState<'mi' | 'km'>(initialFilters.distanceUnit || 'mi');
+  const [useMyLocation, setUseMyLocation] = useState<boolean>(initialFilters.useMyLocation !== undefined ? initialFilters.useMyLocation : true);
+  const [useAnyLocation, setUseAnyLocation] = useState<boolean>(initialFilters.useAnyLocation || false);
+  const [location, setLocation] = useState<string>(initialFilters.location || '');
+  const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | undefined>(initialFilters.locationCoords);
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
+  
+  // Track geolocation status
+  const [geoLoading, setGeoLoading] = useState<boolean>(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   
   // Debounce search with timer ref
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Watch for external filter changes (e.g., from ActiveFilterBadges)
+  useEffect(() => {
+    if (currentFilters) {
+      // Only update if the values are different from current state
+      if (currentFilters.searchString !== undefined && 
+          currentFilters.searchString !== searchString) {
+        setSearchString(currentFilters.searchString);
+      }
+      
+      if (currentFilters.styles !== undefined) {
+        // Check if arrays are different
+        const isDifferent = 
+          currentFilters.styles.length !== selectedStyles.length || 
+          currentFilters.styles.some(id => !selectedStyles.includes(id));
+          
+        if (isDifferent) {
+          setSelectedStyles(currentFilters.styles);
+        }
+      }
+      
+      if (currentFilters.distance !== undefined && 
+          currentFilters.distance !== distance) {
+        setDistance(currentFilters.distance);
+      }
+      
+      if (currentFilters.distanceUnit !== undefined && 
+          currentFilters.distanceUnit !== distanceUnit) {
+        setDistanceUnit(currentFilters.distanceUnit);
+      }
+      
+      if (currentFilters.useMyLocation !== undefined && 
+          currentFilters.useMyLocation !== useMyLocation) {
+        setUseMyLocation(currentFilters.useMyLocation);
+      }
+      
+      if (currentFilters.location !== undefined && 
+          currentFilters.location !== location) {
+        setLocation(currentFilters.location);
+      }
+      
+      if (currentFilters.locationCoords !== undefined &&
+          JSON.stringify(currentFilters.locationCoords) !== JSON.stringify(locationCoords)) {
+        setLocationCoords(currentFilters.locationCoords);
+      }
+    }
+  }, [currentFilters]);
 
   // Distance options in miles
   const distanceOptions = [25, 50, 75, 100];
@@ -145,7 +236,11 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       onFilterChange({
         searchString: newSearchString,
         styles: selectedStyles,
-        distance
+        distance,
+        distanceUnit,
+        location,
+        useMyLocation,
+        locationCoords
       });
     }, 500);
   };
@@ -164,7 +259,11 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     onFilterChange({
       searchString,
       styles: newStyles,
-      distance
+      distance,
+      distanceUnit,
+      location,
+      useMyLocation,
+      locationCoords
     });
   };
 
@@ -177,8 +276,192 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     onFilterChange({
       searchString,
       styles: selectedStyles,
-      distance: newDistance
+      distance: newDistance,
+      distanceUnit,
+      location,
+      useMyLocation,
+      locationCoords
     });
+  };
+  
+  // Handle distance unit change
+  const handleDistanceUnitChange = (unit: 'mi' | 'km') => {
+    setDistanceUnit(unit);
+    
+    // Immediately apply filter with new distance unit
+    onFilterChange({
+      searchString,
+      styles: selectedStyles,
+      distance,
+      distanceUnit: unit,
+      location,
+      useMyLocation
+    });
+  };
+  
+  // Handle location option change
+  const handleLocationOptionChange = async (locationType: 'my' | 'custom' | 'any') => {
+    // Reset state
+    setUseMyLocation(locationType === 'my');
+    setUseAnyLocation(locationType === 'any');
+    
+    if (locationType === 'my') {
+      // If switching to "my location", get the user's coordinates
+      try {
+        setGeoLoading(true);
+        
+        // Get the user's current position
+        const position = await geoService.getCurrentPosition();
+        const myCoords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        
+        setLocationCoords(myCoords);
+        
+        // Apply filter with user's coordinates
+        onFilterChange({
+          searchString,
+          styles: selectedStyles,
+          distance,
+          distanceUnit,
+          location: '',
+          useMyLocation: true,
+          useAnyLocation: false,
+          locationCoords: myCoords
+        });
+      } catch (error) {
+        console.error('Error getting user location:', error);
+        setGeoError(error instanceof Error ? error.message : 'Error getting your location');
+        
+        // Still update the UI state even if we can't get coordinates
+        onFilterChange({
+          searchString,
+          styles: selectedStyles,
+          distance,
+          distanceUnit,
+          location: '',
+          useMyLocation: true,
+          useAnyLocation: false
+        });
+      } finally {
+        setGeoLoading(false);
+      }
+    } else if (locationType === 'custom') {
+      // If switching to custom location, use any existing location text/coords
+      onFilterChange({
+        searchString,
+        styles: selectedStyles,
+        distance,
+        distanceUnit,
+        location,
+        useMyLocation: false,
+        useAnyLocation: false,
+        locationCoords
+      });
+      
+      // If there's already a location entered, get its coordinates
+      if (location.trim() && !locationCoords) {
+        getLocationCoordinates(location);
+      }
+    } else if (locationType === 'any') {
+      // Using "anywhere" option, clear location info
+      setLocation('');
+      setLocationCoords(undefined);
+      setGeoError(null);
+      
+      onFilterChange({
+        searchString,
+        styles: selectedStyles,
+        distance,
+        distanceUnit,
+        location: '',
+        useMyLocation: false,
+        useAnyLocation: true,
+        locationCoords: undefined
+      });
+    }
+  };
+  
+  // Get lat/long for a location string
+  const getLocationCoordinates = async (locationString: string) => {
+    if (!locationString.trim()) return;
+    
+    try {
+      setGeoLoading(true);
+      setGeoError(null);
+      
+      // Use the geoService to get coordinates
+      const geoResult = await geoService.getLatLong(locationString);
+      
+      if (geoResult.items && geoResult.items.length > 0) {
+        const coords = {
+          lat: geoResult.items[0].position.lat,
+          lng: geoResult.items[0].position.lng
+        };
+        
+        setLocationCoords(coords);
+
+        // Update filters with new coordinates
+        onFilterChange({
+          searchString,
+          styles: selectedStyles,
+          distance,
+          distanceUnit,
+          location: locationString,
+          useMyLocation: false,
+          locationCoords: coords
+        });
+        
+        return coords;
+      } else {
+        setGeoError('No results found for this location');
+      }
+    } catch (error) {
+      console.error('Geolocation error:', error);
+      setGeoError(error instanceof Error ? error.message : 'Error finding location');
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+  
+  // Debounce location input for geocoding
+  const locationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Handle location input change
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newLocation = e.target.value;
+    setLocation(newLocation);
+    
+    // Only update if using custom location (not my location or anywhere)
+    if (!useMyLocation && !useAnyLocation) {
+      // Update the search params immediately with the text
+      onFilterChange({
+        searchString,
+        styles: selectedStyles,
+        distance,
+        distanceUnit,
+        location: newLocation,
+        useMyLocation: false,
+        useAnyLocation: false,
+        locationCoords
+      });
+      
+      // Clear any existing timer
+      if (locationTimerRef.current) {
+        clearTimeout(locationTimerRef.current);
+      }
+      
+      // Set a new timer to get coordinates after typing stops
+      if (newLocation.trim()) {
+        locationTimerRef.current = setTimeout(() => {
+          getLocationCoordinates(newLocation);
+        }, 1000); // 1 second debounce
+      } else {
+        // If location is cleared, also clear coordinates
+        setLocationCoords(undefined);
+      }
+    }
   };
 
   // Apply all filters
@@ -186,21 +469,62 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     onFilterChange({
       searchString,
       styles: selectedStyles,
-      distance
+      distance,
+      distanceUnit,
+      location,
+      useMyLocation,
+      useAnyLocation,
+      locationCoords
     });
   };
 
   // Clear all filters
-  const handleClearFilters = () => {
+  const handleClearFilters = async () => {
     setSearchString('');
     setSelectedStyles([]);
     setDistance(50);
+    setDistanceUnit('mi');
+    setUseMyLocation(true);
+    setUseAnyLocation(false);
+    setLocation('');
+    setLocationCoords(undefined);
     
-    onFilterChange({
-      searchString: '',
-      styles: [],
-      distance: 50
-    });
+    try {
+      // Try to get the user's location for the cleared filters
+      setGeoLoading(true);
+      const position = await geoService.getCurrentPosition();
+      const myCoords = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+      
+      setLocationCoords(myCoords);
+      
+      onFilterChange({
+        searchString: '',
+        styles: [],
+        distance: 50,
+        distanceUnit: 'mi',
+        location: '',
+        useMyLocation: true,
+        useAnyLocation: false,
+        locationCoords: myCoords
+      });
+    } catch (error) {
+      console.error('Error getting user location:', error);
+      
+      onFilterChange({
+        searchString: '',
+        styles: [],
+        distance: 50,
+        distanceUnit: 'mi',
+        location: '',
+        useMyLocation: true,
+        useAnyLocation: false
+      });
+    } finally {
+      setGeoLoading(false);
+    }
   };
 
   // Toggle sidebar expansion
@@ -332,24 +656,119 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
               </Search>
             </Box>
 
-            {/* Distance selection */}
+            {/* Location origin selection */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle2" gutterBottom>
-                Distance (miles)
+                Location:
               </Typography>
-              <FormControl fullWidth variant="outlined" size="small" sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8dbc5' } }}>
-                <Select
-                  value={distance}
-                  onChange={handleDistanceChange}
-                  displayEmpty
-                  sx={{ borderColor: '#e8dbc5' }}
-                >
-                  {distanceOptions.map(option => (
-                    <MenuItem key={option} value={option}>{option} miles</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <FormControl component="fieldset">
+                  <RadioGroup
+                    value={
+                      useAnyLocation 
+                        ? 'any' 
+                        : useMyLocation 
+                          ? 'my' 
+                          : 'custom'
+                    }
+                    onChange={(e) => handleLocationOptionChange(e.target.value as 'my' | 'custom' | 'any')}
+                  >
+                    <FormControlLabel
+                        value="any"
+                        control={<Radio size="small" color="primary" />}
+                        label={<Typography variant="body2">Anywhere</Typography>}
+                    />
+                    <FormControlLabel 
+                      value="my" 
+                      control={<Radio size="small" color="primary" />} 
+                      label={<Typography variant="body2">Near Me</Typography>}
+                    />
+                    <FormControlLabel 
+                      value="custom" 
+                      control={<Radio size="small" color="primary" />} 
+                      label={<Typography variant="body2">Near:</Typography>}
+                    />
+                  </RadioGroup>
+                </FormControl>
+                
+                {/* Only show the location input when custom location is selected */}
+                {!useMyLocation && !useAnyLocation && (
+                  <TextField
+                    placeholder="Enter city, zip, or address"
+                    value={location}
+                    onChange={handleLocationChange}
+                    size="small"
+                    fullWidth
+                    variant="outlined"
+                    error={Boolean(geoError)}
+                    helperText={geoError}
+                    InputProps={{
+                      sx: {
+                        fontSize: '0.875rem',
+                        '& .MuiOutlinedInput-notchedOutline': { 
+                          borderColor: '#e8dbc5'
+                        }
+                      },
+                      endAdornment: geoLoading ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : null
+                    }}
+                  />
+                )}
+              </Box>
             </Box>
+            
+            {/* Distance selection - only show when location-based filtering is active */}
+            {(useMyLocation || (!useMyLocation && !useAnyLocation)) && (
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Distance
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FormControlLabel
+                      value="mi"
+                      control={
+                        <Radio 
+                          size="small" 
+                          checked={distanceUnit === 'mi'} 
+                          onChange={() => handleDistanceUnitChange('mi')}
+                          color="primary"
+                        />
+                      }
+                      label={<Typography variant="body2">miles</Typography>}
+                    />
+                    <FormControlLabel
+                      value="km"
+                      control={
+                        <Radio 
+                          size="small" 
+                          checked={distanceUnit === 'km'} 
+                          onChange={() => handleDistanceUnitChange('km')}
+                          color="primary"
+                        />
+                      }
+                      label={<Typography variant="body2">km</Typography>}
+                    />
+                  </Box>
+                </Box>
+                <FormControl fullWidth variant="outlined" size="small" sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8dbc5' } }}>
+                  <Select
+                    value={distance}
+                    onChange={handleDistanceChange}
+                    displayEmpty
+                    sx={{ borderColor: '#e8dbc5' }}
+                  >
+                    {distanceOptions.map(option => (
+                      <MenuItem key={option} value={option}>
+                        {option}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            )}
             
             {/* Styles */}
             <Box sx={{ mb: 3 }}>

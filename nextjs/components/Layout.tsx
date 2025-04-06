@@ -95,8 +95,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               value={
                 router.pathname === '/' ? 0 :
                 router.pathname.startsWith('/artists') ? 1 :
-                router.pathname.startsWith('/tattoos') ? 2 :
-                router.pathname === '/search' ? 3 : false
+                router.pathname === '/search' ? 2 : false
               }
               indicatorColor="primary"
               textColor="white"
@@ -113,12 +112,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 label="Artists" 
                 component={Link} 
                 href="/artists" 
-                sx={{ minWidth: 'auto' }}
-              />
-              <Tab 
-                label="Tattoos" 
-                component={Link} 
-                href="/tattoos" 
                 sx={{ minWidth: 'auto' }}
               />
               <Tab 

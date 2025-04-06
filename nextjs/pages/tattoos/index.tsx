@@ -44,17 +44,14 @@ export default function TattooList() {
     return (
         <Layout>
             <Head>
-                <title>Tattoo Gallery | InkedIn</title>
+                <title> Gallery | InkedIn</title>
                 <meta name="description" content="Browse our collection of amazing tattoos"/>
                 <link rel="icon" href="/assets/img/logo.png"/>
-                <link rel="preload" href="/fonts/Tattoo-dKGR.ttf" as="font" type="font/ttf" crossOrigin="anonymous"/>
                 <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous"/>
             </Head>
 
-            <div className="py-6">
+            <div className="py-3">
                 <div className={`transition-all duration-300 ${sidebarExpanded ? 'pl-16 md:pl-64' : 'pl-16'}`}>
-                    <h1 className="tattoo-heading text-center mb-8">Tattoo Gallery</h1>
-
                     {/* Search Filters Component */}
                     <SearchFilters
                         type="tattoos"

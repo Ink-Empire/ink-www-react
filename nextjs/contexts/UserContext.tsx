@@ -25,6 +25,7 @@ interface UserData {
 
 // Type for the enhanced user data returned by useUserData hook
 interface EnhancedUserData extends UserData {
+  location_lat_long: any;
   updateUser: (data: Partial<UserData>) => Promise<void>;
   updateStyles: (styles: number[]) => Promise<void>;
   toggleFavorite: (type: "artist" | "tattoo | studio", id: number | undefined) => Promise<void>;

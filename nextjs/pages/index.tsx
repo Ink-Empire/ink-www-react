@@ -1,147 +1,264 @@
-import React from 'react';
-import Link from 'next/link';
+import React, {useState, useEffect} from 'react';
 import Head from 'next/head';
-import Layout from '../components/Layout';
-import ArtistCard from '../components/ArtistCard';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/router';
+import TattooCard from '../components/TattooCard';
+import SearchFilters from '../components/SearchFilters';
+import ActiveFilterBadges from '../components/ActiveFilterBadges';
 import LogoText from '../components/LogoText';
-import {useArtists} from '@/hooks'
-import {useUserData} from '@/contexts/UserContext';
+import Layout from '../components/Layout';
+import {useTattoos} from '../hooks';
+import {useUserData} from "@/contexts/UserContext";
+import {undefined} from "zod";
 
 export default function Home() {
-
     const me = useUserData();
+    const router = useRouter();
+    const { studio_id } = router.query;
+    
+    // State for studio name (for filter display)
+    const [studioName, setStudioName] = useState<string>('');
 
-    const myLocation = me?.location_lat_long;
-    const myStyles = me?.styles;
+    // Initialize with user preferences
+    const initialSearchParams = {
+        searchString: '',
+        styles: me?.styles || [],
+        distance: 100,
+        distanceUnit: 'mi',
+        useMyLocation: true,
+        useAnyLocation: false,
+        location: '',
+        locationCoords: me?.location_lat_long ? 
+            `${me.location_lat_long.latitude || me.location_lat_long.lat},${me.location_lat_long.longitude || me.location_lat_long.lng}` 
+            : undefined,
+        studio_near_me: me?.location_lat_long,
+        artist_near_me: me?.location_lat_long,
+        studios: me?.studios,
+        subject: 'tattoos',
+        studio_id: studio_id || undefined
+    };
 
-    const searchParams = {
-        near_location: myLocation,
-        styles: myStyles,
-    }
+    const [searchParams, setSearchParams] = useState<Record<string, any>>(initialSearchParams);
+    const [sidebarExpanded, setSidebarExpanded] = useState(true);
+    const {tattoos, loading, error} = useTattoos(searchParams);
+    
+    // When we get tattoo data back, try to find the studio name based on the studio_id
+    useEffect(() => {
+        if (tattoos?.response && Array.isArray(tattoos.response) && studio_id) {
+            // Find the first tattoo that has the matching studio ID
+            const studioIdStr = String(studio_id);
+            
+            const tattooWithStudio = tattoos.response.find(
+                tattoo => tattoo.studio && String(tattoo.studio.id) === studioIdStr
+            );
+            
+            if (tattooWithStudio?.studio?.name) {
+                setStudioName(tattooWithStudio.studio.name);
+            }
+        }
+    }, [tattoos, studio_id]);
+    
+    // Update searchParams when studio_id changes in the URL
+    useEffect(() => {
+        if (studio_id) {
+            setSearchParams(prev => ({ ...prev, studio_id }));
+        }
+    }, [studio_id]);
 
-    const {artists, loading, error} = useArtists(searchParams);
+    // Handle filter changes from SearchFilters component
+    const handleFilterChange = (filters: {
+        searchString: string;
+        styles: number[];
+        distance: number;
+        distanceUnit?: 'mi' | 'km';
+        location?: string;
+        useMyLocation?: boolean;
+        useAnyLocation?: boolean;
+        locationCoords?: { lat: number; lng: number };
+    }) => {
+        // Build new params object
+        const newParams: Record<string, any> = {
+            searchString: filters.searchString,
+            styles: filters.styles.length > 0 ? filters.styles : me?.styles,
+            distance: filters.distance,
+            distanceUnit: filters.distanceUnit,
+            location: filters.location,
+            useMyLocation: filters.useMyLocation,
+            useAnyLocation: filters.useAnyLocation,
+            subject: 'tattoos'
+        };
+        
+        // Preserve studio_id from URL if it exists
+        if (studio_id) {
+            newParams.studio_id = studio_id;
+        }
+        
+        // Format locationCoords as comma-separated string if present
+        if (filters.locationCoords && filters.locationCoords.lat && filters.locationCoords.lng) {
+            newParams.locationCoords = `${filters.locationCoords.lat},${filters.locationCoords.lng}`;
+        }
+        
+        // Handle location-based parameters
+        if (filters.useMyLocation) {
+            // Using "My location"
+            newParams.studio_near_me = me?.location_lat_long;
+            newParams.artist_near_me = me?.location_lat_long;
+            newParams.studios = me?.studios;
+        } else if (filters.useAnyLocation) {
+            // Using "Anywhere" - explicitly remove location parameters
+            delete newParams.studio_near_me;
+            delete newParams.artist_near_me;
+            delete newParams.locationCoords;
+        } else {
+            // Using custom location - remove my location parameters
+            delete newParams.studio_near_me;
+            delete newParams.artist_near_me;
+        }
+        
+        // Update state with new parameters
+        setSearchParams(newParams);
+    };
 
     return (
         <Layout>
             <Head>
-                <title>InkedIn | Find Your Perfect Tattoo Artist</title>
-                <meta name="description" content="Discover and connect with the best tattoo artists"/>
-                <link rel="icon" href="/assets/img/appicon.svg"/>
+                <title>InkedIn | Find Your Perfect Tattoo</title>
+                <meta name="description" content="Browse our collection of amazing tattoos"/>
+                <link rel="icon" href="/assets/img/logo.png"/>
+                <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous"/>
             </Head>
 
-            <div className="py-12" style={{ backgroundColor: '#2a1a1e', color: 'white' }}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center">
-                        <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl">
-                            <span className="block">
-                              <LogoText fontSize="4rem" className="tattoo-font" />
-                              <style jsx global>{`
-                                .logo-text {
-                                  font-family: 'Tattoo-Font', Arial, cursive !important;
-                                }
-                              `}</style>
-                            </span>
-                            <span className="block text-2xl mt-3 text-white">Find Your Perfect Tattoo Artist</span>
-                        </h1>
-                        <p className="mt-3 max-w-md mx-auto text-base text-gray-300 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-                            Connect with talented tattoo artists, explore stunning designs, and find the perfect match
-                            for your next ink.
-                        </p>
-                    </div>
-                </div>
+            <div className="py-3">
+                <div className={`transition-all duration-300 ${sidebarExpanded ? 'pl-16 md:pl-64' : 'pl-16'}`}>
+                    {/* Search Filters Component */}
+                    <SearchFilters
+                        type="tattoos"
+                        onFilterChange={handleFilterChange}
+                        initialFilters={{
+                            searchString: initialSearchParams.searchString,
+                            styles: initialSearchParams.styles,
+                            distance: initialSearchParams.distance
+                        }}
+                        currentFilters={{
+                            searchString: searchParams.searchString,
+                            styles: searchParams.styles,
+                            distance: searchParams.distance
+                        }}
+                        onSidebarToggle={setSidebarExpanded}
+                        initialExpanded={sidebarExpanded}
+                        isLoading={loading}
+                    />
 
-                <div className="mt-10">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        {/* Main navigation cards */}
-                        <div className="mt-12 grid gap-5 max-w-lg mx-auto lg:grid-cols-3 lg:max-w-none">
-                            <div className="flex flex-col rounded-lg shadow-lg overflow-hidden">
-                                <div className="flex-1 bg-white p-6 flex flex-col justify-between">
-                                    <div className="flex-1">
-                                        <Link href="/artists" className="block mt-2">
-                                            <p className="text-xl font-semibold text-gray-900">Artists</p>
-                                            <p className="mt-3 text-base text-gray-500">
-                                                Find and explore the best tattoo artists for your next piece.
-                                            </p>
-                                        </Link>
-                                    </div>
-                                    <div className="mt-6">
-                                        <Link href="/artists"
-                                              className="text-base font-semibold text-indigo-600 hover:text-indigo-500">
-                                            Explore Artists &rarr;
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
+                    {/* Active Filters Component */}
+                    <ActiveFilterBadges 
+                        searchString={searchParams.searchString}
+                        selectedStyles={searchParams.styles}
+                        distance={searchParams.distance}
+                        distanceUnit={searchParams.distanceUnit}
+                        location={searchParams.location}
+                        useMyLocation={searchParams.useMyLocation}
+                        studioId={searchParams.studio_id}
+                        studioName={studioName}
+                        onClearSearch={() => {
+                            const newParams = { ...searchParams, searchString: '' };
+                            setSearchParams(newParams);
+                            handleFilterChange({
+                                searchString: '',
+                                styles: newParams.styles,
+                                distance: newParams.distance,
+                                distanceUnit: newParams.distanceUnit,
+                                location: newParams.location,
+                                useMyLocation: newParams.useMyLocation,
+                                locationCoords: newParams.locationCoords,
+                                subject: 'tattoos'
+                            });
+                        }}
+                        onClearStyle={(styleId) => {
+                            const newStyles = searchParams.styles.filter(id => id !== styleId);
+                            const newParams = { ...searchParams, styles: newStyles };
+                            setSearchParams(newParams);
+                            handleFilterChange({
+                                searchString: newParams.searchString,
+                                styles: newStyles,
+                                distance: newParams.distance,
+                                distanceUnit: newParams.distanceUnit,
+                                location: newParams.location,
+                                useMyLocation: newParams.useMyLocation,
+                                locationCoords: newParams.locationCoords,
+                                subject: 'tattoos'
+                            });
+                        }}
+                        onClearDistance={() => {
+                            const newParams = { ...searchParams, distance: 50 };
+                            setSearchParams(newParams);
+                            handleFilterChange({
+                                searchString: newParams.searchString,
+                                styles: newParams.styles,
+                                distance: 50,
+                                distanceUnit: newParams.distanceUnit,
+                                location: newParams.location,
+                                useMyLocation: newParams.useMyLocation,
+                                locationCoords: newParams.locationCoords,
+                                subject: 'tattoos'
+                            });
+                        }}
+                        onClearStudio={() => {
+                            // Remove studio_id from URL
+                            router.push('/', undefined, { shallow: true });
+                            
+                            // Clear studio_id from search params
+                            const { studio_id: _studio_id, ...rest } = searchParams;
+                            setSearchParams(rest);
+                            
+                            // Refresh results without studio_id
+                            handleFilterChange({
+                                searchString: rest.searchString || '',
+                                styles: rest.styles || [],
+                                distance: rest.distance,
+                                distanceUnit: rest.distanceUnit,
+                                location: rest.location,
+                                useMyLocation: rest.useMyLocation,
+                                locationCoords: rest.locationCoords
+                            });
+                        }}
+                        onClearLocation={() => {
+                            // When clearing location, we switch back to using "My Location"
+                            const newParams = { 
+                                ...searchParams, 
+                                location: '',
+                                useMyLocation: true,
+                                studio_near_me: me?.location_lat_long,
+                                artist_near_me: me?.location_lat_long,
+                                subject: 'tattoos'
+                            };
+                            setSearchParams(newParams);
+                            handleFilterChange({
+                                searchString: newParams.searchString,
+                                styles: newParams.styles,
+                                distance: newParams.distance,
+                                distanceUnit: newParams.distanceUnit,
+                                location: '',
+                                useMyLocation: true,
+                                locationCoords: me?.location_lat_long ? 
+                                    `${me.location_lat_long.latitude || me.location_lat_long.lat},${me.location_lat_long.longitude || me.location_lat_long.lng}` 
+                                    : undefined,
+                                subject: 'tattoos'
+                            });
+                        }}
+                    />
 
-                            <div className="flex flex-col rounded-lg shadow-lg overflow-hidden">
-                                <div className="flex-1 bg-white p-6 flex flex-col justify-between">
-                                    <div className="flex-1">
-                                        <Link href="/tattoos" className="block mt-2">
-                                            <p className="text-xl font-semibold text-gray-900">Tattoos</p>
-                                            <p className="mt-3 text-base text-gray-500">
-                                                Browse our collection of amazing tattoo work.
-                                            </p>
-                                        </Link>
-                                    </div>
-                                    <div className="mt-6">
-                                        <Link href="/tattoos"
-                                              className="text-base font-semibold text-indigo-600 hover:text-indigo-500">
-                                            View Tattoos &rarr;
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col rounded-lg shadow-lg overflow-hidden">
-                                <div className="flex-1 bg-white p-6 flex flex-col justify-between">
-                                    <div className="flex-1">
-                                        <Link href="/search" className="block mt-2">
-                                            <p className="text-xl font-semibold text-gray-900">Search</p>
-                                            <p className="mt-3 text-base text-gray-500">
-                                                Search for artists by style, location, or name.
-                                            </p>
-                                        </Link>
-                                    </div>
-                                    <div className="mt-6">
-                                        <Link href="/search"
-                                              className="text-base font-semibold text-indigo-600 hover:text-indigo-500">
-                                            Search Now &rarr;
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
+                    {error ? (
+                        <div className="error">Error: {error.message}</div>
+                    ) : (
+                        <div className="artist-grid">
+                            {tattoos && tattoos.response &&
+                                Array.isArray(tattoos.response) &&
+                                tattoos.response.map(tattoo => (
+                                    <TattooCard key={tattoo.id} tattoo={tattoo}/>
+                                ))}
                         </div>
-
-                        {/* Featured Artists section */}
-                        <div className="mt-16">
-                            <h2 className="tattoo-heading text-center mb-8">
-                                Artists for You
-                            </h2>
-
-                            {loading ? (
-                                <div className="text-center p-6">Loading artists...</div>
-                            ) : error ? (
-                                <div className="text-center p-6 text-red-500">Error: {error.message}</div>
-                            ) : artists && artists.response && Array.isArray(artists.response) ? (
-                                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                                    {artists.response.slice(0, 9).map(artist => (
-                                        <div key={artist.id} className="flex flex-col">
-                                            <ArtistCard artist={artist} />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center p-6">No artists found</div>
-                            )}
-
-                            <div className="text-center mt-8">
-                                <Link href="/artists" 
-                                      className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
-                                    View All Artists
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </Layout>
