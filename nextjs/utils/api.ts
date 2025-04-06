@@ -3,7 +3,8 @@ import {
   generateCacheKey, 
   getCacheItem, 
   setCacheItem, 
-  clearCacheItem
+  clearCacheItem,
+  clearCache
 } from './apiCache';
 
 interface ApiOptions {
@@ -235,5 +236,25 @@ export const api = {
       method: 'DELETE',
       useCache: false 
     });
+  },
+  
+  // Clear all API cache or based on a pattern
+  clearCache: (pattern?: string): void => {
+    console.log(`Clearing API cache${pattern ? ` for pattern: ${pattern}` : ' (all items)'}`);
+    
+    // Use the imported clearCache function
+    clearCache(pattern);
+  },
+  
+  // Clear cache specifically for user-related endpoints
+  clearUserCache: (): void => {
+    console.log('Clearing all user-related API cache');
+    
+    // Clear cache for common user-related endpoints
+    clearCache('/users/me');
+    clearCache('/users/');
+    clearCache('/user');
+    clearCache('user');
+    clearCache('profile');
   }
 };

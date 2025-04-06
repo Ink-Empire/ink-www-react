@@ -1,4 +1,5 @@
 import { api } from './api';
+import { clearCache } from './apiCache';
 
 // Token management
 export const getToken = (source: string = 'unknown'): string | null => {
@@ -13,7 +14,9 @@ export const getToken = (source: string = 'unknown'): string | null => {
     if (!token) {
       console.log(`No auth token found in localStorage (requested by ${source})`);
     } else {
-      console.log(`Auth token retrieved from localStorage (requested by ${source})`);
+      // Only log the first few characters of the token for security
+      const tokenPreview = token.substring(0, 10) + '...';
+      console.log(`Auth token retrieved from localStorage (requested by ${source}): ${tokenPreview}`);
     }
     
     return token;
@@ -186,11 +189,70 @@ export const register = async (data: RegisterData): Promise<LoginResponse> => {
 export const logout = async (): Promise<void> => {
   try {
     await api.post('/users/logout', {}, { requiresAuth: true });
+    
+    // Remove auth token
     removeToken();
+    
+    // Clear all user data from localStorage
+    console.log('Clearing all user data from localStorage during logout');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('user_id');
+      
+      // Clear any additional user-related cache items
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('user') || key.includes('token') || key.includes('auth'))) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      // Remove identified keys
+      keysToRemove.forEach(key => {
+        console.log(`Removing localStorage item: ${key}`);
+        localStorage.removeItem(key);
+      });
+      
+      // Clear API cache for user-related endpoints
+      try {
+        // Clear common user-related endpoints directly
+        clearCache('/users/me');
+        clearCache('/users/');
+        clearCache('/user');
+        clearCache('user');
+        clearCache('profile');
+        console.log('AuthUtils: Cleared user-related API cache during logout');
+      } catch (cacheErr) {
+        console.error('AuthUtils: Failed to clear user API cache:', cacheErr);
+      }
+    }
   } catch (error) {
     console.error('Logout error:', error);
-    // Still remove the token even if the API call fails
+    
+    // Still remove all user data even if the API call fails
     removeToken();
+    
+    // Clear user data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('user_id');
+      
+      // Also try to clear API cache even if API call failed
+      try {
+        // Clear common user-related endpoints directly
+        clearCache('/users/me');
+        clearCache('/users/');
+        clearCache('/user');
+        clearCache('user');
+        clearCache('profile');
+        console.log('AuthUtils: Cleared user-related API cache during logout (after API error)');
+      } catch (cacheErr) {
+        console.error('AuthUtils: Failed to clear user API cache:', cacheErr);
+      }
+    }
   }
 };
 

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppGeolocation } from '@/utils/geolocation';
+import { setToken } from '@/utils/auth';
+import { getCsrfToken, fetchCsrfToken } from '@/utils/api';
 
 type RegistrationType = 'user' | 'artist' | 'studio';
 
@@ -37,13 +39,64 @@ const RegisterPage: React.FC = () => {
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormValues>();
   
   const toggleLocation = () => {
-    setUseMyLocation(!useMyLocation);
-    setLocationString('');
-    setLocationLatLong('');
+    const newValue = !useMyLocation;
+    console.log(`Toggling location to: ${newValue ? 'use my location' : 'manual entry'}`);
+    setUseMyLocation(newValue);
+    
+    // If switching to "use my location", immediately try to get the location
+    if (newValue && (registerType === 'user' || registerType === 'artist')) {
+      setLocationString('Detecting your location...');
+      
+      // Get location immediately rather than waiting for effect
+      setTimeout(() => {
+        const getPositionData = async () => {
+          try {
+            console.log('Getting position after toggling to use location');
+            const position = await getCurrentPosition();
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            setLocationLatLong(`${lat},${lng}`);
+            
+            // Use reverse geocoding to get address
+            const locationData = await getLocation(lat, lng);
+            if (locationData.items && locationData.items.length > 0) {
+              const address = locationData.items[0].address;
+              const locationStr = [
+                address.city, 
+                address.state, 
+                address.countryCode
+              ].filter(Boolean).join(', ');
+              
+              setLocationString(locationStr || 'Current Location');
+              setValue('location', locationStr || 'Current Location');
+            } else {
+              setLocationString('Current Location');
+              setValue('location', 'Current Location');
+            }
+          } catch (err) {
+            console.error('Failed to get location after toggling', err);
+            setLocationString('Location unavailable');
+            // If location fails, switch back to manual entry
+            setUseMyLocation(false);
+          }
+        };
+        getPositionData();
+      }, 100);
+    } else {
+      // If switching to manual entry, clear the location
+      setLocationString('');
+      setLocationLatLong('');
+    }
   };
 
-  // Initialize geolocation hook
-  const { getCurrentPosition, getLocation } = useAppGeolocation();
+  // Initialize geolocation hook with all needed functions
+  const { getCurrentPosition, getLocation, getLatLong } = useAppGeolocation();
+  
+  // Debug available geolocation API
+  useEffect(() => {
+    console.log('Geolocation API available:', typeof window !== 'undefined' && !!window.navigator?.geolocation);
+    console.log('Current registration type:', registerType);
+  }, [registerType]);
   
   // Fetch countries when component mounts
   useEffect(() => {
@@ -64,24 +117,28 @@ const RegisterPage: React.FC = () => {
 
     fetchCountries();
 
-    // Get user's location if using "my location"
-    if (useMyLocation && registerType !== 'studio') {
+    // Get user's location if using "my location" (for both regular users and artists)
+    if (useMyLocation && (registerType === 'user' || registerType === 'artist')) {
       const getPositionData = async () => {
         try {
           // Show loading state
           setLocationString('Detecting your location...');
+          console.log(`Attempting to get location for registration type: ${registerType}`);
           
           // Add timeout to handle potential hanging geolocation requests
           const positionPromise = getCurrentPosition();
           const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Location request timed out')), 10000);
+            setTimeout(() => reject(new Error('Location request timed out')), 15000); // Extended timeout
           });
           
           // Use Promise.race to handle either success or timeout
+          console.log('Waiting for geolocation response...');
           const position = await Promise.race([
             positionPromise,
             timeoutPromise
           ]) as any;
+          
+          console.log('Got position:', position?.coords);
           
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
@@ -107,6 +164,12 @@ const RegisterPage: React.FC = () => {
           }
         } catch (err) {
           console.error('Failed to get location', err);
+          console.log('Error details:', {
+            code: (err as any).code,
+            message: err instanceof Error ? err.message : String(err),
+            type: typeof err,
+            registerType
+          });
           
           // Get more specific with the error message
           let errorMessage = 'Location unavailable';
@@ -114,14 +177,18 @@ const RegisterPage: React.FC = () => {
           if (err instanceof Error) {
             if (err.message.includes('timed out')) {
               errorMessage = 'Location request timed out';
+              console.log('Location timed out');
             } else if (err.message.includes('permission') || (err as any).code === 1) {
               errorMessage = 'Location permission denied';
+              console.log('Location permission denied');
               // Toggle to manual entry since user denied permission
               setUseMyLocation(false);
             } else if ((err as any).code === 2) {
               errorMessage = 'Location service unavailable';
+              console.log('Location service unavailable');
             } else if ((err as any).code === 3) {
-              errorMessage = 'Location request timed out';
+              errorMessage = 'Location request timed out (code 3)';
+              console.log('Location timed out (code 3)');
             }
           }
           
@@ -131,6 +198,7 @@ const RegisterPage: React.FC = () => {
           if (useMyLocation) {
             setTimeout(() => {
               // Show a notification to the user
+              console.log('Showing alert for manual location entry');
               alert('We couldn\'t detect your location. You can enter it manually.');
               setUseMyLocation(false);
             }, 500);
@@ -142,7 +210,7 @@ const RegisterPage: React.FC = () => {
     }
   }, [useMyLocation, registerType, setValue, getCurrentPosition, getLocation]);
 
-  const { getLatLong } = useAppGeolocation();
+  // We're already getting getLatLong in the hook initialization above
   
   const handleLocationInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -152,20 +220,26 @@ const RegisterPage: React.FC = () => {
         // Use our geocoding hook to convert address to coordinates
         const locationData = await getLatLong(value);
         
-        if (locationData.items && locationData.items.length > 0) {
+        if (locationData?.items && locationData.items.length > 0) {
           // Use the first result
           const item = locationData.items[0];
-          setLocationString(item.address.label);
-          setLocationLatLong(`${item.position.lat},${item.position.lng}`);
+          // Don't overwrite what the user is currently typing
+          if (item.address?.label) {
+            // Only update if we got a valid result and the user hasn't changed the input
+            if (e.target.value === value) {
+              setLocationLatLong(`${item.position.lat},${item.position.lng}`);
+            }
+          } else {
+            // No valid label found, just keep user's input
+            setLocationLatLong(''); // Clear coordinates
+          }
         } else {
           // No results found, just use the input text
-          setLocationString(value);
           setLocationLatLong(''); // Clear coordinates
         }
       } catch (err) {
         console.error('Geocoding error', err);
-        // On error, just use the input text
-        setLocationString(value);
+        // On error, just keep user's input and clear coordinates
         setLocationLatLong('');
       }
     }
@@ -184,26 +258,30 @@ const RegisterPage: React.FC = () => {
         country
       ].filter(Boolean).join(', ');
       
+      // Always update the location string with what's been entered
+      setLocationString(locationQuery);
+      
       try {
         // Use our geocoding hook to convert address to coordinates
         const locationData = await getLatLong(locationQuery);
         
-        if (locationData.items && locationData.items.length > 0) {
-          // Use the first result
+        if (locationData?.items && locationData.items.length > 0) {
+          // Use the first result for coordinates
           const item = locationData.items[0];
-          setLocationString(item.address.label);
           setLocationLatLong(`${item.position.lat},${item.position.lng}`);
         } else {
-          // No results found, just use the composed string
-          setLocationString(locationQuery);
-          setLocationLatLong(''); // Clear coordinates
+          // No results found, keep the composed string but clear coordinates
+          setLocationLatLong(''); 
         }
       } catch (err) {
         console.error('Geocoding error', err);
-        // On error, just use the composed string
-        setLocationString(locationQuery);
+        // On error, keep the composed string but clear coordinates
         setLocationLatLong('');
       }
+    } else {
+      // Clear location data if required fields are empty
+      setLocationString('');
+      setLocationLatLong('');
     }
   };
 
@@ -240,25 +318,18 @@ const RegisterPage: React.FC = () => {
       console.log('Register payload:', payload);
       
       try {
-        // First, get a CSRF token
-        await fetch('/sanctum/csrf-cookie', {
-          method: 'GET',
-          credentials: 'include',
-        });
+        // First, get a fresh CSRF token
+        console.log('Fetching CSRF token for registration');
+        await fetchCsrfToken();
         
-        // Get the CSRF token from cookies
-        const getCsrfToken = (): string | null => {
-          // Get the XSRF-TOKEN cookie
-          const cookies = document.cookie.split(';');
-          const xsrfCookie = cookies.find(cookie => cookie.trim().startsWith('XSRF-TOKEN='));
-          
-          if (!xsrfCookie) return null;
-          
-          // Extract and decode the token
-          const token = xsrfCookie.split('=')[1];
-          return token ? decodeURIComponent(token) : null;
-        };
+        // Wait to ensure cookies are properly set
+        await new Promise(resolve => setTimeout(resolve, 200));
         
+        // Log CSRF token availability 
+        const csrfTokenAvailable = getCsrfToken() ? true : false;
+        console.log('CSRF token available:', csrfTokenAvailable);
+        
+        // Get the CSRF token from the imported function
         const csrfToken = getCsrfToken();
         console.log('Using CSRF token:', csrfToken);
         
@@ -268,6 +339,7 @@ const RegisterPage: React.FC = () => {
           headers: {
             'Content-Type': 'application/json',
             'X-XSRF-TOKEN': csrfToken || '', // Add the CSRF token
+            'X-Requested-With': 'XMLHttpRequest' // Required for Laravel to identify AJAX requests
           },
           body: JSON.stringify(payload),
           credentials: 'include',
@@ -286,19 +358,60 @@ const RegisterPage: React.FC = () => {
         
         // Handle successful response
         const data = await response.json();
+        console.log('Registration response:', data);
+
         if (data.token) {
-          // Use the setToken utility to safely handle server-side rendering
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('auth_token', data.token);
+          // Use the imported setToken function to safely store token
+          setToken(data.token);
+          
+          // Store user data in localStorage for step-2
+          if (data.user && data.user.id) {
+            console.log('Storing user data in localStorage, ID:', data.user.id);
+            localStorage.setItem('user_data', JSON.stringify(data.user));
+            localStorage.setItem('user_id', data.user.id.toString());
           }
+          
+          // Double-check data was stored properly
+          setTimeout(() => {
+            const storedToken = localStorage.getItem('auth_token');
+            const storedUserId = localStorage.getItem('user_id');
+            
+            if (storedToken && storedUserId) {
+              console.log('Auth token and user ID successfully stored in localStorage');
+            } else {
+              console.error('Storage check failed:', {
+                token: storedToken ? 'present' : 'missing',
+                userId: storedUserId ? 'present' : 'missing'
+              });
+            }
+          }, 100);
+        } else {
+          console.warn('No token received in registration response:', data);
         }
       } catch (apiError) {
         console.error('API error:', apiError);
         throw apiError;
       }
       
-      // Redirect to the next step of registration
-      await router.push(`/register/step-2?type=${registerType}`);
+      // Store the user ID from the response to localStorage
+      if (data && data.user && data.user.id) {
+        localStorage.setItem('user_id', data.user.id.toString());
+        localStorage.setItem('user_data', JSON.stringify(data.user));
+        console.log('Stored user ID and data from registration response:', data.user.id);
+      } else if (data && data.id) {
+        localStorage.setItem('user_id', data.id.toString());
+        localStorage.setItem('user_data', JSON.stringify(data));
+        console.log('Stored user ID and data from registration response:', data.id);
+      }
+      
+      // Redirect to the next step of registration with token in query string
+      // and user ID to ensure it's available in the next step
+      if (data && data.token) {
+        const userId = (data.user && data.user.id) || data.id;
+        await router.push(`/register/step-2?type=${registerType}&token=${encodeURIComponent(data.token)}&userId=${userId}`);
+      } else {
+        await router.push(`/register/step-2?type=${registerType}`);
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -320,7 +433,7 @@ const RegisterPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
+      <div className="max-w-md mx-auto bg-pearl p-6 rounded-lg shadow-md text-black">
         <h1 className="text-2xl font-bold text-center text-gray-900 mb-6">
           Register
         </h1>
@@ -341,7 +454,47 @@ const RegisterPage: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setRegisterType('artist')}
+              onClick={() => {
+                console.log('Switching to artist type from tab');
+                setRegisterType('artist');
+                
+                // If using "my location", try to get location for artist type
+                if (useMyLocation) {
+                  console.log('Switching to artist with location enabled');
+                  // Reset location to trigger detection
+                  setLocationString('Detecting your location...');
+                  
+                  // Add a slight delay to ensure state updates first
+                  setTimeout(() => {
+                    const getPositionData = async () => {
+                      try {
+                        console.log('Getting position after switching to artist tab');
+                        const position = await getCurrentPosition();
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        setLocationLatLong(`${lat},${lng}`);
+                        
+                        // Use reverse geocoding to get address
+                        const locationData = await getLocation(lat, lng);
+                        if (locationData.items && locationData.items.length > 0) {
+                          const address = locationData.items[0].address;
+                          const locationStr = [
+                            address.city, 
+                            address.state, 
+                            address.countryCode
+                          ].filter(Boolean).join(', ');
+                          setLocationString(locationStr || 'Current Location');
+                          setValue('location', locationStr || 'Current Location');
+                        }
+                      } catch (err) {
+                        console.error('Failed to get location after switching to artist tab', err);
+                        setLocationString('Location unavailable');
+                      }
+                    };
+                    getPositionData();
+                  }, 100);
+                }
+              }}
               className={`px-4 py-2 text-sm font-medium border-t border-b ${
                 registerType === 'artist'
                   ? 'bg-indigo-600 text-white border-indigo-600'
@@ -392,7 +545,7 @@ const RegisterPage: React.FC = () => {
             <input
               id="name"
               type="text"
-              className={`mt-1 block w-full px-3 py-2 border ${
+              className={`mt-1 block w-full px-3 py-2 border text-black ${
                 errors.name ? 'border-red-300' : 'border-gray-300'
               } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
               placeholder={namePlaceholder}
@@ -411,7 +564,7 @@ const RegisterPage: React.FC = () => {
             <input
               id="email"
               type="email"
-              className={`mt-1 block w-full px-3 py-2 border ${
+              className={`mt-1 block w-full px-3 py-2 border text-black ${
                 errors.email ? 'border-red-300' : 'border-gray-300'
               } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
               placeholder={emailPlaceholder}
@@ -436,7 +589,7 @@ const RegisterPage: React.FC = () => {
             <input
               id="password"
               type="password"
-              className={`mt-1 block w-full px-3 py-2 border ${
+              className={`mt-1 block w-full px-3 py-2 border text-black ${
                 errors.password ? 'border-red-300' : 'border-gray-300'
               } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
               placeholder="Password"
@@ -461,7 +614,7 @@ const RegisterPage: React.FC = () => {
             <input
               id="password_confirmation"
               type="password"
-              className={`mt-1 block w-full px-3 py-2 border ${
+              className={`mt-1 block w-full px-3 py-2 border text-black ${
                 errors.password_confirmation ? 'border-red-300' : 'border-gray-300'
               } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
               placeholder="Confirm Password"
@@ -489,7 +642,7 @@ const RegisterPage: React.FC = () => {
                 <input
                   id="address1"
                   type="text"
-                  className={`mt-1 block w-full px-3 py-2 border ${
+                  className={`mt-1 block w-full px-3 py-2 border text-black ${
                     errors.address1 ? 'border-red-300' : 'border-gray-300'
                   } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                   placeholder="Address"
@@ -507,7 +660,7 @@ const RegisterPage: React.FC = () => {
                 <input
                   id="address2"
                   type="text"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 text-black rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   placeholder="Address 2 (Optional)"
                   {...register('address2')}
                 />
@@ -525,8 +678,10 @@ const RegisterPage: React.FC = () => {
                       errors.city ? 'border-red-300' : 'border-gray-300'
                     } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                     placeholder="City"
-                    {...register('city', { required: registerType === 'studio' ? 'City is required' : false })}
-                    onChange={() => handleStudioInput()}
+                    {...register('city', { 
+                      required: registerType === 'studio' ? 'City is required' : false,
+                      onChange: () => setTimeout(() => handleStudioInput(), 100)
+                    })}
                   />
                   {errors.city && (
                     <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
@@ -540,10 +695,11 @@ const RegisterPage: React.FC = () => {
                   <input
                     id="state"
                     type="text"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 text-black rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     placeholder="State/Province"
-                    {...register('state')}
-                    onChange={() => handleStudioInput()}
+                    {...register('state', {
+                      onChange: () => setTimeout(() => handleStudioInput(), 100)
+                    })}
                   />
                 </div>
               </div>
@@ -556,10 +712,11 @@ const RegisterPage: React.FC = () => {
                   <input
                     id="postal_code"
                     type="text"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 text-black rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     placeholder="Postal Code"
-                    {...register('postal_code')}
-                    onChange={() => handleStudioInput()}
+                    {...register('postal_code', {
+                      onChange: () => setTimeout(() => handleStudioInput(), 100)
+                    })}
                   />
                 </div>
                 
@@ -569,11 +726,13 @@ const RegisterPage: React.FC = () => {
                   </label>
                   <select
                     id="country"
-                    className={`mt-1 block w-full px-3 py-2 border ${
+                    className={`mt-1 block w-full px-3 py-2 border text-black ${
                       errors.country ? 'border-red-300' : 'border-gray-300'
                     } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
-                    {...register('country', { required: registerType === 'studio' ? 'Country is required' : false })}
-                    onChange={() => handleStudioInput()}
+                    {...register('country', { 
+                      required: registerType === 'studio' ? 'Country is required' : false,
+                      onChange: () => setTimeout(() => handleStudioInput(), 100)
+                    })}
                   >
                     <option value="">Select Country</option>
                     {countries.map(country => (
@@ -595,7 +754,7 @@ const RegisterPage: React.FC = () => {
                 <input
                   id="phone"
                   type="text"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 text-black rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   placeholder="Phone"
                   {...register('phone')}
                 />
@@ -631,9 +790,13 @@ const RegisterPage: React.FC = () => {
                 <input
                   id="location"
                   type="text"
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="block w-full px-3 py-2 border border-gray-300 text-black rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   placeholder="City, State/Province, Country"
-                  onChange={handleLocationInput}
+                  value={locationString}
+                  onChange={(e) => {
+                    setLocationString(e.target.value);
+                    handleLocationInput(e);
+                  }}
                 />
               )}
             </div>
@@ -646,7 +809,48 @@ const RegisterPage: React.FC = () => {
                 id="is-artist"
                 type="checkbox"
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                onChange={(e) => setRegisterType(e.target.checked ? 'artist' : 'user')}
+                onChange={(e) => {
+                  const newType = e.target.checked ? 'artist' : 'user';
+                  console.log(`Changing registration type to: ${newType}`);
+                  setRegisterType(newType);
+                  
+                  // If switching to artist and using location, trigger location detection
+                  if (e.target.checked && useMyLocation) {
+                    console.log('Switching to artist type with location enabled');
+                    // Reset location to trigger detection
+                    setLocationString('Detecting your location...');
+                    // Add a slight delay to ensure state updates first
+                    setTimeout(() => {
+                      const getPositionData = async () => {
+                        try {
+                          console.log('Getting position after switching to artist');
+                          const position = await getCurrentPosition();
+                          const lat = position.coords.latitude;
+                          const lng = position.coords.longitude;
+                          setLocationLatLong(`${lat},${lng}`);
+                          console.log('Got location after switching to artist');
+                          
+                          // Use reverse geocoding to get address
+                          const locationData = await getLocation(lat, lng);
+                          if (locationData.items && locationData.items.length > 0) {
+                            const address = locationData.items[0].address;
+                            const locationStr = [
+                              address.city, 
+                              address.state, 
+                              address.countryCode
+                            ].filter(Boolean).join(', ');
+                            setLocationString(locationStr || 'Current Location');
+                            setValue('location', locationStr || 'Current Location');
+                          }
+                        } catch (err) {
+                          console.error('Failed to get location after type change', err);
+                          setLocationString('Location unavailable');
+                        }
+                      };
+                      getPositionData();
+                    }, 100);
+                  }
+                }}
               />
               <label htmlFor="is-artist" className="ml-2 block text-sm text-gray-900">
                 I am a tattoo artist

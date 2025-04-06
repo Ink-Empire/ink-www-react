@@ -98,11 +98,13 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const fetchUserData = async () => {
       // Check if we have a user ID stored
       const userId = localStorage.getItem(USER_ID_KEY);
+      console.log('UserContext: Found user ID in localStorage:', userId);
       
       // First, check if we have cached userData in localStorage
       const cachedUserData = loadUserFromStorage();
       if (cachedUserData && cachedUserData.id) {
         // If we have cached data, use it initially
+        console.log('UserContext: Using cached user data with ID:', cachedUserData.id);
         setUserData(cachedUserData);
         // Still set loading to true to indicate we're refreshing in the background
         // but the UI can already use the cached data
@@ -114,49 +116,77 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       try {
-        // Use the /users/me endpoint to get the current user with cache enabled
-        console.log('UserContext: Fetching user data from /api/users/me');
-        const response = await api.get<{data: UserData}>('/users/me', { 
-          requiresAuth: true,
-          useCache: true,
-          cacheTTL: 2 * 60 * 1000 // 2 minutes cache for user data
-        });
-        
-        // If component unmounted during fetch, don't update state
-        if (!isMounted) return;
-        
-        // Unwrap the user data from the nested 'data' object
-        const userData = response.data || response;
-        
-        console.log('UserContext: User data received');
-        
-        if (userData) {
-          setUserData(userData);
-          saveUserToStorage(userData);
-        }
-      } catch (err) {
-        // If component unmounted during fetch, don't update state
-        if (!isMounted) return;
-        
-        console.log('UserContext: Failed to fetch from /api/users/me, falling back to stored user ID');
-        
-        // If we already set userData from cache, we don't need to show an error
-        if (!cachedUserData || !cachedUserData.id) {
-          // If /users/me fails and we have a user ID, try the specific user endpoint
-          if (userId) {
-            try {
-              const response = await api.get<{ user: UserData }>(`/users/${userId}`, {
-                useCache: true
-              });
-              if (response.user) {
-                setUserData(response.user);
-                saveUserToStorage(response.user);
-              }
-            } catch (userErr) {
-              console.error('Error fetching user data', userErr);
-              setError('Failed to load user data');
+        // STRATEGY 1: First try with specific user ID if available (most reliable)
+        if (userId) {
+          try {
+            console.log(`UserContext: Fetching specific user data for ID ${userId}`);
+            const directResponse = await api.get<{data?: UserData, user?: UserData}>(`/users/${userId}`, { 
+              requiresAuth: true,
+              useCache: false, // Force a fresh request
+            });
+            
+            // If component unmounted during fetch, don't update state
+            if (!isMounted) return;
+            
+            if (directResponse) {
+              // API might return data in different formats
+              const directUserData = directResponse.data || directResponse.user || directResponse;
+              
+              console.log('UserContext: Successfully fetched user by ID:', userId);
+              
+              // Ensure the ID is correctly set
+              directUserData.id = Number(userId);
+              
+              // Update state and storage
+              setUserData(directUserData);
+              saveUserToStorage(directUserData);
+              setLoading(false);
+              return; // Successfully fetched by ID
             }
+          } catch (idErr) {
+            console.error(`UserContext: Failed to fetch user with ID ${userId}:`, idErr);
+            // Continue to next strategy
           }
+        }
+        
+        // STRATEGY 2: Try the /users/me endpoint
+        try {
+          console.log('UserContext: Fetching user data from /api/users/me');
+          const response = await api.get<{data: UserData}>('/users/me', { 
+            requiresAuth: true,
+            useCache: false, // Force a fresh request
+          });
+          
+          // If component unmounted during fetch, don't update state
+          if (!isMounted) return;
+          
+          // Unwrap the user data from the nested 'data' object
+          const userData = response.data || response;
+          
+          console.log('UserContext: User data received from /users/me');
+          
+          if (userData) {
+            setUserData(userData);
+            saveUserToStorage(userData);
+            setLoading(false);
+            return; // Successfully fetched from /users/me
+          }
+        } catch (meErr) {
+          // If component unmounted during fetch, don't update state
+          if (!isMounted) return;
+          
+          console.log('UserContext: Failed to fetch from /api/users/me:', meErr);
+          // Continue to fallback strategy
+        }
+        
+        // FALLBACK STRATEGY: If both approaches failed but we have cached data, keep using it
+        if (cachedUserData && cachedUserData.id) {
+          console.log('UserContext: Using only cached data as fallback');
+          // No need to update state as we already set it above
+        } else {
+          // We have no data at all
+          console.error('UserContext: Failed to load user data from any source');
+          setError('Failed to load user data');
         }
       } finally {
         // If component unmounted during fetch, don't update state
@@ -184,12 +214,29 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     
     try {
-      // Replace with your actual API endpoint
-      const response = await api.put<{ user: UserData }>(`/users/${userData.id}`, data);
+      // Get current auth token
+      const authToken = localStorage.getItem('auth_token');
+      if (!authToken) {
+        console.warn('No auth token found when trying to update user');
+        throw new Error('Authentication required');
+      }
+      
+      // Make API call with explicit auth token in options
+      const response = await api.put<{ user: UserData }>(`/users/${userData.id}`, data, {
+        requiresAuth: true,
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
       
       if (response.user) {
         setUserData(response.user);
         saveUserToStorage(response.user);
+      } else if (response) {
+        // API might return the user directly without nesting in user property
+        const updatedData = response.data || response;
+        setUserData(updatedData);
+        saveUserToStorage(updatedData);
       }
     } catch (err) {
       console.error('Error updating user', err);
@@ -215,6 +262,13 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     
     try {
+      // Get current auth token
+      const authToken = localStorage.getItem('auth_token');
+      if (!authToken) {
+        console.warn('No auth token found when trying to update favorites');
+        throw new Error('Authentication required');
+      }
+      
       // Initialize favorites structure if it doesn't exist
       const currentFavorites = userData.favorites || { artists: [], tattoos: [] };
       const currentTypeList = currentFavorites[type] || [];
@@ -238,11 +292,16 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
       }
       
-      // Perform API call to update favorites on the server
+      // Perform API call to update favorites on the server with explicit token
       await api.post(`/users/favorites/${type}`, {
         ids: id,
         action: isAlreadyFavorite ? 'remove' : 'add'
-      }, { requiresAuth: true });
+      }, { 
+        requiresAuth: true,
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
       
       // Update local state
       const updatedUserData = {
@@ -265,10 +324,48 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Logout user
   const logout = (): void => {
+    // Clear user data in state
     setUserData({});
+    
     if (typeof window !== 'undefined') {
+      console.log('UserContext: Clearing all user data during logout');
+      
+      // Remove specific user data keys we know about
       localStorage.removeItem(USER_STORAGE_KEY);
       localStorage.removeItem(USER_ID_KEY);
+      localStorage.removeItem('auth_token');
+      
+      // Find and remove any other user-related cache items
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('user') || key.includes('token') || key.includes('auth'))) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      // Remove identified keys
+      keysToRemove.forEach(key => {
+        console.log(`UserContext: Removing localStorage item: ${key}`);
+        localStorage.removeItem(key);
+      });
+      
+      // Also try to clear any API cache related to user data
+      try {
+        // Clear API cache related to user data using our specialized method
+        api.clearUserCache();
+        console.log('UserContext: User API cache cleared');
+      } catch (e) {
+        console.error('UserContext: Failed to clear API cache:', e);
+        
+        // Attempt to clear all cache as a fallback
+        try {
+          api.clearCache();
+          console.log('UserContext: All API cache cleared as fallback');
+        } catch (fallbackErr) {
+          console.error('UserContext: Failed to clear all API cache:', fallbackErr);
+        }
+      }
     }
   };
 

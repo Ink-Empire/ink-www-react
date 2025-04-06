@@ -2,6 +2,8 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/tattoos": "pages/tattoos.js",
-  "/": "pages/index.js"
+  "/artists/[id]": "pages/artists/[id].js",
+  "/register/step-3": "pages/register/step-3.js",
+  "/": "pages/index.js",
+  "/profile": "pages/profile.js"
 }

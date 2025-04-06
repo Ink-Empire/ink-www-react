@@ -1,11 +1,85 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import Link from 'next/link';
+import { getToken, setToken } from '@/utils/auth';
+import { api, fetchCsrfToken } from '@/utils/api';
 
 const RegisterStepThree: React.FC = () => {
   const router = useRouter();
-  const { type } = router.query;
+  const { type, token, userId } = router.query;
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Ensure token is set from query params if available and fetch user data
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        // First, fetch a CSRF token
+        await fetchCsrfToken();
+        
+        // Wait a moment for cookies to be set
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        if (token && typeof token === 'string') {
+          // Set the token in auth storage
+          setToken(token);
+          console.log('Set auth token from query params in step 3');
+        } else {
+          // Check if we already have a token
+          const existingToken = getToken();
+          if (!existingToken) {
+            console.warn('No auth token found in step 3');
+          }
+        }
+        
+        // Ensure we have a valid user ID to fetch
+        const currentUserId = userId || localStorage.getItem('user_id');
+        
+        if (currentUserId) {
+          try {
+            // Fetch fresh user data to ensure it's available in UserContext
+            console.log(`Fetching fresh user data for ID ${currentUserId} after registration`);
+            const authToken = getToken();
+            
+            // Use explicit user ID to fetch from API
+            const response = await api.get(`/users/${currentUserId}`, {
+              requiresAuth: true,
+              headers: {
+                'Authorization': `Bearer ${authToken}`
+              },
+              // Force a fresh request
+              useCache: false
+            });
+            
+            console.log('Successfully fetched fresh user data');
+            
+            // Store the fresh data in localStorage
+            if (response) {
+              // Make sure we're storing the properly structured data
+              const userData = response.data || response;
+              
+              // Ensure the correct user ID is stored
+              userData.id = Number(currentUserId);
+              
+              // Update localStorage with the fresh data
+              localStorage.setItem('user_data', JSON.stringify(userData));
+              localStorage.setItem('user_id', currentUserId.toString());
+              console.log('Updated localStorage with fresh user data in step 3');
+            }
+          } catch (err) {
+            console.error('Failed to fetch user data in step 3:', err);
+          }
+        }
+        
+        setIsInitialized(true);
+      } catch (err) {
+        console.error('Error initializing authentication in step 3:', err);
+        setIsInitialized(true);
+      }
+    };
+    
+    initializeAuth();
+  }, [token, userId]);
   
   const getTitle = () => {
     const registerType = type as string || 'user';
@@ -76,7 +150,7 @@ const RegisterStepThree: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-lg mx-auto bg-white p-8 rounded-lg shadow-md">
+      <div className="max-w-lg mx-auto bg-pearl p-8 rounded-lg shadow-md">
         <div className="text-center mb-8">
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100">
             <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

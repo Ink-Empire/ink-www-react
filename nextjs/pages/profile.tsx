@@ -22,53 +22,111 @@ const ProfilePage: React.FC = () => {
 
   // Load current user data when the component mounts
   useEffect(() => {
-    // Check token status immediately
-    const checkTokenStatus = () => {
+    // IIFE to allow async operations
+    (async () => {
       try {
+        // Check token status immediately
         const token = localStorage.getItem('auth_token');
         console.log('Profile page loaded - token status:', token ? 'present' : 'missing');
         
         if (!token) {
           console.warn('No auth token found, user may need to log in again');
-          // You could redirect to login here if needed
-          // router.push('/login');
+          // Redirect to login since we can't proceed without a token
+          router.push('/login');
+          return;
+        }
+        
+        // Fetch CSRF token as early as possible
+        try {
+          console.log('Fetching CSRF token on profile page load');
+          await fetchCsrfToken();
+          console.log('CSRF token fetch completed');
+        } catch (err) {
+          console.error('Failed to fetch CSRF token:', err);
+        }
+        
+        // First get the user ID from localStorage
+        const userId = localStorage.getItem('user_id');
+        console.log('User ID from localStorage:', userId);
+        
+        // Clear existing userData from localStorage to ensure we get fresh data
+        localStorage.removeItem('user_data');
+        console.log('Cleared existing user data cache on profile page load');
+        
+        // Try multiple approaches to fetch user data
+        let userData = null;
+        
+        // 1. First try: Use the fetchCurrentUser from AuthContext (uses /users/me)
+        try {
+          console.log('Attempting to fetch user via AuthContext...');
+          const authUser = await fetchCurrentUser();
+          if (authUser) {
+            console.log('Successfully fetched user from AuthContext');
+            userData = authUser;
+          }
+        } catch (authErr) {
+          console.error('Error fetching from AuthContext:', authErr);
+        }
+        
+        // 2. Second try: Use the user hooks approach (if first try failed)
+        if (!userData) {
+          try {
+            console.log('Attempting to fetch user via hooks...');
+            const hookUser = await getOneUser();
+            if (hookUser) {
+              console.log('Successfully fetched user via hooks');
+              userData = hookUser;
+            }
+          } catch (hookErr) {
+            console.error('Error fetching via hooks:', hookErr);
+          }
+        }
+        
+        // 3. Third try: Direct API call with user ID if available (most reliable if we have userId)
+        if (userId && (!userData || !userData.id)) {
+          try {
+            console.log(`Attempting direct API call with user ID: ${userId}`);
+            const response = await api.get(`/users/${userId}`, { 
+              requiresAuth: true,
+              useCache: false // Force fresh data
+            });
+            
+            if (response) {
+              console.log('Successfully fetched user via direct API call');
+              // Extract user data (might be nested in data property)
+              const directUserData = response.data || response;
+              userData = directUserData;
+            }
+          } catch (directErr) {
+            console.error('Error with direct API call:', directErr);
+          }
+        }
+        
+        // If we have user data from any of the approaches, store it in localStorage
+        if (userData) {
+          // Ensure the user ID is set correctly
+          if (userId && !userData.id) {
+            userData.id = Number(userId);
+          }
+          
+          // Store the data in localStorage for UserContext to pick up
+          console.log('Storing user data in localStorage:', userData);
+          localStorage.setItem('user_data', JSON.stringify(userData));
+          
+          // Also store the user ID separately for easier access
+          if (userData.id) {
+            localStorage.setItem('user_id', userData.id.toString());
+          }
+        } else {
+          console.error('Failed to fetch user data through all available methods');
+          // If we still couldn't get user data, redirect to login
+          router.push('/login');
         }
       } catch (error) {
-        console.error('Error checking token status:', error);
+        console.error('Error in profile page initialization:', error);
+        router.push('/login');
       }
-    };
-    
-    checkTokenStatus();
-    
-    // Fetch CSRF token as early as possible
-    const fetchCsrf = async () => {
-      try {
-        console.log('Fetching CSRF token on profile page load');
-        await fetchCsrfToken();
-        console.log('CSRF token fetch completed');
-      } catch (err) {
-        console.error('Failed to fetch CSRF token:', err);
-      }
-    };
-    
-    fetchCsrf();
-    
-    const loadUserData = async () => {
-      try {
-        // First try to fetch from AuthContext
-        const authUser = await fetchCurrentUser();
-        console.log(authUser);
-        console.log('Fetched current user from AuthContext (/users/me)');
-        
-        // Then use our hook for complete data
-        await getOneUser();
-        console.log('Fetched current user from useUsers hook (/users/me)');
-      } catch (err) {
-        console.error('Failed to fetch current user:', err);
-      }
-    };
-
-    loadUserData();
+    })();
   }, []);
   
   const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -158,6 +216,10 @@ const ProfilePage: React.FC = () => {
       });
   };
 
+  console.log(userData.image)
+
+  const styleString = userData?.type === 'artist' ? 'My Preferred Styles' : 'My Followed Styles' ?? 'My Styles';
+
   // Auto-hide toast after 2 seconds
   React.useEffect(() => {
     if (showToast) {
@@ -171,12 +233,12 @@ const ProfilePage: React.FC = () => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div className="bg-pearl shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
             <h1 className="text-2xl font-medium leading-6 text-gray-900">Settings</h1>
             <button
               onClick={() => router.back()}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-4 py-2 border border-persian-green text-sm font-medium rounded-md text-persian-green bg-white hover:bg-pearl"
             >
               Back
             </button>
@@ -184,13 +246,13 @@ const ProfilePage: React.FC = () => {
           
           <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-semibold">{userData.name || 'User'}</h2>
+              <h2 className="text-xl font-semibold text-black">{userData.name || 'User'}</h2>
               
               <div className="relative mt-4 inline-block">
                 <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100 mx-auto">
                   {userData.image ? (
                     <img 
-                      src={userData.image} 
+                      src={userData.image?.uri}
                       alt="Profile" 
                       className="w-full h-full object-cover"
                     />
@@ -222,35 +284,57 @@ const ProfilePage: React.FC = () => {
                   )}
                 </div>
                 
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2">
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -bottom-6">
                   <button 
                     onClick={takeProfilePhoto}
-                    className="px-3 py-1 bg-white rounded-full border border-gray-300 text-sm shadow-sm hover:bg-gray-50"
+                    className="px-3 py-1 bg-white rounded-full border border-persian-green text-sm shadow-sm hover:bg-pearl text-persian-green"
                   >
                     Change Photo
                   </button>
                 </div>
               </div>
+              
+              {/* My Public Page link (for artists only) */}
+              {userData.type === 'artist' && userData.id && (
+                <div className="mt-5">
+                  <Link 
+                    href={`/artists/${userData.id}`}
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-persian-green border border-persian-green rounded-md hover:bg-pearl"
+                  >
+                    <svg 
+                      className="w-4 h-4 mr-2" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    My Public Page
+                  </Link>
+                </div>
+              )}
             </div>
             
             <div className="mt-6 divide-y divide-gray-200">
               {/* Account settings list */}
               <ul className="divide-y divide-gray-200">
-                <li className="py-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 px-4" onClick={changeUsername}>
+                <li className="py-4 flex justify-between items-center cursor-pointer hover:bg-pearl hover:bg-opacity-75 px-4" onClick={changeUsername}>
                   <div className="text-sm font-medium text-gray-900">{userData?.name ?? 'Change Name'} </div>
                   <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                   </svg>
                 </li>
                 
-                <li className="py-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 px-4" onClick={changeEmail}>
+                <li className="py-4 flex justify-between items-center cursor-pointer hover:bg-pearl hover:bg-opacity-75 px-4" onClick={changeEmail}>
                   <div className="text-sm font-medium text-gray-900">{userData?.email ?? 'Change Email'}</div>
                   <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                   </svg>
                 </li>
                 
-                <li className="py-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 px-4" onClick={changePassword}>
+                <li className="py-4 flex justify-between items-center cursor-pointer hover:bg-pearl hover:bg-opacity-75 px-4" onClick={changePassword}>
                   <div className="text-sm font-medium text-gray-900">Change Password</div>
                   <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
@@ -260,7 +344,7 @@ const ProfilePage: React.FC = () => {
                 <li className="py-4 px-4">
                   <Link 
                     href="/support" 
-                    className="text-sm font-medium text-gray-900 hover:text-indigo-600"
+                    className="text-sm font-medium text-gray-900 hover:text-persian-green"
                   >
                     Support
                   </Link>
@@ -269,7 +353,7 @@ const ProfilePage: React.FC = () => {
                 <li className="py-4 px-4">
                   <button 
                     onClick={handleLogout}
-                    className="text-sm font-medium text-gray-900 hover:text-indigo-600"
+                    className="text-sm font-medium text-gray-900 hover:text-persian-green"
                   >
                     Logout
                   </button>
@@ -278,7 +362,7 @@ const ProfilePage: React.FC = () => {
                 {/* Style preferences */}
                 <li className="py-4">
                   <div className="flex justify-between items-center px-4 cursor-pointer" onClick={openStylesModal}>
-                    <div className="text-sm font-medium text-gray-900">My Followed Styles</div>
+                    <div className="text-sm font-medium text-gray-900">{styleString}</div>
                     <svg 
                       className="h-5 w-5 text-gray-400" 
                       xmlns="http://www.w3.org/2000/svg" 
@@ -289,13 +373,13 @@ const ProfilePage: React.FC = () => {
                     </svg>
                   </div>
                   
-                  <div className="mt-4 px-4 flex flex-wrap gap-2">
+                  <div className="mt-6 px-4 flex flex-wrap gap-2">
                     {userData.styles?.map(styleId => (
-                      <div key={styleId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <div key={styleId} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-persian-green bg-opacity-20 text-persian-green">
                         {getStyleName(styleId)}
                         <button
                           type="button"
-                          className="ml-1.5 inline-flex text-blue-400 hover:text-blue-600"
+                          className="ml-1.5 inline-flex text-persian-green hover:text-persian-green"
                           onClick={() => removeStyle(styleId)}
                         >
                           <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">

@@ -20,7 +20,9 @@ module.exports = {
         background: {
           light: '#F9FAFB',
           dark: '#111827',
-        }
+        },
+        pearl: '#F5F5F0',
+        'persian-green': '#00A693',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
