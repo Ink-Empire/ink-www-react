@@ -132,7 +132,7 @@ export function useArtist(id: string | null) {
       try {
         setLoading(true);
         const data = await artistService.getById(id);
-        setArtist(data);
+        setArtist(data.artist);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error(`Failed to fetch artist with ID ${id}`));
@@ -163,6 +163,8 @@ export function useArtistPortfolio(artistId: string | null) {
       try {
         setLoading(true);
         const data = await artistService.getPortfolio(artistId);
+
+        console.log(data);
         setPortfolio(data);
         setError(null);
       } catch (err) {

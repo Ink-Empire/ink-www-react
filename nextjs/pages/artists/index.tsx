@@ -12,8 +12,6 @@ export default function ArtistList() {
     const {artists, loading, error} = useArtists(searchParams);
     const user = useUserData();
 
-    console.log(user);
-
     // Handle filter changes from SearchFilters component
     const handleFilterChange = (filters: {
         searchString: string;
@@ -50,7 +48,7 @@ export default function ArtistList() {
 
             <div className="py-6">
                 <div className={`transition-all duration-300 ${sidebarExpanded ? 'md:pl-60' : 'pl-16'}`}>
-                    <h1 className="tattoo-heading text-center mb-8">Tattoo Artists</h1>
+                    <h1 className="tattoo-heading text-center mb-8">Artists</h1>
 
                     {/* Search Filters Component */}
                     <SearchFilters

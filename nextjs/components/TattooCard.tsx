@@ -12,6 +12,9 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo }) => {
   // Determine the image URI from either primary_image or image
   const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
   
+  // Determine the artist image URI
+  const artistImageUri = tattoo.artist?.primary_image?.uri || tattoo.artist?.image?.uri;
+  
   // Get style tags (limit to first 6 for consistent card height)
   const getStyleTags = () => {
     if (!tattoo.styles || tattoo.styles.length === 0) return null;
@@ -51,7 +54,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo }) => {
     <Card 
       variant="outlined"
       sx={{ 
-        height: 450, // Fixed height for consistent cards
+        height: 400, // Adjusted height
         display: 'flex',
         flexDirection: 'column',
         transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
@@ -72,8 +75,85 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo }) => {
           height: '100%'
         }}
       >
+        {/* Artist Avatar */}
+        <Box sx={{ 
+          px: 2, 
+          pt: 2,
+          pb: 1
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            mb: 0.2
+          }}>
+            {artistImageUri && (
+              <Link
+                href={`/artists/${tattoo.artist?.id}`}
+                onClick={(e) => e.stopPropagation()} // Prevent triggering the card click
+              >
+                <Box 
+                  sx={{ 
+                    width: 40, 
+                    height: 40, 
+                    borderRadius: '50%', 
+                    overflow: 'hidden',
+                    position: 'relative',
+                    mr: 1.5,
+                    border: '1px solid #eee',
+                    transition: 'transform 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'scale(1.05)'
+                    }
+                  }}
+                >
+                  <Image
+                    src={artistImageUri}
+                    alt={tattoo.artist?.name || 'Artist'}
+                    fill
+                    style={{ objectFit: 'cover' }}
+                  />
+                </Box>
+              </Link>
+            )}
+            <Link 
+              href={`/artists/${tattoo.artist?.id}`}
+              onClick={(e) => e.stopPropagation()} // Prevent triggering the card click
+              style={{ 
+                textDecoration: 'none', 
+                color: 'inherit',
+                '&:hover': { textDecoration: 'underline' }
+              }}
+            >
+              <Typography variant="subtitle2" noWrap sx={{ '&:hover': { color: '#339989' } }}>
+                {tattoo.artist?.name || 'Unknown Artist'}
+              </Typography>
+            </Link>
+          </Box>
+          
+          {tattoo?.studio?.name && (
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{
+                fontSize: '0.75rem',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                pl: artistImageUri ? 7 : 0 // Align with artist name if avatar exists
+              }}
+            >
+              {tattoo.studio.name}
+            </Typography>
+          )}
+        </Box>
+
+        {/* Tattoo Image - Takes up the rest of the card */}
         {imageUri && (
-          <Box sx={{ position: 'relative', paddingTop: '65%', width: '100%' }}>
+          <Box sx={{ 
+            position: 'relative',
+            flexGrow: 1,
+            width: '100%'
+          }}>
             <CardMedia
               component="img"
               image={imageUri}
@@ -88,82 +168,33 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo }) => {
                 objectPosition: 'center'
               }}
             />
-          </Box>
-        )}
-        
-        <CardContent sx={{ flexGrow: 1, pt: 2 }}>
-          <Stack spacing={1}>
-            <Typography 
-              variant="h6" 
-              component="h3" 
-              gutterBottom
-              sx={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 1,
-                WebkitBoxOrient: 'vertical'
-              }}
-            >
-              {tattoo.title}
-            </Typography>
             
-            {tattoo?.studio?.name && (
-              <Typography 
-                variant="body2" 
-                color="text.secondary"
-                sx={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 1,
-                  WebkitBoxOrient: 'vertical'
-                }}
-              >
-                {tattoo.studio.name}
-              </Typography>
-            )}
-            
-            {tattoo.artist && (
-              <Typography 
-                variant="body2" 
-                color="text.secondary"
-                sx={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 1,
-                  WebkitBoxOrient: 'vertical'
-                }}
-              >
-                {tattoo.artist.name}
-              </Typography>
-            )}
-            
-            {tattoo.styles && tattoo.styles.length > 0 && (
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  mt: 1,
-                  height: 64, // Fixed height for 2 rows of styles
-                  overflow: 'hidden'
-                }}
-              >
-                {getStyleTags()}
-                {hasMoreStyles && (
-                  <Typography 
-                    variant="caption" 
-                    color="text.secondary" 
-                    sx={{ width: '100%', textAlign: 'center', mt: 0.5 }}
-                  >
-                    +{tattoo.styles.length - 6} more
-                  </Typography>
-                )}
+            {/* Optional title overlay at the bottom */}
+            {tattoo.title && (
+              <Box sx={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
+                padding: '20px 16px 8px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.6)'
+              }}>
+                <Typography 
+                  variant="body2" 
+                  color="white"
+                  sx={{
+                    fontWeight: 'medium',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                </Typography>
               </Box>
             )}
-          </Stack>
-        </CardContent>
+          </Box>
+        )}
       </CardActionArea>
     </Card>
   );

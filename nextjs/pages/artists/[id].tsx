@@ -2,122 +2,160 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/router';
+import {useRouter} from 'next/router';
 import Layout from '../../components/Layout';
 import LogoText from '../../components/LogoText';
-import { Box } from '@mui/material';
-import { useArtist, useArtistPortfolio } from '../../hooks';
+import {Box} from '@mui/material';
+import {useArtist, useArtistPortfolio} from '../../hooks';
+import TattooCard from "@/components/TattooCard";
 
 export default function ArtistDetail() {
-  const router = useRouter();
-  const { id } = router.query;
-  const { artist, loading: artistLoading, error: artistError } = useArtist(id as string);
-  const { portfolio, loading: portfolioLoading, error: portfolioError } = useArtistPortfolio(id as string);
+    const router = useRouter();
+    const {id} = router.query;
+    const {artist, loading: artistLoading, error: artistError} = useArtist(id as string);
 
-  if (artistLoading) {
-    return <div className="loading">Loading artist details...</div>;
-  }
+    const portfolio = artist?.tattoos || [];
 
-  if (artistError) {
-    return <div className="error">Error: {artistError.message}</div>;
-  }
+    if (artistLoading) {
+        return <div className="loading">Loading artist details...</div>;
+    }
 
-  if (!artist) {
-    return <div>Artist not found</div>;
-  }
+    if (artistError) {
+        return <div className="error">Error: {artistError.message}</div>;
+    }
 
-  return (
-    <Layout>
-      <Head>
-        <title>{artist.name} | InkedIn</title>
-        <meta name="description" content={`Learn more about ${artist.name} and their tattoo work`} />
-        <link rel="icon" href="/assets/img/logo.png" />
-        <link rel="preload" href="/fonts/Tattoo-dKGR.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
-        <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
-      </Head>
+    if (!artist) {
+        return <div>Artist not found</div>;
+    }
 
-      <div className="py-6">
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Link href="/artists" className="back-link" style={{ color: '#339989' }}>
-            &larr; All Artists
-          </Link>
-          <h1 className="tattoo-heading">{artist.name}</h1>
-          <div style={{ width: '80px' }}></div> {/* Spacer for alignment */}
-        </Box>
-        <div className="artist-detail">
-          <div className="artist-header">
-            {artist.image && (
-              <div className="artist-image-large">
-                <Image 
-                  src={artist.image.uri} 
-                  alt={artist.name || 'Artist'} 
-                  width={250}
-                  height={250}
-                  className="rounded-image-large"
-                />
-              </div>
-            )}
-            <div className="artist-header-info">
-              <h1>{artist.name}</h1>
-              <p className="shop">{artist.shop}</p>
-              {artist.location && <p className="location">{artist.location}</p>}
-              {artist.styles && artist.styles.length > 0 && (
-                <div className="styles">
-                  <p>Styles:</p>
-                  <div className="style-tags">
-                    {artist.styles.map((style, index) => (
-                      <span key={index} className="style-tag">{style}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+    return (
+        <Layout>
+            <Head>
+                <title>{artist.name} | InkedIn</title>
+                <meta name="description" content={`Learn more about ${artist.name} and their tattoo work`}/>
+                <link rel="icon" href="/assets/img/logo.png"/>
+                <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous"/>
+            </Head>
 
-          <div className="artist-content">
-            <div className="artist-about">
-              <h2>About</h2>
-              <p>{artist.about}</p>
-            </div>
-
-            <div className="artist-contact">
-              <h2>Contact</h2>
-              <p>Email: {artist.email}</p>
-              {artist.phone && <p>Phone: {artist.phone}</p>}
-              {artist.twitter && <p>Twitter: @{artist.twitter}</p>}
-            </div>
-
-            <div className="artist-work">
-              <h2>Recent Work</h2>
-              {portfolioLoading ? (
-                <div className="loading">Loading portfolio...</div>
-              ) : portfolioError ? (
-                <div className="error">Error loading portfolio: {portfolioError.message}</div>
-              ) : portfolio.length > 0 ? (
-                <div className="tattoo-grid">
-                  {portfolio.map(tattoo => (
-                    <div key={tattoo.id} className="tattoo-item">
-                      {tattoo.image && (
-                        <Image 
-                          src={tattoo.image.uri} 
-                          alt={tattoo.description} 
-                          width={200}
-                          height={200}
-                          className="tattoo-image"
-                        />
-                      )}
-                      <p>{tattoo.description}</p>
-                      {tattoo.tags && <span className="tattoo-tag">{tattoo.tags}</span>}
+            <div className="py-6">
+                <div className="artist-grid" style={{display: 'block', maxWidth: '750px', margin: '0 auto'}}>
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        marginBottom: '20px',
+                        paddingLeft: '1px'
+                    }}>
+                        <div style={{
+                            width: '80px', 
+                            height: '80px', 
+                            position: 'relative',
+                            marginBottom: '8px',
+                            borderRadius: '50%',
+                            overflow: 'hidden'
+                        }}>
+                            <Image 
+                                src={artist.primary_image?.uri}
+                                alt={artist.name || 'Artist'}
+                                fill
+                                className="object-cover"
+                            />
+                        </div>
+                        <h3 style={{
+                            margin: '0',
+                            fontSize: '18px', 
+                            fontWeight: 'bold'
+                        }}>{artist.name}</h3>
+                        <p style={{
+                            margin: '0',
+                            fontSize: '14px',
+                            color: '#888'
+                        }}>{artist?.studio_name}</p>
+                        {artist?.location && (
+                          <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              fontSize: '14px',
+                              color: '#888',
+                              margin: '0'
+                          }}>
+                              <span style={{ marginRight: '4px' }}>📍</span>
+                              <span>{artist?.location}</span>
+                          </div>
+                        )}
+                        
+                        {artist?.styles && artist.styles.length > 0 && (
+                          <div style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '6px',
+                              marginTop: '12px',
+                              marginBottom: '12px'
+                          }}>
+                              {artist.styles.map((style, index) => {
+                                  const styleName = typeof style === 'string' ? style : style.name;
+                                  return (
+                                      <span key={index} style={{
+                                          backgroundColor: '#339989',
+                                          color: 'white',
+                                          padding: '2px 8px',
+                                          borderRadius: '12px',
+                                          fontSize: '12px',
+                                          whiteSpace: 'nowrap'
+                                      }}>
+                                          {styleName}
+                                      </span>
+                                  );
+                              })}
+                          </div>
+                        )}
+                        
+                        {artist?.about && (
+                          <>
+                            <hr style={{
+                              width: '100%',
+                              margin: '15px 0',
+                              border: 'none',
+                              borderTop: '1px solid #333',
+                            }} />
+                            <p style={{
+                              margin: '0',
+                              fontSize: '14px',
+                              lineHeight: '1.5',
+                              color: '#ccc',
+                              maxWidth: '450px'
+                            }}>
+                              {artist.about}
+                            </p>
+                          </>
+                        )}
                     </div>
-                  ))}
+                    {portfolio.length > 0 ? (
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: `repeat(auto-fit, minmax(${Math.floor(750/3)}px, 1fr))`,
+                            gap: '2px',
+                            width: '100%'
+                        }}>
+                            {portfolio.map(tattoo => (
+                                <div key={tattoo.id} style={{
+                                    aspectRatio: '1/1',
+                                    position: 'relative'
+                                }}>
+                                    <Image
+                                        src={tattoo.primary_image?.uri}
+                                        alt={tattoo.title || 'Tattoo work'}
+                                        fill
+                                        className="object-cover"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p>No portfolio items found.</p>
+                    )}
                 </div>
-              ) : (
-                <p>No portfolio items found.</p>
-              )}
             </div>
-          </div>
-        </div>
-      </div>
-    </Layout>
-  );
+        </Layout>
+    );
 }

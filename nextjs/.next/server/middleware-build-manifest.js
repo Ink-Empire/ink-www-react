@@ -19,15 +19,15 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/artists": [
+    "/artists/[id]": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/artists.js"
+      "static/chunks/pages/artists/[id].js"
     ],
-    "/profile": [
+    "/tattoos": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/profile.js"
+      "static/chunks/pages/tattoos.js"
     ]
   },
   "ampFirstPages": []
