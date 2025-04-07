@@ -9,11 +9,6 @@ self.__BUILD_MANIFEST = {
   "lowPriorityFiles": [],
   "rootMainFiles": [],
   "pages": {
-    "/": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/index.js"
-    ],
     "/_app": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
@@ -29,10 +24,10 @@ self.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/artists/[id].js"
     ],
-    "/profile": [
+    "/tattoos/update": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/profile.js"
+      "static/chunks/pages/tattoos/update.js"
     ]
   },
   "ampFirstPages": []

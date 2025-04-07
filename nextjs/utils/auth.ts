@@ -258,13 +258,57 @@ export const logout = async (): Promise<void> => {
 
 export const checkAuth = async (): Promise<boolean> => {
   try {
-    const token = getToken();
-    if (!token) return false;
+    const token = getToken('auth-check');
+    if (!token) {
+      console.log('No auth token found during auth check');
+      return false;
+    }
     
-    await api.get('/users/me', { requiresAuth: true });
+    console.log('Checking auth with token');
+    // Use forceRefresh to ensure we're not using cached data
+    await api.get('/users/me', { 
+      requiresAuth: true,
+      useCache: false,
+      forceRefresh: true
+    });
+    
+    console.log('Auth check successful - token is valid');
     return true;
   } catch (error) {
-    removeToken();
+    console.error('Auth check failed:', error);
+    // Don't immediately remove token on error - it might be a temporary network issue
+    // Instead, add a consecutive failure counter
+    
+    // Get current failure count
+    let failures = 0;
+    if (typeof window !== 'undefined') {
+      try {
+        const storedFailures = localStorage.getItem('auth_failures');
+        failures = storedFailures ? parseInt(storedFailures, 10) : 0;
+      } catch (e) {
+        console.error('Error reading auth failures from localStorage:', e);
+      }
+    }
+    
+    // Increment and store failure count
+    failures++;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('auth_failures', failures.toString());
+      } catch (e) {
+        console.error('Error storing auth failures to localStorage:', e);
+      }
+    }
+    
+    // Only remove token after 3 consecutive failures
+    if (failures >= 3) {
+      console.log('Auth check has failed 3 times - removing token');
+      removeToken();
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_failures');
+      }
+    }
+    
     return false;
   }
 };

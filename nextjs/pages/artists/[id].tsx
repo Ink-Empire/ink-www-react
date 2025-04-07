@@ -1,20 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import {useRouter} from 'next/router';
 import Layout from '../../components/Layout';
 import LogoText from '../../components/LogoText';
-import {Box} from '@mui/material';
+import {Box, Button, Modal, Paper, IconButton} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
 import {useArtist, useArtistPortfolio} from '../../hooks';
 import TattooCard from "@/components/TattooCard";
+import {useAuth} from '../../contexts/AuthContext';
+import TattooUpload from '@/components/TattooUpload';
 
 export default function ArtistDetail() {
     const router = useRouter();
     const {id} = router.query;
     const {artist, loading: artistLoading, error: artistError} = useArtist(id as string);
-
+    const {user, isAuthenticated} = useAuth();
+    const [uploadModalOpen, setUploadModalOpen] = useState(false);
+    
+    const isOwner = isAuthenticated && user && user.id === Number(id);
     const portfolio = artist?.tattoos || [];
+    
+    const handleOpenUploadModal = () => {
+        setUploadModalOpen(true);
+    };
+    
+    const handleCloseUploadModal = () => {
+        setUploadModalOpen(false);
+    };
+    
+    const handleUploadSuccess = (tattooId: number) => {
+        // Refresh the artist's portfolio data
+        router.replace(router.asPath);
+    };
 
     if (artistLoading) {
         return <div className="loading">Loading artist details...</div>;
@@ -38,7 +57,25 @@ export default function ArtistDetail() {
             </Head>
 
             <div className="py-6">
-                <div className="artist-grid" style={{display: 'block', maxWidth: '750px', margin: '0 auto'}}>
+                <div className="artist-grid" style={{display: 'block', maxWidth: '750px', margin: '0 auto', position: 'relative'}}>
+                    {isOwner && (
+                        <Button 
+                            variant="contained" 
+                            onClick={handleOpenUploadModal}
+                            style={{
+                                position: 'absolute',
+                                top: '0',
+                                right: '0',
+                                backgroundColor: '#339989',
+                                color: 'white',
+                                fontSize: '12px',
+                                padding: '4px 10px',
+                                zIndex: 10
+                            }}
+                        >
+                            Upload New
+                        </Button>
+                    )}
                     <div style={{
                         display: 'flex',
                         flexDirection: 'column',
@@ -148,6 +185,28 @@ export default function ArtistDetail() {
                                         fill
                                         className="object-cover"
                                     />
+                                    {isOwner && (
+                                        <IconButton 
+                                            size="small"
+                                            aria-label="edit"
+                                            onClick={() => router.push(`/tattoos/update?id=${tattoo.id}`)}
+                                            sx={{
+                                                position: 'absolute',
+                                                top: 5,
+                                                right: 5,
+                                                bgcolor: 'rgba(0, 0, 0, 0.5)',
+                                                color: 'white',
+                                                '&:hover': { 
+                                                    bgcolor: 'rgba(0, 0, 0, 0.7)', 
+                                                    color: '#339989' 
+                                                },
+                                                zIndex: 10,
+                                                padding: '6px',
+                                            }}
+                                        >
+                                            <EditIcon fontSize="small" />
+                                        </IconButton>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -156,6 +215,34 @@ export default function ArtistDetail() {
                     )}
                 </div>
             </div>
+            
+            {/* TattooUpload Modal */}
+            <Modal
+                open={uploadModalOpen}
+                onClose={handleCloseUploadModal}
+                aria-labelledby="tattoo-upload-modal"
+                aria-describedby="modal-for-uploading-new-tattoo-images"
+            >
+                <Paper 
+                    sx={{ 
+                        position: 'absolute', 
+                        top: '50%', 
+                        left: '50%', 
+                        transform: 'translate(-50%, -50%)',
+                        maxWidth: '90%',
+                        maxHeight: '90%',
+                        overflow: 'auto',
+                        bgcolor: 'background.paper',
+                        boxShadow: 24,
+                        borderRadius: 1
+                    }}
+                >
+                    <TattooUpload 
+                        onClose={handleCloseUploadModal} 
+                        onSuccess={handleUploadSuccess}
+                    />
+                </Paper>
+            </Modal>
         </Layout>
     );
 }

@@ -18,11 +18,24 @@ interface ApiOptions {
   invalidateCache?: boolean; // Force a fresh request even if cache exists
 }
 
-// Function to get CSRF token from cookies
+// Function to get CSRF token from cookies or localStorage
 export const getCsrfToken = (): string | null => {
   if (typeof document === 'undefined') return null; // SSR check
   
-  // Get the XSRF-TOKEN cookie
+  // First try to get from localStorage
+  if (typeof window !== 'undefined') {
+    try {
+      const storedToken = localStorage.getItem('csrf_token');
+      if (storedToken) {
+        console.log('Using CSRF token from localStorage');
+        return storedToken;
+      }
+    } catch (e) {
+      console.error('Error reading CSRF token from localStorage:', e);
+    }
+  }
+  
+  // If not in localStorage, try cookies
   const cookies = document.cookie.split(';');
   const xsrfCookie = cookies.find(cookie => cookie.trim().startsWith('XSRF-TOKEN='));
   
@@ -34,6 +47,16 @@ export const getCsrfToken = (): string | null => {
   // Extract and decode the token
   const token = xsrfCookie.split('=')[1];
   const decodedToken = token ? decodeURIComponent(token) : null;
+  
+  // Store token in localStorage for persistence
+  if (decodedToken && typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('csrf_token', decodedToken);
+      console.log('Saved CSRF token to localStorage');
+    } catch (e) {
+      console.error('Error saving CSRF token to localStorage:', e);
+    }
+  }
   
   if (decodedToken) {
     console.log('XSRF-TOKEN found in cookies');
