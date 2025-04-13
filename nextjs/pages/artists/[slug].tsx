@@ -5,12 +5,15 @@ import Image from 'next/image';
 import {useRouter} from 'next/router';
 import Layout from '../../components/Layout';
 import LogoText from '../../components/LogoText';
-import {Box, Button, Modal, Paper, IconButton} from '@mui/material';
+import {Box, Button, Modal, Paper, IconButton, Tabs, Tab} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import ImageIcon from '@mui/icons-material/Image';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import {useArtist, useArtistPortfolio} from '../../hooks';
 import TattooCard from "@/components/TattooCard";
 import {useAuth} from '../../contexts/AuthContext';
 import TattooUpload from '@/components/TattooUpload';
+import ArtistCalendar from '@/components/ArtistCalendar';
 
 export default function ArtistDetail() {
     const router = useRouter();
@@ -18,9 +21,14 @@ export default function ArtistDetail() {
     const {artist, loading: artistLoading, error: artistError} = useArtist(slug as string);
     const {user, isAuthenticated} = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState(0);
     
     const isOwner = isAuthenticated && user && (user.slug === slug || user.id === artist?.id);
     const portfolio = artist?.tattoos || [];
+    
+    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+        setActiveTab(newValue);
+    };
     
     const handleOpenUploadModal = () => {
         setUploadModalOpen(true);
@@ -167,51 +175,85 @@ export default function ArtistDetail() {
                           </>
                         )}
                     </div>
-                    {portfolio.length > 0 ? (
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: `repeat(auto-fit, minmax(${Math.floor(750/3)}px, 1fr))`,
-                            gap: '2px',
-                            width: '100%'
-                        }}>
-                            {portfolio.map(tattoo => (
-                                <div key={tattoo.id} style={{
-                                    aspectRatio: '1/1',
-                                    position: 'relative'
-                                }}>
-                                    <Image
-                                        src={tattoo.primary_image?.uri}
-                                        alt={tattoo.title || 'Tattoo work'}
-                                        fill
-                                        className="object-cover"
-                                    />
-                                    {isOwner && (
-                                        <IconButton 
-                                            size="small"
-                                            aria-label="edit"
-                                            onClick={() => router.push(`/tattoos/update?id=${tattoo.id}`)}
-                                            sx={{
-                                                position: 'absolute',
-                                                top: 5,
-                                                right: 5,
-                                                bgcolor: 'rgba(0, 0, 0, 0.5)',
-                                                color: 'white',
-                                                '&:hover': { 
-                                                    bgcolor: 'rgba(0, 0, 0, 0.7)', 
-                                                    color: '#339989' 
-                                                },
-                                                zIndex: 10,
-                                                padding: '6px',
-                                            }}
-                                        >
-                                            <EditIcon fontSize="small" />
-                                        </IconButton>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                    
+                    {/* Tabs navigation */}
+                    <div style={{ width: '100%', marginTop: '20px', marginBottom: '20px' }}>
+                      <Tabs 
+                        value={activeTab} 
+                        onChange={handleTabChange}
+                        centered
+                        sx={{
+                          '& .MuiTab-root': {
+                            minWidth: '50%',
+                            color: '#888',
+                          },
+                          '& .Mui-selected': {
+                            color: '#339989',
+                          },
+                          '& .MuiTabs-indicator': {
+                            backgroundColor: '#339989',
+                          }
+                        }}
+                      >
+                        <Tab icon={<ImageIcon />} aria-label="Tattoos" />
+                        <Tab icon={<CalendarMonthIcon />} aria-label="Schedule" />
+                      </Tabs>
+                    </div>
+                    
+                    {/* Tab content */}
+                    {activeTab === 0 ? (
+                      /* Tattoos Tab */
+                      portfolio.length > 0 ? (
+                          <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: `repeat(auto-fit, minmax(${Math.floor(750/3)}px, 1fr))`,
+                              gap: '2px',
+                              width: '100%'
+                          }}>
+                              {portfolio.map(tattoo => (
+                                  <div key={tattoo.id} style={{
+                                      aspectRatio: '1/1',
+                                      position: 'relative'
+                                  }}>
+                                      <Image
+                                          src={tattoo.primary_image?.uri}
+                                          alt={tattoo.title || 'Tattoo work'}
+                                          fill
+                                          className="object-cover"
+                                      />
+                                      {isOwner && (
+                                          <IconButton 
+                                              size="small"
+                                              aria-label="edit"
+                                              onClick={() => router.push(`/tattoos/update?id=${tattoo.id}`)}
+                                              sx={{
+                                                  position: 'absolute',
+                                                  top: 5,
+                                                  right: 5,
+                                                  bgcolor: 'rgba(0, 0, 0, 0.5)',
+                                                  color: 'white',
+                                                  '&:hover': { 
+                                                      bgcolor: 'rgba(0, 0, 0, 0.7)', 
+                                                      color: '#339989' 
+                                                  },
+                                                  zIndex: 10,
+                                                  padding: '6px',
+                                              }}
+                                          >
+                                              <EditIcon fontSize="small" />
+                                          </IconButton>
+                                      )}
+                                  </div>
+                              ))}
+                          </div>
+                      ) : (
+                          <p>No portfolio items found.</p>
+                      )
                     ) : (
-                        <p>No portfolio items found.</p>
+                      /* Schedule Tab */
+                      <div style={{ width: '100%' }}>
+                        <ArtistCalendar artistIdOrSlug={slug as string} />
+                      </div>
                     )}
                 </div>
             </div>

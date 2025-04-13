@@ -2,7 +2,6 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/tattoos/update": "pages/tattoos/update.js",
-  "/artists/[id]": "pages/artists/[id].js"
+  "/artists/[slug]": "pages/artists/[slug].js",
+  "/profile": "pages/profile.js"
 }
