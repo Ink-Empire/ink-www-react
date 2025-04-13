@@ -5,6 +5,8 @@ import { api } from '../utils/api';
 interface UserData {
   id?: number;
   name?: string;
+  username?: string;
+  slug?: string;
   email?: string;
   styles?: number[];
   phone?: string;

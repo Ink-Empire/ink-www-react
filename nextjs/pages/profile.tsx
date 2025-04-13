@@ -298,7 +298,7 @@ const ProfilePage: React.FC = () => {
               {userData.type === 'artist' && userData.id && (
                 <div className="mt-5">
                   <Link 
-                    href={`/artists/${userData.id}`}
+                    href={`/artists/${userData.slug || userData.id}`}
                     className="inline-flex items-center px-4 py-2 text-sm font-medium text-persian-green border border-persian-green rounded-md hover:bg-pearl"
                   >
                     <svg 

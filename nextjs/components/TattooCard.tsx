@@ -89,7 +89,7 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo}) => {
                     }}>
                         {artistImageUri && (
                             <Link
-                                href={`/artists/${tattoo.artist?.id}`}
+                                href={`/artists/${tattoo.artist?.slug || tattoo.artist?.id}`}
                                 onClick={(e) => e.stopPropagation()} // Prevent triggering the card click
                             >
                                 <Box
@@ -117,7 +117,7 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo}) => {
                             </Link>
                         )}
                         <Link
-                            href={`/artists/${tattoo.artist?.id}`}
+                            href={`/artists/${tattoo.artist?.slug || tattoo.artist?.id}`}
                             onClick={(e) => e.stopPropagation()} // Prevent triggering the card click
                             style={{
                                 textDecoration: 'none',

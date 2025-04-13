@@ -8,6 +8,7 @@ interface User {
   last_name: string;
   email: string;
   username: string;
+  slug: string;
   // Add more user properties as needed
 }
 
@@ -21,6 +22,7 @@ interface RegisterData {
   last_name: string;
   email: string;
   username: string;
+  slug: string;
   password: string;
   password_confirmation: string;
 }

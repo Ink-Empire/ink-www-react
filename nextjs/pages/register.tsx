@@ -12,6 +12,8 @@ type RegistrationType = 'user' | 'artist' | 'studio';
 
 type FormValues = {
   name: string;
+  username: string;
+  slug: string;
   email: string;
   password: string;
   password_confirmation: string; // Password confirmation field
@@ -35,8 +37,113 @@ const RegisterPage: React.FC = () => {
   const [locationString, setLocationString] = useState('');
   const [locationLatLong, setLocationLatLong] = useState('');
   const [countries, setCountries] = useState<any[]>([]);
+  const [usernameValid, setUsernameValid] = useState<boolean | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState<boolean>(false);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormValues>();
+  
+  // Generate a slug from the username (convert to kebab-case)
+  const generateSlug = (username: string) => {
+    // Convert PascalCase/camelCase to kebab-case by inserting hyphens before capital letters
+    // Then lowercase everything and replace any non-alphanumeric characters with hyphens
+    return username
+      .replace(/([a-z0-9])([A-Z])/g, '$1-$2') // Insert hyphens before capital letters
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') // Replace any non-alphanumeric chars with hyphens
+      .replace(/(^-|-$)/g, ''); // Remove leading and trailing hyphens
+  };
+  
+  // Validate username in real-time
+  const validateUsername = (value: string) => {
+    if (!value) return false;
+    return /^[a-zA-Z0-9._]+$/.test(value);
+  };
+  
+  // Check if username is available
+  const checkUsernameAvailability = async (username: string) => {
+    if (!username || !validateUsername(username)) {
+      setUsernameAvailable(null);
+      return;
+    }
+    
+    try {
+      setCheckingUsername(true);
+      
+      // Fetch a fresh CSRF token before making the request
+      try {
+        console.log('Fetching CSRF token for username check');
+        await fetchCsrfToken();
+        await new Promise(resolve => setTimeout(resolve, 100)); // Short delay to ensure cookie is set
+      } catch (csrfErr) {
+        console.error('Failed to fetch CSRF token:', csrfErr);
+      }
+      
+      // Get the CSRF token from the cookie
+      const csrfToken = getCsrfToken();
+      console.log('CSRF token available:', csrfToken ? 'Yes' : 'No');
+      
+      const response = await fetch('/api/username', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': csrfToken || '', // Add CSRF token header
+          'X-Requested-With': 'XMLHttpRequest' // Required for Laravel to identify AJAX requests
+        },
+        credentials: 'include', // Include cookies in the request
+        body: JSON.stringify({ username }),
+      });
+      
+      // Handle 422 status specifically (username taken)
+      if (response.status === 422) {
+        console.log('Username is already taken (422 response)');
+        setUsernameAvailable(false);
+        return false;
+      }
+      
+      // Handle other error responses
+      if (!response.ok) {
+        throw new Error('Failed to check username availability');
+      }
+      
+      const data = await response.json();
+      setUsernameAvailable(data.available);
+      return data.available;
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      
+      // If this was due to a 422 response, we've already handled it above
+      // This catch block handles unexpected errors during the fetch
+      if (error instanceof Error && error.message.includes('422')) {
+        // If the error message contains 422, this means username is taken
+        setUsernameAvailable(false);
+        return false;
+      } else {
+        // For other errors, set to null (unknown status)
+        setUsernameAvailable(null);
+        return null;
+      }
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
+  
+  // Debounce function to prevent too many API calls
+  const debounce = (func: Function, delay: number) => {
+    let timeoutId: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        func(...args);
+      }, delay);
+    };
+  };
+  
+  // Debounced username check
+  const debouncedUsernameCheck = React.useCallback(
+    debounce(checkUsernameAvailability, 500),
+    []
+  );
   
   const toggleLocation = () => {
     const newValue = !useMyLocation;
@@ -290,9 +397,21 @@ const RegisterPage: React.FC = () => {
     setError(null);
     
     try {
+      // Check username availability one last time before submitting
+      if (usernameAvailable !== true) {
+        const isAvailable = await checkUsernameAvailability(data.username);
+        if (!isAvailable) {
+          setError('Username is already taken. Please choose another username.');
+          setIsLoading(false);
+          return;
+        }
+      }
+      
       // Create the payload based on registration type
       const payload: any = {
         name: data.name,
+        username: data.username,
+        slug: data.slug,
         email: data.email,
         password: data.password,
         password_confirmation: data.password_confirmation, // Add password confirmation
@@ -554,6 +673,124 @@ const RegisterPage: React.FC = () => {
             {errors.name && (
               <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
             )}
+          </div>
+          
+          {/* Username field */}
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              Username
+            </label>
+            <div className="relative">
+              <input
+                id="username"
+                type="text"
+                className={`mt-1 block w-full px-3 py-2 border text-black ${
+                  errors.username ? 'border-red-300' : 
+                  usernameValid === false ? 'border-red-300' :
+                  usernameValid === true ? 'border-green-300' :
+                  'border-gray-300'
+                } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                placeholder="Username"
+                {...register('username', { 
+                  required: 'Username is required',
+                  pattern: {
+                    value: /^[a-zA-Z0-9._]+$/,
+                    message: 'Username can only contain letters, numbers, periods, and underscores'
+                  },
+                  onChange: (e) => {
+                    const value = e.target.value;
+                    // Skip validation if empty
+                    if (!value) {
+                      setUsernameValid(null);
+                      setUsernameAvailable(null);
+                      setValue('slug', '');
+                      return;
+                    }
+                    
+                    // Validate and update state
+                    const isValid = validateUsername(value);
+                    setUsernameValid(isValid);
+                    
+                    // Generate slug if valid
+                    if (isValid) {
+                      const slug = generateSlug(value);
+                      setValue('slug', slug);
+                      
+                      // Check username availability
+                      debouncedUsernameCheck(value);
+                    }
+                  },
+                  onBlur: (e) => {
+                    const username = e.target.value;
+                    if (username && validateUsername(username)) {
+                      const slug = generateSlug(username);
+                      setValue('slug', slug);
+                      
+                      // Check username availability on blur directly (not debounced)
+                      checkUsernameAvailability(username);
+                    }
+                  },
+                  validate: async (value) => {
+                    // This will be called when the form is submitted
+                    if (!value) return true;
+                    
+                    // If we already know it's available, don't check again
+                    if (usernameAvailable === true) return true;
+                    
+                    // Otherwise, check and return result
+                    const isAvailable = await checkUsernameAvailability(value);
+                    return isAvailable || 'This username is already taken';
+                  }
+                })}
+              />
+              {usernameValid === true && !checkingUsername && usernameAvailable === true && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1 pointer-events-none">
+                  <svg className="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+              {checkingUsername && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1 pointer-events-none">
+                  <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+              )}
+              {usernameValid === true && !checkingUsername && usernameAvailable === false && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1 pointer-events-none">
+                  <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            {errors.username && (
+              <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+            )}
+            {usernameValid === false && !errors.username && (
+              <p className="mt-1 text-sm text-red-600">Username can only contain letters, numbers, periods, and underscores</p>
+            )}
+            {usernameValid === true && !checkingUsername && usernameAvailable === false && !errors.username && (
+              <p className="mt-1 text-sm text-red-600">This username is already taken</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">Username can only contain letters, numbers, periods, and underscores</p>
+          </div>
+          
+          {/* Slug field (non-editable) */}
+          <div>
+            <label htmlFor="slug" className="block text-sm font-medium text-gray-700">
+              Profile URL Slug
+            </label>
+            <input
+              id="slug"
+              type="text"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-600 rounded-md shadow-sm sm:text-sm"
+              readOnly
+              {...register('slug')}
+            />
+            <p className="mt-1 text-xs text-gray-500">This will be used for your profile URL and cannot be changed later</p>
           </div>
           
           {/* Email field */}

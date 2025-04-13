@@ -113,7 +113,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
 
             <CardActionArea
                 component={Link}
-                href={`/artists/${artist.id}`}
+                href={`/artists/${artist.slug || artist.id}`}
                 sx={{
                     display: 'flex',
                     flexDirection: 'column',

@@ -116,14 +116,14 @@ export function useArtists(searchParams?: Record<string, any>) {
   return { artists, loading, error };
 }
 
-// Hook for fetching a single artist by ID
-export function useArtist(id: string | null) {
+// Hook for fetching a single artist by ID or slug
+export function useArtist(idOrSlug: string | null) {
   const [artist, setArtist] = useState<ArtistType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!id) {
+    if (!idOrSlug) {
       setLoading(false);
       return;
     }
@@ -131,30 +131,30 @@ export function useArtist(id: string | null) {
     const fetchArtist = async () => {
       try {
         setLoading(true);
-        const data = await artistService.getById(id);
+        const data = await artistService.getById(idOrSlug);
         setArtist(data.artist);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error(`Failed to fetch artist with ID ${id}`));
+        setError(err instanceof Error ? err : new Error(`Failed to fetch artist with ID/slug ${idOrSlug}`));
       } finally {
         setLoading(false);
       }
     };
 
     fetchArtist();
-  }, [id]);
+  }, [idOrSlug]);
 
   return { artist, loading, error };
 }
 
 // Hook for fetching artist portfolio (tattoos by artist)
-export function useArtistPortfolio(artistId: string | null) {
+export function useArtistPortfolio(artistIdOrSlug: string | null) {
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!artistId) {
+    if (!artistIdOrSlug) {
       setLoading(false);
       return;
     }
@@ -162,20 +162,20 @@ export function useArtistPortfolio(artistId: string | null) {
     const fetchPortfolio = async () => {
       try {
         setLoading(true);
-        const data = await artistService.getPortfolio(artistId);
+        const data = await artistService.getPortfolio(artistIdOrSlug);
 
         console.log(data);
         setPortfolio(data);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error(`Failed to fetch portfolio for artist ${artistId}`));
+        setError(err instanceof Error ? err : new Error(`Failed to fetch portfolio for artist ${artistIdOrSlug}`));
       } finally {
         setLoading(false);
       }
     };
 
     fetchPortfolio();
-  }, [artistId]);
+  }, [artistIdOrSlug]);
 
   return { portfolio, loading, error };
 }

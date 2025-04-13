@@ -93,7 +93,7 @@ export default function TattooDetail() {
                     />
                   )}
                   <div>
-                    <Link href={`/artists/${tattoo.artist.id}`}>
+                    <Link href={`/artists/${tattoo.artist.slug || tattoo.artist.id}`}>
                       <h3>{tattoo.artist.name}</h3>
                     </Link>
                     {tattoo.artist.shop && <p>{tattoo.artist.shop}</p>}

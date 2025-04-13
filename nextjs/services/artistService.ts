@@ -9,9 +9,9 @@ export const artistService = {
     });
   },
 
-  // Get artist by ID
-  getById: async (id: number | string): Promise<IArtist> => {
-    return api.get<IArtist>(`/artists/${id}`);
+  // Get artist by ID or slug
+  getById: async (idOrSlug: number | string): Promise<IArtist> => {
+    return api.get<IArtist>(`/artists/${idOrSlug}`);
   },
 
   // Search artists
@@ -23,12 +23,12 @@ export const artistService = {
   },
 
   // Get artist's portfolio (tattoos)
-  getPortfolio: async (artistId: number | string): Promise<any[]> => {
-    return api.get<any[]>(`/artists/${artistId}/tattoos`);
+  getPortfolio: async (artistIdOrSlug: number | string): Promise<any[]> => {
+    return api.get<any[]>(`/artists/${artistIdOrSlug}/tattoos`);
   },
 
   // Update artist profile (requires auth)
-  updateProfile: async (id: number | string, data: Partial<IArtist>): Promise<IArtist> => {
-    return api.put<IArtist>(`/artists/${id}`, data, { requiresAuth: true });
+  updateProfile: async (idOrSlug: number | string, data: Partial<IArtist>): Promise<IArtist> => {
+    return api.put<IArtist>(`/artists/${idOrSlug}`, data, { requiresAuth: true });
   }
 };

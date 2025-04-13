@@ -1,6 +1,7 @@
 export interface ArtistType {
     type: string;
     id?: number;
+    slug?: string;
     about: string;
     email: string;
     name?: string;
