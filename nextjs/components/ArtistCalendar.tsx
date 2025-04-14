@@ -57,270 +57,283 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({
     description: ''
   });
 
-  useEffect(() => {
-    const fetchArtistSchedule = async () => {
-      setLoading(true);
-      setError(null);
-      
-      // Debug output
-      console.log(`ArtistCalendar: Fetching schedule for artist: "${artistIdOrSlug}"`);
-      console.log(`ArtistCalendar: artistIdOrSlug type: ${typeof artistIdOrSlug}`);
-      
-      // Check if artistIdOrSlug is actually valid
-      if (!artistIdOrSlug) {
-        console.warn('ArtistCalendar: Invalid artistIdOrSlug, using placeholder data');
-        // For demo purposes, use ID 999 if no ID provided
-        // In production, you'd show an error
-      }
-      
-      // Fetch artist data
-      try {
-        // For now, just set demo artist data
-        setArtist({
-          id: typeof artistIdOrSlug === 'number' ? artistIdOrSlug : 1,
-          name: 'Demo Artist',
-          slug: typeof artistIdOrSlug === 'string' ? artistIdOrSlug : 'demo-artist'
-        });
-        // fetch artist data:
-        // const artistData = await api.get(`/artists/${artistIdOrSlug}`);
-        // setArtist(artistData);
-      } catch (error) {
-        console.error('Error fetching artist data:', error);
-      }
-      
-      try {
-        // Call API to get artist schedule
-        // Add dummy data while API endpoint is developed
-        // Create a helper function to create time slots with specific times
-        const createTimeSlot = (daysFromNow: number, startHour: number, endHour: number, status: 'available' | 'booked' | 'tentative' | 'unavailable', title: string, details?: any) => {
-          const date = new Date();
-          date.setDate(date.getDate() + daysFromNow);
-          
-          const start = new Date(date);
-          start.setHours(startHour, 0, 0, 0);
-          
-          const end = new Date(date);
-          end.setHours(endHour, 0, 0, 0);
-          
-          return {
-            id: `${daysFromNow}-${startHour}-${endHour}`,
-            title,
-            start: start.toISOString(),
-            end: end.toISOString(),
-            allDay: false,
-            extendedProps: {
-              status,
-              ...details
-            }
-          };
+  // Extract fetchArtistSchedule to a separate function so we can call it from handleViewChange
+  const fetchArtistSchedule = async () => {
+    setLoading(true);
+    setError(null);
+    
+    // Debug output
+    console.log(`ArtistCalendar: Fetching schedule for artist: "${artistIdOrSlug}"`);
+    console.log(`ArtistCalendar: artistIdOrSlug type: ${typeof artistIdOrSlug}`);
+    
+    // Check if artistIdOrSlug is actually valid
+    if (!artistIdOrSlug) {
+      console.warn('ArtistCalendar: Invalid artistIdOrSlug, using placeholder data');
+      // For demo purposes, use ID 999 if no ID provided
+      // In production, you'd show an error
+    }
+    
+    // Fetch artist data
+    try {
+      // For now, just set demo artist data
+      setArtist({
+        id: typeof artistIdOrSlug === 'number' ? artistIdOrSlug : 1,
+        name: 'Demo Artist',
+        slug: typeof artistIdOrSlug === 'string' ? artistIdOrSlug : 'demo-artist'
+      });
+      // fetch artist data:
+      // const artistData = await api.get(`/artists/${artistIdOrSlug}`);
+      // setArtist(artistData);
+    } catch (error) {
+      console.error('Error fetching artist data:', error);
+    }
+    
+    try {
+      // Call API to get artist schedule
+      // Add dummy data while API endpoint is developed
+      // Create a helper function to create time slots with specific times
+      const createTimeSlot = (daysFromNow: number, startHour: number, endHour: number, status: 'available' | 'booked' | 'tentative' | 'unavailable', title: string, details?: any) => {
+        const date = new Date();
+        date.setDate(date.getDate() + daysFromNow);
+        
+        const start = new Date(date);
+        start.setHours(startHour, 0, 0, 0);
+        
+        const end = new Date(date);
+        end.setHours(endHour, 0, 0, 0);
+        
+        return {
+          id: `${daysFromNow}-${startHour}-${endHour}`,
+          title,
+          start: start.toISOString(),
+          end: end.toISOString(),
+          allDay: false,
+          extendedProps: {
+            status,
+            ...details
+          }
         };
+      };
+      
+      // Generate dummy data for both month and week views
+      const dummyData: CalendarEvent[] = [
+        // Monthly full-day events
+        {
+          id: '1',
+          title: 'Available All Day',
+          start: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+          end: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+          allDay: true,
+          extendedProps: {
+            status: 'available'
+          }
+        },
+        {
+          id: '2',
+          title: 'Booked: Sleeve Tattoo',
+          start: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(),
+          end: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(),
+          allDay: true,
+          extendedProps: {
+            status: 'booked',
+            description: 'Full sleeve dragon design',
+            clientName: 'John Smith'
+          }
+        },
+        {
+          id: '3',
+          title: 'Unavailable',
+          start: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(),
+          end: new Date(new Date().setDate(new Date().getDate() + 9)).toISOString(),
+          allDay: true,
+          extendedProps: {
+            status: 'unavailable',
+            description: 'Personal time off'
+          }
+        },
         
-        // Generate dummy data for both month and week views
-        const dummyData: CalendarEvent[] = [
-          // Monthly full-day events
-          {
-            id: '1',
-            title: 'Available All Day',
-            start: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
-            end: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
-            allDay: true,
-            extendedProps: {
-              status: 'available'
-            }
-          },
-          {
-            id: '2',
-            title: 'Booked: Sleeve Tattoo',
-            start: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(),
-            end: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(),
-            allDay: true,
-            extendedProps: {
-              status: 'booked',
-              description: 'Full sleeve dragon design',
-              clientName: 'John Smith'
-            }
-          },
-          {
-            id: '3',
-            title: 'Unavailable',
-            start: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(),
-            end: new Date(new Date().setDate(new Date().getDate() + 9)).toISOString(),
-            allDay: true,
-            extendedProps: {
-              status: 'unavailable',
-              description: 'Personal time off'
-            }
-          },
-          
-          // Weekly time slot events - today
-          createTimeSlot(0, 10, 12, 'booked', 'Booked: Small Tattoo', {
-            description: 'Small bird tattoo on wrist',
-            clientName: 'Emma Johnson'
-          }),
-          createTimeSlot(0, 13, 15, 'available', 'Available'),
-          createTimeSlot(0, 16, 19, 'booked', 'Booked: Cover-up Work', {
-            description: 'Cover-up work on shoulder',
-            clientName: 'Michael Davis'
-          }),
-          
-          // Tomorrow
-          createTimeSlot(1, 10, 13, 'available', 'Available'),
-          createTimeSlot(1, 14, 16, 'tentative', 'Tentative: Consultation', {
-            description: 'Initial consultation for thigh piece'
-          }),
-          createTimeSlot(1, 17, 19, 'available', 'Available'),
-          
-          // Day after tomorrow
-          createTimeSlot(2, 10, 14, 'booked', 'Booked: Back Piece Session 1', {
-            description: 'First session of back piece',
-            clientName: 'Sarah Wilson'
-          }),
-          createTimeSlot(2, 15, 19, 'unavailable', 'Unavailable', {
-            description: 'Studio meeting'
-          }),
-          
-          // Two days from now
-          createTimeSlot(3, 12, 19, 'booked', 'Booked: Full Day Session', {
-            description: 'Full day tattooing - leg sleeve',
-            clientName: 'Robert Martinez'
-          })
-        ];
+        // Weekly time slot events - today
+        createTimeSlot(0, 10, 12, 'booked', 'Booked: Small Tattoo', {
+          description: 'Small bird tattoo on wrist',
+          clientName: 'Emma Johnson'
+        }),
+        createTimeSlot(0, 13, 15, 'available', 'Available'),
+        createTimeSlot(0, 16, 19, 'booked', 'Booked: Cover-up Work', {
+          description: 'Cover-up work on shoulder',
+          clientName: 'Michael Davis'
+        }),
         
-        // TODO: Uncomment this when the API endpoint is ready
-        // const response = await api.get<CalendarEvent[]>(`/artists/${artistIdOrSlug}/schedule`, {
-        //   useCache: false // Always get fresh schedule data
-        // });
+        // Tomorrow
+        createTimeSlot(1, 10, 13, 'available', 'Available'),
+        createTimeSlot(1, 14, 16, 'tentative', 'Tentative: Consultation', {
+          description: 'Initial consultation for thigh piece'
+        }),
+        createTimeSlot(1, 17, 19, 'available', 'Available'),
         
-        // For now, use dummy data
-        const response = dummyData;
+        // Day after tomorrow
+        createTimeSlot(2, 10, 14, 'booked', 'Booked: Back Piece Session 1', {
+          description: 'First session of back piece',
+          clientName: 'Sarah Wilson'
+        }),
+        createTimeSlot(2, 15, 19, 'unavailable', 'Unavailable', {
+          description: 'Studio meeting'
+        }),
         
-        // Process and color-code events based on status
-        const processedEvents = response.map(event => {
-          // Set colors based on event status - using theme colors
-          let backgroundColor = '#339989'; // Default color (persian-green)
-          let borderColor = '#339989';
-          let textColor = '#FFFFFF'; // White text for dark backgrounds
-          let title = event.title;
+        // Two days from now
+        createTimeSlot(3, 12, 19, 'booked', 'Booked: Full Day Session', {
+          description: 'Full day tattooing - leg sleeve',
+          clientName: 'Robert Martinez'
+        })
+      ];
+      
+      // TODO: Uncomment this when the API endpoint is ready
+      // const response = await api.get<CalendarEvent[]>(`/artists/${artistIdOrSlug}/schedule`, {
+      //   useCache: false // Always get fresh schedule data
+      // });
+      
+      // For now, use dummy data
+      const response = dummyData;
+        
+      // Process and color-code events based on status
+      const processedEvents = response.map(event => {
+        // Set colors based on event status - using theme colors
+        let backgroundColor = '#339989'; // Default color (persian-green)
+        let borderColor = '#339989';
+        let textColor = '#FFFFFF'; // White text for dark backgrounds
+        let title = event.title;
+        let display = undefined; // Default display type
+        
+        // If not the artist owner, mask titles and only show color indicators
+        if (!isArtistOwner()) {
+          // For non-artists, don't show any text on the events
+          title = '';
           
-          // If not the artist owner, mask titles and only show color indicators
-          if (!isArtistOwner()) {
-            // For non-artists, don't show any text on the events
-            title = '';
-            
-            // Only keep color coding
-            if (event.extendedProps?.status) {
-              switch(event.extendedProps.status) {
-                case 'available':
-                  backgroundColor = '#339989'; // Persian Green (theme color)
-                  borderColor = '#287771';
-                  break;
-                case 'booked':
-                case 'tentative':
-                case 'unavailable':
-                  backgroundColor = '#000000'; // Black
-                  borderColor = '#000000';
-                  break;
-              }
-            }
-          } else {
-            // Artist can see everything normally
-            if (event.extendedProps?.status) {
-              switch(event.extendedProps.status) {
-                case 'available':
-                  backgroundColor = '#339989'; // Persian Green (theme color)
-                  borderColor = '#287771';
-                  break;
-                case 'booked':
-                  backgroundColor = '#7B0D1E'; // Burgundy (theme color)
-                  borderColor = '#5D0A17';
-                  break;
-                case 'tentative':
-                  backgroundColor = '#E8DBC5'; // Pearl (theme color)
-                  borderColor = '#CEC0A9';
-                  textColor = '#1C0F13'; // Dark text for light background
-                  break;
-                case 'unavailable':
-                  backgroundColor = '#000000'; // Black (was Licorice)
-                  borderColor = '#000000';
-                  break;
-              }
+          // Only keep color coding
+          if (event.extendedProps?.status) {
+            switch(event.extendedProps.status) {
+              case 'available':
+                backgroundColor = '#339989'; // Persian Green (theme color)
+                borderColor = '#287771';
+                break;
+              case 'booked':
+              case 'tentative':
+              case 'unavailable':
+                backgroundColor = '#000000'; // Black
+                borderColor = '#000000';
+                break;
             }
           }
-          
-          // Create a modified event object
-          const modifiedEvent = {
-            ...event,
-            title,
-            backgroundColor,
-            borderColor,
-            textColor
-          };
-          
-          // If not the artist, adjust the display for the entire day coloring
-          if (!isArtistOwner()) {
-            // For non-artists, make events full-day background events
-            // to color the entire day cell
+        } else {
+          // Artist can see everything normally
+          if (event.extendedProps?.status) {
+            switch(event.extendedProps.status) {
+              case 'available':
+                backgroundColor = '#339989'; // Persian Green (theme color)
+                borderColor = '#287771';
+                break;
+              case 'booked':
+                backgroundColor = '#7B0D1E'; // Burgundy (theme color)
+                borderColor = '#5D0A17';
+                break;
+              case 'tentative':
+                backgroundColor = '#E8DBC5'; // Pearl (theme color)
+                borderColor = '#CEC0A9';
+                textColor = '#1C0F13'; // Dark text for light background
+                break;
+              case 'unavailable':
+                backgroundColor = '#000000'; // Black (was Licorice)
+                borderColor = '#000000';
+                break;
+            }
+          }
+        }
+        
+        // Create event copy before we make view-specific modifications
+        const modifiedEvent = {
+          ...event,
+          title,
+          backgroundColor,
+          borderColor,
+          textColor
+        };
+        
+        // Handle month view differently than week view
+        if (currentView === 'dayGridMonth') {
+          // In month view, any day with availability should have green background 
+          if (event.extendedProps?.status === 'available') {
+            // Make the event span the full day
             modifiedEvent.start = event.start ? new Date(new Date(event.start).setHours(0, 0, 0, 0)) : event.start;
             modifiedEvent.end = event.end ? new Date(new Date(event.end).setHours(23, 59, 59, 999)) : event.end;
-            modifiedEvent.allDay = true; // Force all-day 
+            modifiedEvent.allDay = true;
             
-            // For available events, use background display to color the entire day
-            if (event.extendedProps?.status === 'available') {
-              modifiedEvent.display = 'background'; // Color the entire day
-              modifiedEvent.backgroundColor = '#339989'; // Green background
-            } else {
-              // Keep non-available events non-interactive but invisible
-              modifiedEvent.display = 'none'; // Hide other events
-            }
-            
-            // Empty the title to hide any text
+            // Make it a background event to color the whole day
+            modifiedEvent.display = 'background';
+            modifiedEvent.backgroundColor = '#339989'; // Green background
+          }
+          
+          // If not the artist owner, hide all other events
+          if (!isArtistOwner() && event.extendedProps?.status !== 'available') {
+            modifiedEvent.display = 'none';
             modifiedEvent.title = '';
             modifiedEvent.timeText = '';
           }
-          
-          return modifiedEvent;
-        });
+        } else if (!isArtistOwner()) {
+          // In other views for non-artists, still hide the text
+          modifiedEvent.title = '';
+          modifiedEvent.timeText = '';
+        }
         
-        setEvents(processedEvents);
-      } catch (err) {
-        console.error("Error fetching artist schedule:", err);
-        // Don't show errors during development when using dummy data
-        // setError("Failed to load artist's schedule. Please try again later.");
-        console.warn("Using demo data despite error");
-        
-        // Create some fallback demo data
-        const fallbackDemoData = [
-          {
-            id: 'fallback-1',
-            title: 'Available',
-            start: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
-            end: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
-            allDay: true,
-            extendedProps: {
-              status: 'available'
-            },
-            backgroundColor: '#339989',
-            borderColor: '#287771',
-            textColor: '#FFFFFF'
-          }
-        ];
-        
-        // Always show some data during development
-        setEvents(fallbackDemoData);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
+        return modifiedEvent;
+      });
+      
+      setEvents(processedEvents);
+    } catch (err) {
+      console.error("Error fetching artist schedule:", err);
+      // Don't show errors during development when using dummy data
+      // setError("Failed to load artist's schedule. Please try again later.");
+      console.warn("Using demo data despite error");
+      
+      // Create some fallback demo data
+      const fallbackDemoData = [
+        {
+          id: 'fallback-1',
+          title: 'Available',
+          start: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+          end: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+          allDay: true,
+          extendedProps: {
+            status: 'available'
+          },
+          backgroundColor: '#339989',
+          borderColor: '#287771',
+          textColor: '#FFFFFF'
+        }
+      ];
+      
+      // Always show some data during development
+      setEvents(fallbackDemoData);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     if (artistIdOrSlug) {
       fetchArtistSchedule();
     }
-  }, [artistIdOrSlug]);
+  }, [artistIdOrSlug, currentView]);
   
   // Handle view change from the calendar
   const handleViewChange = (viewInfo: any) => {
     console.log('View changed to:', viewInfo.view.type);
-    setCurrentView(viewInfo.view.type);
+    const newView = viewInfo.view.type;
+    
+    // Update current view state
+    setCurrentView(newView);
+    
+    // We don't need to call fetchArtistSchedule here anymore since
+    // we added currentView to the useEffect dependencies, which will
+    // automatically trigger a refresh when the view changes
   };
   
   // Handle opening the appointment modal
@@ -783,10 +796,12 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({
                 .fc-daygrid-day.fc-day-has-event[data-date] { 
                   cursor: pointer !important;
                 }
+                ` : ''}
+                
+                /* All background events (available days) */
                 .fc-bg-event {
                   opacity: 0.65 !important;
                 }
-                ` : ''}
                 
                 .fc-theme-standard .fc-scrollgrid, 
                 .fc-theme-standard td, 
@@ -846,6 +861,11 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({
                   background-color: #111111 !important;
                 }
                 
+                /* Ensure background events (available days) stand out */
+                .fc-daygrid-month-view .fc-bg-event {
+                  opacity: 0.4 !important;
+                }
+                
                 /* Weekly view specific styles */
                 .fc-timeGridWeek-view .fc-timegrid-slot-label {
                   color: #E8DBC5;
@@ -887,21 +907,13 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({
           <span>Available</span>
         </div>
         <div className="flex items-center">
-          <span className="block w-4 h-4 mr-1 bg-[#7B0D1E] rounded-sm border border-[#5D0A17]"></span>
-          <span>Booked</span>
-        </div>
-        <div className="flex items-center">
-          <span className="block w-4 h-4 mr-1 bg-[#E8DBC5] rounded-sm border border-[#CEC0A9]"></span>
-          <span>Tentative</span>
-        </div>
-        <div className="flex items-center">
           <span className="block w-4 h-4 mr-1 bg-[#000000] rounded-sm border border-[#000000]"></span>
           <span>Unavailable</span>
         </div>
         
         {!isArtistOwner() && (
           <div className="ml-2 text-xs text-[#E8DBC5] italic">
-            Note: Green indicates available days. Please contact the artist for booking.
+            Note: Green indicates available days. Click on the day to request an available time.
           </div>
         )}
       </div>

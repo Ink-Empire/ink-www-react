@@ -254,12 +254,12 @@ export default function ArtistDetail() {
                     ) : (
                       /* Schedule Tab */
                       <div style={{ width: '100%' }}>
-                        <div className="mb-6">
-                          <WorkingHoursDisplay 
-                            workingHours={workingHours}
-                            className="max-w-md mx-auto" 
-                          />
-                        </div>
+                        {/*<div className="mb-6">*/}
+                        {/*  <WorkingHoursDisplay */}
+                        {/*    workingHours={workingHours}*/}
+                        {/*    className="max-w-md mx-auto" */}
+                        {/*  />*/}
+                        {/*</div>*/}
                         <ArtistCalendar artistIdOrSlug={slug as string} />
                       </div>
                     )}
