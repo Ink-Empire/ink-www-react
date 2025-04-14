@@ -9,16 +9,18 @@ import {Box, Button, Modal, Paper, IconButton, Tabs, Tab} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import ImageIcon from '@mui/icons-material/Image';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import {useArtist, useArtistPortfolio} from '../../hooks';
+import {useArtist, useArtistPortfolio, useWorkingHours} from '../../hooks';
 import TattooCard from "@/components/TattooCard";
 import {useAuth} from '../../contexts/AuthContext';
 import TattooUpload from '@/components/TattooUpload';
 import ArtistCalendar from '@/components/ArtistCalendar';
+import WorkingHoursDisplay from '@/components/WorkingHoursDisplay';
 
 export default function ArtistDetail() {
     const router = useRouter();
     const {slug} = router.query;
     const {artist, loading: artistLoading, error: artistError} = useArtist(slug as string);
+    const {workingHours, loading: hoursLoading} = useWorkingHours(artist?.id);
     const {user, isAuthenticated} = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
@@ -252,6 +254,12 @@ export default function ArtistDetail() {
                     ) : (
                       /* Schedule Tab */
                       <div style={{ width: '100%' }}>
+                        <div className="mb-6">
+                          <WorkingHoursDisplay 
+                            workingHours={workingHours}
+                            className="max-w-md mx-auto" 
+                          />
+                        </div>
                         <ArtistCalendar artistIdOrSlug={slug as string} />
                       </div>
                     )}

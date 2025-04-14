@@ -21,7 +21,31 @@ export const useWorkingHours = (artistId?: number | string) => {
         useCache: false,
       });
       
-      setWorkingHours(data);
+      console.log(`Working Hours API Response for artist ${artistIdNum}:`, {
+        data,
+        dataType: typeof data,
+        isArray: Array.isArray(data),
+        length: Array.isArray(data) ? data.length : 'not an array',
+        rawData: JSON.stringify(data)
+      });
+      
+      // Make sure data is an array before setting it
+      if (Array.isArray(data)) {
+        setWorkingHours(data);
+      } else if (data && typeof data === 'object') {
+        // Try to handle if data is wrapped in an object
+        const hoursArray = data.workingHours || data.hours || data.data || data.availability;
+        if (Array.isArray(hoursArray)) {
+          console.log('Found hours array in data object:', hoursArray);
+          setWorkingHours(hoursArray);
+        } else {
+          console.error('API response is not an array and no hours array found in object:', data);
+          setWorkingHours([]);
+        }
+      } else {
+        console.error('Unexpected API response format:', data);
+        setWorkingHours([]);
+      }
     } catch (err) {
       console.error('Error fetching working hours:', err);
       setError('Failed to load working hours');
@@ -37,10 +61,20 @@ export const useWorkingHours = (artistId?: number | string) => {
     
     setLoading(true);
     setError(null);
+
+    const body = {
+      availability: hours,
+    };
     
     try {
-      await api.post(`/artists/${artistId}/working-hours`, hours, {
+      // Using the same endpoint pattern for consistency
+      await api.post(`/artists/${artistId}/working-hours`, body, {
         requiresAuth: true,
+      });
+      
+      console.log(`Saved working hours for artist ${artistId}:`, {
+        hoursPayload: body,
+        endpoint: `/artists/${artistId}/working-hours`
       });
       
       setWorkingHours(hours);

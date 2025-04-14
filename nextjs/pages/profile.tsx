@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import AccountModal from '../components/AccountModal';
 import StyleModal from '../components/StyleModal';
 import WorkingHoursModal from '../components/WorkingHoursModal';
+import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
 import {UserProvider, useUser} from '@/contexts/UserContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsers, useWorkingHours } from '@/hooks';
@@ -19,7 +20,16 @@ const ProfilePage: React.FC = () => {
   const { getOneUser } = useUsers();
   const { styles, getStyleName } = useStyles();
   const { profilePhoto, takeProfilePhoto, deleteProfilePhoto } = useProfilePhoto();
-  const { workingHours, saveWorkingHours } = useWorkingHours(userData?.id);
+  const { workingHours, saveWorkingHours, loading: hoursLoading, error: hoursError } = useWorkingHours(userData?.id);
+  
+  // Debug working hours data
+  console.log('Working Hours Debug:', { 
+    userId: userData?.id,
+    workingHours, 
+    length: workingHours?.length,
+    hoursLoading,
+    hoursError
+  });
 
 
   // Load current user data when the component mounts
@@ -414,7 +424,7 @@ const ProfilePage: React.FC = () => {
                 {/* Working Hours - Only show for artists */}
                 {userData.type === 'artist' && (
                   <li className="py-4">
-                    <div className="flex justify-between items-center px-4 cursor-pointer" onClick={openWorkingHoursModal}>
+                    <div className="flex justify-between px-4 cursor-pointer" onClick={openWorkingHoursModal}>
                       <div className="text-sm font-medium text-gray-900">My Working Hours</div>
                       <svg 
                         className="h-5 w-5 text-gray-400" 
@@ -427,29 +437,11 @@ const ProfilePage: React.FC = () => {
                     </div>
                     
                     <div className="mt-4 px-4">
-                      <div className="text-sm text-gray-500">
-                        {workingHours?.length > 0 ? (
-                          <div className="grid grid-cols-2 gap-2">
-                            {workingHours.map((day, index) => (
-                              <div key={index} className="flex justify-between border-b pb-2 border-gray-100 last:border-b-0">
-                                <span className="text-gray-700 mr-2">
-                                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day.day_of_week - 1]}:
-                                </span>
-                                <span>
-                                  {day.is_day_off ? (
-                                    <span className="text-gray-500">Day Off</span>
-                                  ) : (
-                                    <span className="text-persian-green">
-                                      {day.start_time.substring(0, 5)} - {day.end_time.substring(0, 5)}
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="italic">Click to set your working hours</span>
-                        )}
+                      <WorkingHoursDisplay 
+                        workingHours={workingHours}
+                      />
+                      <div className="mt-2 text-xs text-black">
+                        Click the plus icon above to edit your working hours
                       </div>
                     </div>
                   </li>
