@@ -7,6 +7,7 @@ import { useArtistAppointments } from '@/hooks';
 
 interface ArtistCalendarProps {
   artistIdOrSlug: string | number;
+  onDateSelected?: (date: Date, workingHours: any) => void;
 }
 
 // Interface for working hours from API
@@ -37,7 +38,7 @@ interface CalendarEvent {
   };
 }
 
-const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug }) => {
+const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateSelected }) => {
   const { user } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -269,6 +270,69 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug }) => {
     }
   }, [fetchedAppointments, appointmentsLoading, workingHours, workingHoursLoading, artist?.id]);
   
+  // Set up click event handlers for day cells
+  useEffect(() => {
+    const setupDayCellClickHandlers = () => {
+      setTimeout(() => {
+        const dayCells = document.querySelectorAll('.fc-daygrid-day');
+        
+        dayCells.forEach(cell => {
+          // Get the date from the cell's data attribute
+          const dateStr = cell.getAttribute('data-date');
+          if (!dateStr) return;
+          
+          // Check if this date is available
+          const isAvailable = events.some(event => {
+            return typeof event.start === 'string' 
+              ? event.start.split('T')[0] === dateStr
+              : event.start.toString().split('T')[0] === dateStr;
+          });
+          
+          if (isAvailable) {
+            // Add class to make it more obvious it's clickable
+            cell.classList.add('available-day-cell');
+            
+            // Add click handler
+            cell.addEventListener('click', () => {
+              const clickedDate = new Date(dateStr);
+              console.log(`Available day clicked: ${clickedDate.toLocaleDateString()}`);
+              
+              // Get working hours for this day
+              const dayOfWeek = clickedDate.getDay();
+              const dayWorkingHours = workingHours.find(wh => wh.day_of_week === dayOfWeek);
+              
+              if (dayWorkingHours) {
+                console.log(`Working hours for this day: ${dayWorkingHours.start_time} - ${dayWorkingHours.end_time}`);
+                
+                // Call the callback if provided
+                if (onDateSelected) {
+                  onDateSelected(clickedDate, dayWorkingHours);
+                }
+              }
+            });
+          }
+        });
+      }, 300); // Give time for FullCalendar to render
+    };
+    
+    // Call immediately and also when events change
+    if (events.length > 0) {
+      setupDayCellClickHandlers();
+    }
+    
+    // Also set up when calendar view changes
+    const calendarInstance = calendarRef.current;
+    if (calendarInstance) {
+      const calendarApi = calendarInstance.getApi();
+      calendarApi.on('datesSet', setupDayCellClickHandlers);
+      
+      // Clean up
+      return () => {
+        calendarApi.off('datesSet', setupDayCellClickHandlers);
+      };
+    }
+  }, [events, workingHours, artist]);
+  
   // Handle event click for selecting available days
   const handleEventClick = (info: any) => {
     // Get the date from the clicked event
@@ -281,7 +345,11 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug }) => {
     
     if (dayWorkingHours) {
       console.log(`Working hours for this day: ${dayWorkingHours.start_time} - ${dayWorkingHours.end_time}`);
-      // Additional booking logic would go here
+      
+      // Call the callback if provided
+      if (onDateSelected) {
+        onDateSelected(selectedDate, dayWorkingHours);
+      }
     }
   };
   

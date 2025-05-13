@@ -168,12 +168,13 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       
       if (currentFilters.styles !== undefined) {
         // Check if arrays are different
+        const currentStylesArray = currentFilters.styles || [];
         const isDifferent = 
-          currentFilters.styles.length !== selectedStyles.length || 
-          currentFilters.styles.some(id => !selectedStyles.includes(id));
+          currentStylesArray.length !== selectedStyles.length || 
+          currentStylesArray.some(id => !selectedStyles.includes(id));
           
         if (isDifferent) {
-          setSelectedStyles(currentFilters.styles);
+          setSelectedStyles(currentFilters.styles || []);
         }
       }
       
@@ -209,7 +210,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
 
   // Apply filters when component mounts if initial filters are provided
   useEffect(() => {
-    if (initialFilters.searchString || initialFilters.styles?.length || initialFilters.distance) {
+    if (initialFilters.searchString || (initialFilters.styles && initialFilters.styles.length > 0) || initialFilters.distance) {
       handleApplyFilters();
     }
     
@@ -643,7 +644,12 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                           onFilterChange({
                             searchString: '',
                             styles: selectedStyles,
-                            distance
+                            distance,
+                            distanceUnit,
+                            location,
+                            useMyLocation,
+                            useAnyLocation,
+                            locationCoords
                           });
                         }}
                         sx={{ mr: 1 }}
