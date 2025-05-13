@@ -1,5 +1,8 @@
 # ink-api Development Guide
 
+## Code Completion Guidelines
+- Never use hardcoded data when fulfilling prompts. We will get data from the API and generate test data in the API.
+
 ## Code Style Guidelines
 - **Framework**: Laravel PHP (PSR standards)
 - **PHP Version**: 8.2+

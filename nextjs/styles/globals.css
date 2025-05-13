@@ -439,8 +439,78 @@ a {
 }
 
 /* Calendar Styles */
-.fc-available-day {
+/* Super high specificity selectors to override FullCalendar styles */
+.fc-available-day,
+.fc .fc-available-day,
+.artist-calendar .fc .fc-available-day {
   opacity: 1 !important;
+  background-color: #00A896 !important;
+  border-color: #00A896 !important;
+}
+
+/* Force the background events to be visible */
+.fc-bg-event,
+.fc .fc-bg-event,
+.artist-calendar .fc .fc-bg-event {
+  opacity: 1 !important;
+  background-color: #00A896 !important;
+}
+
+/* Direct styles for day cells */
+.artist-calendar .fc-daygrid-day,
+.artist-calendar .fc .fc-daygrid-day {
+  position: relative !important;
+}
+
+.artist-calendar .fc-daygrid-day.available-day,
+.artist-calendar .fc .fc-daygrid-day.available-day {
+  background-color: #00A896 !important;
+}
+
+/* Background events */
+.artist-calendar .fc-daygrid-day-bg .fc-bg-event,
+.artist-calendar .fc .fc-daygrid-day-bg .fc-bg-event {
+  opacity: 1 !important;
+  background-color: #00A896 !important;
+  z-index: 1 !important;
+}
+
+/* Make sure the today background is transparent */
+.fc-day-today,
+.fc .fc-day-today,
+.artist-calendar .fc .fc-day-today,
+.fc-day-today.fc-day-past, 
+.fc-day-today.fc-day-future {
+  background-color: transparent !important;
+}
+
+/* Business hours styling */
+.fc-business-day,
+.fc .fc-business-day,
+.artist-calendar .fc .fc-business-day {
+  background-color: #00A896 !important;
+}
+
+/* Direct styling for events */
+.artist-calendar .fc-event,
+.artist-calendar .fc .fc-event {
+  background-color: #00A896 !important;
+  border-color: #00A896 !important;
+}
+
+/* Increase specificity for day cells */
+.artist-calendar .fc-day {
+  position: relative;
+}
+
+/* Style for available days - added by JavaScript */
+.artist-calendar [data-date].available-day {
+  background-color: #00A896 !important;
+}
+
+/* Global style that will apply to all elements with inline style */
+[style*="background-color: #00A896"] {
+  background-color: #00A896 !important;
 }
 
 .artist-calendar .fc {
@@ -448,7 +518,9 @@ a {
   --fc-page-bg-color: #1c0f13;
   --fc-neutral-bg-color: #2a1a1e;
   --fc-neutral-text-color: #E8DBC5;
-  --fc-today-bg-color: #1A1A1D;
+  --fc-today-bg-color: transparent;
+  --fc-event-bg-color: #00A896;
+  --fc-event-border-color: #00A896;
 }
 
 .artist-calendar .fc-col-header-cell {
@@ -458,6 +530,11 @@ a {
 .artist-calendar .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
   color: #FF5722;
   font-weight: bold;
+}
+
+/* Remove background highlight from today's cell */
+.artist-calendar .fc-day-today {
+  background-color: transparent !important;
 }
 
 .artist-calendar .fc-button {
