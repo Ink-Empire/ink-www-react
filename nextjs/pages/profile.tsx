@@ -4,9 +4,11 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import AccountModal from '../components/AccountModal';
 import StyleModal from '../components/StyleModal';
+import WorkingHoursModal from '../components/WorkingHoursModal';
+import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
 import {UserProvider, useUser} from '@/contexts/UserContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUsers } from '@/hooks';
+import { useUsers, useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
 import { fetchCsrfToken } from '@/utils/api';
@@ -18,6 +20,16 @@ const ProfilePage: React.FC = () => {
   const { getOneUser } = useUsers();
   const { styles, getStyleName } = useStyles();
   const { profilePhoto, takeProfilePhoto, deleteProfilePhoto } = useProfilePhoto();
+  const { workingHours, saveWorkingHours, loading: hoursLoading, error: hoursError } = useWorkingHours(userData?.id);
+  
+  // Debug working hours data
+  console.log('Working Hours Debug:', { 
+    userId: userData?.id,
+    workingHours, 
+    length: workingHours?.length,
+    hoursLoading,
+    hoursError
+  });
 
 
   // Load current user data when the component mounts
@@ -131,6 +143,7 @@ const ProfilePage: React.FC = () => {
   
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
+  const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
   const [fieldName, setFieldName] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -214,6 +227,23 @@ const ProfilePage: React.FC = () => {
         setToastMessage('Failed to remove style');
         setShowToast(true);
       });
+  };
+  
+  // Open working hours modal
+  const openWorkingHoursModal = () => {
+    setWorkingHoursModalOpen(true);
+  };
+  
+  // Save working hours
+  const handleSaveWorkingHours = async (hours: any[]) => {
+    try {
+      await saveWorkingHours(hours);
+      setToastMessage('Working hours updated successfully');
+      setShowToast(true);
+    } catch (err) {
+      setToastMessage('Failed to update working hours');
+      setShowToast(true);
+    }
   };
 
   console.log(userData.image)
@@ -390,6 +420,32 @@ const ProfilePage: React.FC = () => {
                     ))}
                   </div>
                 </li>
+                
+                {/* Working Hours - Only show for artists */}
+                {userData.type === 'artist' && (
+                  <li className="py-4">
+                    <div className="flex justify-between px-4 cursor-pointer" onClick={openWorkingHoursModal}>
+                      <div className="text-sm font-medium text-gray-900">My Working Hours</div>
+                      <svg 
+                        className="h-5 w-5 text-gray-400" 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        viewBox="0 0 20 20" 
+                        fill="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    
+                    <div className="mt-4 px-4">
+                      <WorkingHoursDisplay 
+                        workingHours={workingHours}
+                      />
+                      <div className="mt-2 text-xs text-black">
+                        Click the plus icon above to edit your working hours
+                      </div>
+                    </div>
+                  </li>
+                )}
               </ul>
             </div>
           </div>
@@ -411,6 +467,17 @@ const ProfilePage: React.FC = () => {
         onApply={handleApplyStyles}
         selectedStyles={selectedStyles}
       />
+      
+      {/* Modal for setting working hours */}
+      {userData.type === 'artist' && (
+        <WorkingHoursModal
+          isOpen={workingHoursModalOpen}
+          onClose={() => setWorkingHoursModalOpen(false)}
+          onSave={handleSaveWorkingHours}
+          artistId={userData.id || 0}
+          initialWorkingHours={workingHours}
+        />
+      )}
       
       {/* Toast notification */}
       {showToast && (

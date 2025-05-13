@@ -80,7 +80,7 @@ export default function Home() {
         // Build new params object
         const newParams: Record<string, any> = {
             searchString: filters.searchString,
-            styles: filters.styles.length > 0 ? filters.styles : me?.styles,
+            styles: filters?.styles && filters.styles.length > 0 ? filters.styles : me?.styles || [],
             distance: filters.distance,
             distanceUnit: filters.distanceUnit,
             location: filters.location,
