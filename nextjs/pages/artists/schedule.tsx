@@ -47,62 +47,35 @@ const ArtistSchedulePage: React.FC = () => {
         </div>
         
         <div className="mt-6 bg-[#1C0F13] text-[#E8DBC5] rounded-lg shadow-md p-6 border border-[#333333]">
-          <h2 className="text-xl font-semibold mb-4 text-[#E8DBC5]">Request Appointment</h2>
+          <h2 className="text-xl font-semibold mb-4 text-[#E8DBC5]">Booking Instructions</h2>
           <p className="text-[#E8DBC5] opacity-80 mb-4">
-            To book an appointment with {artist?.name || 'this artist'}, please select an available time slot
-            on the calendar above or fill out the form below.
+            To book an appointment with {artist?.name || 'this artist'}, please select a <span className="text-[#00A896] font-medium">green</span> date on the calendar above. 
+            Only days with available time slots are shown in green.
           </p>
           
-          {/* Appointment request form could go here */}
-          <form className="space-y-4">
-            {/* This is a placeholder form - implement the actual form as needed */}
-            <div>
-              <label htmlFor="date" className="block text-sm font-medium text-[#E8DBC5]">
-                Preferred Date
-              </label>
-              <input
-                type="date"
-                id="date"
-                className="mt-1 block w-full px-3 py-2 border border-[#333333] rounded-md shadow-sm bg-[#2C1921] text-[#E8DBC5] 
-                  focus:outline-none focus:ring-persian-green focus:border-persian-green"
-              />
+          <div className="flex items-center p-4 border border-[#333333] rounded-md bg-[#1A1A1D] bg-opacity-50">
+            <div className="text-[#E8DBC5] opacity-80">
+              <h3 className="font-medium mb-2">How booking works:</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Green days have available time slots</li>
+                <li>Click on a green day to see available time slots</li>
+                <li>Fill out the appointment request form</li>
+                <li>Your request will be sent to the artist for approval</li>
+                <li>You'll be notified when the artist approves your request</li>
+              </ul>
             </div>
-            
-            <div>
-              <label htmlFor="time" className="block text-sm font-medium text-[#E8DBC5]">
-                Preferred Time
-              </label>
-              <input
-                type="time"
-                id="time"
-                className="mt-1 block w-full px-3 py-2 border border-[#333333] rounded-md shadow-sm bg-[#2C1921] text-[#E8DBC5] 
-                  focus:outline-none focus:ring-persian-green focus:border-persian-green"
-              />
+          </div>
+          
+          <div className="flex justify-between items-center mt-6">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-[#00A896]"></div>
+              <span>Available</span>
             </div>
-            
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-[#E8DBC5]">
-                Tattoo Description
-              </label>
-              <textarea
-                id="description"
-                rows={3}
-                className="mt-1 block w-full px-3 py-2 border border-[#333333] rounded-md shadow-sm bg-[#2C1921] text-[#E8DBC5] 
-                  focus:outline-none focus:ring-persian-green focus:border-persian-green"
-                placeholder="Describe your tattoo idea..."
-              ></textarea>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-[#1A1A1D]"></div>
+              <span>Unavailable</span>
             </div>
-            
-            <div>
-              <button
-                type="submit"
-                className="w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#339989] hover:bg-[#287771] 
-                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-persian-green"
-              >
-                Request Appointment
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
     </Layout>
