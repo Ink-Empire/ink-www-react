@@ -45,7 +45,7 @@ export default function ArtistList() {
         // Build new params object
         const newParams: Record<string, any> = {
             searchString: filters.searchString,
-            styles: filters.styles && filters.styles.length > 0 ? filters.styles : [],
+            styles: filters.styles && filters?.styles.length > 0 ? filters.styles : [],
             distance: filters.distance,
             distanceUnit: filters.distanceUnit,
             location: filters.location,

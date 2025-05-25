@@ -36,7 +36,7 @@ export default function TattooList() {
         setSearchParams({
             ...searchParams,
             searchString: filters.searchString,
-            styles: filters.styles.length > 0 ? filters.styles : me?.styles,
+            styles: filters?.styles.length > 0 ? filters.styles : me?.styles,
             distance: filters.distance
         });
     };
