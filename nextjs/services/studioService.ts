@@ -1,41 +1,62 @@
 import { api } from '../utils/api';
 import { IStudio } from '../models/studio.interface';
+import { getToken } from '../utils/auth';
 
 export const studioService = {
-  // Get all studios
+  // Get all studios (public access)
   getAll: async (): Promise<IStudio[]> => {
-    return api.get<IStudio[]>('/shops');
+    return api.get<IStudio[]>('/studios');
   },
 
-  // Get studio by ID
+  // Get studio by ID (public access)
   getById: async (id: number | string): Promise<IStudio> => {
-    return api.get<IStudio>(`/shops/${id}`);
+    return api.get<IStudio>(`/studios/studio/${id}`);
   },
 
-  // Search studios
+  // Search studios (public access)
   search: async (params: Record<string, any>): Promise<IStudio[]> => {
-    // Convert params object to URL query string
-    const queryString = new URLSearchParams(params).toString();
-    return api.get<IStudio[]>(`/shops/search?${queryString}`);
+    const hasAuthToken = !!getToken();
+    // Use POST request with body params to match other services
+    return api.post<IStudio[]>('/studios', params, {
+      headers: { 'X-Account-Type': 'studio' },
+      requiresAuth: hasAuthToken // Only include token if user is logged in
+    });
   },
 
-  // Get studio's artists
+  // Get studio's artists (public access)
   getArtists: async (studioId: number | string): Promise<any[]> => {
-    return api.get<any[]>(`/shops/${studioId}/artists`);
+    return api.get<any[]>(`/studios/${studioId}`);
   },
 
   // Create a new studio (requires auth)
   create: async (data: Partial<IStudio>): Promise<IStudio> => {
-    return api.post<IStudio>('/shops', data, { requiresAuth: true });
+    return api.post<IStudio>('/studios', data, { 
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
   },
 
   // Update a studio (requires auth)
   update: async (id: number | string, data: Partial<IStudio>): Promise<IStudio> => {
-    return api.put<IStudio>(`/shops/${id}`, data, { requiresAuth: true });
+    return api.put<IStudio>(`/studios/studio/${id}`, data, { 
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+  
+  // Update studio business hours (requires auth)
+  updateBusinessHours: async (id: number | string, data: any): Promise<any> => {
+    return api.put<any>(`/studios/studio-hours/${id}`, data, { 
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
   },
 
   // Delete a studio (requires auth)
   delete: async (id: number | string): Promise<void> => {
-    return api.delete<void>(`/shops/${id}`, { requiresAuth: true });
+    return api.delete<void>(`/studios/studio/${id}`, { 
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
   }
 };

@@ -158,14 +158,15 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     }
   }
 
-  if (requiresAuth) {
-    const token = getToken(`api-${method}-${endpoint}`);
-    
-    if (token) {
-      requestHeaders['Authorization'] = `Bearer ${token}`;
-    } else {
-      console.warn(`No auth token available for ${method} ${endpoint} request`);
-    }
+  // Add auth token if required or available (for personalized results)
+  // Public endpoints work without a token but may return personalized results if token is provided
+  const token = getToken(`api-${method}-${endpoint}`);
+  
+  if (token) {
+    requestHeaders['Authorization'] = `Bearer ${token}`;
+  } else if (requiresAuth) {
+    // Only show warning if endpoint explicitly requires auth
+    console.warn(`No auth token available for ${method} ${endpoint} request that requires authentication`);
   }
 
   const requestOptions: RequestInit = {

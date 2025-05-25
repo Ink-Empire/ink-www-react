@@ -1,24 +1,17 @@
 import { useState, useCallback } from 'react';
 
-// Dynamic imports for Capacitor to avoid SSR issues
-let Geolocation: any;
-let Position: any;
-
-// Only import Capacitor modules on the client side
-if (typeof window !== 'undefined') {
-  try {
-    // Use dynamic import to get the Capacitor modules
-    const capacitorImport = require('@capacitor/geolocation');
-    Geolocation = capacitorImport.Geolocation;
-  } catch (e) {
-    console.warn('Capacitor geolocation module not available');
-    // Provide fallback implementation
-    Geolocation = {
-      checkPermissions: async () => ({ location: 'denied' }),
-      requestPermissions: async () => ({ location: 'denied' }),
-      getCurrentPosition: async () => { throw new Error('Capacitor geolocation not available'); }
-    };
-  }
+// Position interface for browser geolocation
+interface Position {
+  coords: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    altitudeAccuracy: number | null;
+    altitude: number | null;
+    speed: number | null;
+    heading: number | null;
+  };
+  timestamp: number;
 }
 
 interface LocationCoordinates {
@@ -70,57 +63,62 @@ export function useGeolocation(): UseGeolocationReturn {
 
   // Function to get the current position
   const getCurrentPosition = useCallback(async (): Promise<Position> => {
-    try {
+    return new Promise((resolve, reject) => {
       setLoading(true);
       setError(null);
       
       // Only run this in browser environment
       if (typeof window === 'undefined') {
-        throw new Error('Geolocation is not available during server-side rendering');
+        const error = new Error('Geolocation is not available during server-side rendering');
+        setError(error.message);
+        setLoading(false);
+        reject(error);
+        return;
       }
       
-      // Request permission first
-      const permissionStatus = await Geolocation.checkPermissions();
+      if (!navigator?.geolocation) {
+        const error = new Error('Geolocation is not supported by your browser');
+        setError(error.message);
+        setLoading(false);
+        reject(error);
+        return;
+      }
       
-      if (permissionStatus.location !== 'granted') {
-        const requestResult = await Geolocation.requestPermissions();
-        
-        if (requestResult.location !== 'granted') {
-          const error = new Error('Location permission denied');
-          (error as any).code = 1; // Custom code for permission denied
-          throw error;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const position: Position = {
+            coords: {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+              altitudeAccuracy: pos.coords.altitudeAccuracy,
+              altitude: pos.coords.altitude,
+              speed: pos.coords.speed,
+              heading: pos.coords.heading
+            },
+            timestamp: pos.timestamp
+          };
+          
+          setPosition(position);
+          setLoading(false);
+          resolve(position);
+        },
+        (err) => {
+          const errorMessage = err.message || 'Unknown geolocation error';
+          setError(errorMessage);
+          setLoading(false);
+          
+          const enhancedError = new Error(errorMessage);
+          (enhancedError as any).code = err.code;
+          reject(enhancedError);
+        },
+        { 
+          enableHighAccuracy: true, 
+          timeout: 15000,
+          maximumAge: 10000
         }
-      }
-      
-      // Get current position with appropriate options
-      const currentPosition = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 15000, // Extended timeout
-        maximumAge: 10000 // Allow slightly cached results
-      });
-      
-      setPosition(currentPosition);
-      return currentPosition;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMessage);
-      
-      // If the error isn't already typed with a code, try to determine the type
-      if (!(err as any).code && err instanceof Error) {
-        // Map error messages to standard geolocation error codes
-        if (err.message.includes('permission')) {
-          (err as any).code = 1; // Permission denied
-        } else if (err.message.includes('unavailable') || err.message.includes('available')) {
-          (err as any).code = 2; // Position unavailable
-        } else if (err.message.includes('timeout')) {
-          (err as any).code = 3; // Timeout
-        }
-      }
-      
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+      );
+    });
   }, []);
 
   // Function to reverse geocode coordinates to address
