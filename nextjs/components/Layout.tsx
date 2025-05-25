@@ -22,8 +22,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Update avatar URL when user data changes
   useEffect(() => {
     // Check for profile image sources in order of preference
-    if (user?.image) {
-      setAvatarUrl(user.image);
+    if ((user as any)?.image) {
+      setAvatarUrl((user as any).image);
     } else if (userData?.profilePhoto?.webviewPath) {
       setAvatarUrl(userData.profilePhoto.webviewPath);
     } else {
@@ -95,10 +95,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               value={
                 router.pathname === '/' ? 0 :
                 router.pathname.startsWith('/artists') ? 1 :
-                router.pathname === '/search' ? 2 : false
+                router.pathname === '/search' ? 2 :
+                router.pathname === '/inbox' ? 3 : false
               }
               indicatorColor="primary"
-              textColor="white"
+              textColor="inherit"
               TabIndicatorProps={{ sx: { height: 3 } }}
               sx={{ ml: 2 }}
             >
@@ -120,6 +121,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 href="/search" 
                 sx={{ minWidth: 'auto' }}
               />
+              {isAuthenticated && (
+                <Tab 
+                  label="Inbox" 
+                  component={Link} 
+                  href="/inbox" 
+                  sx={{ minWidth: 'auto' }}
+                />
+              )}
             </Tabs>
           </Stack>
           

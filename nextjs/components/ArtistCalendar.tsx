@@ -132,13 +132,15 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     }
     
     const today = new Date();
-    const startOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    // Set time to start of day for accurate comparison
+    today.setHours(0, 0, 0, 0);
+    
     const endOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
 
     const availableDays: CalendarEvent[] = [];
     
-    // Loop through each day in the date range
-    const currentDate = new Date(startOfCurrentMonth);
+    // Loop through each day starting from today (not past dates)
+    const currentDate = new Date(today);
     
     // Define Persian Green for available days
     const PERSIAN_GREEN = '#00A896';
@@ -197,14 +199,20 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
         // Check if day is already booked by appointments
         const isFullyBooked = fetchedAppointments.some(appointment => {
           // Handle different date formats - appointment.start might be a string or Date object
-          const appointmentDate = appointment.start instanceof Date 
-            ? appointment.start.toISOString().split('T')[0] 
-            : typeof appointment.start === 'string' 
-              ? new Date(appointment.start).toISOString().split('T')[0]
-              : '';
+          let appointmentDate = '';
+          try {
+            if (appointment.start && typeof appointment.start === 'object' && 'toISOString' in appointment.start) {
+              appointmentDate = (appointment.start as Date).toISOString().split('T')[0];
+            } else if (typeof appointment.start === 'string') {
+              appointmentDate = new Date(appointment.start).toISOString().split('T')[0];
+            }
+          } catch (e) {
+            console.error('Error parsing appointment date:', e);
+            appointmentDate = '';
+          }
               
           return appointmentDate === dateStr && 
-                (appointment.status === 'confirmed' || appointment.status === 'approved');
+                (appointment.status === 'booked' || appointment.status === 'unavailable');
         });
         
         if (isFullyBooked) {
@@ -224,7 +232,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
             color: PERSIAN_GREEN,
             className: 'fc-available-day',
             extendedProps: {
-              status: 'available',
+              status: 'available' as 'available',
               startTime: slotStart.toISOString(),
               endTime: slotEnd.toISOString()
             }
@@ -267,9 +275,15 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
           
           // Check if this date is available
           const isAvailable = events.some(event => {
-            return typeof event.start === 'string' 
-              ? event.start.split('T')[0] === dateStr
-              : event.start.toString().split('T')[0] === dateStr;
+            try {
+              const eventDateStr = typeof event.start === 'string' 
+                ? event.start.split('T')[0]
+                : String(event.start).split('T')[0];
+              return eventDateStr === dateStr;
+            } catch (e) {
+              console.error('Error parsing event date:', e);
+              return false;
+            }
           });
           
           if (isAvailable) {
@@ -338,8 +352,13 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     
     // Check if this is an available day
     const isAvailable = events.some(event => {
-      const eventDate = event.start.toString().split('T')[0];
-      return eventDate === dateStr;
+      try {
+        const eventDate = String(event.start).split('T')[0];
+        return eventDate === dateStr;
+      } catch (e) {
+        console.error('Error parsing event date:', e);
+        return false;
+      }
     });
     
     if (isAvailable) {
@@ -446,7 +465,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
             events.forEach(event => {
               const dateStr = typeof event.start === 'string' 
                 ? event.start.split('T')[0] 
-                : event.start.toString().split('T')[0];
+                : String(event.start).split('T')[0];
                 
               const dayEl = document.querySelector(`.fc-day[data-date="${dateStr}"]`);
               if (dayEl) {

@@ -180,13 +180,21 @@ const ArtistSearch: React.FC<ArtistSearchProps> = ({
         )}
         
         {!loading && !error && artists.length > 0 && (
-          <Grid container spacing={3}>
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: { 
+              xs: '1fr', 
+              md: 'repeat(2, 1fr)', 
+              lg: 'repeat(3, 1fr)' 
+            }, 
+            gap: 3 
+          }}>
             {artists.map((artist: ArtistType) => (
-              <Grid item xs={12} md={6} lg={4} key={artist.id}>
-                <Card 
-                  variant="outlined"
-                  sx={{ 
-                    height: '100%',
+              <Card 
+                key={artist.id as number}
+                variant="outlined"
+                sx={{ 
+                  height: '100%',
                     transition: 'box-shadow 0.3s ease-in-out',
                     '&:hover': {
                       boxShadow: 3
@@ -195,7 +203,7 @@ const ArtistSearch: React.FC<ArtistSearchProps> = ({
                 >
                   <CardContent>
                     <Typography variant="h6" component="h3" gutterBottom>
-                      {artist.name || `${artist.first_name || ''} ${artist.last_name || ''}`.trim()}
+                      {artist.name || 'Artist'}
                     </Typography>
                     {artist.location && (
                       <Typography variant="body2" color="text.secondary">
@@ -226,9 +234,8 @@ const ArtistSearch: React.FC<ArtistSearchProps> = ({
                     )}
                   </CardContent>
                 </Card>
-              </Grid>
             ))}
-          </Grid>
+          </Box>
         )}
       </Paper>
     </Box>

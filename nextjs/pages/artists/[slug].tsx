@@ -14,7 +14,6 @@ import TattooCard from "@/components/TattooCard";
 import {useAuth} from '../../contexts/AuthContext';
 import TattooUpload from '@/components/TattooUpload';
 import ArtistCalendar from '@/components/ArtistCalendar';
-import WorkingHoursDisplay from '@/components/WorkingHoursDisplay';
 import BookingModal from '@/components/BookingModal';
 
 export default function ArtistDetail() {

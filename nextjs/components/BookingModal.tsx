@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Paper, Typography, FormControl, InputLabel, Select, MenuItem, TextField, Button, Alert } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { useDialog } from '../contexts/DialogContext';
 import { api } from '../utils/api';
 
 interface ArtistSettings {
@@ -38,6 +39,7 @@ export default function BookingModal({
   const [bookingType, setBookingType] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { user } = useAuth();
+  const { showError, showSuccess } = useDialog();
 
   console.log("user", user);
 
@@ -77,7 +79,7 @@ export default function BookingModal({
 
   const handleBookAppointment = async () => {
     if (!selectedDate || !selectedTimeSlot) {
-      alert('Please select a date and time');
+      showError('Please select a date and time', 'Missing Information');
       return;
     }
 
@@ -86,13 +88,13 @@ export default function BookingModal({
     const acceptsAppointments = settings?.accepts_appointments === 1;
     
     if (acceptsConsultations && acceptsAppointments && !bookingType) {
-      alert('Please select booking type');
+      showError('Please select booking type', 'Missing Information');
       return;
     }
 
     // Check if user is authenticated
     if (!user) {
-      alert('You must be logged in to book an appointment');
+      showError('You must be logged in to book an appointment', 'Authentication Required');
       return;
     }
 
@@ -139,14 +141,17 @@ export default function BookingModal({
       handleClose();
 
       // Show success message
-      alert(`${finalBookingType.charAt(0).toUpperCase() + finalBookingType.slice(1)} request sent successfully!`);
+      showSuccess(
+        `Your ${finalBookingType} request has been sent successfully! The artist will contact you soon.`,
+        'Request Sent'
+      );
 
     } catch (error) {
       console.error('Error creating appointment:', error);
       
       // Show error message
       const errorMessage = error instanceof Error ? error.message : 'Failed to create appointment request';
-      alert(`Error: ${errorMessage}`);
+      showError(errorMessage, 'Booking Failed');
     } finally {
       setIsSubmitting(false);
     }
