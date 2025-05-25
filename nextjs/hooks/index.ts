@@ -8,3 +8,4 @@ export { useProfilePhoto } from './useProfilePhoto';
 export { useWorkingHours } from './useWorkingHours';
 export { useArtistAppointments } from './useArtistAppointments';
 export { useArtistInbox } from './useArtistInbox';
+export { useInboxCount } from './useInboxCount';

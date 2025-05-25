@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Button, CircularProgress, Alert, Tabs, Tab } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import InboxIcon from '@mui/icons-material/Inbox';
+import HistoryIcon from '@mui/icons-material/History';
 import { useArtistInbox } from '../hooks/useArtistInbox';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
 import AppointmentCard from './AppointmentCard';
+import HistoryTab from './HistoryTab';
 
 interface ArtistInboxProps {
   artistId?: number;
@@ -15,6 +17,7 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
   const { user } = useAuth();
   const { showSuccess, showError, showConfirm } = useDialog();
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   // Use the user's ID as artist ID if not provided
   const effectiveArtistId = artistId || user?.id;
@@ -73,6 +76,10 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
     await refreshInbox();
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   if (!effectiveArtistId) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -92,7 +99,7 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
           <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
             Inbox
           </Typography>
-          {appointments.length > 0 && (
+          {activeTab === 0 && appointments.length > 0 && (
             <Typography variant="body1" sx={{ color: '#888' }}>
               ({appointments.length} pending request{appointments.length !== 1 ? 's' : ''})
             </Typography>
@@ -117,46 +124,87 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
         </Button>
       </Box>
 
-      {/* Error state */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3, bgcolor: '#2a1a1e', border: '1px solid #f44336' }}>
-          {error}
-        </Alert>
-      )}
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: '#444', mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          sx={{
+            '& .MuiTabs-indicator': {
+              backgroundColor: '#339989'
+            },
+            '& .MuiTab-root': {
+              color: '#888',
+              '&.Mui-selected': {
+                color: '#339989'
+              }
+            }
+          }}
+        >
+          <Tab 
+            icon={<InboxIcon />} 
+            label="Pending" 
+            iconPosition="start"
+            sx={{ minHeight: 'auto' }}
+          />
+          <Tab 
+            icon={<HistoryIcon />} 
+            label="History" 
+            iconPosition="start"
+            sx={{ minHeight: 'auto' }}
+          />
+        </Tabs>
+      </Box>
 
-      {/* Loading state */}
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress sx={{ color: '#339989' }} />
-        </Box>
-      )}
-
-      {/* Empty state */}
-      {!loading && appointments.length === 0 && !error && (
-        <Box sx={{ textAlign: 'center', py: 6 }}>
-          <InboxIcon sx={{ fontSize: 64, color: '#666', mb: 2 }} />
-          <Typography variant="h6" sx={{ color: '#888', mb: 1 }}>
-            No pending requests
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            You're all caught up! New appointment requests will appear here.
-          </Typography>
-        </Box>
-      )}
-
-      {/* Appointments list */}
-      {!loading && appointments.length > 0 && (
+      {/* Tab Content */}
+      {activeTab === 0 && (
         <Box>
-          {appointments.map((appointment) => (
-            <AppointmentCard
-              key={appointment.id}
-              appointment={appointment}
-              onAccept={handleAcceptAppointment}
-              onDecline={handleDeclineAppointment}
-              loading={actionLoading === appointment.id}
-            />
-          ))}
+          {/* Error state */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, bgcolor: '#2a1a1e', border: '1px solid #f44336' }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Loading state */}
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress sx={{ color: '#339989' }} />
+            </Box>
+          )}
+
+          {/* Empty state */}
+          {!loading && appointments.length === 0 && !error && (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <InboxIcon sx={{ fontSize: 64, color: '#666', mb: 2 }} />
+              <Typography variant="h6" sx={{ color: '#888', mb: 1 }}>
+                No pending requests
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#666' }}>
+                You're all caught up! New appointment requests will appear here.
+              </Typography>
+            </Box>
+          )}
+
+          {/* Appointments list */}
+          {!loading && appointments.length > 0 && (
+            <Box>
+              {appointments.map((appointment) => (
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                  onAccept={handleAcceptAppointment}
+                  onDecline={handleDeclineAppointment}
+                  loading={actionLoading === appointment.id}
+                />
+              ))}
+            </Box>
+          )}
         </Box>
+      )}
+
+      {activeTab === 1 && (
+        <HistoryTab artistId={effectiveArtistId!} />
       )}
     </Box>
   );

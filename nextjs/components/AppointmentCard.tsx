@@ -32,16 +32,20 @@ interface Appointment {
 
 interface AppointmentCardProps {
   appointment: Appointment;
-  onAccept: (appointmentId: number) => void;
-  onDecline: (appointmentId: number) => void;
+  onAccept?: (appointmentId: number) => void;
+  onDecline?: (appointmentId: number) => void;
+  onStatusUpdate?: (appointmentId: number, status: string) => void;
   loading?: boolean;
+  showActions?: boolean;
 }
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
   appointment,
   onAccept,
   onDecline,
-  loading = false
+  onStatusUpdate,
+  loading = false,
+  showActions = true
 }) => {
   const getTypeColor = (type: string) => {
     return type === 'consultation' ? '#2196f3' : '#339989';
@@ -159,36 +163,42 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         )}
 
         {/* Action buttons */}
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-          <Button
-            variant="outlined"
-            onClick={() => onDecline(appointment.id)}
-            disabled={loading}
-            sx={{
-              color: '#f44336',
-              borderColor: '#f44336',
-              '&:hover': {
-                borderColor: '#d32f2f',
-                bgcolor: 'rgba(244, 67, 54, 0.1)'
-              }
-            }}
-          >
-            Decline
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => onAccept(appointment.id)}
-            disabled={loading}
-            sx={{
-              bgcolor: '#339989',
-              '&:hover': {
-                bgcolor: '#267b6e'
-              }
-            }}
-          >
-            Accept
-          </Button>
-        </Box>
+        {showActions && (onAccept || onDecline) && (
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+            {onDecline && (
+              <Button
+                variant="outlined"
+                onClick={() => onDecline(appointment.id)}
+                disabled={loading}
+                sx={{
+                  color: '#f44336',
+                  borderColor: '#f44336',
+                  '&:hover': {
+                    borderColor: '#d32f2f',
+                    bgcolor: 'rgba(244, 67, 54, 0.1)'
+                  }
+                }}
+              >
+                Decline
+              </Button>
+            )}
+            {onAccept && (
+              <Button
+                variant="contained"
+                onClick={() => onAccept(appointment.id)}
+                disabled={loading}
+                sx={{
+                  bgcolor: '#339989',
+                  '&:hover': {
+                    bgcolor: '#267b6e'
+                  }
+                }}
+              >
+                Accept
+              </Button>
+            )}
+          </Box>
+        )}
       </CardContent>
     </Card>
   );
