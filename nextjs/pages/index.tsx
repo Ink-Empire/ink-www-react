@@ -10,7 +10,6 @@ import LogoText from '../components/LogoText';
 import Layout from '../components/Layout';
 import {useTattoos} from '../hooks';
 import {useUserData} from "@/contexts/UserContext";
-import {undefined} from "zod";
 
 export default function Home() {
     const me = useUserData();

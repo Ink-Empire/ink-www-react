@@ -53,6 +53,8 @@ export default function ArtistList() {
             useAnyLocation: filters.useAnyLocation,
             subject: 'artists'
         };
+
+        console.log(newParams.styles);
         
         // Format locationCoords as comma-separated string if present
         if (filters.locationCoords && filters.locationCoords.lat && filters.locationCoords.lng) {

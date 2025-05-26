@@ -65,6 +65,7 @@ export function useArtistAppointments(
           '/artists/appointments', 
           requestBody,
           {
+            requiresAuth: false, // Allow viewing appointments without authentication
             useCache: true, // Enable caching for this request
             cacheTTL: 5 * 60 * 1000 // 5 minute cache
           }

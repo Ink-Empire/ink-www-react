@@ -6,6 +6,7 @@ import AccountModal from '../components/AccountModal';
 import StyleModal from '../components/StyleModal';
 import WorkingHoursModal from '../components/WorkingHoursModal';
 import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
+import ArtistSettingsToggle from '../components/ArtistSettingsToggle';
 import {UserProvider, useUser} from '@/contexts/UserContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsers, useWorkingHours } from '@/hooks';
@@ -443,6 +444,21 @@ const ProfilePage: React.FC = () => {
                       <div className="mt-2 text-xs text-black">
                         Click the plus icon above to edit your working hours
                       </div>
+                    </div>
+                  </li>
+                )}
+
+                {/* Artist Settings - Only show for artists */}
+                {userData.type === 'artist' && userData.id && (
+                  <li className="py-4">
+                    <div className="px-4">
+                      <ArtistSettingsToggle 
+                        artistId={userData.id}
+                        onSettingsUpdate={(settings) => {
+                          setToastMessage('Settings updated successfully');
+                          setShowToast(true);
+                        }}
+                      />
                     </div>
                   </li>
                 )}

@@ -13,7 +13,6 @@ class MyDocument extends Document {
           <link rel="icon" href="/favicon.png" />
           <link rel="apple-touch-icon" href="/favicon.png" />
           <meta name="theme-color" content="#339989" />
-          <title>InkedIn | Find Your Tattoo Artist</title>
           <link rel="preload" href="/fonts/tatFont.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
           <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
           <style dangerouslySetInnerHTML={{

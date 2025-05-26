@@ -30,7 +30,7 @@ interface EnhancedUserData extends UserData {
   location_lat_long: any;
   updateUser: (data: Partial<UserData>) => Promise<void>;
   updateStyles: (styles: number[]) => Promise<void>;
-  toggleFavorite: (type: "artist" | "tattoo | studio", id: number | undefined) => Promise<void>;
+  toggleFavorite: (type: "artist" | "tattoo" | "studio", id: number | undefined) => Promise<void>;
   logout: () => void;
   loading: boolean;
   error: string | null;
@@ -43,7 +43,7 @@ interface UserContextType {
   error: string | null;
   updateUser: (data: Partial<UserData>) => Promise<void>;
   updateStyles: (styles: number[]) => Promise<void>;
-  toggleFavorite: (type: 'artist' | 'tattoo |  studio', id: number) => Promise<void>;
+  toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number) => Promise<void>;
   logout: () => void;
 }
 
@@ -255,7 +255,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Toggle favorite for an artist or tattoo
-  const toggleFavorite = async (type: 'artist' | 'tattoo | studio', id: number): Promise<void> => {
+  const toggleFavorite = async (type: 'artist' | 'tattoo' | 'studio', id: number): Promise<void> => {
     if (!userData.id) {
       setError('User is not logged in');
       return;

@@ -46,6 +46,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
   const [artist, setArtist] = useState<any>(null);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [workingHoursLoading, setWorkingHoursLoading] = useState<boolean>(true);
+  const [booksOpen, setBooksOpen] = useState<boolean | null>(null);
   
   // Create a ref to store the calendar instance
   const calendarRef = React.useRef<any>(null);
@@ -89,41 +90,76 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
   }, [artistIdOrSlug]);
 
 
-  // Fetch working hours from the API
+  // Fetch artist data and working hours from the API
   useEffect(() => {
-    const fetchWorkingHours = async () => {
+    const fetchArtistAndWorkingHours = async () => {
       if (!artist) return;
       
       setWorkingHoursLoading(true);
       
       try {
-        // Use the API endpoint from ink-api
-        const data = await api.get<{ data: WorkingHour[] }>(
-            `/artists/${artist.slug}/working-hours`
-        );
+        // Fetch artist data to check for books_open status
+        const artistData = await api.get<{ data: any }>(`/artists/${artist.slug}?db=1`, { 
+          requiresAuth: false 
+        });
+        console.log('Artist data response:', artistData);
+        
+        // Check if artist has settings and books_open field
+        const artistInfo = artistData?.data || artistData;
+        const hasSettingsData = artistInfo && artistInfo?.artist?.settings && Object.keys(artistInfo?.artist?.settings).length > 0;
+        
+        // If no settings data exists, books are closed
+        // If settings exist, check books_open field (default closed if not specified)
+        const booksAreOpen = hasSettingsData && artistInfo?.artist?.settings?.books_open === 1;
 
-        // We know the API returns data.data directly
-        if (data && typeof data === 'object' && 'data' in data) {
-          setWorkingHours(data.data);
+        setBooksOpen(booksAreOpen);
+
+        console.log(booksAreOpen);
+
+
+        // Only fetch working hours if books are open
+        if (booksAreOpen) {
+          // Use the API endpoint from ink-api
+          const data = await api.get<{ data: WorkingHour[] }>(
+              `/artists/${artist.slug}/working-hours`,
+              { requiresAuth: false }
+          );
+          
+          console.log('Working hours API response:', data);
+          
+          // We know the API returns data.data directly
+          if (data && typeof data === 'object' && 'data' in data) {
+            setWorkingHours(data.data);
+          } else {
+            console.error('Unexpected API response format (missing data property):', data);
+            setWorkingHours([]);
+          }
         } else {
-          console.error('Unexpected API response format (missing data property):', data);
+          console.log('Books are closed or no settings data, not fetching working hours');
           setWorkingHours([]);
         }
       } catch (error) {
-        console.error('Error fetching working hours:', error);
+        console.error('Error fetching artist data or working hours:', error);
         setWorkingHours([]);
+        setBooksOpen(false);
       } finally {
         setWorkingHoursLoading(false);
       }
     };
     
-    fetchWorkingHours();
+    fetchArtistAndWorkingHours();
   }, [artist?.id]);
 
   // Generate available days based on working hours
   const generateAvailableDays = () => {
 
     if (workingHoursLoading) {
+      return [];
+    }
+    
+    // Don't generate days if books are closed
+    if (booksOpen === false) {
+      console.log('Books are closed, not generating available days');
       return [];
     }
     
@@ -260,7 +296,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
       // Set the events with only the API-based available days
       setEvents(availableDays);
     }
-  }, [fetchedAppointments, appointmentsLoading, workingHours, workingHoursLoading, artist?.id]);
+  }, [fetchedAppointments, appointmentsLoading, workingHours, workingHoursLoading, booksOpen, artist?.id]);
   
   // Set up click event handlers for day cells
   useEffect(() => {
@@ -401,6 +437,30 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     );
   }
 
+  // Render books closed warning
+  if (!workingHoursLoading && booksOpen === false) {
+    return (
+      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded shadow">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <svg className="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-lg font-medium text-yellow-800">Books Currently Closed</h3>
+            <p className="text-sm text-yellow-700 mt-1">
+              This artist's books are currently closed and they are not accepting new appointments at this time. 
+              Please check back later or contact the artist directly for more information.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Log events right before rendering for debugging
+  console.log('Rendering calendar with events:', events);
   // Create FullCalendar-specific business hours from workingHours
   const businessHours = workingHours.map(wh => {
     // Skip days off
@@ -417,9 +477,9 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
 
   return (
     <div className="artist-calendar">
-      {/* DEBUG: Show raw events for troubleshooting */}
-      {events.length === 0 && (
-        <div className="p-4 mb-4 bg-yellow-100 text-yellow-800 rounded">
+      {/* Show "No openings available" only when books are open but no events */}
+      {events.length === 0 && booksOpen === true && !workingHoursLoading && (
+        <div className="p-4 mb-4 bg-yellow-100 text-yellow-800 rounded text-center">
           No openings available.
         </div>
       )}
