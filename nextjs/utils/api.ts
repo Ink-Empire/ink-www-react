@@ -121,7 +121,18 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     // If no token is found, fetch a new one
     if (!csrfToken) {
       await fetchCsrfToken();
-      csrfToken = getCsrfToken();
+      
+      // Wait a bit for the cookie to be set by the browser, then retry
+      let retries = 3;
+      while (!csrfToken && retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
+        csrfToken = getCsrfToken();
+        retries--;
+      }
+      
+      if (!csrfToken) {
+        console.warn('Failed to obtain CSRF token after retries');
+      }
     }
   }
 

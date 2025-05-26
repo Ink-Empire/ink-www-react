@@ -43,6 +43,8 @@ const ActiveFilterBadges: React.FC<ActiveFilterBadgesProps> = ({
   const hasActiveFilters = searchString || selectedStyles.length > 0 || distance || (!useMyLocation && !useAnyLocation && location) || studioId || useAnyLocation;
   
   if (!hasActiveFilters) return null;
+
+  console.log(useAnyLocation);
   
   // Get style name by id
   const getStyleName = (styleId: number) => {
@@ -80,7 +82,7 @@ const ActiveFilterBadges: React.FC<ActiveFilterBadgesProps> = ({
           )}
           
           {/* Distance filter */}
-          {distance && (
+          {distance && !useAnyLocation && (
             <Chip
               label={`Distance: ${distance} ${distanceUnit === 'mi' ? 'miles' : 'km'}`}
               onDelete={onClearDistance}
@@ -102,7 +104,7 @@ const ActiveFilterBadges: React.FC<ActiveFilterBadgesProps> = ({
           )}
           
           {/* Anywhere filter */}
-          {useAnyLocation && onClearLocation && (
+          {useAnyLocation && (
             <Chip
               label="Location: Anywhere"
               onDelete={onClearLocation}

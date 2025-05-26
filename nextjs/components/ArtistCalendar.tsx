@@ -99,7 +99,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
       
       try {
         // Fetch artist data to check for books_open status
-        const artistData = await api.get<{ data: any }>(`/artists/${artist.slug}?db=1`, { 
+        const artistData = await api.get<{ data: any }>(`/artists/${artist.slug}`, {
           requiresAuth: false 
         });
         console.log('Artist data response:', artistData);
@@ -110,7 +110,11 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
         
         // If no settings data exists, books are closed
         // If settings exist, check books_open field (default closed if not specified)
-        const booksAreOpen = hasSettingsData && artistInfo?.artist?.settings?.books_open === 1;
+        // Handle both boolean true and numeric 1 values
+        const booksAreOpen = hasSettingsData && (
+          artistInfo?.artist?.settings?.books_open === true || 
+          artistInfo?.artist?.settings?.books_open === 1
+        );
 
         setBooksOpen(booksAreOpen);
 

@@ -119,6 +119,7 @@ export default function ArtistList() {
                         distanceUnit={searchParams.distanceUnit}
                         location={searchParams.location}
                         useMyLocation={searchParams.useMyLocation}
+                        useAnyLocation={searchParams.useAnyLocation}
                         locationCoords={searchParams.locationCoords}
                         onClearSearch={() => {
                             const newParams = { ...searchParams, searchString: '' };

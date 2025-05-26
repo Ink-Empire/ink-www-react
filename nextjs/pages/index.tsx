@@ -147,6 +147,7 @@ export default function Home() {
                         distanceUnit={searchParams.distanceUnit}
                         location={searchParams.location}
                         useMyLocation={searchParams.useMyLocation}
+                        useAnyLocation={searchParams.useAnyLocation}
                         studioId={searchParams.studio_id}
                         studioName={studioName}
                         onClearSearch={() => {
