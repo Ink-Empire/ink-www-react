@@ -164,9 +164,12 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   
   if (token) {
     requestHeaders['Authorization'] = `Bearer ${token}`;
+    console.log(`Including auth token in ${method} ${endpoint} request`);
   } else if (requiresAuth) {
     // Only show warning if endpoint explicitly requires auth
     console.warn(`No auth token available for ${method} ${endpoint} request that requires authentication`);
+  } else {
+    console.log(`No auth token available for ${method} ${endpoint} request (not required)`);
   }
 
   const requestOptions: RequestInit = {

@@ -16,7 +16,7 @@ export default function TattooList() {
     const initialSearchParams = {
         searchString: '',
         styles: me?.styles || [],
-        distance: 100,
+        distance: 50,
         studio_near_me: me?.location_lat_long,
         artist_near_me: me?.location_lat_long,
         studios: me?.studios
