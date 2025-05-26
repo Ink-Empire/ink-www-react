@@ -23,9 +23,17 @@ interface Appointment {
     email: string;
     name: string;
   };
+  artist?: {
+    id: number;
+    username: string;
+    email: string;
+    name: string;
+  };
+  messages?: any[];
+  has_unread_messages?: boolean;
 }
 
-interface UseArtistInboxReturn {
+interface UseInboxReturn {
   appointments: Appointment[];
   loading: boolean;
   error: string | null;
@@ -66,7 +74,7 @@ interface HistoryResponse {
   };
 }
 
-interface UseArtistHistoryReturn {
+interface UseHistoryReturn {
   appointments: Appointment[];
   loading: boolean;
   error: string | null;
@@ -75,7 +83,7 @@ interface UseArtistHistoryReturn {
   refreshHistory: () => Promise<void>;
 }
 
-export function useArtistHistory(artistId: number | undefined): UseArtistHistoryReturn {
+export function useHistory(userId: number | undefined): UseHistoryReturn {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +91,7 @@ export function useArtistHistory(artistId: number | undefined): UseArtistHistory
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const fetchHistory = async (page: number = 1) => {
-    if (!artistId) {
+    if (!userId) {
       setLoading(false);
       return;
     }
@@ -92,14 +100,14 @@ export function useArtistHistory(artistId: number | undefined): UseArtistHistory
       setLoading(true);
       setError(null);
 
-      const response = await api.post<HistoryResponse>('/artists/appointments/history', {
-        artist_id: artistId,
+      const response = await api.post<HistoryResponse>('/appointments/history', {
+        user_id: userId,
         page
       }, {
         requiresAuth: true
       });
 
-      console.log('Artist history response:', response);
+      console.log('History response:', response);
 
       if (response && response.data) {
         setAppointments(response.data);
@@ -118,7 +126,7 @@ export function useArtistHistory(artistId: number | undefined): UseArtistHistory
         setPagination(null);
       }
     } catch (err) {
-      console.error('Error fetching artist history:', err);
+      console.error('Error fetching history:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch history');
       setAppointments([]);
       setPagination(null);
@@ -137,7 +145,7 @@ export function useArtistHistory(artistId: number | undefined): UseArtistHistory
 
   useEffect(() => {
     fetchHistory(1);
-  }, [artistId]);
+  }, [userId]);
 
   return {
     appointments,
@@ -149,13 +157,13 @@ export function useArtistHistory(artistId: number | undefined): UseArtistHistory
   };
 }
 
-export function useArtistInbox(artistId: number | undefined): UseArtistInboxReturn {
+export function useInbox(userId: number | undefined): UseInboxReturn {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchInbox = async () => {
-    if (!artistId) {
+    if (!userId) {
       setLoading(false);
       return;
     }
@@ -164,19 +172,19 @@ export function useArtistInbox(artistId: number | undefined): UseArtistInboxRetu
       setLoading(true);
       setError(null);
 
-      // Make POST request to get pending appointments for the artist using the inbox endpoint
-      const response = await api.post<InboxResponse>('/artists/appointments/inbox', {
-        artist_id: artistId,
+      // Make POST request to get pending appointments for the user using the new endpoint
+      const response = await api.post<InboxResponse>('/appointments/inbox', {
+        user_id: userId,
         status: 'pending'
       }, {
         requiresAuth: true
       });
 
-      console.log('Artist inbox response:', response);
+      console.log('Inbox response:', response);
 
       setAppointments(response?.data || []);
     } catch (err) {
-      console.error('Error fetching artist inbox:', err);
+      console.error('Error fetching inbox:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch inbox');
       setAppointments([]);
     } finally {
@@ -190,7 +198,7 @@ export function useArtistInbox(artistId: number | undefined): UseArtistInboxRetu
 
   const updateAppointmentStatus = async (appointmentId: number, status: string): Promise<boolean> => {
     try {
-      await api.put(`/artists/appointments/${appointmentId}`, {
+      await api.put(`/appointments/${appointmentId}`, {
         status
       }, {
         requiresAuth: true
@@ -208,7 +216,7 @@ export function useArtistInbox(artistId: number | undefined): UseArtistInboxRetu
 
   useEffect(() => {
     fetchInbox();
-  }, [artistId]);
+  }, [userId]);
 
   return {
     appointments,
@@ -218,3 +226,7 @@ export function useArtistInbox(artistId: number | undefined): UseArtistInboxRetu
     updateAppointmentStatus
   };
 }
+
+// Legacy export for backward compatibility
+export const useArtistInbox = useInbox;
+export const useArtistHistory = useHistory;

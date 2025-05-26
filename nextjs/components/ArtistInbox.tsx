@@ -1,26 +1,29 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, CircularProgress, Alert, Tabs, Tab } from '@mui/material';
+import { Box, Typography, Button, CircularProgress, Alert, Tabs, Tab, Grid, Badge } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import InboxIcon from '@mui/icons-material/Inbox';
 import HistoryIcon from '@mui/icons-material/History';
-import { useArtistInbox } from '../hooks/useArtistInbox';
+import ChatBubbleIcon from '@mui/icons-material/ChatBubble';
+import MessageIcon from '@mui/icons-material/Message';
+import { useInbox } from '../hooks/useInbox';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
 import AppointmentCard from './AppointmentCard';
 import HistoryTab from './HistoryTab';
 
-interface ArtistInboxProps {
-  artistId?: number;
+interface InboxProps {
+  userId?: number;
+  userType?: 'artist' | 'client';
 }
 
-const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
+const Inbox: React.FC<InboxProps> = ({ userId, userType = 'artist' }) => {
   const { user } = useAuth();
   const { showSuccess, showError, showConfirm } = useDialog();
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<number>(0);
 
-  // Use the user's ID as artist ID if not provided
-  const effectiveArtistId = artistId || user?.id;
+  // Use the user's ID if not provided
+  const effectiveUserId = userId || user?.id;
 
   const {
     appointments,
@@ -28,7 +31,18 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
     error,
     refreshInbox,
     updateAppointmentStatus
-  } = useArtistInbox(effectiveArtistId);
+  } = useInbox(effectiveUserId);
+
+  // Calculate unread message count for current user
+  const unreadMessageCount = appointments.reduce((count, appointment) => {
+    if (!appointment.messages) return count;
+    
+    const unreadMessages = appointment.messages.filter(message => 
+      message.recipient_id === effectiveUserId && !message.read_at
+    );
+    
+    return count + unreadMessages.length;
+  }, 0);
 
   const handleAcceptAppointment = async (appointmentId: number) => {
     const confirmed = await showConfirm(
@@ -80,11 +94,11 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
     setActiveTab(newValue);
   };
 
-  if (!effectiveArtistId) {
+  if (!effectiveUserId) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
         <Alert severity="warning">
-          Artist ID not found. Please make sure you are logged in as an artist.
+          User ID not found. Please make sure you are logged in.
         </Alert>
       </Box>
     );
@@ -142,8 +156,30 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
           }}
         >
           <Tab 
-            icon={<InboxIcon />} 
+            icon={
+              <Badge 
+                badgeContent={unreadMessageCount > 0 ? unreadMessageCount : undefined} 
+                color="error"
+                sx={{
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.6rem',
+                    minWidth: '16px',
+                    height: '16px',
+                    padding: '0 4px',
+                    backgroundColor: '#339989'
+                  }
+                }}
+              >
+                <InboxIcon />
+              </Badge>
+            } 
             label="Pending" 
+            iconPosition="start"
+            sx={{ minHeight: 'auto' }}
+          />
+          <Tab 
+            icon={<ChatBubbleIcon />} 
+            label="Messages" 
             iconPosition="start"
             sx={{ minHeight: 'auto' }}
           />
@@ -193,9 +229,10 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
                 <AppointmentCard
                   key={appointment.id}
                   appointment={appointment}
-                  onAccept={handleAcceptAppointment}
-                  onDecline={handleDeclineAppointment}
+                  onAccept={userType === 'artist' ? handleAcceptAppointment : undefined}
+                  onDecline={userType === 'artist' ? handleDeclineAppointment : undefined}
                   loading={actionLoading === appointment.id}
+                  showActions={userType === 'artist'}
                 />
               ))}
             </Box>
@@ -204,10 +241,28 @@ const ArtistInbox: React.FC<ArtistInboxProps> = ({ artistId }) => {
       )}
 
       {activeTab === 1 && (
-        <HistoryTab artistId={effectiveArtistId!} />
+        <Box sx={{ textAlign: 'center', py: 6 }}>
+          <MessageIcon sx={{ fontSize: 64, color: '#666', mb: 2 }} />
+          <Typography variant="h6" sx={{ color: '#888', mb: 1 }}>
+            Standalone Messages
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#666' }}>
+            Messages not related to specific appointments will appear here.
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#666', mt: 2 }}>
+            For appointment-related messages, check the "Messages" button on each appointment card.
+          </Typography>
+        </Box>
+      )}
+
+      {activeTab === 2 && (
+        <HistoryTab userId={effectiveUserId!} />
       )}
     </Box>
   );
 };
 
-export default ArtistInbox;
+export default Inbox;
+
+// Legacy export for backward compatibility
+export { Inbox as ArtistInbox };

@@ -1,7 +1,7 @@
 import React from 'react';
 import Head from 'next/head';
 import Layout from '../components/Layout';
-import ArtistInbox from '../components/ArtistInbox';
+import Inbox from '../components/ArtistInbox';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, Alert } from '@mui/material';
 
@@ -53,7 +53,7 @@ export default function InboxPage() {
       </Head>
 
       <div className="min-h-screen bg-[#1A1A1D] text-white">
-        <ArtistInbox />
+        <Inbox userId={user?.id} userType={user?.type || 'client'} />
       </div>
     </Layout>
   );

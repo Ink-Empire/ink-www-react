@@ -1,15 +1,15 @@
 import React from 'react';
 import { Box, Typography, CircularProgress, Alert, Pagination, Stack } from '@mui/material';
-import { useArtistHistory } from '../hooks/useArtistInbox';
+import { useHistory } from '../hooks/useInbox';
 import { useAuth } from '../contexts/AuthContext';
 import AppointmentCard from './AppointmentCard';
 
 interface HistoryTabProps {
-  artistId: number;
+  userId: number;
 }
 
-const HistoryTab: React.FC<HistoryTabProps> = ({ artistId }) => {
-  const { appointments, loading, error, pagination, loadPage } = useArtistHistory(artistId);
+const HistoryTab: React.FC<HistoryTabProps> = ({ userId }) => {
+  const { appointments, loading, error, pagination, loadPage } = useHistory(userId);
 
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
     loadPage(value);

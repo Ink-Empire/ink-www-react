@@ -145,7 +145,7 @@ export default function BookingModal({
       };
 
       // Make API request to create appointment
-      await api.post('/artists/appointments/create', appointmentData, {
+      await api.post('/appointments/create', appointmentData, {
         requiresAuth: true
       });
 

@@ -188,7 +188,7 @@ export const register = async (data: RegisterData): Promise<LoginResponse> => {
 
 export const logout = async (): Promise<void> => {
   try {
-    await api.post('/users/logout', {}, { requiresAuth: true });
+    await api.post('/logout', {}, { requiresAuth: true });
     
     // Remove auth token
     removeToken();

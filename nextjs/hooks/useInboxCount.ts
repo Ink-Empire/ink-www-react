@@ -8,13 +8,13 @@ interface UseInboxCountReturn {
   refresh: () => Promise<void>;
 }
 
-export function useInboxCount(artistId: number | undefined): UseInboxCountReturn {
+export function useInboxCount(userId: number | undefined): UseInboxCountReturn {
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCount = async () => {
-    if (!artistId) {
+    if (!userId) {
       setCount(0);
       return;
     }
@@ -23,8 +23,8 @@ export function useInboxCount(artistId: number | undefined): UseInboxCountReturn
       setLoading(true);
       setError(null);
 
-      const response = await api.post<{ data: any[] }>('/artists/appointments/inbox', {
-        artist_id: artistId,
+      const response = await api.post<{ data: any[] }>('/appointments/inbox', {
+        user_id: userId,
         status: 'pending'
       }, {
         requiresAuth: true
@@ -45,10 +45,10 @@ export function useInboxCount(artistId: number | undefined): UseInboxCountReturn
   };
 
   useEffect(() => {
-    if (artistId) {
+    if (userId) {
       fetchCount();
     }
-  }, [artistId]);
+  }, [userId]);
 
   return {
     count,

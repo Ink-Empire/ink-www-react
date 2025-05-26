@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { login as apiLogin, register as apiRegister, logout as apiLogout, checkAuth } from '../utils/auth';
 import { api } from '../utils/api';
+import { clearCache } from '../utils/apiCache';
 
 interface User {
   id: number;
@@ -67,19 +68,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       console.log('AuthContext: Raw response from /users/me:', response);
       
-      // Unwrap the user data from the nested 'data' object
-      const userData = response.data || response;
+      // Handle different response formats - check if it's wrapped or direct
+      let userData: User | null = null;
       
-      console.log('AuthContext: Unwrapped user data:', userData);
+      if (response.data && typeof response.data === 'object') {
+        userData = response.data as User;
+      } else if (response && typeof response === 'object' && 'id' in response) {
+        userData = response as User;
+      }
       
-      if (userData) {
+      console.log('AuthContext: Processed user data:', userData);
+      
+      if (userData && userData.id) {
         // Store user data in localStorage for persistence
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem('user_data', JSON.stringify(userData));
-            if (userData.id) {
-              localStorage.setItem('user_id', userData.id.toString());
-            }
+            localStorage.setItem('user_id', userData.id.toString());
           } catch (storageErr) {
             console.error('Failed to save user data to localStorage:', storageErr);
           }
@@ -91,6 +96,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return null;
     } catch (error) {
       console.error('Error fetching current user:', error);
+      // Check if it's a network error vs auth error
+      if (error && typeof error === 'object' && 'status' in error) {
+        const status = (error as any).status;
+        if (status === 401 || status === 403) {
+          console.log('Auth error detected, user needs to re-login');
+          return null;
+        } else {
+          console.log('Network error detected, keeping existing auth state');
+          // Return existing user data if available
+          return user;
+        }
+      }
       return null;
     }
   };
@@ -122,37 +139,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Auth token present:', hasToken ? 'yes' : 'no');
         
         if (hasToken) {
+          // Set authenticated state immediately if token exists
+          setIsAuthenticated(true);
+          
           try {
-            // Validate the token by checking auth
-            const isAuthValid = await checkAuth();
-            console.log('Auth check result:', isAuthValid ? 'valid' : 'invalid');
-            setIsAuthenticated(isAuthValid);
+            // Try to fetch user data first (faster than auth check)
+            const userData = await fetchCurrentUser();
             
-            if (isAuthValid) {
-              // Fetch fresh user data
-              await fetchCurrentUser();
-            } else {
-              // Clear invalid auth state
-              setUser(null);
+            if (userData) {
+              console.log('User data fetched successfully on init');
+              // Clear any previous auth failures since we're successful
               if (typeof window !== 'undefined') {
-                localStorage.removeItem('user_data');
-                localStorage.removeItem('user_id');
+                localStorage.removeItem('auth_failures');
+              }
+            } else {
+              // If we can't fetch user data, validate the token
+              console.log('User data fetch failed, checking auth validity...');
+              const isAuthValid = await checkAuth();
+              console.log('Auth check result:', isAuthValid ? 'valid' : 'invalid');
+              
+              if (!isAuthValid) {
+                // Clear invalid auth state
+                setUser(null);
+                setIsAuthenticated(false);
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('user_data');
+                  localStorage.removeItem('user_id');
+                  localStorage.removeItem('auth_token');
+                }
               }
             }
           } catch (authError) {
             console.error('Error during auth validation:', authError);
-            setIsAuthenticated(false);
-            setUser(null);
+            // Don't immediately log out on network errors
+            console.log('Keeping user logged in despite network error');
           }
         } else {
           // No token found
           setIsAuthenticated(false);
           setUser(null);
+          // Clear any stale user data
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('user_data');
+            localStorage.removeItem('user_id');
+          }
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        setIsAuthenticated(false);
-        setUser(null);
+        // Don't clear auth state on initialization errors unless there's no token
+        const hasToken = typeof window !== 'undefined' && localStorage.getItem('auth_token');
+        if (!hasToken) {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -191,9 +230,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
     try {
       await apiLogout();
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+    } finally {
+      // Always clear state and localStorage regardless of API call success
       setUser(null);
       setIsAuthenticated(false);
-    } finally {
+      
+      // Ensure localStorage is cleared even if apiLogout failed
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('user_id');
+        localStorage.removeItem('auth_failures');
+        
+        // Clear any other user-related cache items
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('user') || key.includes('token') || key.includes('auth'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        console.log('AuthContext: Cleared all user data from localStorage');
+      }
+      
+      // Clear all API cache to prevent stale data
+      try {
+        clearCache();
+        console.log('AuthContext: Cleared all API cache');
+      } catch (cacheError) {
+        console.error('AuthContext: Failed to clear API cache:', cacheError);
+      }
+      
+      // Force reload the page to ensure complete cleanup
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+      }
+      
       setIsLoading(false);
     }
   };
