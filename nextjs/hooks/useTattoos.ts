@@ -74,6 +74,7 @@ export function useTattoos(searchParams?: Record<string, any>) {
         
         // Check if user is logged in by looking for auth token
         const hasAuthToken = !!getToken();
+        console.log('Auth token available:', hasAuthToken);
         
         // Explicitly use POST method, passing searchParams in the request body
         // Enable caching for search results
@@ -81,7 +82,7 @@ export function useTattoos(searchParams?: Record<string, any>) {
           headers: { 'X-Account-Type': 'user' },
           useCache: true, // Enable caching for this POST request as it's idempotent
           cacheTTL: 5 * 60 * 1000, // 5 minute cache for tattoo searches
-          requiresAuth: hasAuthToken // Only include auth token if user is logged in
+          requiresAuth: false // Don't require auth, but token will be sent if available
         });
         
         if (!isMounted) return;

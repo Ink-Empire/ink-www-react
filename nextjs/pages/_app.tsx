@@ -4,6 +4,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AuthProvider } from '../contexts/AuthContext';
 import { UserProvider } from '../contexts/UserContext';
 import { StyleProvider } from '../contexts/StyleContext';
+import { DialogProvider } from '../contexts/DialogContext';
 import theme from '../styles/theme';
 import '../styles/globals.css';
 
@@ -14,7 +15,9 @@ function MyApp({ Component, pageProps }: AppProps) {
       <AuthProvider>
         <UserProvider>
           <StyleProvider>
-            <Component {...pageProps} />
+            <DialogProvider>
+              <Component {...pageProps} />
+            </DialogProvider>
           </StyleProvider>
         </UserProvider>
       </AuthProvider>

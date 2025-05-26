@@ -72,9 +72,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
         const slug = typeof artistIdOrSlug === 'string' 
           ? artistIdOrSlug 
           : artistIdOrSlug.toString();
-          
-        console.log(`Setting artist with ID: ${id}, slug: ${slug}`);
-        
+
         setArtist({
           id,
           slug
@@ -103,9 +101,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
         const data = await api.get<{ data: WorkingHour[] }>(
             `/artists/${artist.slug}/working-hours`
         );
-        
-        console.log('Working hours API response:', data);
-        
+
         // We know the API returns data.data directly
         if (data && typeof data === 'object' && 'data' in data) {
           setWorkingHours(data.data);
@@ -126,28 +122,25 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
 
   // Generate available days based on working hours
   const generateAvailableDays = () => {
-    console.log('Generating available days with working hours:', workingHours);
-    
+
     if (workingHoursLoading) {
-      console.log('Working hours still loading, not generating days');
       return [];
     }
     
     if (!workingHours || !workingHours.length) {
-      console.log('No working hours data available');
       return [];
     }
     
     const today = new Date();
-    const startOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    // Set time to start of day for accurate comparison
+    today.setHours(0, 0, 0, 0);
+    
     const endOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-    
-    console.log(`Generating days from ${startOfCurrentMonth.toDateString()} to ${endOfNextMonth.toDateString()}`);
-    
+
     const availableDays: CalendarEvent[] = [];
     
-    // Loop through each day in the date range
-    const currentDate = new Date(startOfCurrentMonth);
+    // Loop through each day starting from today (not past dates)
+    const currentDate = new Date(today);
     
     // Define Persian Green for available days
     const PERSIAN_GREEN = '#00A896';
@@ -160,15 +153,12 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
       const dayWorkingHours = workingHours.find(wh => wh.day_of_week === dayOfWeek);
       
       if (!dayWorkingHours) {
-        console.log(`No working hours found for day of week ${dayOfWeek} (${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek]})`);
         // Move to next day
         currentDate.setDate(currentDate.getDate() + 1);
         dayCount++;
         continue;
       }
-      
-      console.log(`Processing ${currentDate.toDateString()}, day of week: ${dayOfWeek}, is_day_off:`, dayWorkingHours.is_day_off);
-      
+
       // Check if the day is a day off (handle both boolean and 0/1 value)
       const isDayOff = dayWorkingHours.is_day_off === true || dayWorkingHours.is_day_off === 1;
       
@@ -209,21 +199,26 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
         // Check if day is already booked by appointments
         const isFullyBooked = fetchedAppointments.some(appointment => {
           // Handle different date formats - appointment.start might be a string or Date object
-          const appointmentDate = appointment.start instanceof Date 
-            ? appointment.start.toISOString().split('T')[0] 
-            : typeof appointment.start === 'string' 
-              ? new Date(appointment.start).toISOString().split('T')[0]
-              : '';
+          let appointmentDate = '';
+          try {
+            if (appointment.start && typeof appointment.start === 'object' && 'toISOString' in appointment.start) {
+              appointmentDate = (appointment.start as Date).toISOString().split('T')[0];
+            } else if (typeof appointment.start === 'string') {
+              appointmentDate = new Date(appointment.start).toISOString().split('T')[0];
+            }
+          } catch (e) {
+            console.error('Error parsing appointment date:', e);
+            appointmentDate = '';
+          }
               
           return appointmentDate === dateStr && 
-                (appointment.status === 'confirmed' || appointment.status === 'approved');
+                (appointment.status === 'booked' || appointment.status === 'unavailable');
         });
         
         if (isFullyBooked) {
+          //TODO add a different color for fully booked days
           console.log(`${dateStr} is fully booked, skipping`);
         } else {
-          console.log(`Adding available day: ${dateStr}`);
-          
           // Create the event in a format FullCalendar can definitely recognize
           const event = {
             id: `open-${dateStr}`,
@@ -237,13 +232,12 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
             color: PERSIAN_GREEN,
             className: 'fc-available-day',
             extendedProps: {
-              status: 'available',
+              status: 'available' as 'available',
               startTime: slotStart.toISOString(),
               endTime: slotEnd.toISOString()
             }
           };
           
-          console.log('Created event for day:', event);
           availableDays.push(event);
         }
       } else {
@@ -263,8 +257,6 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     if (!appointmentsLoading && !workingHoursLoading) {
       // Generate the available days from the API data
       const availableDays = generateAvailableDays();
-      console.log('Generated available days:', availableDays.length, availableDays);
-      
       // Set the events with only the API-based available days
       setEvents(availableDays);
     }
@@ -283,9 +275,15 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
           
           // Check if this date is available
           const isAvailable = events.some(event => {
-            return typeof event.start === 'string' 
-              ? event.start.split('T')[0] === dateStr
-              : event.start.toString().split('T')[0] === dateStr;
+            try {
+              const eventDateStr = typeof event.start === 'string' 
+                ? event.start.split('T')[0]
+                : String(event.start).split('T')[0];
+              return eventDateStr === dateStr;
+            } catch (e) {
+              console.error('Error parsing event date:', e);
+              return false;
+            }
           });
           
           if (isAvailable) {
@@ -295,15 +293,11 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
             // Add click handler
             cell.addEventListener('click', () => {
               const clickedDate = new Date(dateStr);
-              console.log(`Available day clicked: ${clickedDate.toLocaleDateString()}`);
-              
               // Get working hours for this day
               const dayOfWeek = clickedDate.getDay();
               const dayWorkingHours = workingHours.find(wh => wh.day_of_week === dayOfWeek);
               
               if (dayWorkingHours) {
-                console.log(`Working hours for this day: ${dayWorkingHours.start_time} - ${dayWorkingHours.end_time}`);
-                
                 // Call the callback if provided
                 if (onDateSelected) {
                   onDateSelected(clickedDate, dayWorkingHours);
@@ -344,8 +338,6 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     const dayWorkingHours = workingHours.find(wh => wh.day_of_week === dayOfWeek);
     
     if (dayWorkingHours) {
-      console.log(`Working hours for this day: ${dayWorkingHours.start_time} - ${dayWorkingHours.end_time}`);
-      
       // Call the callback if provided
       if (onDateSelected) {
         onDateSelected(selectedDate, dayWorkingHours);
@@ -360,14 +352,16 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     
     // Check if this is an available day
     const isAvailable = events.some(event => {
-      const eventDate = event.start.toString().split('T')[0];
-      return eventDate === dateStr;
+      try {
+        const eventDate = String(event.start).split('T')[0];
+        return eventDate === dateStr;
+      } catch (e) {
+        console.error('Error parsing event date:', e);
+        return false;
+      }
     });
     
     if (isAvailable) {
-      console.log(`Available day clicked: ${clickedDate.toLocaleDateString()}`);
-      // Additional booking logic would go here
-      
       // Get working hours for this day
       const dayOfWeek = clickedDate.getDay();
       const dayWorkingHours = workingHours.find(wh => wh.day_of_week === dayOfWeek);
@@ -407,9 +401,6 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     );
   }
 
-  // Log events right before rendering for debugging
-  console.log('Rendering calendar with events:', events);
-
   // Create FullCalendar-specific business hours from workingHours
   const businessHours = workingHours.map(wh => {
     // Skip days off
@@ -423,8 +414,6 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
       endTime: wh.end_time
     };
   }).filter(Boolean); // Remove null entries
-  
-  console.log('Business hours configuration:', businessHours);
 
   return (
     <div className="artist-calendar">
@@ -463,12 +452,8 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
           setTimeout(() => {
             // Log if any events were found in the DOM
             const eventEls = document.querySelectorAll('.fc-event');
-            console.log(`Found ${eventEls.length} event elements in the DOM`);
-            
             if (eventEls.length === 0) {
-              console.log('No event elements found, checking for fc-bg-event');
               const bgEventEls = document.querySelectorAll('.fc-bg-event');
-              console.log(`Found ${bgEventEls.length} background event elements`);
             }
             
             // Apply styles to all event elements
@@ -476,18 +461,14 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
               (el as HTMLElement).style.backgroundColor = '#00A896';
               (el as HTMLElement).style.opacity = '1';
             });
-            
-            // Apply styles directly to days that should have events
-            console.log(`Applying styles to days for ${events.length} events`);
+
             events.forEach(event => {
               const dateStr = typeof event.start === 'string' 
                 ? event.start.split('T')[0] 
-                : event.start.toString().split('T')[0];
+                : String(event.start).split('T')[0];
                 
-              console.log(`Looking for day with date ${dateStr}`);
               const dayEl = document.querySelector(`.fc-day[data-date="${dateStr}"]`);
               if (dayEl) {
-                console.log(`Found day element for ${dateStr}, applying style`);
                 (dayEl as HTMLElement).style.backgroundColor = '#00A896';
               } else {
                 console.log(`No day element found for ${dateStr}`);

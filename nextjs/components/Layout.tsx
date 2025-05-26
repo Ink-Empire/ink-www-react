@@ -4,7 +4,9 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { useUser } from '../contexts/UserContext';
-import { AppBar, Toolbar, Typography, Button, Box, Container, Avatar, Stack, Tabs, Tab } from '@mui/material';
+import { useInboxCount } from '../hooks';
+import { AppBar, Toolbar, Typography, Button, Box, Container, Avatar, Stack, Tabs, Tab, Badge, IconButton } from '@mui/material';
+import InboxIcon from '@mui/icons-material/Inbox';
 import LogoText from './LogoText';
 
 interface LayoutProps {
@@ -15,6 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { isAuthenticated, user, logout } = useAuth();
   const { userData } = useUser();
   const router = useRouter();
+  const { count: inboxCount } = useInboxCount(user?.id);
   
   // State to store the avatar image URL
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -22,8 +25,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Update avatar URL when user data changes
   useEffect(() => {
     // Check for profile image sources in order of preference
-    if (user?.image) {
-      setAvatarUrl(user.image);
+    if ((user as any)?.image) {
+      setAvatarUrl((user as any).image);
     } else if (userData?.profilePhoto?.webviewPath) {
       setAvatarUrl(userData.profilePhoto.webviewPath);
     } else {
@@ -98,7 +101,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 router.pathname === '/search' ? 2 : false
               }
               indicatorColor="primary"
-              textColor="white"
+              textColor="inherit"
               TabIndicatorProps={{ sx: { height: 3 } }}
               sx={{ ml: 2 }}
             >
@@ -126,6 +129,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Box>
             {isAuthenticated ? (
               <Stack direction="row" spacing={2} alignItems="center">
+                <IconButton
+                  component={Link}
+                  href="/inbox"
+                  sx={{ 
+                    color: 'text.primary',
+                    '&:hover': { 
+                      backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                    }
+                  }}
+                >
+                  <Badge 
+                    badgeContent={inboxCount > 0 ? inboxCount : null} 
+                    color="error"
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        backgroundColor: '#339989',
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }
+                    }}
+                  >
+                    <InboxIcon />
+                  </Badge>
+                </IconButton>
+
                 <Button 
                   component={Link} 
                   href="/profile"

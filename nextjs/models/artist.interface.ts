@@ -1,4 +1,5 @@
 export interface ArtistType {
+    settings: ArtistSettings | undefined;
     type: string;
     id?: number;
     slug?: string;

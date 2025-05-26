@@ -20,21 +20,15 @@ export default function Home() {
     // State for studio name (for filter display)
     const [studioName, setStudioName] = useState<string>('');
 
-    // Initialize with user preferences
+    // Initialize with user preferences - default to 50mi from user's location
     const initialSearchParams = {
         searchString: '',
         styles: me?.styles || [],
-        distance: 100,
+        distance: 50,
         distanceUnit: 'mi',
-        useMyLocation: true,
-        useAnyLocation: false,
+        useMyLocation: me?.location_lat_long ? true : false,
+        useAnyLocation: me?.location_lat_long ? false : true,
         location: '',
-        locationCoords: me?.location_lat_long ? 
-            `${me.location_lat_long.latitude || me.location_lat_long.lat},${me.location_lat_long.longitude || me.location_lat_long.lng}` 
-            : undefined,
-        studio_near_me: me?.location_lat_long,
-        artist_near_me: me?.location_lat_long,
-        studios: me?.studios,
         subject: 'tattoos',
         studio_id: studio_id || undefined
     };
@@ -101,19 +95,15 @@ export default function Home() {
         
         // Handle location-based parameters
         if (filters.useMyLocation) {
-            // Using "My location"
-            newParams.studio_near_me = me?.location_lat_long;
-            newParams.artist_near_me = me?.location_lat_long;
-            newParams.studios = me?.studios;
+            // Using "My location" - backend will use user's location_lat_long directly
+            // Remove any conflicting location parameters
+            delete newParams.locationCoords;
         } else if (filters.useAnyLocation) {
-            // Using "Anywhere" - explicitly remove location parameters
-            delete newParams.studio_near_me;
-            delete newParams.artist_near_me;
+            // Using "Anywhere" - remove all location parameters
             delete newParams.locationCoords;
         } else {
-            // Using custom location - remove my location parameters
-            delete newParams.studio_near_me;
-            delete newParams.artist_near_me;
+            // Using custom location - locationCoords should be set by the calling component
+            // Keep locationCoords as is
         }
         
         // Update state with new parameters
@@ -228,8 +218,7 @@ export default function Home() {
                                 ...searchParams, 
                                 location: '',
                                 useMyLocation: true,
-                                studio_near_me: me?.location_lat_long,
-                                artist_near_me: me?.location_lat_long,
+                                useAnyLocation: false,
                                 subject: 'tattoos'
                             };
                             setSearchParams(newParams);
@@ -240,10 +229,7 @@ export default function Home() {
                                 distanceUnit: newParams.distanceUnit,
                                 location: '',
                                 useMyLocation: true,
-                                locationCoords: me?.location_lat_long ? 
-                                    `${me.location_lat_long.latitude || me.location_lat_long.lat},${me.location_lat_long.longitude || me.location_lat_long.lng}` 
-                                    : undefined,
-                                subject: 'tattoos'
+                                useAnyLocation: false
                             });
                         }}
                     />

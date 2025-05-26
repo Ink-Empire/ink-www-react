@@ -17,7 +17,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
 
     // Update favorite status when user data changes
     React.useEffect(() => {
-        if (user?.favorites?.artist) {
+        if (user?.favorites?.artist && artist.id) {
             setIsFavorite(user.favorites.artist.includes(artist.id));
         }
     }, [user, artist.id]);
