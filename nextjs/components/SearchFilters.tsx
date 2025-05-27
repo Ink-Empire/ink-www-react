@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStyles } from '@/contexts/StyleContext';
 import { useAppGeolocation } from '@/utils/geolocation';
+import { useUserData } from '@/contexts/UserContext';
 
 // MUI Material imports
 import { styled, alpha } from '@mui/material/styles';
@@ -25,6 +26,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import AddIcon from '@mui/icons-material/Add';
 
 // Styled components
 const Search = styled('div')(({ theme }) => ({
@@ -122,6 +124,7 @@ interface SearchFiltersProps {
   onSidebarToggle?: (isExpanded: boolean) => void;
   initialExpanded?: boolean;
   isLoading?: boolean;
+  onCreateTattoo?: () => void;
 }
 
 const SearchFilters: React.FC<SearchFiltersProps> = ({
@@ -131,10 +134,14 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   type,
   onSidebarToggle,
   initialExpanded = true,
-  isLoading = false
+  isLoading = false,
+  onCreateTattoo
 }) => {
   // Get styles from context
   const { styles, loading: stylesLoading } = useStyles();
+  
+  // Get user data from context
+  const me = useUserData();
 
   // Get geolocation service
   const geoService = useAppGeolocation();
@@ -661,6 +668,27 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                 />
               </Search>
             </Box>
+
+            {/* Create Tattoo Button for Artists */}
+            {me?.type === 'artist' && onCreateTattoo && (
+              <Box sx={{ mb: 3 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={onCreateTattoo}
+                  fullWidth
+                  sx={{
+                    py: 1.5,
+                    backgroundColor: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark',
+                    }
+                  }}
+                >
+                  Create Tattoo
+                </Button>
+              </Box>
+            )}
 
             {/* Location origin selection */}
             <Box sx={{ mb: 3 }}>
