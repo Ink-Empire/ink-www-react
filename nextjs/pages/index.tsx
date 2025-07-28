@@ -8,6 +8,7 @@ import SearchFilters from '../components/SearchFilters';
 import ActiveFilterBadges from '../components/ActiveFilterBadges';
 import LogoText from '../components/LogoText';
 import Layout from '../components/Layout';
+import TattooCreateWizard from '../components/TattooCreateWizard';
 import {useTattoos} from '../hooks';
 import {useUserData} from "@/contexts/UserContext";
 
@@ -18,6 +19,9 @@ export default function Home() {
     
     // State for studio name (for filter display)
     const [studioName, setStudioName] = useState<string>('');
+    
+    // State for Create Tattoo modal
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Initialize with user preferences - default to 50mi from user's location
     const initialSearchParams = {
@@ -137,6 +141,7 @@ export default function Home() {
                         onSidebarToggle={setSidebarExpanded}
                         initialExpanded={sidebarExpanded}
                         isLoading={loading}
+                        onCreateTattoo={() => setIsCreateModalOpen(true)}
                     />
 
                     {/* Active Filters Component */}
@@ -247,6 +252,19 @@ export default function Home() {
                     )}
                 </div>
             </div>
+            
+            {/* Create Tattoo Modal */}
+            {isCreateModalOpen && (
+                <TattooCreateWizard
+                    open={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onSuccess={() => {
+                        setIsCreateModalOpen(false);
+                        // Refresh the tattoos list
+                        window.location.reload();
+                    }}
+                />
+            )}
         </Layout>
     );
 }

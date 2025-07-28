@@ -10,6 +10,7 @@ interface User {
   email: string;
   username: string;
   slug: string;
+  type_id: number;
   // Add more user properties as needed
 }
 
