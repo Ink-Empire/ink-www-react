@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStyles } from '@/contexts/StyleContext';
 import { useAppGeolocation } from '@/utils/geolocation';
 import { useUserData } from '@/contexts/UserContext';
+import { distancePreferences } from '@/utils/distancePreferences';
 
 // MUI Material imports
 import { styled, alpha } from '@mui/material/styles';
@@ -198,6 +199,11 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       if (currentFilters.useMyLocation !== undefined && 
           currentFilters.useMyLocation !== useMyLocation) {
         setUseMyLocation(currentFilters.useMyLocation);
+      }
+      
+      if (currentFilters.useAnyLocation !== undefined && 
+          currentFilters.useAnyLocation !== useAnyLocation) {
+        setUseAnyLocation(currentFilters.useAnyLocation);
       }
       
       if (currentFilters.location !== undefined && 
@@ -488,50 +494,56 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
 
   // Clear all filters
   const handleClearFilters = async () => {
+    const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
+    
     setSearchString('');
     setSelectedStyles([]);
-    setDistance(50);
+    setDistance(locationSettings.distance);
     setDistanceUnit('mi');
-    setUseMyLocation(true);
-    setUseAnyLocation(false);
-    setLocation('');
+    setUseMyLocation(locationSettings.useMyLocation);
+    setUseAnyLocation(locationSettings.useAnyLocation);
+    setLocation(locationSettings.location);
     setLocationCoords(undefined);
     
-    try {
-      // Try to get the user's location for the cleared filters
-      setGeoLoading(true);
-      const position = await geoService.getCurrentPosition();
-      const myCoords = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
-      };
-      
-      setLocationCoords(myCoords);
-      
+    // Only try to get location if not dismissed and user has location preference
+    if (!distancePreferences.hasUserDismissedDistance() && locationSettings.useMyLocation) {
+      try {
+        setGeoLoading(true);
+        const position = await geoService.getCurrentPosition();
+        const myCoords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        
+        setLocationCoords(myCoords);
+        
+        onFilterChange({
+          searchString: '',
+          styles: [],
+          ...locationSettings,
+          distanceUnit: 'mi',
+          locationCoords: myCoords
+        });
+      } catch (error) {
+        console.error('Error getting user location:', error);
+        
+        onFilterChange({
+          searchString: '',
+          styles: [],
+          ...locationSettings,
+          distanceUnit: 'mi'
+        });
+      } finally {
+        setGeoLoading(false);
+      }
+    } else {
+      // Don't try to get location - use the default settings
       onFilterChange({
         searchString: '',
         styles: [],
-        distance: 50,
-        distanceUnit: 'mi',
-        location: '',
-        useMyLocation: true,
-        useAnyLocation: false,
-        locationCoords: myCoords
+        ...locationSettings,
+        distanceUnit: 'mi'
       });
-    } catch (error) {
-      console.error('Error getting user location:', error);
-      
-      onFilterChange({
-        searchString: '',
-        styles: [],
-        distance: 50,
-        distanceUnit: 'mi',
-        location: '',
-        useMyLocation: true,
-        useAnyLocation: false
-      });
-    } finally {
-      setGeoLoading(false);
     }
   };
 

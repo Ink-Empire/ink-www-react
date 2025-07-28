@@ -97,8 +97,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Tabs 
               value={
                 router.pathname === '/' ? 0 :
-                router.pathname.startsWith('/artists') ? 1 :
-                router.pathname === '/search' ? 2 : false
+                router.pathname.startsWith('/artists') ? 1 : false
               }
               indicatorColor="primary"
               textColor="inherit"
@@ -115,12 +114,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 label="Artists" 
                 component={Link} 
                 href="/artists" 
-                sx={{ minWidth: 'auto' }}
-              />
-              <Tab 
-                label="Search" 
-                component={Link} 
-                href="/search" 
                 sx={{ minWidth: 'auto' }}
               />
             </Tabs>

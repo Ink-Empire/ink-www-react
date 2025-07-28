@@ -8,15 +8,18 @@ import LogoText from '../../components/LogoText';
 import Layout from '../../components/Layout';
 import {useTattoos} from '../../hooks';
 import {useUserData} from "@/contexts/UserContext";
+import { distancePreferences } from '@/utils/distancePreferences';
 
 export default function TattooList() {
     const me = useUserData();
 
-    // Initialize with user preferences
+    // Initialize with user preferences - respecting distance dismissal
+    const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
+    
     const initialSearchParams = {
         searchString: '',
         styles: me?.styles || [],
-        distance: 50,
+        ...locationSettings,
         studio_near_me: me?.location_lat_long,
         artist_near_me: me?.location_lat_long,
         studios: me?.studios

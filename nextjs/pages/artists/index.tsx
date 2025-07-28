@@ -6,18 +6,18 @@ import ActiveFilterBadges from '../../components/ActiveFilterBadges';
 import Layout from '../../components/Layout';
 import {useArtists} from '@/hooks';
 import {useUserData} from '@/contexts/UserContext';
+import { distancePreferences } from '@/utils/distancePreferences';
 
 export default function ArtistList() {
     const user = useUserData();
     
+    const locationSettings = distancePreferences.getDefaultLocationSettings(!!user?.location_lat_long);
+    
     const initialFilters = {
         searchString: '',
         styles: [],
-        distance: 50,
+        ...locationSettings,
         distanceUnit: 'mi',
-        useMyLocation: true,
-        useAnyLocation: false,
-        location: '',
         locationCoords: user?.location_lat_long ? 
             `${user.location_lat_long.latitude || user.location_lat_long.lat},${user.location_lat_long.longitude || user.location_lat_long.lng}` 
             : undefined,
@@ -169,7 +169,7 @@ export default function ArtistList() {
                             handleFilterChange({
                                 searchString: newParams.searchString || '',
                                 styles: newParams.styles || [],
-                                distance: 50,
+                                distance: "",
                                 distanceUnit: newParams.distanceUnit || 'mi',
                                 location: newParams.location || '',
                                 useMyLocation: newParams.useMyLocation !== undefined ? newParams.useMyLocation : true,
