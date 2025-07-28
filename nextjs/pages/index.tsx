@@ -30,50 +30,27 @@ export default function Home() {
   // State to track if user has dismissed distance/location (to prevent reset to defaults)
   const [hasUserDismissedDistance, setHasUserDismissedDistance] = useState(false);
 
-  // Initialize with user preferences - respecting distance dismissal
+  // Initialize with user preferences - respecting distance dismissal but NO auto-applied styles
   const initialSearchParams = useMemo(() => {
-    const getInitialStyles = () => {
-      if (!me?.styles) return [];
-      // Filter out any previously dismissed styles
-      return me.styles.filter(style => !dismissedStyles.includes(style.id || style));
-    };
-
     const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
 
     return {
       searchString: "",
-      styles: getInitialStyles(),
+      styles: [], // Empty array - no auto-applied styles
+      applySavedStyles: false, // Default to false
       ...locationSettings,
       distanceUnit: "mi",
       subject: "tattoos",
       studio_id: studio_id || undefined,
     };
-  }, [me?.styles, me?.location_lat_long, dismissedStyles, studio_id]);
+  }, [me?.location_lat_long, studio_id]);
 
   const [searchParams, setSearchParams] =
     useState<Record<string, any>>(initialSearchParams);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const { tattoos, loading, error } = useTattoos(searchParams);
 
-  // Update search params when user data changes or dismissed styles change
-  useEffect(() => {
-    if (me?.styles) {
-      const filteredStyles = me.styles.filter(style => !dismissedStyles.includes(style.id || style));
-      if (filteredStyles.length !== searchParams.styles.length || 
-          !filteredStyles.every(style => searchParams.styles.includes(style.id || style))) {
-        setSearchParams(prev => ({
-          ...prev,
-          styles: filteredStyles,
-          // Preserve location settings if user has dismissed distance
-          ...(hasUserDismissedDistance && {
-            useAnyLocation: true,
-            useMyLocation: false,
-            location: ''
-          })
-        }));
-      }
-    }
-  }, [me?.styles, dismissedStyles, hasUserDismissedDistance]);
+  // No longer auto-apply user saved styles - removed this useEffect
 
   // When we get tattoo data back, try to find the studio name based on the studio_id
   useEffect(() => {
@@ -107,17 +84,28 @@ export default function Home() {
     location?: string;
     useMyLocation?: boolean;
     useAnyLocation?: boolean;
+    applySavedStyles?: boolean;
     locationCoords?: { lat: number; lng: number };
   }) => {
+    // Handle applySavedStyles - merge user's saved styles with selected styles if enabled
+    let finalStyles = filters?.styles || [];
+    if (filters.applySavedStyles && me?.styles) {
+      const userStyleIds = me.styles.map(style => style.id || style);
+      // Merge without duplicates and filter out dismissed styles
+      const mergedStyles = [...new Set([...finalStyles, ...userStyleIds])];
+      finalStyles = mergedStyles.filter(style => !dismissedStyles.includes(style));
+    }
+
     // Build new params object
     const newParams: Record<string, any> = {
       searchString: filters.searchString,
-      styles: filters?.styles || [],
+      styles: finalStyles,
       distance: filters.distance,
       distanceUnit: filters.distanceUnit,
       location: filters.location,
       useMyLocation: filters.useMyLocation,
       useAnyLocation: filters.useAnyLocation,
+      applySavedStyles: filters.applySavedStyles,
       subject: "tattoos",
     };
 
@@ -187,6 +175,7 @@ export default function Home() {
               distanceUnit: initialSearchParams.distanceUnit,
               useMyLocation: initialSearchParams.useMyLocation,
               useAnyLocation: initialSearchParams.useAnyLocation,
+              applySavedStyles: initialSearchParams.applySavedStyles,
               location: initialSearchParams.location,
             }}
             currentFilters={{
@@ -196,6 +185,7 @@ export default function Home() {
               distanceUnit: searchParams.distanceUnit,
               useMyLocation: searchParams.useMyLocation,
               useAnyLocation: searchParams.useAnyLocation,
+              applySavedStyles: searchParams.applySavedStyles,
               location: searchParams.location,
               locationCoords: searchParams.locationCoords,
             }}
@@ -226,8 +216,9 @@ export default function Home() {
                 distanceUnit: newParams.distanceUnit,
                 location: newParams.location,
                 useMyLocation: newParams.useMyLocation,
+                useAnyLocation: newParams.useAnyLocation,
+                applySavedStyles: newParams.applySavedStyles,
                 locationCoords: newParams.locationCoords,
-                subject: "tattoos",
               });
             }}
             onClearStyle={(styleId) => {
@@ -246,8 +237,9 @@ export default function Home() {
                 distanceUnit: newParams.distanceUnit,
                 location: newParams.location,
                 useMyLocation: newParams.useMyLocation,
+                useAnyLocation: newParams.useAnyLocation,
+                applySavedStyles: newParams.applySavedStyles,
                 locationCoords: newParams.locationCoords,
-                subject: "tattoos",
               });
             }}
             onClearDistance={() => {
@@ -271,6 +263,7 @@ export default function Home() {
                 location: "",
                 useMyLocation: false,
                 useAnyLocation: true,
+                applySavedStyles: newParams.applySavedStyles,
               });
             }}
             onClearStudio={() => {

@@ -15,7 +15,8 @@ export default function ArtistList() {
     
     const initialFilters = {
         searchString: '',
-        styles: [],
+        styles: [], // Empty array - no auto-applied styles  
+        applySavedStyles: false, // Default to false
         ...locationSettings,
         distanceUnit: 'mi',
         locationCoords: user?.location_lat_long ? 
@@ -40,17 +41,27 @@ export default function ArtistList() {
         location?: string;
         useMyLocation?: boolean;
         useAnyLocation?: boolean;
+        applySavedStyles?: boolean;
         locationCoords?: { lat: number; lng: number };
     }) => {
+        // Handle applySavedStyles - merge user's saved styles with selected styles if enabled
+        let finalStyles = filters.styles && filters?.styles.length > 0 ? filters.styles : [];
+        if (filters.applySavedStyles && user?.styles) {
+            const userStyleIds = user.styles.map(style => style.id || style);
+            // Merge without duplicates
+            finalStyles = [...new Set([...finalStyles, ...userStyleIds])];
+        }
+
         // Build new params object
         const newParams: Record<string, any> = {
             searchString: filters.searchString,
-            styles: filters.styles && filters?.styles.length > 0 ? filters.styles : [],
+            styles: finalStyles,
             distance: filters.distance,
             distanceUnit: filters.distanceUnit,
             location: filters.location,
             useMyLocation: filters.useMyLocation,
             useAnyLocation: filters.useAnyLocation,
+            applySavedStyles: filters.applySavedStyles,
             subject: 'artists'
         };
 
@@ -100,11 +111,26 @@ export default function ArtistList() {
                     <SearchFilters
                         type="artists"
                         onFilterChange={handleFilterChange}
-                        initialFilters={{}}
+                        initialFilters={{
+                            searchString: initialFilters.searchString,
+                            styles: initialFilters.styles,
+                            distance: initialFilters.distance,
+                            distanceUnit: initialFilters.distanceUnit,
+                            useMyLocation: initialFilters.useMyLocation,
+                            useAnyLocation: initialFilters.useAnyLocation,
+                            applySavedStyles: initialFilters.applySavedStyles,
+                            location: initialFilters.location,
+                        }}
                         currentFilters={{
-                            searchString: searchParams.searchString,
+                            searchString: searchParams.searchString,  
                             styles: searchParams.styles,
-                            distance: searchParams.distance
+                            distance: searchParams.distance,
+                            distanceUnit: searchParams.distanceUnit,
+                            useMyLocation: searchParams.useMyLocation,
+                            useAnyLocation: searchParams.useAnyLocation,
+                            applySavedStyles: searchParams.applySavedStyles,
+                            location: searchParams.location,
+                            locationCoords: searchParams.locationCoords,
                         }}
                         onSidebarToggle={setSidebarExpanded}
                         initialExpanded={sidebarExpanded}

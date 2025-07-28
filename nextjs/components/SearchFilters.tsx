@@ -91,6 +91,7 @@ interface SearchFiltersProps {
     location?: string;
     useMyLocation?: boolean;
     useAnyLocation?: boolean;
+    applySavedStyles?: boolean;
     locationCoords?: {
       lat: number;
       lng: number;
@@ -103,6 +104,7 @@ interface SearchFiltersProps {
     distanceUnit?: 'mi' | 'km';
     location?: string;
     useMyLocation?: boolean;
+    applySavedStyles?: boolean;
     locationCoords?: {
       lat: number;
       lng: number;
@@ -116,6 +118,7 @@ interface SearchFiltersProps {
     location?: string;
     useMyLocation?: boolean;
     useAnyLocation?: boolean;
+    applySavedStyles?: boolean;
     locationCoords?: {
       lat: number;
       lng: number;
@@ -154,6 +157,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   const [distanceUnit, setDistanceUnit] = useState<'mi' | 'km'>(initialFilters.distanceUnit || 'mi');
   const [useMyLocation, setUseMyLocation] = useState<boolean>(initialFilters.useMyLocation !== undefined ? initialFilters.useMyLocation : true);
   const [useAnyLocation, setUseAnyLocation] = useState<boolean>(initialFilters.useAnyLocation || false);
+  const [applySavedStyles, setApplySavedStyles] = useState<boolean>(initialFilters.applySavedStyles || false);
   const [location, setLocation] = useState<string>(initialFilters.location || '');
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | undefined>(initialFilters.locationCoords);
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
@@ -206,6 +210,11 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         setUseAnyLocation(currentFilters.useAnyLocation);
       }
       
+      if (currentFilters.applySavedStyles !== undefined && 
+          currentFilters.applySavedStyles !== applySavedStyles) {
+        setApplySavedStyles(currentFilters.applySavedStyles);
+      }
+      
       if (currentFilters.location !== undefined && 
           currentFilters.location !== location) {
         setLocation(currentFilters.location);
@@ -254,9 +263,39 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         distanceUnit,
         location,
         useMyLocation,
+        useAnyLocation,
+        applySavedStyles,
         locationCoords
       });
     }, 500);
+  };
+
+  // Handle apply saved styles checkbox change
+  const handleApplySavedStylesChange = () => {
+    const newApplySavedStyles = !applySavedStyles;
+    setApplySavedStyles(newApplySavedStyles);
+    
+    // If applying saved styles, merge user's saved styles with current selection
+    let newStyles = selectedStyles;
+    if (newApplySavedStyles && me?.styles) {
+      const userStyleIds = me.styles.map(style => style.id || style);
+      // Merge without duplicates
+      newStyles = [...new Set([...selectedStyles, ...userStyleIds])];
+      setSelectedStyles(newStyles);
+    }
+    
+    // Immediately trigger search with updated styles and applySavedStyles flag
+    onFilterChange({
+      searchString,
+      styles: newStyles,
+      distance,
+      distanceUnit,
+      location,
+      useMyLocation,
+      useAnyLocation,
+      applySavedStyles: newApplySavedStyles,
+      locationCoords
+    });
   };
 
   // Handle style checkbox change
@@ -277,6 +316,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       distanceUnit,
       location,
       useMyLocation,
+      useAnyLocation,
+      applySavedStyles,
       locationCoords
     });
   };
@@ -294,6 +335,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       distanceUnit,
       location,
       useMyLocation,
+      useAnyLocation,
+      applySavedStyles,
       locationCoords
     });
   };
@@ -309,7 +352,10 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       distance,
       distanceUnit: unit,
       location,
-      useMyLocation
+      useMyLocation,
+      useAnyLocation,
+      applySavedStyles,
+      locationCoords
     });
   };
   
@@ -342,6 +388,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
           location: '',
           useMyLocation: true,
           useAnyLocation: false,
+          applySavedStyles,
           locationCoords: myCoords
         });
       } catch (error) {
@@ -356,7 +403,9 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
           distanceUnit,
           location: '',
           useMyLocation: true,
-          useAnyLocation: false
+          useAnyLocation: false,
+          applySavedStyles,
+          locationCoords
         });
       } finally {
         setGeoLoading(false);
@@ -371,6 +420,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         location,
         useMyLocation: false,
         useAnyLocation: false,
+        applySavedStyles,
         locationCoords
       });
       
@@ -392,6 +442,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         location: '',
         useMyLocation: false,
         useAnyLocation: true,
+        applySavedStyles,
         locationCoords: undefined
       });
     }
@@ -424,6 +475,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
           distanceUnit,
           location: locationString,
           useMyLocation: false,
+          useAnyLocation: false,
+          applySavedStyles,
           locationCoords: coords
         });
         
@@ -458,6 +511,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         location: newLocation,
         useMyLocation: false,
         useAnyLocation: false,
+        applySavedStyles,
         locationCoords
       });
       
@@ -488,6 +542,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       location,
       useMyLocation,
       useAnyLocation,
+      applySavedStyles,
       locationCoords
     });
   };
@@ -502,6 +557,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     setDistanceUnit('mi');
     setUseMyLocation(locationSettings.useMyLocation);
     setUseAnyLocation(locationSettings.useAnyLocation);
+    setApplySavedStyles(false);
     setLocation(locationSettings.location);
     setLocationCoords(undefined);
     
@@ -522,6 +578,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
           styles: [],
           ...locationSettings,
           distanceUnit: 'mi',
+          applySavedStyles: false,
           locationCoords: myCoords
         });
       } catch (error) {
@@ -531,7 +588,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
           searchString: '',
           styles: [],
           ...locationSettings,
-          distanceUnit: 'mi'
+          distanceUnit: 'mi',
+          applySavedStyles: false
         });
       } finally {
         setGeoLoading(false);
@@ -542,7 +600,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         searchString: '',
         styles: [],
         ...locationSettings,
-        distanceUnit: 'mi'
+        distanceUnit: 'mi',
+        applySavedStyles: false
       });
     }
   };
@@ -668,6 +727,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                             location,
                             useMyLocation,
                             useAnyLocation,
+                            applySavedStyles,
                             locationCoords
                           });
                         }}
@@ -816,6 +876,25 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
               </Box>
             )}
             
+            {/* Apply Saved Search */}
+            {me?.styles && me.styles.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox 
+                      checked={applySavedStyles}
+                      onChange={handleApplySavedStylesChange}
+                      size="small"
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">Apply my saved styles</Typography>
+                  }
+                />
+              </Box>
+            )}
+
             {/* Styles */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle2" gutterBottom>
