@@ -265,11 +265,11 @@ export const checkAuth = async (): Promise<boolean> => {
     }
     
     console.log('Checking auth with token');
-    // Use forceRefresh to ensure we're not using cached data
+    // Use invalidateCache to ensure we're not using cached data
     await api.get('/users/me', { 
       requiresAuth: true,
       useCache: false,
-      forceRefresh: true
+      invalidateCache: true
     });
     
     console.log('Auth check successful - token is valid');
