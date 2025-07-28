@@ -88,7 +88,7 @@ export const fetchCsrfToken = async (): Promise<void> => {
 export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   const {
     method = 'GET',
-    body,
+    body: initialBody,
     headers = {},
     requiresAuth = false,
     // Cache options with defaults
@@ -96,6 +96,9 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     cacheTTL = 5 * 60 * 1000,    // 5 minutes default TTL
     invalidateCache = false,      // Don't invalidate by default
   } = options;
+  
+  // Use a mutable variable for the body so we can modify it
+  let body = initialBody;
   
   // Generate a cache key for this request
   const cacheKey = generateCacheKey(endpoint, method, body);
@@ -182,6 +185,23 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     console.warn(`No auth token available for ${method} ${endpoint} request that requires authentication`);
   } else {
     console.log(`No auth token available for ${method} ${endpoint} request (not required)`);
+  }
+
+  // Automatically include user_id in request body for authenticated users on specific endpoints
+  if (token && typeof window !== 'undefined') {
+    const userId = localStorage.getItem('user_id');
+    if (userId && (method === 'POST' || method === 'PUT')) {
+      // Add user_id to body for artist-related endpoints
+      if (endpoint.includes('/artists') || endpoint.includes('/tattoos') || endpoint.includes('/appointments')) {
+        if (body && typeof body === 'object') {
+          body.user_id = parseInt(userId, 10);
+          console.log(`Added user_id ${userId} to ${method} ${endpoint} request body`);
+        } else if (!body) {
+          body = { user_id: parseInt(userId, 10) };
+          console.log(`Created request body with user_id ${userId} for ${method} ${endpoint}`);
+        }
+      }
+    }
   }
 
   const requestOptions: RequestInit = {
