@@ -7,7 +7,8 @@ const colors = {
   pearl: '#e8dbc5',
   persianGreen: '#339989',
   tigersEye: '#bc6c25',
-  crimson: '#DC0F38'
+  crimson: '#DC0F38',
+  warmBeige: '#e5cbb8'
 };
 
 // Create a theme instance
@@ -39,6 +40,11 @@ const theme = createTheme({
       primary: '#ffffff',
       secondary: 'rgba(255, 255, 255, 0.7)',
       disabled: 'rgba(255, 255, 255, 0.5)',
+    },
+    // Custom colors
+    warmBeige: {
+      main: colors.warmBeige,
+      contrastText: '#000000',
     },
   },
   typography: {
@@ -123,6 +129,21 @@ declare module '@mui/material/styles' {
   // allow configuration using `createTheme`
   interface TypographyVariantsOptions {
     tattoo?: React.CSSProperties;
+  }
+
+  // Custom palette colors
+  interface Palette {
+    warmBeige: {
+      main: string;
+      contrastText: string;
+    };
+  }
+
+  interface PaletteOptions {
+    warmBeige?: {
+      main: string;
+      contrastText: string;
+    };
   }
 }
 

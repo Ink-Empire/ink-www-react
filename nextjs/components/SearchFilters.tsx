@@ -143,13 +143,13 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
 }) => {
   // Get styles from context
   const { styles, loading: stylesLoading } = useStyles();
-  
+
   // Get user data from context
   const me = useUserData();
 
   // Get geolocation service
   const geoService = useAppGeolocation();
-  
+
   // Filter states
   const [searchString, setSearchString] = useState(initialFilters.searchString || '');
   const [selectedStyles, setSelectedStyles] = useState<number[]>(initialFilters.styles || []);
@@ -161,65 +161,65 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   const [location, setLocation] = useState<string>(initialFilters.location || '');
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | undefined>(initialFilters.locationCoords);
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
-  
+
   // Track geolocation status
   const [geoLoading, setGeoLoading] = useState<boolean>(false);
   const [geoError, setGeoError] = useState<string | null>(null);
-  
+
   // Debounce search with timer ref
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Watch for external filter changes (e.g., from ActiveFilterBadges)
   useEffect(() => {
     if (currentFilters) {
       // Only update if the values are different from current state
-      if (currentFilters.searchString !== undefined && 
+      if (currentFilters.searchString !== undefined &&
           currentFilters.searchString !== searchString) {
         setSearchString(currentFilters.searchString);
       }
-      
+
       if (currentFilters.styles !== undefined) {
         // Check if arrays are different
         const currentStylesArray = currentFilters.styles || [];
-        const isDifferent = 
-          currentStylesArray.length !== selectedStyles.length || 
+        const isDifferent =
+          currentStylesArray.length !== selectedStyles.length ||
           currentStylesArray.some(id => !selectedStyles.includes(id));
-          
+
         if (isDifferent) {
           setSelectedStyles(currentFilters.styles || []);
         }
       }
-      
-      if (currentFilters.distance !== undefined && 
+
+      if (currentFilters.distance !== undefined &&
           currentFilters.distance !== distance) {
         setDistance(currentFilters.distance);
       }
-      
-      if (currentFilters.distanceUnit !== undefined && 
+
+      if (currentFilters.distanceUnit !== undefined &&
           currentFilters.distanceUnit !== distanceUnit) {
         setDistanceUnit(currentFilters.distanceUnit);
       }
-      
-      if (currentFilters.useMyLocation !== undefined && 
+
+      if (currentFilters.useMyLocation !== undefined &&
           currentFilters.useMyLocation !== useMyLocation) {
         setUseMyLocation(currentFilters.useMyLocation);
       }
-      
-      if (currentFilters.useAnyLocation !== undefined && 
+
+      if (currentFilters.useAnyLocation !== undefined &&
           currentFilters.useAnyLocation !== useAnyLocation) {
         setUseAnyLocation(currentFilters.useAnyLocation);
       }
-      
-      if (currentFilters.applySavedStyles !== undefined && 
+
+      if (currentFilters.applySavedStyles !== undefined &&
           currentFilters.applySavedStyles !== applySavedStyles) {
         setApplySavedStyles(currentFilters.applySavedStyles);
       }
-      
-      if (currentFilters.location !== undefined && 
+
+      if (currentFilters.location !== undefined &&
           currentFilters.location !== location) {
         setLocation(currentFilters.location);
       }
-      
+
       if (currentFilters.locationCoords !== undefined &&
           JSON.stringify(currentFilters.locationCoords) !== JSON.stringify(locationCoords)) {
         setLocationCoords(currentFilters.locationCoords);
@@ -235,7 +235,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     if (initialFilters.searchString || (initialFilters.styles && initialFilters.styles.length > 0) || initialFilters.distance) {
       handleApplyFilters();
     }
-    
+
     // Cleanup timeout on unmount
     return () => {
       if (searchTimerRef.current) {
@@ -248,12 +248,12 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchString = e.target.value;
     setSearchString(newSearchString);
-    
+
     // Clear any existing timer
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
     }
-    
+
     // Set a new timer to apply the filter after typing stops
     searchTimerRef.current = setTimeout(() => {
       onFilterChange({
@@ -274,7 +274,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   const handleApplySavedStylesChange = () => {
     const newApplySavedStyles = !applySavedStyles;
     setApplySavedStyles(newApplySavedStyles);
-    
+
     // If applying saved styles, merge user's saved styles with current selection
     let newStyles = selectedStyles;
     if (newApplySavedStyles && me?.styles) {
@@ -283,7 +283,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       newStyles = [...new Set([...selectedStyles, ...userStyleIds])];
       setSelectedStyles(newStyles);
     }
-    
+
     // Immediately trigger search with updated styles and applySavedStyles flag
     onFilterChange({
       searchString,
@@ -304,10 +304,10 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     const newStyles = selectedStyles.includes(styleId)
       ? selectedStyles.filter(id => id !== styleId)
       : [...selectedStyles, styleId];
-    
+
     // Update state
     setSelectedStyles(newStyles);
-    
+
     // Immediately trigger search with updated styles
     onFilterChange({
       searchString,
@@ -326,7 +326,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   const handleDistanceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newDistance = Number(e.target.value);
     setDistance(newDistance);
-    
+
     // Immediately apply filter with new distance
     onFilterChange({
       searchString,
@@ -340,11 +340,11 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       locationCoords
     });
   };
-  
+
   // Handle distance unit change
   const handleDistanceUnitChange = (unit: 'mi' | 'km') => {
     setDistanceUnit(unit);
-    
+
     // Immediately apply filter with new distance unit
     onFilterChange({
       searchString,
@@ -358,27 +358,27 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       locationCoords
     });
   };
-  
+
   // Handle location option change
   const handleLocationOptionChange = async (locationType: 'my' | 'custom' | 'any') => {
     // Reset state
     setUseMyLocation(locationType === 'my');
     setUseAnyLocation(locationType === 'any');
-    
+
     if (locationType === 'my') {
       // If switching to "my location", get the user's coordinates
       try {
         setGeoLoading(true);
-        
+
         // Get the user's current position
         const position = await geoService.getCurrentPosition();
         const myCoords = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
         };
-        
+
         setLocationCoords(myCoords);
-        
+
         // Apply filter with user's coordinates
         onFilterChange({
           searchString,
@@ -394,7 +394,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       } catch (error) {
         console.error('Error getting user location:', error);
         setGeoError(error instanceof Error ? error.message : 'Error getting your location');
-        
+
         // Still update the UI state even if we can't get coordinates
         onFilterChange({
           searchString,
@@ -423,7 +423,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         applySavedStyles,
         locationCoords
       });
-      
+
       // If there's already a location entered, get its coordinates
       if (location.trim() && !locationCoords) {
         getLocationCoordinates(location);
@@ -433,7 +433,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       setLocation('');
       setLocationCoords(undefined);
       setGeoError(null);
-      
+
       onFilterChange({
         searchString,
         styles: selectedStyles,
@@ -447,24 +447,24 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       });
     }
   };
-  
+
   // Get lat/long for a location string
   const getLocationCoordinates = async (locationString: string) => {
     if (!locationString.trim()) return;
-    
+
     try {
       setGeoLoading(true);
       setGeoError(null);
-      
+
       // Use the geoService to get coordinates
       const geoResult = await geoService.getLatLong(locationString);
-      
+
       if (geoResult.items && geoResult.items.length > 0) {
         const coords = {
           lat: geoResult.items[0].position.lat,
           lng: geoResult.items[0].position.lng
         };
-        
+
         setLocationCoords(coords);
 
         // Update filters with new coordinates
@@ -479,7 +479,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
           applySavedStyles,
           locationCoords: coords
         });
-        
+
         return coords;
       } else {
         setGeoError('No results found for this location');
@@ -491,15 +491,15 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
       setGeoLoading(false);
     }
   };
-  
+
   // Debounce location input for geocoding
   const locationTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Handle location input change
   const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newLocation = e.target.value;
     setLocation(newLocation);
-    
+
     // Only update if using custom location (not my location or anywhere)
     if (!useMyLocation && !useAnyLocation) {
       // Update the search params immediately with the text
@@ -514,12 +514,12 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         applySavedStyles,
         locationCoords
       });
-      
+
       // Clear any existing timer
       if (locationTimerRef.current) {
         clearTimeout(locationTimerRef.current);
       }
-      
+
       // Set a new timer to get coordinates after typing stops
       if (newLocation.trim()) {
         locationTimerRef.current = setTimeout(() => {
@@ -550,7 +550,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   // Clear all filters
   const handleClearFilters = async () => {
     const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
-    
+
     setSearchString('');
     setSelectedStyles([]);
     setDistance(locationSettings.distance);
@@ -560,7 +560,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     setApplySavedStyles(false);
     setLocation(locationSettings.location);
     setLocationCoords(undefined);
-    
+
     // Only try to get location if not dismissed and user has location preference
     if (!distancePreferences.hasUserDismissedDistance() && locationSettings.useMyLocation) {
       try {
@@ -570,9 +570,9 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
           lat: position.coords.latitude,
           lng: position.coords.longitude
         };
-        
+
         setLocationCoords(myCoords);
-        
+
         onFilterChange({
           searchString: '',
           styles: [],
@@ -583,7 +583,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         });
       } catch (error) {
         console.error('Error getting user location:', error);
-        
+
         onFilterChange({
           searchString: '',
           styles: [],
@@ -610,7 +610,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   const toggleSidebar = () => {
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
-    
+
     // Notify parent component if callback exists
     if (onSidebarToggle) {
       onSidebarToggle(newExpandedState);
@@ -690,15 +690,15 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
 
         {/* Filter content - only show when expanded */}
         {isExpanded && (
-          <Box sx={{ 
-            width: '100%', 
-            height: '100%', 
+          <Box sx={{
+            width: '100%',
+            height: '100%',
             overflowY: 'auto',
             p: 2,
             display: 'flex',
             flexDirection: 'column'
           }}>
-            
+
             {/* Search input */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle2" gutterBottom>
@@ -709,14 +709,14 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                   <SearchIcon />
                 </SearchIconWrapper>
                 <StyledInputBase
-                  placeholder={type === 'artists' ? "Artist name or studio" : "Tattoo description or tags"}
+                  placeholder={type === 'artists' ? "Artist name or studio" : "enter artist, description or tags"}
                   value={searchString}
                   onChange={handleSearchChange}
                   inputProps={{ 'aria-label': 'search' }}
                   endAdornment={
                     searchString ? (
-                      <IconButton 
-                        size="small" 
+                      <IconButton
+                        size="small"
                         onClick={() => {
                           setSearchString('');
                           onFilterChange({
@@ -751,13 +751,9 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                   fullWidth
                   sx={{
                     py: 1.5,
-                    backgroundColor: 'primary.main',
-                    '&:hover': {
-                      backgroundColor: 'primary.dark',
-                    }
                   }}
                 >
-                  Create Tattoo
+                  Upload
                 </Button>
               </Box>
             )}
@@ -767,15 +763,15 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
               <Typography variant="subtitle2" gutterBottom>
                 Location:
               </Typography>
-              
+
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <FormControl component="fieldset">
                   <RadioGroup
                     value={
-                      useAnyLocation 
-                        ? 'any' 
-                        : useMyLocation 
-                          ? 'my' 
+                      useAnyLocation
+                        ? 'any'
+                        : useMyLocation
+                          ? 'my'
                           : 'custom'
                     }
                     onChange={(e) => handleLocationOptionChange(e.target.value as 'my' | 'custom' | 'any')}
@@ -785,19 +781,19 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                         control={<Radio size="small" color="primary" />}
                         label={<Typography variant="body2">Anywhere</Typography>}
                     />
-                    <FormControlLabel 
-                      value="my" 
-                      control={<Radio size="small" color="primary" />} 
+                    <FormControlLabel
+                      value="my"
+                      control={<Radio size="small" color="primary" />}
                       label={<Typography variant="body2">Near Me</Typography>}
                     />
-                    <FormControlLabel 
-                      value="custom" 
-                      control={<Radio size="small" color="primary" />} 
+                    <FormControlLabel
+                      value="custom"
+                      control={<Radio size="small" color="primary" />}
                       label={<Typography variant="body2">Near:</Typography>}
                     />
                   </RadioGroup>
                 </FormControl>
-                
+
                 {/* Only show the location input when custom location is selected */}
                 {!useMyLocation && !useAnyLocation && (
                   <TextField
@@ -812,7 +808,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                     InputProps={{
                       sx: {
                         fontSize: '0.875rem',
-                        '& .MuiOutlinedInput-notchedOutline': { 
+                        '& .MuiOutlinedInput-notchedOutline': {
                           borderColor: '#e8dbc5'
                         }
                       },
@@ -824,7 +820,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                 )}
               </Box>
             </Box>
-            
+
             {/* Distance selection - only show when location-based filtering is active */}
             {(useMyLocation || (!useMyLocation && !useAnyLocation)) && (
               <Box sx={{ mb: 3 }}>
@@ -836,9 +832,9 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                     <FormControlLabel
                       value="mi"
                       control={
-                        <Radio 
-                          size="small" 
-                          checked={distanceUnit === 'mi'} 
+                        <Radio
+                          size="small"
+                          checked={distanceUnit === 'mi'}
                           onChange={() => handleDistanceUnitChange('mi')}
                           color="primary"
                         />
@@ -848,9 +844,9 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                     <FormControlLabel
                       value="km"
                       control={
-                        <Radio 
-                          size="small" 
-                          checked={distanceUnit === 'km'} 
+                        <Radio
+                          size="small"
+                          checked={distanceUnit === 'km'}
                           onChange={() => handleDistanceUnitChange('km')}
                           color="primary"
                         />
@@ -875,13 +871,13 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                 </FormControl>
               </Box>
             )}
-            
+
             {/* Apply Saved Search */}
             {me?.styles && me.styles.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <FormControlLabel
                   control={
-                    <Checkbox 
+                    <Checkbox
                       checked={applySavedStyles}
                       onChange={handleApplySavedStylesChange}
                       size="small"
@@ -911,8 +907,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                       <FormControlLabel
                         key={style.id}
                         control={
-                          <Checkbox 
-                            checked={selectedStyles.includes(style.id)} 
+                          <Checkbox
+                            checked={selectedStyles.includes(style.id)}
                             onChange={() => handleStyleChange(style.id)}
                             size="small"
                             color="primary"
@@ -927,12 +923,12 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                 )}
               </StylesContainer>
             </Box>
-            
+
             {/* Filter buttons */}
-            <Box sx={{ 
-              mt: 'auto', 
-              pt: 2, 
-              borderTop: 1, 
+            <Box sx={{
+              mt: 'auto',
+              pt: 2,
+              borderTop: 1,
               borderColor: 'divider',
               display: 'flex',
               flexDirection: 'column',

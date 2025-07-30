@@ -161,9 +161,13 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   const url = `/api${endpoint}`;
 
   const requestHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
     ...headers,
   };
+
+  // Only set Content-Type to application/json if body is not FormData
+  if (!(body instanceof FormData)) {
+    requestHeaders['Content-Type'] = 'application/json';
+  }
 
   // Add CSRF token header for non-GET requests
   if (method !== 'GET' && typeof document !== 'undefined') {
@@ -193,7 +197,10 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     if (userId && (method === 'POST' || method === 'PUT')) {
       // Add user_id to body for artist-related endpoints
       if (endpoint.includes('/artists') || endpoint.includes('/tattoos') || endpoint.includes('/appointments')) {
-        if (body && typeof body === 'object') {
+        if (body instanceof FormData) {
+          // For FormData, append user_id as form field
+          body.append('user_id', userId);
+        } else if (body && typeof body === 'object') {
           body.user_id = parseInt(userId, 10);
           console.log(`Added user_id ${userId} to ${method} ${endpoint} request body`);
         } else if (!body) {
@@ -207,7 +214,7 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   const requestOptions: RequestInit = {
     method,
     headers: requestHeaders,
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? (body instanceof FormData ? body : JSON.stringify(body)) : undefined,
     credentials: 'include', // Include cookies for cross-origin requests
     mode: 'cors', // Explicitly set CORS mode
   };

@@ -220,12 +220,9 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose }
         formData.append('style_ids', JSON.stringify(selectedStyles));
       }
 
-      // Submit to API
+      // Submit to API (don't set Content-Type header - let browser set it for FormData)
       const response = await api.post('/tattoos/create', formData, {
-        requiresAuth: true,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        requiresAuth: true
       });
 
       // Success - close modal and redirect
@@ -259,7 +256,15 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose }
               startIcon={<PhotoCamera />}
               disabled={selectedFiles.length >= 5}
               fullWidth
-              sx={{ mb: 2 }}
+              sx={{ 
+                mb: 2,
+                color: '#000000',
+                borderColor: '#000000',
+                '&:hover': {
+                  borderColor: '#000000',
+                  color: '#000000'
+                }
+              }}
             >
               {selectedFiles.length >= 5 ? 'Maximum 5 Images' : 'Choose Images'}
               <input
@@ -431,7 +436,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose }
                     key={style.id} 
                     sx={{ 
                       p: 2, 
-                      borderBottom: '1px solid white',
+                      borderBottom: '1px solid #000000',
                       '&:last-child': { borderBottom: 'none' },
                     }}
                   >
@@ -444,7 +449,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose }
                           style={{ 
                             width: '18px', 
                             height: '18px',
-                            accentColor: '#1976d2'
+                            accentColor: '#000000'
                           }}
                         />
                         <Typography 
@@ -523,7 +528,96 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose }
       PaperProps={{
         sx: {
           minHeight: '600px',
-          bgcolor: 'background.paper'
+          bgcolor: 'warmBeige.main',
+          color: '#000000',
+          '& .MuiTypography-root': {
+            color: '#000000'
+          },
+          '& .MuiFormLabel-root': {
+            color: '#000000'
+          },
+          '& .MuiInputLabel-root': {
+            color: '#000000'
+          },
+          '& .MuiStepLabel-label': {
+            color: '#000000'
+          },
+          '& .MuiStepper-root .MuiStepLabel-root .MuiStepLabel-label': {
+            color: '#000000'
+          },
+          '& .MuiOutlinedInput-root': {
+            '& fieldset': {
+              borderColor: '#000000'
+            },
+            '&:hover fieldset': {
+              borderColor: '#000000'
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: '#000000'
+            }
+          },
+          '& .MuiTextField-root .MuiOutlinedInput-root': {
+            '& fieldset': {
+              borderColor: '#000000'
+            },
+            '&:hover fieldset': {
+              borderColor: '#000000'
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: '#000000'
+            }
+          },
+          '& .MuiSelect-root': {
+            '& fieldset': {
+              borderColor: '#000000'
+            },
+            '&:hover fieldset': {
+              borderColor: '#000000'
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: '#000000'
+            }
+          },
+          '& .MuiFormControl-root .MuiOutlinedInput-root': {
+            '& fieldset': {
+              borderColor: '#000000'
+            },
+            '&:hover fieldset': {
+              borderColor: '#000000'
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: '#000000'
+            }
+          },
+          '& .MuiInputBase-input::placeholder': {
+            color: '#000000',
+            opacity: 0.7
+          },
+          '& .MuiInputBase-input': {
+            color: '#000000'
+          },
+          '& .MuiOutlinedInput-input::placeholder': {
+            color: '#000000',
+            opacity: 0.7
+          },
+          '& .MuiTextField-root input::placeholder': {
+            color: '#000000',
+            opacity: 0.7
+          },
+          '& .MuiCheckbox-root': {
+            color: '#000000'
+          },
+          '& .MuiFormControlLabel-root': {
+            color: '#000000'
+          },
+          '& .MuiChip-root': {
+            borderColor: '#000000',
+            color: '#000000'
+          },
+          '& .MuiChip-outlined': {
+            borderColor: '#000000',
+            color: '#000000'
+          }
         }
       }}
     >
@@ -556,6 +650,12 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose }
           <Button
             onClick={activeStep === 0 ? onClose : handleBack}
             startIcon={activeStep === 0 ? undefined : <ArrowBack />}
+            sx={{ 
+              color: '#000000',
+              '&:hover': {
+                color: '#000000'
+              }
+            }}
           >
             {activeStep === 0 ? 'Cancel' : 'Back'}
           </Button>
