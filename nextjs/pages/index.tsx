@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import TattooCard from "../components/TattooCard";
+import TattooModal from "../components/TattooModal";
 import SearchFilters from "../components/SearchFilters";
 import ActiveFilterBadges from "../components/ActiveFilterBadges";
 import LogoText from "../components/LogoText";
@@ -24,18 +25,34 @@ export default function Home() {
   // State for Create Tattoo modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // State for Tattoo detail modal
+  const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
+  const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
+
   // State to track dismissed styles (to prevent them from returning)
   const [dismissedStyles, setDismissedStyles] = useState<number[]>([]);
   
   // State to track if user has dismissed distance/location (to prevent reset to defaults)
   const [hasUserDismissedDistance, setHasUserDismissedDistance] = useState(false);
 
+  // Handler for opening tattoo modal
+  const handleTattooClick = (tattooId: string) => {
+    setSelectedTattooId(tattooId);
+    setIsTattooModalOpen(true);
+  };
+
+  // Handler for closing tattoo modal
+  const handleCloseTattooModal = () => {
+    setIsTattooModalOpen(false);
+    setSelectedTattooId(null);
+  };
+
   // Initialize with user preferences - respecting distance dismissal but NO auto-applied styles
   const initialSearchParams = useMemo(() => {
     const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
 
     return {
-      searchString: "",
+      searchString: router.query.searchString || "",
       styles: [], // Empty array - no auto-applied styles
       applySavedStyles: false, // Default to false
       ...locationSettings,
@@ -43,7 +60,7 @@ export default function Home() {
       subject: "tattoos",
       studio_id: studio_id || undefined,
     };
-  }, [me?.location_lat_long, studio_id]);
+  }, [me?.location_lat_long, studio_id, router.query.searchString]);
 
   const [searchParams, setSearchParams] =
     useState<Record<string, any>>(initialSearchParams);
@@ -74,6 +91,16 @@ export default function Home() {
       setSearchParams((prev) => ({ ...prev, studio_id }));
     }
   }, [studio_id]);
+
+  // Update searchParams when searchString query parameter changes
+  useEffect(() => {
+    if (router.query.searchString) {
+      setSearchParams((prev) => ({ 
+        ...prev, 
+        searchString: router.query.searchString as string 
+      }));
+    }
+  }, [router.query.searchString]);
 
   // Handle filter changes from SearchFilters component
   const handleFilterChange = (filters: {
@@ -337,7 +364,11 @@ export default function Home() {
                   Array.isArray(tattoos.response) &&
                   tattoos.response.length > 0 &&
                   tattoos.response.map((tattoo) => (
-                    <TattooCard key={tattoo.id} tattoo={tattoo} />
+                    <TattooCard 
+                      key={tattoo.id} 
+                      tattoo={tattoo} 
+                      onTattooClick={handleTattooClick}
+                    />
                   ))}
               </div>
             </>
@@ -357,6 +388,12 @@ export default function Home() {
           }}
         />
       )}
+
+      <TattooModal
+        tattooId={selectedTattooId}
+        open={isTattooModalOpen}
+        onClose={handleCloseTattooModal}
+      />
     </Layout>
   );
 }

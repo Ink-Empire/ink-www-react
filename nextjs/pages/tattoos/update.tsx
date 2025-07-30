@@ -205,15 +205,8 @@ export default function UpdateTattoo() {
       const responseData = await response.json();
       console.log('Tattoo updated successfully:', responseData);
       
-      // Redirect to the tattoo page or artist profile
-      if (responseData.id) {
-        router.push(`/tattoos/${responseData.id}`);
-      } else if (user?.id) {
-        // Fallback to artist profile
-        router.push(`/artists/${user.id}`);
-      } else {
-        router.push('/tattoos');
-      }
+      // Redirect to home page since we're using modals now
+      router.push('/');
     } catch (error) {
       console.error('Error updating tattoo:', error);
       setError(error instanceof Error ? error.message : 'An unknown error occurred');

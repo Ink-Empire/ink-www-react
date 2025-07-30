@@ -209,12 +209,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
         onSuccess();
       }
 
-      // Redirect to the new tattoo page if we get an ID back
-      if (response.data?.id) {
-        setTimeout(() => {
-          router.push(`/tattoos/${response.data.id}`);
-        }, 2000);
-      }
+      // Success - no redirect needed since we're using modals now
 
     } catch (error) {
       console.error('Failed to create tattoo:', error);

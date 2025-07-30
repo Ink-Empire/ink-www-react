@@ -225,11 +225,11 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose }
         requiresAuth: true
       });
 
-      // Success - close modal and redirect
-      onClose();
-      
-      if (response.data?.id) {
-        router.push(`/tattoos/${response.data.id}`);
+      // Success - call success handler if provided
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onClose();
       }
 
     } catch (error) {

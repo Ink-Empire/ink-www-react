@@ -7,9 +7,10 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 interface TattooCardProps {
     tattoo: any; // Using any for now as the tattoo JSON doesn't match the interface exactly
+    onTattooClick?: (tattooId: string) => void;
 }
 
-const TattooCard: React.FC<TattooCardProps> = ({tattoo}) => {
+const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
     // Determine the image URI from either primary_image or image
     const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
 
@@ -51,6 +52,12 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo}) => {
     // Calculate if we need to show "more styles" indicator
     const hasMoreStyles = tattoo.styles && tattoo.styles.length > 6;
 
+    const handleTattooClick = () => {
+        if (onTattooClick && tattoo.id) {
+            onTattooClick(tattoo.id.toString());
+        }
+    };
+
     return (
         <Card
             variant="outlined"
@@ -67,8 +74,7 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo}) => {
             }}
         >
             <CardActionArea
-                component={Link}
-                href={`/tattoos/${tattoo.id}`}
+                onClick={handleTattooClick}
                 sx={{
                     display: 'flex',
                     flexDirection: 'column',
