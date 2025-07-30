@@ -49,6 +49,96 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose }) =>
     });
   };
 
+  // Handle style click - search for tattoos with this style
+  const handleStyleClick = (styleName: string) => {
+    // Close the modal first
+    onClose();
+    
+    // Navigate to home page with style search parameter
+    router.push({
+      pathname: '/',
+      query: { styleSearch: styleName }
+    });
+  };
+
+  // Handle save/unsave tattoo
+  const handleSaveTattoo = async () => {
+    if (!tattooId) return;
+    
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      // Redirect to login
+      router.push('/login');
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      if (isTattooSaved) {
+        // Remove from favorites - using POST with _method override for Laravel
+        await api.post(`/users/favorites/tattoo`, {
+          tattoo_id: tattooId,
+          _method: 'DELETE'
+        }, {
+          requiresAuth: true
+        });
+        setIsTattooSaved(false);
+      } else {
+        // Add to favorites
+        await api.post(`/users/favorites/tattoo`, {
+          tattoo_id: tattooId
+        }, {
+          requiresAuth: true
+        });
+        setIsTattooSaved(true);
+      }
+    } catch (error) {
+      console.error('Error saving tattoo:', error);
+      // TODO: Show error message to user
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle follow/unfollow artist
+  const handleFollowArtist = async () => {
+    if (!tattoo?.tattoo?.artist?.id) return;
+    
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      // Redirect to login
+      router.push('/login');
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      if (isArtistFollowed) {
+        // Unfollow artist - using POST with _method override for Laravel
+        await api.post(`/users/favorites/artist`, {
+          artist_id: tattoo.tattoo.artist.id,
+          _method: 'DELETE'
+        }, {
+          requiresAuth: true
+        });
+        setIsArtistFollowed(false);
+      } else {
+        // Follow artist
+        await api.post(`/users/favorites/artist`, {
+          artist_id: tattoo.tattoo.artist.id
+        }, {
+          requiresAuth: true
+        });
+        setIsArtistFollowed(true);
+      }
+    } catch (error) {
+      console.error('Error following artist:', error);
+      // TODO: Show error message to user
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Get the primary image URI - access nested tattoo data
   const getPrimaryImageUri = () => {
     return tattoo?.tattoo?.primary_image?.uri || tattoo?.tattoo?.image?.uri || null;
@@ -306,9 +396,15 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose }) =>
                           color="primary"
                           size="small"
                           variant="filled"
+                          clickable
+                          onClick={() => handleStyleClick(tattoo.tattoo.primary_style)}
                           sx={{
                             borderRadius: 1,
-                            fontSize: '0.75rem'
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            '&:hover': {
+                              backgroundColor: 'rgba(51, 153, 137, 0.8)'
+                            }
                           }}
                         />
                       )}

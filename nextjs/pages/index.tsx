@@ -12,10 +12,12 @@ import Layout from "../components/Layout";
 import TattooCreateWizard from "../components/TattooCreateWizard";
 import { useTattoos } from "../hooks";
 import { useUserData } from "@/contexts/UserContext";
+import { useStyles } from "@/contexts/StyleContext";
 import { distancePreferences } from "@/utils/distancePreferences";
 
 export default function Home() {
   const me = useUserData();
+  const { styles } = useStyles();
   const router = useRouter();
   const { studio_id } = router.query;
 
@@ -101,6 +103,25 @@ export default function Home() {
       }));
     }
   }, [router.query.searchString]);
+
+  // Update searchParams when styleSearch query parameter changes
+  useEffect(() => {
+    if (router.query.styleSearch && styles.length > 0) {
+      const styleSearchName = router.query.styleSearch as string;
+      // Find the style ID that matches the name
+      const matchingStyle = styles.find(style => 
+        style.name.toLowerCase() === styleSearchName.toLowerCase()
+      );
+      
+      if (matchingStyle) {
+        setSearchParams((prev) => ({ 
+          ...prev, 
+          styles: [matchingStyle.id],
+          searchString: "" // Clear search string when filtering by style
+        }));
+      }
+    }
+  }, [router.query.styleSearch, styles]);
 
   // Handle filter changes from SearchFilters component
   const handleFilterChange = (filters: {
