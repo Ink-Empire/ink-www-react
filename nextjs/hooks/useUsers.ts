@@ -4,7 +4,8 @@ import {getToken} from '../utils/auth';
 
 // Define the User interface based on your API
 export interface User {
-    favorites: any[];
+    tattoos: any[];
+    artists: any[];
     id: number;
     name: string;
     email: string;
@@ -145,25 +146,55 @@ export const useUsers = () => {
         }
     };
 
-    //add a favorite to user
-    const addFavorite = async (userId: number, type: string, id: number): Promise<void> => {
+    // Add a favorite to user
+    const addFavorite = async (type: string, id: string): Promise<void> => {
         setLoading(true);
         setError(null);
 
         try {
             await api.post(`/users/favorites/${type}`, {
-                ids: id,
+                ids: [id]
+            }, {
+                requiresAuth: true
             });
 
             // Optionally update the currentUser's favorites if needed
-            if (currentUser && currentUser.id === userId) {
+            if (currentUser) {
                 setCurrentUser({
                     ...currentUser,
-                    favorites: [...(currentUser.favorites || []), id]
+                    favorites: [...(currentUser.favorites || []), { type, id }]
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : `Failed to add favorite for user with ID ${userId}`;
+            const errorMessage = err instanceof Error ? err.message : `Failed to add ${type} favorite`;
+            setError(errorMessage);
+            throw new Error(errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Remove a favorite from user
+    const removeFavorite = async (type: string, id: string): Promise<void> => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            await api.delete(`/users/favorites/${type}/${id}`, {
+                requiresAuth: true
+            });
+
+            // Optionally update the currentUser's favorites if needed
+            if (currentUser) {
+                setCurrentUser({
+                    ...currentUser,
+                    favorites: (currentUser.favorites || []).filter(fav => 
+                        !(fav.type === type && fav.id === id)
+                    )
+                });
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : `Failed to remove ${type} favorite`;
             setError(errorMessage);
             throw new Error(errorMessage);
         } finally {
@@ -205,5 +236,6 @@ export const useUsers = () => {
         updateUser,
         deleteUser,
         addFavorite,
+        removeFavorite,
     };
 };

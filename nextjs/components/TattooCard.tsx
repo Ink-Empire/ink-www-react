@@ -2,8 +2,11 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {TattooType} from '../models/tattoo.interface';
-import {Card, CardContent, CardActionArea, CardMedia, Typography, Box, Stack, Chip} from '@mui/material';
+import {Card, CardContent, CardActionArea, CardMedia, Typography, Box, Stack, Chip, IconButton} from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
+import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import {useUserData} from '@/contexts/UserContext';
 
 interface TattooCardProps {
     tattoo: any; // Using any for now as the tattoo JSON doesn't match the interface exactly
@@ -11,11 +14,34 @@ interface TattooCardProps {
 }
 
 const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
+    const [isFavorite, setIsFavorite] = React.useState(false);
+    const user = useUserData();
+
     // Determine the image URI from either primary_image or image
     const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
 
     // Determine the artist image URI
     const artistImageUri = tattoo.artist?.primary_image?.uri || tattoo.artist?.image?.uri;
+
+    React.useEffect(() => {
+        if (user?.tattoos && tattoo.id) {
+            setIsFavorite(user.tattoos.includes(tattoo.id));
+        }
+    }, [user, tattoo.id]);
+
+    // Handle adding tattoo to favorites (same pattern as ArtistCard)
+    const handleAddToFavorites = (event: React.MouseEvent) => {
+        // Stop event propagation to prevent card click
+        event.stopPropagation();
+        
+        // Toggle favorite status via the UserContext method
+        if (user?.toggleFavorite) {
+            user.toggleFavorite('tattoo', tattoo.id)
+                .catch(err => console.error('Error toggling favorite:', err));
+        } else {
+            console.warn('User not logged in or toggleFavorite not available');
+        }
+    };
 
     // Get style tags (limit to first 6 for consistent card height)
     const getStyleTags = () => {
@@ -70,9 +96,32 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
                 '&:hover': {
                     transform: 'translateY(-4px)',
                     boxShadow: '0 6px 12px rgba(232, 219, 197, 0.6)'
-                }
+                },
+                position: 'relative' // Added for absolute positioning of the bookmark icon
             }}
         >
+            {/* Bookmark Icon - Top Right (same pattern as ArtistCard) */}
+            <IconButton
+                size="small"
+                onClick={handleAddToFavorites}
+                sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    zIndex: 2,
+                    backgroundColor: 'rgba(28, 15, 19, 0.7)', // Same as ArtistCard
+                    '&:hover': {
+                        backgroundColor: 'rgba(28, 15, 19, 0.9)'
+                    },
+                    borderRadius: '50%'
+                }}
+            >
+                {isFavorite ? (
+                    <BookmarkIcon sx={{color: '#339989', fontSize: '1.2rem'}}/>
+                ) : (
+                    <BookmarkBorderIcon sx={{color: '#e8dbc5', fontSize: '1.2rem'}}/>
+                )}
+            </IconButton>
             <CardActionArea
                 onClick={handleTattooClick}
                 sx={{
@@ -221,6 +270,7 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
                                 objectPosition: 'center'
                             }}
                         />
+
 
                         {/* Optional title overlay at the bottom */}
                         {tattoo.title && (

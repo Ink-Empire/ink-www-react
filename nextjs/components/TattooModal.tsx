@@ -10,32 +10,56 @@ import {
   Stack,
   Divider,
   CircularProgress,
-  Alert
+  Alert,
+  Button
 } from '@mui/material';
 import {
   Close as CloseIcon,
   LocationOn as LocationOnIcon,
   Palette as PaletteIcon,
-  Tag as TagIcon
+  Tag as TagIcon,
+  BookmarkBorder as BookmarkBorderIcon,
+  Bookmark as BookmarkIcon,
+  PersonAdd as PersonAddIcon,
+  PersonRemove as PersonRemoveIcon
 } from '@mui/icons-material';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useTattoo } from '../hooks';
+import { useAuth } from '../contexts/AuthContext';
+import { useUsers } from '../hooks/useUsers';
 
 interface TattooModalProps {
   tattooId: string | null;
   open: boolean;
   onClose: () => void;
+  currentUser?: any; // User data from /me endpoint
+  tattooFavorite?: boolean; // Whether tattoo is favorited
+  artistFavorite?: boolean; // Whether artist is followed
 }
 
-const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose }) => {
+const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, currentUser, tattooFavorite = false, artistFavorite = false }) => {
   const { tattoo, loading, error } = useTattoo(tattooId);
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+  const { addFavorite, removeFavorite, loading: userLoading } = useUsers();
+
+  console.log(currentUser);
+  
+  // State for save actions - initialize with passed props
+  const [isTattooSaved, setIsTattooSaved] = React.useState(tattooFavorite);
+  const [isArtistFollowed, setIsArtistFollowed] = React.useState(artistFavorite);
 
   const handleClose = () => {
     onClose();
   };
+
+  // Sync state with props when they change
+  React.useEffect(() => {
+    setIsTattooSaved(tattooFavorite);
+    setIsArtistFollowed(artistFavorite);
+  }, [tattooFavorite, artistFavorite]);
 
   // Handle tag click - search for tattoos with this tag
   const handleTagClick = (tagName: string) => {
@@ -67,36 +91,21 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose }) =>
     
     // Check if user is authenticated
     if (!isAuthenticated) {
-      // Redirect to login
       router.push('/login');
       return;
     }
     
-    setIsLoading(true);
     try {
       if (isTattooSaved) {
-        // Remove from favorites - using POST with _method override for Laravel
-        await api.post(`/users/favorites/tattoo`, {
-          tattoo_id: tattooId,
-          _method: 'DELETE'
-        }, {
-          requiresAuth: true
-        });
+        await removeFavorite('tattoo', tattooId);
         setIsTattooSaved(false);
       } else {
-        // Add to favorites
-        await api.post(`/users/favorites/tattoo`, {
-          tattoo_id: tattooId
-        }, {
-          requiresAuth: true
-        });
+        await addFavorite('tattoo', tattooId);
         setIsTattooSaved(true);
       }
     } catch (error) {
       console.error('Error saving tattoo:', error);
       // TODO: Show error message to user
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -106,36 +115,21 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose }) =>
     
     // Check if user is authenticated
     if (!isAuthenticated) {
-      // Redirect to login
       router.push('/login');
       return;
     }
     
-    setIsLoading(true);
     try {
       if (isArtistFollowed) {
-        // Unfollow artist - using POST with _method override for Laravel
-        await api.post(`/users/favorites/artist`, {
-          artist_id: tattoo.tattoo.artist.id,
-          _method: 'DELETE'
-        }, {
-          requiresAuth: true
-        });
+        await removeFavorite('artist', tattoo.tattoo.artist.id.toString());
         setIsArtistFollowed(false);
       } else {
-        // Follow artist
-        await api.post(`/users/favorites/artist`, {
-          artist_id: tattoo.tattoo.artist.id
-        }, {
-          requiresAuth: true
-        });
+        await addFavorite('artist', tattoo.tattoo.artist.id.toString());
         setIsArtistFollowed(true);
       }
     } catch (error) {
       console.error('Error following artist:', error);
       // TODO: Show error message to user
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -172,9 +166,15 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose }) =>
             size="small"
             variant="outlined"
             color="secondary"
+            clickable
+            onClick={() => handleStyleClick(styleName)}
             sx={{
               borderRadius: 1,
-              fontSize: '0.75rem'
+              fontSize: '0.75rem',
+              cursor: 'pointer',
+              '&:hover': {
+                backgroundColor: 'rgba(188, 108, 37, 0.1)'
+              }
             }}
           />
         );
@@ -424,9 +424,51 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose }) =>
                 )}
               </Box>
 
-              {/* Action buttons or additional content can go here */}
+              {/* Action buttons */}
               <Box sx={{ mt: 'auto', pt: 2 }}>
-                {/* Future: Add favorite, share, contact artist buttons */}
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  {/* Save Tattoo Button */}
+                  <Button
+                    variant={isTattooSaved ? "contained" : "outlined"}
+                    size="small"
+                    startIcon={isTattooSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+                    onClick={handleSaveTattoo}
+                    disabled={userLoading}
+                    sx={{
+                      color: isTattooSaved ? '#ffffff' : '#000000',
+                      borderColor: '#000000',
+                      backgroundColor: isTattooSaved ? '#000000' : 'transparent',
+                      '&:hover': {
+                        backgroundColor: isTattooSaved ? '#333333' : 'rgba(0, 0, 0, 0.1)',
+                        borderColor: '#000000'
+                      }
+                    }}
+                  >
+                    {isTattooSaved ? 'Saved' : 'Save Tattoo'}
+                  </Button>
+
+                  {/* Follow Artist Button */}
+                  {tattoo?.tattoo?.artist && (
+                    <Button
+                      variant={isArtistFollowed ? "contained" : "outlined"}
+                      size="small"
+                      startIcon={isArtistFollowed ? <PersonRemoveIcon /> : <PersonAddIcon />}
+                      onClick={handleFollowArtist}
+                      disabled={userLoading}
+                      sx={{
+                        color: isArtistFollowed ? '#ffffff' : '#000000',
+                        borderColor: '#000000',
+                        backgroundColor: isArtistFollowed ? '#000000' : 'transparent',
+                        '&:hover': {
+                          backgroundColor: isArtistFollowed ? '#333333' : 'rgba(0, 0, 0, 0.1)',
+                          borderColor: '#000000'
+                        }
+                      }}
+                    >
+                      {isArtistFollowed ? 'Following' : 'Follow Artist'}
+                    </Button>
+                  )}
+                </Stack>
               </Box>
             </Box>
           </Box>
