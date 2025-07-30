@@ -9,19 +9,20 @@ import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
 import ArtistSettingsToggle from '../components/ArtistSettingsToggle';
 import {UserProvider, useUser} from '@/contexts/UserContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUsers, useWorkingHours } from '@/hooks';
+import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
 import { fetchCsrfToken } from '@/utils/api';
 
 const ProfilePage: React.FC = () => {
   const router = useRouter();
-  const { userData, updateUser, updateStyles, logout } = useUser();
+  const { userData, updateUser, updateStyles, logout, loading, error } = useUser();
   const { fetchCurrentUser } = useAuth();
-  const { getOneUser } = useUsers();
   const { styles, getStyleName } = useStyles();
   const { profilePhoto, takeProfilePhoto, deleteProfilePhoto } = useProfilePhoto();
-  const { workingHours, saveWorkingHours, loading: hoursLoading, error: hoursError } = useWorkingHours(userData?.id);
+  // Only fetch working hours for artists
+  const isArtist = userData?.type === 'artist';
+  const { workingHours, saveWorkingHours, loading: hoursLoading, error: hoursError } = useWorkingHours(isArtist ? userData?.id : null);
   
   // Debug working hours data
   console.log('Working Hours Debug:', { 
@@ -33,8 +34,11 @@ const ProfilePage: React.FC = () => {
   });
 
 
-  // Load current user data when the component mounts
+
+  // TEMPORARILY DISABLED - Load current user data when the component mounts
   useEffect(() => {
+    console.log('Profile page useEffect running - DISABLED for debugging');
+    return; // Early return to disable the entire effect
     // IIFE to allow async operations
     (async () => {
       try {
@@ -84,11 +88,10 @@ const ProfilePage: React.FC = () => {
         // 2. Second try: Use the user hooks approach (if first try failed)
         if (!userData) {
           try {
-            console.log('Attempting to fetch user via hooks...');
-            const hookUser = await getOneUser();
-            if (hookUser) {
-              console.log('Successfully fetched user via hooks');
-              userData = hookUser;
+            const authUser = await fetchCurrentUser();
+            if (authUser) {
+              console.log('Successfully fetched user via AuthContext');
+              userData = authUser;
             }
           } catch (hookErr) {
             console.error('Error fetching via hooks:', hookErr);
@@ -132,12 +135,13 @@ const ProfilePage: React.FC = () => {
           }
         } else {
           console.error('Failed to fetch user data through all available methods');
-          // If we still couldn't get user data, redirect to login
-          router.push('/login');
+          // Don't redirect to login - let the UserContext handle authentication
+          // The user might still be authenticated but have network issues
         }
       } catch (error) {
         console.error('Error in profile page initialization:', error);
-        router.push('/login');
+        // Don't redirect to login - let the UserContext handle authentication
+        // The user might still be authenticated but have network issues
       }
     })();
   }, []);

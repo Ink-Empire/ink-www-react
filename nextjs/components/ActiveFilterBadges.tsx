@@ -43,8 +43,6 @@ const ActiveFilterBadges: React.FC<ActiveFilterBadgesProps> = ({
   const hasActiveFilters = searchString || selectedStyles.length > 0 || distance || (!useMyLocation && !useAnyLocation && location) || studioId || useAnyLocation;
   
   if (!hasActiveFilters) return null;
-
-  console.log(useAnyLocation);
   
   // Get style name by id
   const getStyleName = (styleId: number) => {

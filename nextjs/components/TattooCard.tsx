@@ -101,6 +101,7 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
             }}
         >
             {/* Bookmark Icon - Top Right (same pattern as ArtistCard) */}
+            {user && (
             <IconButton
                 size="small"
                 onClick={handleAddToFavorites}
@@ -122,6 +123,7 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
                     <BookmarkBorderIcon sx={{color: '#e8dbc5', fontSize: '1.2rem'}}/>
                 )}
             </IconButton>
+            )}
             <CardActionArea
                 onClick={handleTattooClick}
                 sx={{

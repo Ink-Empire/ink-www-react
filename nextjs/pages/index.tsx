@@ -1,27 +1,22 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Head from "next/head";
-import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/router";
 import TattooCard from "../components/TattooCard";
 import TattooModal from "../components/TattooModal";
 import SearchFilters from "../components/SearchFilters";
 import ActiveFilterBadges from "../components/ActiveFilterBadges";
-import LogoText from "../components/LogoText";
 import Layout from "../components/Layout";
 import TattooCreateWizard from "../components/TattooCreateWizard";
 import { useTattoos } from "../hooks";
 import { useUserData } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStyles } from "@/contexts/StyleContext";
-import { useUsers } from "../hooks/useUsers";
 import { distancePreferences } from "@/utils/distancePreferences";
 
 export default function Home() {
   const me = useUserData();
   const { user: authUser, isAuthenticated } = useAuth();
   const { styles } = useStyles();
-  const { currentUser, getOneUser } = useUsers();
   const router = useRouter();
   const { studio_id } = router.query;
 
@@ -54,20 +49,15 @@ export default function Home() {
     setSelectedTattooId(null);
   };
 
-  // Helper to check if tattoo is favorited
   const getTattooFavoriteStatus = (tattooId: string) => {
-    if (!currentUser?.tattoos) return false;
-    return currentUser.tattoos.some((fav: any) =>
-      fav === tattooId || fav === parseInt(tattooId)
-    );
+    if (!me?.tattoos) return false;
+    return me.tattoos.includes(parseInt(tattooId));
   };
 
-  // Helper to check if artist is followed
+  // Helper to check if artist is followed (using me instead of currentUser)
   const getArtistFollowStatus = (artistId: number) => {
-    if (!currentUser?.artists) return false;
-    return currentUser.artists.some((fav: any) =>
-      fav === artistId || fav === artistId.toString()
-    );
+    if (!me?.artists) return false;
+    return me.artists.includes(artistId);
   };
 
   // Get current tattoo data for modal
@@ -97,12 +87,6 @@ export default function Home() {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const { tattoos, loading, error } = useTattoos(searchParams);
 
-  // Fetch current user data with favorites when authenticated
-  useEffect(() => {
-    if (me?.id && !currentUser) {
-      getOneUser().catch(console.error);
-    }
-  }, [me?.id, currentUser, getOneUser]);
 
   // No longer auto-apply user saved styles - removed this useEffect
 
@@ -449,7 +433,7 @@ export default function Home() {
         tattooId={selectedTattooId}
         open={isTattooModalOpen}
         onClose={handleCloseTattooModal}
-        currentUser={currentUser}
+        currentUser={me}
         tattooFavorite={selectedTattooId ? getTattooFavoriteStatus(selectedTattooId) : false}
         artistFavorite={getCurrentTattoo()?.artist?.id ? getArtistFollowStatus(getCurrentTattoo().artist.id) : false}
       />

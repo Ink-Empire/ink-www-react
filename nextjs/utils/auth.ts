@@ -276,10 +276,23 @@ export const checkAuth = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Auth check failed:', error);
-    // Don't immediately remove token on error - it might be a temporary network issue
-    // Instead, add a consecutive failure counter
     
-    // Get current failure count
+    // Check if it's an auth error (401/403) vs network error
+    const isAuthError = error && typeof error === 'object' && 
+                      ('status' in error && [401, 403].includes((error as any).status));
+    
+    if (isAuthError) {
+      console.log('Auth error detected - token is invalid, removing immediately');
+      removeToken();
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_failures');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('user_id');
+      }
+      return false;
+    }
+    
+    // For non-auth errors, use failure counter
     let failures = 0;
     if (typeof window !== 'undefined') {
       try {
@@ -300,12 +313,14 @@ export const checkAuth = async (): Promise<boolean> => {
       }
     }
     
-    // Only remove token after 3 consecutive failures
-    if (failures >= 3) {
-      console.log('Auth check has failed 3 times - removing token');
+    // Only remove token after 10 consecutive non-auth failures (increased from 3 for better persistence)
+    if (failures >= 10) {
+      console.log('Auth check has failed 10 times consecutively - removing token');
       removeToken();
       if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_failures');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('user_id');
       }
     }
     

@@ -8,17 +8,17 @@ interface UserData {
   username?: string;
   slug?: string;
   email?: string;
+  type?: string; // User type like 'artist', 'user', etc.
+  type_id?: number; // Numeric type ID
   styles?: number[];
   phone?: string;
   location?: string;
   location_x?: number;
   location_y?: number;
   image?: string;
-  favorites?: {
-    artist?: number[];
-    tattoo?: number[];
-    studio?: number[];
-  };
+  tattoos?: any[];
+  artists?: any[];
+  studios?: any[];
   profilePhoto?: {
     filepath?: string;
     webviewPath?: string;
@@ -100,7 +100,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const fetchUserData = async () => {
       // Check if we have a user ID stored
       const userId = localStorage.getItem(USER_ID_KEY);
-      console.log('UserContext: Found user ID in localStorage:', userId);
+      const authToken = localStorage.getItem('auth_token');
       
       // First, check if we have cached userData in localStorage
       const cachedUserData = loadUserFromStorage();
@@ -147,6 +147,15 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
           } catch (idErr) {
             console.error(`UserContext: Failed to fetch user with ID ${userId}:`, idErr);
+            // Check if it's an auth error
+            if (idErr && typeof idErr === 'object' && 'status' in idErr && [401, 403].includes((idErr as any).status)) {
+              console.log('UserContext: Auth error detected during ID fetch - clearing auth data');
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('user_data');
+                localStorage.removeItem('user_id');
+              }
+            }
             // Continue to next strategy
           }
         }
@@ -178,7 +187,18 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (!isMounted) return;
           
           console.log('UserContext: Failed to fetch from /api/users/me:', meErr);
-          // Continue to fallback strategy
+          // Check if it's an auth error
+          if (meErr && typeof meErr === 'object' && 'status' in meErr && [401, 403].includes((meErr as any).status)) {
+            console.log('UserContext: Auth error detected during /users/me fetch - clearing auth data');
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('user_data');
+              localStorage.removeItem('user_id');
+            }
+            setUserData({}); // Clear user data
+            return; // Don't continue to fallback
+          }
+          // Continue to fallback strategy for non-auth errors
         }
         
         // FALLBACK STRATEGY: If both approaches failed but we have cached data, keep using it

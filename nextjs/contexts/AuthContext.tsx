@@ -57,6 +57,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Add periodic refresh to keep user data current
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) return;
+    
+    // Refresh user data every 5 minutes when user is active
+    const refreshInterval = setInterval(async () => {
+      try {
+        console.log('Periodic user data refresh');
+        const userData = await fetchCurrentUser();
+        if (!userData) {
+          console.log('Periodic refresh failed - but keeping user authenticated');
+        }
+      } catch (error) {
+        console.error('Error during periodic user refresh:', error);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    return () => clearInterval(refreshInterval);
+  }, [isAuthenticated, isLoading]); // Dependencies are fine - fetchCurrentUser is defined above
+
+  // Add visibility change listener to refresh when user returns to tab
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleVisibilityChange = async () => {
+      if (!document.hidden && isAuthenticated) {
+        console.log('User returned to tab - refreshing user data');
+        try {
+          await fetchCurrentUser();
+        } catch (error) {
+          console.error('Error refreshing user data on visibility change:', error);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAuthenticated]);
 
   // Function to fetch the current user from /users/me
   const fetchCurrentUser = async (): Promise<User | null> => {
@@ -64,7 +103,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // All API calls are prepended with /api automatically
       const response = await api.get<{data: User}>('/users/me', { 
         requiresAuth: true,
-        forceRefresh: true // Don't use cached data for user info
+        useCache: false,
+        invalidateCache: true
       });
       
       console.log('AuthContext: Raw response from /users/me:', response);
@@ -97,19 +137,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return null;
     } catch (error) {
       console.error('Error fetching current user:', error);
-      // Check if it's a network error vs auth error
-      if (error && typeof error === 'object' && 'status' in error) {
-        const status = (error as any).status;
-        if (status === 401 || status === 403) {
-          console.log('Auth error detected, user needs to re-login');
-          return null;
-        } else {
-          console.log('Network error detected, keeping existing auth state');
-          // Return existing user data if available
-          return user;
+      
+      // Check if it's an auth error (401/403) vs network error
+      const isAuthError = error && typeof error === 'object' && 
+                        ('status' in error && [401, 403].includes((error as any).status));
+                        
+      if (isAuthError) {
+        console.log('Auth error detected in fetchCurrentUser - token is invalid');
+        // Clear localStorage data since token is invalid
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('user_data');
+          localStorage.removeItem('user_id');
+          localStorage.removeItem('auth_token');
         }
+        setUser(null);
+        return null;
+      } else {
+        console.log('Network error in fetchCurrentUser - keeping existing auth state');
+        // For network errors, keep the user authenticated and return existing user data
+        return user; // Return current user data instead of null
       }
-      return null;
     }
   };
 
@@ -134,49 +181,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       setIsLoading(true);
+      
       try {
         // Check if token is present
-        const hasToken = typeof window !== 'undefined' && localStorage.getItem('auth_token');
-        console.log('Auth token present:', hasToken ? 'yes' : 'no');
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+        console.log('Auth initialization - token present:', token ? 'yes' : 'no');
         
-        if (hasToken) {
-          // Set authenticated state immediately if token exists
-          setIsAuthenticated(true);
-          
-          try {
-            // Try to fetch user data first (faster than auth check)
-            const userData = await fetchCurrentUser();
-            
-            if (userData) {
-              console.log('User data fetched successfully on init');
-              // Clear any previous auth failures since we're successful
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('auth_failures');
-              }
-            } else {
-              // If we can't fetch user data, validate the token
-              console.log('User data fetch failed, checking auth validity...');
-              const isAuthValid = await checkAuth();
-              console.log('Auth check result:', isAuthValid ? 'valid' : 'invalid');
-              
-              if (!isAuthValid) {
-                // Clear invalid auth state
-                setUser(null);
-                setIsAuthenticated(false);
-                if (typeof window !== 'undefined') {
-                  localStorage.removeItem('user_data');
-                  localStorage.removeItem('user_id');
-                  localStorage.removeItem('auth_token');
-                }
-              }
-            }
-          } catch (authError) {
-            console.error('Error during auth validation:', authError);
-            // Don't immediately log out on network errors
-            console.log('Keeping user logged in despite network error');
-          }
-        } else {
-          // No token found
+        if (!token) {
+          // No token found - user is not authenticated
+          console.log('No auth token found - setting unauthenticated state');
           setIsAuthenticated(false);
           setUser(null);
           // Clear any stale user data
@@ -184,15 +197,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem('user_data');
             localStorage.removeItem('user_id');
           }
+          return;
         }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        // Don't clear auth state on initialization errors unless there's no token
-        const hasToken = typeof window !== 'undefined' && localStorage.getItem('auth_token');
-        if (!hasToken) {
-          setIsAuthenticated(false);
-          setUser(null);
+
+        // Token exists - assume authenticated until proven otherwise
+        setIsAuthenticated(true);
+        
+        // Try to fetch current user data to validate the token
+        try {
+          const userData = await fetchCurrentUser();
+          
+          if (userData) {
+            console.log('Auth initialization successful - user data loaded');
+            // Clear any previous auth failures since we're successful
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('auth_failures');
+            }
+          } else {
+            // fetchCurrentUser returned null - could be network issue, don't clear token immediately
+            console.log('Failed to load user data - keeping token, may be network issue');
+            // Keep user authenticated if we have a token, just don't have current user data
+            setIsAuthenticated(true);
+            // Try to load cached user data if available
+            if (typeof window !== 'undefined') {
+              try {
+                const cachedUser = localStorage.getItem('user_data');
+                if (cachedUser) {
+                  setUser(JSON.parse(cachedUser));
+                  console.log('Using cached user data while API is unavailable');
+                }
+              } catch (e) {
+                console.error('Error loading cached user data:', e);
+              }
+            }
+          }
+        } catch (apiError) {
+          console.error('Error fetching user data during auth init:', apiError);
+          
+          // Check if it's an auth error (401/403) vs network error
+          const isAuthError = apiError && typeof apiError === 'object' && 
+                            ('status' in apiError && [401, 403].includes((apiError as any).status));
+          
+          if (isAuthError) {
+            console.log('Auth error detected - clearing auth state');
+            setUser(null);
+            setIsAuthenticated(false);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('user_data');
+              localStorage.removeItem('user_id');
+              localStorage.removeItem('auth_token');
+            }
+          } else {
+            console.log('Network error during auth init - keeping auth state (will retry later)');
+            // Keep the user logged in but don't have user data yet
+            // The stored user data from localStorage will be used if available
+          }
         }
+      } catch (initError) {
+        console.error('Auth initialization error:', initError);
+        // On initialization errors, fall back to safe state
+        setIsAuthenticated(false);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -200,6 +265,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     initAuth();
   }, []);
+
+  // Refresh auth state when user returns to the tab
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isAuthenticated) return;
+    
+    const handleVisibilityChange = async () => {
+      if (!document.hidden && isAuthenticated) {
+        console.log('Tab became visible - refreshing user data');
+        try {
+          await fetchCurrentUser();
+        } catch (error) {
+          console.error('Error refreshing user data on tab focus:', error);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated]);
 
   const login = async (credentials: LoginCredentials) => {
     setIsLoading(true);

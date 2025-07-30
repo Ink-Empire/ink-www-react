@@ -28,7 +28,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useTattoo } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
-import { useUsers } from '../hooks/useUsers';
+import { useUserData } from '../contexts/UserContext';
 
 interface TattooModalProps {
   tattooId: string | null;
@@ -43,9 +43,8 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
   const { tattoo, loading, error } = useTattoo(tattooId);
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
-  const { addFavorite, removeFavorite, loading: userLoading } = useUsers();
+  const userData = useUserData();
 
-  console.log(currentUser);
   
   // State for save actions - initialize with passed props
   const [isTattooSaved, setIsTattooSaved] = React.useState(tattooFavorite);
@@ -96,13 +95,8 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
     }
     
     try {
-      if (isTattooSaved) {
-        await removeFavorite('tattoo', tattooId);
-        setIsTattooSaved(false);
-      } else {
-        await addFavorite('tattoo', tattooId);
-        setIsTattooSaved(true);
-      }
+      await userData?.toggleFavorite('tattoo', parseInt(tattooId));
+      setIsTattooSaved(!isTattooSaved);
     } catch (error) {
       console.error('Error saving tattoo:', error);
       // TODO: Show error message to user
@@ -120,13 +114,8 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
     }
     
     try {
-      if (isArtistFollowed) {
-        await removeFavorite('artist', tattoo.tattoo.artist.id.toString());
-        setIsArtistFollowed(false);
-      } else {
-        await addFavorite('artist', tattoo.tattoo.artist.id.toString());
-        setIsArtistFollowed(true);
-      }
+      await userData?.toggleFavorite('artist', tattoo.tattoo.artist.id);
+      setIsArtistFollowed(!isArtistFollowed);
     } catch (error) {
       console.error('Error following artist:', error);
       // TODO: Show error message to user
@@ -433,7 +422,7 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
                     size="small"
                     startIcon={isTattooSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
                     onClick={handleSaveTattoo}
-                    disabled={userLoading}
+                    disabled={userData?.loading}
                     sx={{
                       color: isTattooSaved ? '#ffffff' : '#000000',
                       borderColor: '#000000',
@@ -454,7 +443,7 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
                       size="small"
                       startIcon={isArtistFollowed ? <PersonRemoveIcon /> : <PersonAddIcon />}
                       onClick={handleFollowArtist}
-                      disabled={userLoading}
+                      disabled={userData?.loading}
                       sx={{
                         color: isArtistFollowed ? '#ffffff' : '#000000',
                         borderColor: '#000000',

@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import { api } from '@/utils/api';
 import { WorkingHour } from '@/components/WorkingHoursModal';
 
-export const useWorkingHours = (artistId?: number | string) => {
+export const useWorkingHours = (artistId?: number | string | null) => {
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch working hours for an artist
   const fetchWorkingHours = async (id?: number | string) => {
-    if (!id) return;
+    if (!id) {
+      console.log('useWorkingHours: No artist ID provided, skipping fetch');
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -90,8 +93,12 @@ export const useWorkingHours = (artistId?: number | string) => {
 
   // Load working hours when artistId changes
   useEffect(() => {
+    console.log('useWorkingHours useEffect triggered with artistId:', artistId);
     if (artistId) {
+      console.log('useWorkingHours: Fetching working hours for artist:', artistId);
       fetchWorkingHours(artistId);
+    } else {
+      console.log('useWorkingHours: No artistId provided, not fetching');
     }
   }, [artistId]);
 
