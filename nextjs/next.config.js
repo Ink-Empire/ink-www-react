@@ -21,14 +21,16 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+    
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost/api/:path*', // Proxy to Backend API
+        destination: `${apiUrl}/api/:path*`, // Proxy to Backend API
       },
       {
         source: '/sanctum/:path*',
-        destination: 'http://localhost/sanctum/:path*', // Proxy to Backend Sanctum endpoints
+        destination: `${apiUrl}/sanctum/:path*`, // Proxy to Backend Sanctum endpoints
       },
     ];
   },
