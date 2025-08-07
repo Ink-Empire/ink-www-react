@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import Link from 'next/link';
 import {ArtistType} from '../models/artist.interface';
-import {Card, CardContent, CardActionArea, Typography, Box, Stack, Chip, Avatar, IconButton} from '@mui/material';
+import {Card, CardContent, CardActionArea, Typography, Box, Stack, Chip, Avatar, IconButton, useMediaQuery, useTheme} from '@mui/material';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import {useUserData} from '@/contexts/UserContext';
@@ -14,6 +14,8 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
     // State to track if artist is favorited
     const [isFavorite, setIsFavorite] = useState(false);
     const user = useUserData();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     // Update favorite status when user data changes
     React.useEffect(() => {
@@ -75,17 +77,20 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
         <Card
             variant="outlined"
             sx={{
-                minHeight: 420, // Minimum height
-                height: 'auto', // Allow height to adjust based on content
+                minHeight: isMobile ? 350 : 420,
+                height: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
                 transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
                 boxShadow: '0 2px 8px rgba(232, 219, 197, 0.4)',
                 '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 6px 12px rgba(232, 219, 197, 0.6)'
+                    transform: isMobile ? 'none' : 'translateY(-4px)',
+                    boxShadow: isMobile ? '0 2px 8px rgba(232, 219, 197, 0.4)' : '0 6px 12px rgba(232, 219, 197, 0.6)'
                 },
-                position: 'relative' // Added for absolute positioning of the heart icon
+                position: 'relative',
+                '&:active': {
+                    transform: isMobile ? 'scale(0.98)' : 'translateY(-4px)'
+                }
             }}
         >
             {/* Favorite Button */}
@@ -127,10 +132,10 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
                             src={artist.primary_image.uri}
                             alt={artist.name || 'Artist'}
                             sx={{
-                                width: 180,
-                                height: 180,
+                                width: isMobile ? 120 : 180,
+                                height: isMobile ? 120 : 180,
                                 boxShadow: 3,
-                                border: '4px solid',
+                                border: isMobile ? '3px solid' : '4px solid',
                                 borderColor: 'primary.main'
                             }}
                         />
@@ -138,9 +143,10 @@ const ArtistCard: React.FC<ArtistCardProps> = ({artist}) => {
                         <Avatar
                             alt={artist.name || 'Artist'}
                             sx={{
-                                width: 180,
-                                height: 180,
-                                bgcolor: 'primary.light'
+                                width: isMobile ? 120 : 180,
+                                height: isMobile ? 120 : 180,
+                                bgcolor: 'primary.light',
+                                fontSize: isMobile ? '2.5rem' : '3rem'
                             }}
                         >
                             {artist.name?.charAt(0) || 'A'}

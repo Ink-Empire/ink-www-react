@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {TattooType} from '../models/tattoo.interface';
-import {Card, CardContent, CardActionArea, CardMedia, Typography, Box, Stack, Chip, IconButton} from '@mui/material';
+import {Card, CardContent, CardActionArea, CardMedia, Typography, Box, Stack, Chip, IconButton, useMediaQuery, useTheme} from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
@@ -16,6 +16,8 @@ interface TattooCardProps {
 const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
     const [isFavorite, setIsFavorite] = React.useState(false);
     const user = useUserData();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     // Determine the image URI from either primary_image or image
     const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
@@ -88,16 +90,19 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
         <Card
             variant="outlined"
             sx={{
-                height: 400, // Adjusted height
+                height: isMobile ? 320 : 400,
                 display: 'flex',
                 flexDirection: 'column',
                 transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
                 boxShadow: '0 2px 8px rgba(232, 219, 197, 0.4)',
                 '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 6px 12px rgba(232, 219, 197, 0.6)'
+                    transform: isMobile ? 'none' : 'translateY(-4px)',
+                    boxShadow: isMobile ? '0 2px 8px rgba(232, 219, 197, 0.4)' : '0 6px 12px rgba(232, 219, 197, 0.6)'
                 },
-                position: 'relative' // Added for absolute positioning of the bookmark icon
+                position: 'relative',
+                '&:active': {
+                    transform: isMobile ? 'scale(0.98)' : 'translateY(-4px)'
+                }
             }}
         >
             {/* Bookmark Icon - Top Right (same pattern as ArtistCard) */}

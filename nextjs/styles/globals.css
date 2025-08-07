@@ -44,9 +44,15 @@ a {
 }
 
 .container {
-  padding: 0 2rem;
+  padding: 0 1rem;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 2rem;
+  }
 }
 
 .main {
@@ -54,7 +60,13 @@ a {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 2rem 0;
+  padding: 1rem 0;
+}
+
+@media (min-width: 768px) {
+  .main {
+    padding: 2rem 0;
+  }
 }
 
 .header {
@@ -66,20 +78,51 @@ a {
 
 .title {
   margin: 1rem 0;
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   color: var(--primary-color);
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: 2.5rem;
+    text-align: left;
+  }
 }
 
 .description {
-  font-size: 1.5rem;
+  font-size: 1rem;
   opacity: 0.8;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+@media (min-width: 768px) {
+  .description {
+    font-size: 1.5rem;
+    text-align: left;
+    padding: 0;
+  }
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
   margin-top: 2rem;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+  }
 }
 
 .card {
@@ -116,9 +159,19 @@ a {
 .page-header {
   display: flex;
   align-items: center;
-  padding: 1rem 0;
+  padding: 0.75rem 0;
   border-bottom: 1px solid var(--border-color);
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .page-header {
+    padding: 1rem 0;
+    margin-bottom: 2rem;
+    flex-wrap: nowrap;
+  }
 }
 
 .home-link {
@@ -141,8 +194,27 @@ a {
 /* Artist grid */
 .artist-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 2rem;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .artist-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .artist-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .artist-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
 }
 
 .artist-card {
@@ -267,8 +339,21 @@ a {
 
 .tattoo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .tattoo-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tattoo-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
 }
 
 .tattoo-item {
@@ -414,22 +499,58 @@ a {
   margin-top: 0.5rem;
 }
 
-/* Responsive */
+/* Mobile-first Responsive Design */
 @media (max-width: 768px) {
   .artist-header,
   .tattoo-header {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    gap: 1rem;
   }
 
   .artist-content,
   .tattoo-content {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 
   .artist-work {
     grid-column: auto;
+  }
+  
+  /* Improve touch targets on mobile */
+  .artist-card,
+  .tattoo-card {
+    min-height: 44px;
+  }
+  
+  /* Better text sizes on mobile */
+  .artist-info h3 {
+    font-size: 1.1rem;
+  }
+  
+  .tattoo-info h3 {
+    font-size: 1rem;
+  }
+  
+  /* Mobile-specific card padding */
+  .card {
+    padding: 1rem;
+  }
+  
+  /* Ensure images are responsive */
+  .artist-image,
+  .tattoo-image-container {
+    height: 150px;
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .artist-image,
+  .tattoo-image-container {
+    height: 180px;
   }
 }
 
@@ -573,7 +694,7 @@ a {
 /* Tailwind Component Layer */
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded font-medium focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply px-3 py-2 sm:px-4 sm:py-2 rounded font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 text-sm sm:text-base min-h-[44px] flex items-center justify-center;
   }
   .btn-primary {
     @apply btn bg-[#339989] text-white hover:bg-[#247c6c] focus:ring-[#339989];
@@ -585,15 +706,15 @@ a {
     @apply btn bg-[#DC0F38] text-white hover:bg-[#b00929] focus:ring-[#DC0F38];
   }
   .input {
-    @apply block w-full px-3 py-2 border border-[#d6c9b3] rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#339989] focus:border-[#339989];
+    @apply block w-full px-3 py-2 border border-[#d6c9b3] rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#339989] focus:border-[#339989] text-base min-h-[44px];
   }
   .card {
-    @apply p-6 rounded-lg shadow-sm bg-[#2a1a1e] text-white border border-[#382932] transition-all duration-200 ease-in-out;
+    @apply p-4 sm:p-6 rounded-lg shadow-sm bg-[#2a1a1e] text-white border border-[#382932] transition-all duration-200 ease-in-out;
   }
   .card-hover {
     @apply hover:shadow-md hover:-translate-y-1 hover:bg-[#382932];
   }
   .tattoo-heading {
-    @apply font-tattoo text-[#339989] text-2xl md:text-4xl;
+    @apply font-tattoo text-[#339989] text-xl sm:text-2xl md:text-4xl;
   }
 }

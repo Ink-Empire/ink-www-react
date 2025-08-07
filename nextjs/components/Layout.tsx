@@ -5,8 +5,10 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { useUser } from '../contexts/UserContext';
 import { useInboxCount } from '../hooks';
-import { AppBar, Toolbar, Typography, Button, Box, Container, Avatar, Stack, Tabs, Tab, Badge, IconButton } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, Container, Avatar, Stack, Tabs, Tab, Badge, IconButton, Drawer, List, ListItem, ListItemText, useMediaQuery, useTheme } from '@mui/material';
 import InboxIcon from '@mui/icons-material/Inbox';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import LogoText from './LogoText';
 
 interface LayoutProps {
@@ -18,9 +20,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { userData } = useUser();
   const router = useRouter();
   const { count: inboxCount } = useInboxCount(user?.id);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   // State to store the avatar image URL
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // State for mobile menu drawer
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Update avatar URL when user data changes
   useEffect(() => {
@@ -70,30 +76,44 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static" elevation={2} sx={{ backgroundColor: '#120a0d' }}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Box 
-              component={Link}
-              href="/"
-              sx={{ 
-                display: 'flex',
-                alignItems: 'center',
-                textDecoration: 'none'
-              }}
+        <Toolbar sx={{ justifyContent: 'space-between', minHeight: { xs: 56, sm: 64 } }}>
+          {/* Mobile Menu Button */}
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              onClick={() => setMobileMenuOpen(true)}
+              sx={{ mr: 1 }}
             >
-              <img 
-                src="/assets/img/logo.png"
-                alt="Cat Logo" 
-                width="64"
-                height="64"
-                style={{ 
-                  marginRight: '12px',
-                  filter: 'brightness(1.2) contrast(1.1)'
-                }}
-              />
-              <LogoText fontSize="2.5rem" />
-            </Box>
-            
+              <MenuIcon />
+            </IconButton>
+          )}
+          
+          {/* Logo - Always visible */}
+          <Box 
+            component={Link}
+            href="/"
+            sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              textDecoration: 'none',
+              flex: isMobile ? 1 : 'none'
+            }}
+          >
+            <img 
+              src="/assets/img/logo.png"
+              alt="Cat Logo" 
+              width={isMobile ? "40" : "64"}
+              height={isMobile ? "40" : "64"}
+              style={{ 
+                marginRight: isMobile ? '8px' : '12px',
+                filter: 'brightness(1.2) contrast(1.1)'
+              }}
+            />
+            <LogoText fontSize={isMobile ? "1.5rem" : "2.5rem"} />
+          </Box>
+          
+          {/* Desktop Navigation */}
+          {!isMobile && (
             <Tabs 
               value={
                 router.pathname === '/' ? 0 :
@@ -117,100 +137,338 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 sx={{ minWidth: 'auto' }}
               />
             </Tabs>
-          </Stack>
+          )}
           
-          <Box>
-            {isAuthenticated ? (
-              <Stack direction="row" spacing={2} alignItems="center">
-                <IconButton
-                  component={Link}
-                  href="/inbox"
-                  sx={{ 
-                    color: 'text.primary',
-                    '&:hover': { 
-                      backgroundColor: 'rgba(51, 153, 137, 0.1)'
-                    }
-                  }}
-                >
-                  <Badge 
-                    badgeContent={inboxCount > 0 ? inboxCount : null} 
-                    color="error"
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        backgroundColor: '#339989',
-                        color: 'white',
-                        fontWeight: 'bold'
+          {/* User Menu - Desktop */}
+          {!isMobile && (
+            <Box>
+              {isAuthenticated ? (
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <IconButton
+                    component={Link}
+                    href="/inbox"
+                    sx={{ 
+                      color: 'text.primary',
+                      '&:hover': { 
+                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
                       }
                     }}
                   >
-                    <InboxIcon />
-                  </Badge>
-                </IconButton>
+                    <Badge 
+                      badgeContent={inboxCount > 0 ? inboxCount : null} 
+                      color="error"
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          backgroundColor: '#339989',
+                          color: 'white',
+                          fontWeight: 'bold'
+                        }
+                      }}
+                    >
+                      <InboxIcon />
+                    </Badge>
+                  </IconButton>
 
-                <Button 
-                  component={Link} 
-                  href="/profile"
-                  startIcon={
+                  <Button 
+                    component={Link} 
+                    href="/profile"
+                    startIcon={
+                      <Avatar 
+                        src={avatarUrl || undefined}
+                        alt={getDisplayName()}
+                        sx={{ 
+                          width: 32, 
+                          height: 32,
+                          bgcolor: 'primary.light',
+                          color: 'primary.contrastText',
+                        }}
+                      >
+                        {getInitials()}
+                      </Avatar>
+                    }
+                    sx={{ 
+                      textTransform: 'none', 
+                      color: 'text.primary',
+                      '&:hover': { 
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                      }
+                    }}
+                  >
+                    {getDisplayName()}
+                  </Button>
+                  
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    onClick={handleLogout}
+                  >
+                    Log out
+                  </Button>
+                </Stack>
+              ) : (
+                <Stack direction="row" spacing={2}>
+                  <Button 
+                    component={Link} 
+                    href="/login"
+                    sx={{ color: 'text.primary' }}
+                  >
+                    Log in
+                  </Button>
+                  <Button
+                    component={Link}
+                    href="/register"
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                  >
+                    Sign up
+                  </Button>
+                </Stack>
+              )}
+            </Box>
+          )}
+          
+          {/* Mobile User Avatar/Login */}
+          {isMobile && (
+            <Box>
+              {isAuthenticated ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <IconButton
+                    component={Link}
+                    href="/inbox"
+                    size="small"
+                    sx={{ 
+                      color: 'text.primary',
+                      '&:hover': { 
+                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                      }
+                    }}
+                  >
+                    <Badge 
+                      badgeContent={inboxCount > 0 ? inboxCount : null} 
+                      color="error"
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          backgroundColor: '#339989',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '0.7rem',
+                          minWidth: '16px',
+                          height: '16px'
+                        }
+                      }}
+                    >
+                      <InboxIcon fontSize="small" />
+                    </Badge>
+                  </IconButton>
+                  
+                  <IconButton
+                    component={Link}
+                    href="/profile"
+                    size="small"
+                  >
                     <Avatar 
                       src={avatarUrl || undefined}
                       alt={getDisplayName()}
                       sx={{ 
-                        width: 32, 
-                        height: 32,
+                        width: 28, 
+                        height: 28,
                         bgcolor: 'primary.light',
                         color: 'primary.contrastText',
                       }}
                     >
                       {getInitials()}
                     </Avatar>
-                  }
-                  sx={{ 
-                    textTransform: 'none', 
-                    color: 'text.primary',
-                    '&:hover': { 
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                    }
-                  }}
-                >
-                  {getDisplayName()}
-                </Button>
-                
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                  onClick={handleLogout}
-                >
-                  Log out
-                </Button>
-              </Stack>
-            ) : (
-              <Stack direction="row" spacing={2}>
+                  </IconButton>
+                </Stack>
+              ) : (
                 <Button 
                   component={Link} 
                   href="/login"
-                  sx={{ color: 'text.primary' }}
-                >
-                  Log in
-                </Button>
-                <Button
-                  component={Link}
-                  href="/register"
-                  variant="contained"
-                  color="primary"
                   size="small"
+                  sx={{ color: 'text.primary', fontSize: '0.8rem' }}
                 >
-                  Sign up
+                  Login
                 </Button>
-              </Stack>
-            )}
-          </Box>
+              )}
+            </Box>
+          )}
         </Toolbar>
+        
+        {/* Mobile Navigation Drawer */}
+        <Drawer
+          anchor="left"
+          open={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          PaperProps={{
+            sx: {
+              backgroundColor: '#1c0f13',
+              color: 'white',
+              width: 280
+            }
+          }}
+        >
+          <Box sx={{ p: 2 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <img 
+                  src="/assets/img/logo.png"
+                  alt="Cat Logo" 
+                  width="32"
+                  height="32"
+                  style={{ 
+                    marginRight: '8px',
+                    filter: 'brightness(1.2) contrast(1.1)'
+                  }}
+                />
+                <LogoText fontSize="1.25rem" />
+              </Box>
+              <IconButton
+                onClick={() => setMobileMenuOpen(false)}
+                sx={{ color: 'white' }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Stack>
+            
+            <List>
+              <ListItem 
+                component={Link}
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                sx={{ 
+                  borderRadius: 1,
+                  mb: 1,
+                  backgroundColor: router.pathname === '/' ? 'rgba(51, 153, 137, 0.2)' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                  }
+                }}
+              >
+                <ListItemText primary="Home" />
+              </ListItem>
+              
+              <ListItem 
+                component={Link}
+                href="/artists"
+                onClick={() => setMobileMenuOpen(false)}
+                sx={{ 
+                  borderRadius: 1,
+                  mb: 1,
+                  backgroundColor: router.pathname.startsWith('/artists') ? 'rgba(51, 153, 137, 0.2)' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                  }
+                }}
+              >
+                <ListItemText primary="Artists" />
+              </ListItem>
+              
+              {isAuthenticated ? (
+                <>
+                  <ListItem 
+                    component={Link}
+                    href="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{ 
+                      borderRadius: 1,
+                      mb: 1,
+                      '&:hover': {
+                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                      }
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Avatar 
+                        src={avatarUrl || undefined}
+                        alt={getDisplayName()}
+                        sx={{ 
+                          width: 24, 
+                          height: 24,
+                          bgcolor: 'primary.light',
+                          color: 'primary.contrastText',
+                        }}
+                      >
+                        {getInitials()}
+                      </Avatar>
+                      <ListItemText primary={getDisplayName()} />
+                    </Stack>
+                  </ListItem>
+                  
+                  <ListItem 
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    sx={{ 
+                      borderRadius: 1,
+                      mb: 1,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                      }
+                    }}
+                  >
+                    <ListItemText primary="Log out" />
+                  </ListItem>
+                </>
+              ) : (
+                <>
+                  <ListItem 
+                    component={Link}
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{ 
+                      borderRadius: 1,
+                      mb: 1,
+                      '&:hover': {
+                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                      }
+                    }}
+                  >
+                    <ListItemText primary="Log in" />
+                  </ListItem>
+                  
+                  <ListItem 
+                    component={Link}
+                    href="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{ 
+                      borderRadius: 1,
+                      mb: 1,
+                      backgroundColor: 'rgba(51, 153, 137, 0.8)',
+                      '&:hover': {
+                        backgroundColor: 'rgba(51, 153, 137, 1)'
+                      }
+                    }}
+                  >
+                    <ListItemText primary="Sign up" />
+                  </ListItem>
+                </>
+              )}
+            </List>
+          </Box>
+        </Drawer>
       </AppBar>
 
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-          <Box sx={{ bgcolor: '#2a1a1e', borderRadius: 2, p: 3, boxShadow: 1, color: 'text.primary' }}>
+        <Container 
+          maxWidth="lg" 
+          sx={{ 
+            py: { xs: 2, sm: 4 },
+            px: { xs: 1, sm: 3 }
+          }}
+        >
+          <Box 
+            sx={{ 
+              bgcolor: '#2a1a1e', 
+              borderRadius: 2, 
+              p: { xs: 2, sm: 3 }, 
+              boxShadow: 1, 
+              color: 'text.primary' 
+            }}
+          >
             {children}
           </Box>
         </Container>
