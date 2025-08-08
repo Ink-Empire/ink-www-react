@@ -214,16 +214,15 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth={isMobile ? false : "lg"}
-      fullScreen={isMobile}
+      maxWidth="lg"
       sx={{
         '& .MuiDialog-paper': isMobile ? {
-          maxWidth: '100vw',
-          maxHeight: '100vh',
-          width: '100vw',
-          height: '100vh',
-          margin: 0,
-          borderRadius: 0
+          maxWidth: '95vw',
+          maxHeight: '90vh',
+          width: '95vw',
+          height: '90vh',
+          margin: '5vh 2.5vw',
+          borderRadius: 2
         } : {
           maxWidth: '90vw',
           maxHeight: '90vh',
@@ -282,13 +281,13 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
             {/* Image Section */}
             <Box
               sx={{
-                flex: isMobile ? '0 0 60%' : '0 0 50%',
+                flex: isMobile ? '0 0 45%' : '0 0 50%',
                 position: 'relative',
                 backgroundColor: '#000000',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                minHeight: isMobile ? '60vh' : 'auto'
+                minHeight: isMobile ? '45vh' : 'auto'
               }}
             >
               {getPrimaryImageUri() ? (
@@ -311,7 +310,7 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
             {/* Details Section */}
             <Box
               sx={{
-                flex: isMobile ? '1 1 40%' : '0 0 50%',
+                flex: isMobile ? '1 1 55%' : '0 0 50%',
                 p: isMobile ? 2 : 3,
                 overflowY: 'auto',
                 display: 'flex',

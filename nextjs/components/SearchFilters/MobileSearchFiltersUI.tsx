@@ -9,6 +9,7 @@ import {
 import {
   Menu as MenuIcon,
   Close as CloseIcon,
+  ArrowForward as ArrowForwardIcon,
 } from '@mui/icons-material';
 import { SearchFiltersContent } from './SearchFiltersContent';
 import { SearchFiltersUIProps } from './types';
@@ -49,10 +50,32 @@ export const MobileSearchFiltersUI: React.FC<MobileSearchFiltersUIProps> = ({
           '& .MuiDrawer-paper': {
             width: '85vw',
             maxWidth: 400,
-            bgcolor: 'background.paper'
+            bgcolor: 'background.paper',
+            position: 'relative'
           }
         }}
       >
+        {/* Prominent Close Button - Top Right */}
+        <IconButton
+          onClick={onToggleSidebar}
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+            backgroundColor: 'secondary.main', // Same as hamburger FAB and Apply Filters button
+            color: 'white',
+            width: 40,
+            height: 40,
+            '&:hover': {
+              backgroundColor: 'secondary.dark',
+            },
+            boxShadow: 2,
+          }}
+        >
+          <ArrowForwardIcon />
+        </IconButton>
+
         <Box sx={{
           width: '100%',
           height: '100%',
@@ -69,17 +92,12 @@ export const MobileSearchFiltersUI: React.FC<MobileSearchFiltersUIProps> = ({
             mb: 2,
             pb: 1,
             borderBottom: 1,
-            borderColor: 'divider'
+            borderColor: 'divider',
+            pr: 6 // Add padding to avoid overlap with close button
           }}>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Filters
             </Typography>
-            <IconButton
-              onClick={onToggleSidebar}
-              size="small"
-            >
-              <CloseIcon />
-            </IconButton>
           </Box>
 
           <SearchFiltersContent {...contentProps} />
