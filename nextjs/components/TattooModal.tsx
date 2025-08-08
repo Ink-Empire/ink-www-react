@@ -11,7 +11,9 @@ import {
   Divider,
   CircularProgress,
   Alert,
-  Button
+  Button,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -44,6 +46,10 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const userData = useUserData();
+  
+  // Mobile detection
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   
   // State for save actions - initialize with passed props
@@ -208,9 +214,17 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth={isMobile ? false : "lg"}
+      fullScreen={isMobile}
       sx={{
-        '& .MuiDialog-paper': {
+        '& .MuiDialog-paper': isMobile ? {
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+          width: '100vw',
+          height: '100vh',
+          margin: 0,
+          borderRadius: 0
+        } : {
           maxWidth: '90vw',
           maxHeight: '90vh',
           width: '1000px',
@@ -225,8 +239,8 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
           onClick={handleClose}
           sx={{
             position: 'absolute',
-            right: 8,
-            top: 8,
+            right: isMobile ? 16 : 8,
+            top: isMobile ? 16 : 8,
             zIndex: 10,
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
             color: 'white',
@@ -260,16 +274,21 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
         )}
 
         {tattoo && (
-          <Box sx={{ display: 'flex', height: '100%' }}>
-            {/* Left Side - Image */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: isMobile ? 'column' : 'row',
+            height: '100%' 
+          }}>
+            {/* Image Section */}
             <Box
               sx={{
-                flex: '0 0 50%',
+                flex: isMobile ? '0 0 60%' : '0 0 50%',
                 position: 'relative',
                 backgroundColor: '#000000',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                minHeight: isMobile ? '60vh' : 'auto'
               }}
             >
               {getPrimaryImageUri() ? (
@@ -289,11 +308,11 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
               )}
             </Box>
 
-            {/* Right Side - Details */}
+            {/* Details Section */}
             <Box
               sx={{
-                flex: '0 0 50%',
-                p: 3,
+                flex: isMobile ? '1 1 40%' : '0 0 50%',
+                p: isMobile ? 2 : 3,
                 overflowY: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
@@ -301,12 +320,16 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
               }}
             >
               {/* Artist Information */}
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ mb: isMobile ? 2 : 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: isMobile ? 1 : 2 }}>
                   {getArtistAvatarUri() && (
                     <Avatar
                       src={getArtistAvatarUri()!}
-                      sx={{ width: 50, height: 50, mr: 2 }}
+                      sx={{ 
+                        width: isMobile ? 40 : 50, 
+                        height: isMobile ? 40 : 50, 
+                        mr: isMobile ? 1.5 : 2 
+                      }}
                     />
                   )}
                   <Box>
@@ -348,15 +371,19 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
                 </Box>
               </Box>
 
-              <Divider sx={{ mb: 2, borderColor: '#000000' }} />
+              <Divider sx={{ mb: isMobile ? 1.5 : 2, borderColor: '#000000' }} />
 
               {/* Tattoo Details */}
               <Box sx={{ flexGrow: 1 }}>
 
                 {/* Description */}
                 {tattoo?.tattoo?.description && (
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="body1" sx={{ lineHeight: 1.6, color: '#000000' }}>
+                  <Box sx={{ mb: isMobile ? 2 : 3 }}>
+                    <Typography variant="body1" sx={{ 
+                      lineHeight: 1.6, 
+                      color: '#000000',
+                      fontSize: isMobile ? '0.9rem' : '1rem'
+                    }}>
                       {tattoo.tattoo.description}
                     </Typography>
                   </Box>
@@ -364,11 +391,18 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
 
                 {/* Placement */}
                 {tattoo?.tattoo?.placement && (
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 0.5, color: '#000000' }}>
+                  <Box sx={{ mb: isMobile ? 1.5 : 2 }}>
+                    <Typography variant="subtitle2" sx={{ 
+                      mb: 0.5, 
+                      color: '#000000',
+                      fontSize: isMobile ? '0.85rem' : '0.875rem'
+                    }}>
                       Placement:
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#000000' }}>
+                    <Typography variant="body2" sx={{ 
+                      color: '#000000',
+                      fontSize: isMobile ? '0.8rem' : '0.875rem'
+                    }}>
                       {tattoo.tattoo.placement}
                     </Typography>
                   </Box>
@@ -376,7 +410,7 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
 
                 {/* Combined Styles */}
                 {(tattoo?.tattoo?.primary_style || (getStyleChips() && getStyleChips()!.length > 0)) && (
-                  <Box sx={{ mb: 2 }}>
+                  <Box sx={{ mb: isMobile ? 1.5 : 2 }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
                       {/* Primary Style - Highlighted */}
                       {tattoo?.tattoo?.primary_style && (
@@ -405,7 +439,7 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
 
                 {/* Tags */}
                 {getTagChips() && getTagChips()!.length > 0 && (
-                  <Box sx={{ mb: 2 }}>
+                  <Box sx={{ mb: isMobile ? 1.5 : 2 }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {getTagChips()}
                     </Box>
@@ -414,8 +448,12 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
               </Box>
 
               {/* Action buttons */}
-              <Box sx={{ mt: 'auto', pt: 2 }}>
-                <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Box sx={{ mt: 'auto', pt: isMobile ? 1.5 : 2 }}>
+                <Stack 
+                  direction={isMobile ? "column" : "row"} 
+                  spacing={1} 
+                  justifyContent="flex-end"
+                >
                   {/* Save Tattoo Button */}
                   <Button
                     variant={isTattooSaved ? "contained" : "outlined"}

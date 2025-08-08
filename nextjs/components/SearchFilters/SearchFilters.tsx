@@ -1,86 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import {
+  Box,
+  CircularProgress,
+  Paper,
+  Typography
+} from '@mui/material';
 import { useStyles } from '@/contexts/StyleContext';
 import { useAppGeolocation } from '@/utils/geolocation';
 import { useUserData } from '@/contexts/UserContext';
 import { distancePreferences } from '@/utils/distancePreferences';
-
-// MUI Material imports
-import { styled, alpha } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import InputBase from '@mui/material/InputBase';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import Select from '@mui/material/Select';
-import Checkbox from '@mui/material/Checkbox';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
-import TextField from '@mui/material/TextField';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import IconButton from '@mui/material/IconButton';
-import Paper from '@mui/material/Paper';
-
-// MUI Icons
-import SearchIcon from '@mui/icons-material/Search';
-import ClearIcon from '@mui/icons-material/Clear';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import AddIcon from '@mui/icons-material/Add';
-
-// Styled components
-const Search = styled('div')(({ theme }) => ({
-  position: 'relative',
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
-  },
-  marginBottom: theme.spacing(2),
-  width: '100%',
-  border: `1px solid #e8dbc5`,
-}));
-
-const SearchIconWrapper = styled('div')(({ theme }) => ({
-  padding: theme.spacing(0, 2),
-  height: '100%',
-  position: 'absolute',
-  pointerEvents: 'none',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: theme.palette.text.secondary,
-}));
-
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
-  color: 'inherit',
-  width: '100%',
-  '& .MuiInputBase-input': {
-    padding: theme.spacing(1, 1, 1, 0),
-    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-    transition: theme.transitions.create('width'),
-    width: '100%',
-  },
-}));
-
-const FilterPaper = styled(Paper)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
-  boxShadow: theme.shadows[3],
-  borderRadius: 0,
-}));
-
-const StylesContainer = styled(Box)(({ theme }) => ({
-  maxHeight: 200,
-  overflow: 'auto',
-  padding: theme.spacing(1),
-  border: `1px solid #e8dbc5`,
-  borderRadius: theme.shape.borderRadius,
-  marginTop: theme.spacing(1),
-}));
+import { MobileSearchFiltersUI } from './MobileSearchFiltersUI';
+import { DesktopSearchFiltersUI } from './DesktopSearchFiltersUI';
 
 interface SearchFiltersProps {
   initialFilters?: {
@@ -131,7 +63,7 @@ interface SearchFiltersProps {
   onCreateTattoo?: () => void;
 }
 
-const SearchFilters: React.FC<SearchFiltersProps> = ({
+export const SearchFilters: React.FC<SearchFiltersProps> = ({
   initialFilters = {},
   currentFilters,
   onFilterChange,
@@ -141,13 +73,13 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   isLoading = false,
   onCreateTattoo
 }) => {
-  // Get styles from context
-  const { styles, loading: stylesLoading } = useStyles();
+  // Mobile detection
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // Get user data from context
+  // Get contexts
+  const { styles } = useStyles();
   const me = useUserData();
-
-  // Get geolocation service
   const geoService = useAppGeolocation();
 
   // Filter states
@@ -168,6 +100,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
 
   // Debounce search with timer ref
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const locationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Watch for external filter changes (e.g., from ActiveFilterBadges)
   useEffect(() => {
@@ -227,9 +160,6 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     }
   }, [currentFilters]);
 
-  // Distance options in miles
-  const distanceOptions = [25, 50, 75, 100];
-
   // Apply filters when component mounts if initial filters are provided
   useEffect(() => {
     if (initialFilters.searchString || (initialFilters.styles && initialFilters.styles.length > 0) || initialFilters.distance) {
@@ -240,6 +170,9 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     return () => {
       if (searchTimerRef.current) {
         clearTimeout(searchTimerRef.current);
+      }
+      if (locationTimerRef.current) {
+        clearTimeout(locationTimerRef.current);
       }
     };
   }, []);
@@ -492,9 +425,6 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     }
   };
 
-  // Debounce location input for geocoding
-  const locationTimerRef = useRef<NodeJS.Timeout | null>(null);
-
   // Handle location input change
   const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newLocation = e.target.value;
@@ -617,6 +547,32 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
     }
   };
 
+  // Prepare props for UI components
+  const uiProps = {
+    type,
+    searchString,
+    selectedStyles,
+    distance,
+    distanceUnit,
+    useMyLocation,
+    useAnyLocation,
+    applySavedStyles,
+    location,
+    locationCoords,
+    geoLoading,
+    geoError,
+    onSearchChange: handleSearchChange,
+    onApplySavedStylesChange: handleApplySavedStylesChange,
+    onStyleChange: handleStyleChange,
+    onDistanceChange: handleDistanceChange,
+    onDistanceUnitChange: handleDistanceUnitChange,
+    onLocationOptionChange: handleLocationOptionChange,
+    onLocationChange: handleLocationChange,
+    onApplyFilters: handleApplyFilters,
+    onClearFilters: handleClearFilters,
+    onCreateTattoo
+  };
+
   return (
     <>
       {/* Loading Overlay */}
@@ -653,309 +609,20 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
         </Box>
       )}
 
-      {/* Sidebar */}
-      <FilterPaper
-        sx={{
-          position: 'fixed',
-          left: 0,
-          top: '96px',
-          height: 'calc(100% - 96px)',
-          width: isExpanded ? '260px' : '40px',
-          transition: 'width 0.3s ease',
-          zIndex: 10
-        }}
-      >
-        {/* Toggle button */}
-        <IconButton
-          onClick={toggleSidebar}
-          aria-label={isExpanded ? 'Collapse filter sidebar' : 'Expand filter sidebar'}
-          sx={{
-            position: 'absolute',
-            right: -5,
-            top: '20px',
-            transform: 'translateX(50%)',
-            backgroundColor: 'secondary.main',
-             color: 'white',
-            '&:hover': {
-              backgroundColor: 'secondary.dark',
-            },
-            width: 32,
-            height: 32,
-            boxShadow: 2,
-            zIndex: 2
-          }}
-        >
-          {isExpanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-        </IconButton>
-
-        {/* Filter content - only show when expanded */}
-        {isExpanded && (
-          <Box sx={{
-            width: '100%',
-            height: '100%',
-            overflowY: 'auto',
-            p: 2,
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-
-            {/* Search input */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Search
-              </Typography>
-              <Search>
-                <SearchIconWrapper>
-                  <SearchIcon />
-                </SearchIconWrapper>
-                <StyledInputBase
-                  placeholder={type === 'artists' ? "Artist name or studio" : "enter artist, description or tags"}
-                  value={searchString}
-                  onChange={handleSearchChange}
-                  inputProps={{ 'aria-label': 'search' }}
-                  endAdornment={
-                    searchString ? (
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setSearchString('');
-                          onFilterChange({
-                            searchString: '',
-                            styles: selectedStyles,
-                            distance,
-                            distanceUnit,
-                            location,
-                            useMyLocation,
-                            useAnyLocation,
-                            applySavedStyles,
-                            locationCoords
-                          });
-                        }}
-                        sx={{ mr: 1 }}
-                      >
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    ) : null
-                  }
-                />
-              </Search>
-            </Box>
-
-            {/* Create Tattoo Button for Artists */}
-            {me?.type === 'artist' && onCreateTattoo && (
-              <Box sx={{ mb: 3 }}>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={onCreateTattoo}
-                  fullWidth
-                  sx={{
-                    py: 1.5,
-                  }}
-                >
-                  Upload
-                </Button>
-              </Box>
-            )}
-
-            {/* Location origin selection */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Location:
-              </Typography>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <FormControl component="fieldset">
-                  <RadioGroup
-                    value={
-                      useAnyLocation
-                        ? 'any'
-                        : useMyLocation
-                          ? 'my'
-                          : 'custom'
-                    }
-                    onChange={(e) => handleLocationOptionChange(e.target.value as 'my' | 'custom' | 'any')}
-                  >
-                    <FormControlLabel
-                        value="any"
-                        control={<Radio size="small" color="primary" />}
-                        label={<Typography variant="body2">Anywhere</Typography>}
-                    />
-                    <FormControlLabel
-                      value="my"
-                      control={<Radio size="small" color="primary" />}
-                      label={<Typography variant="body2">Near Me</Typography>}
-                    />
-                    <FormControlLabel
-                      value="custom"
-                      control={<Radio size="small" color="primary" />}
-                      label={<Typography variant="body2">Near:</Typography>}
-                    />
-                  </RadioGroup>
-                </FormControl>
-
-                {/* Only show the location input when custom location is selected */}
-                {!useMyLocation && !useAnyLocation && (
-                  <TextField
-                    placeholder="Enter city, zip, or address"
-                    value={location}
-                    onChange={handleLocationChange}
-                    size="small"
-                    fullWidth
-                    variant="outlined"
-                    error={Boolean(geoError)}
-                    helperText={geoError}
-                    InputProps={{
-                      sx: {
-                        fontSize: '0.875rem',
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: '#e8dbc5'
-                        }
-                      },
-                      endAdornment: geoLoading ? (
-                        <CircularProgress size={20} color="inherit" />
-                      ) : null
-                    }}
-                  />
-                )}
-              </Box>
-            </Box>
-
-            {/* Distance selection - only show when location-based filtering is active */}
-            {(useMyLocation || (!useMyLocation && !useAnyLocation)) && (
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Distance
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FormControlLabel
-                      value="mi"
-                      control={
-                        <Radio
-                          size="small"
-                          checked={distanceUnit === 'mi'}
-                          onChange={() => handleDistanceUnitChange('mi')}
-                          color="primary"
-                        />
-                      }
-                      label={<Typography variant="body2">miles</Typography>}
-                    />
-                    <FormControlLabel
-                      value="km"
-                      control={
-                        <Radio
-                          size="small"
-                          checked={distanceUnit === 'km'}
-                          onChange={() => handleDistanceUnitChange('km')}
-                          color="primary"
-                        />
-                      }
-                      label={<Typography variant="body2">km</Typography>}
-                    />
-                  </Box>
-                </Box>
-                <FormControl fullWidth variant="outlined" size="small" sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8dbc5' } }}>
-                  <Select
-                    value={distance}
-                    onChange={handleDistanceChange}
-                    displayEmpty
-                    sx={{ borderColor: '#e8dbc5' }}
-                  >
-                    {distanceOptions.map(option => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-            )}
-
-            {/* Apply Saved Search */}
-            {me?.styles && me.styles.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={applySavedStyles}
-                      onChange={handleApplySavedStylesChange}
-                      size="small"
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Typography variant="body2">Apply my saved styles</Typography>
-                  }
-                />
-              </Box>
-            )}
-
-            {/* Styles */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Styles
-              </Typography>
-              <StylesContainer>
-                {stylesLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                    <CircularProgress size={20} />
-                  </Box>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {styles.map(style => (
-                      <FormControlLabel
-                        key={style.id}
-                        control={
-                          <Checkbox
-                            checked={selectedStyles.includes(style.id)}
-                            onChange={() => handleStyleChange(style.id)}
-                            size="small"
-                            color="primary"
-                          />
-                        }
-                        label={
-                          <Typography variant="body2">{style.name}</Typography>
-                        }
-                      />
-                    ))}
-                  </Box>
-                )}
-              </StylesContainer>
-            </Box>
-
-            {/* Filter buttons */}
-            <Box sx={{
-              mt: 'auto',
-              pt: 2,
-              borderTop: 1,
-              borderColor: 'divider',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1
-            }}>
-              <Button
-                variant="contained"
-                color="secondary"
-                fullWidth
-                onClick={handleApplyFilters}
-              >
-                Apply Filters
-              </Button>
-              <Button
-                variant="outlined"
-                color="inherit"
-                fullWidth
-                onClick={handleClearFilters}
-              >
-                Clear
-              </Button>
-            </Box>
-          </Box>
-        )}
-      </FilterPaper>
+      {/* Render appropriate UI based on screen size */}
+      {isMobile ? (
+        <MobileSearchFiltersUI
+          {...uiProps}
+          isExpanded={isExpanded}
+          onToggleSidebar={toggleSidebar}
+        />
+      ) : (
+        <DesktopSearchFiltersUI
+          {...uiProps}
+          isExpanded={isExpanded}
+          onToggleSidebar={toggleSidebar}
+        />
+      )}
     </>
   );
 };
-
-export default SearchFilters;
