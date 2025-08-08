@@ -70,9 +70,8 @@ export const fetchCsrfToken = async (): Promise<void> => {
   if (typeof window === 'undefined') return; // SSR check
   
   try {
-    // The Laravel Sanctum endpoint for getting a CSRF cookie
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
-    const response = await fetch(`${apiBase}/sanctum/csrf-cookie`, {
+    // The Laravel Sanctum endpoint for getting a CSRF cookie - use relative URL to leverage rewrites
+    const response = await fetch('/sanctum/csrf-cookie', {
       method: 'GET',
       credentials: 'include',
     });
