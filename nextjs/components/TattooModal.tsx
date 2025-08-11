@@ -331,28 +331,72 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
                       }}
                     />
                   )}
-                  <Box>
-                    <Link
-                      href={`/artists/${tattoo?.tattoo?.artist?.slug || tattoo?.tattoo?.artist?.id}`}
-                      style={{ textDecoration: 'none', color: 'inherit' }}
-                      onClick={(e) => {
-                        e.preventDefault(); // For now, prevent navigation
-                        // TODO: Open artist modal or navigate as needed
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          color: '#000000',
-                          '&:hover': { 
-                            color: 'primary.main',
-                            textDecoration: 'underline'
-                          }
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      mb: 0.5 
+                    }}>
+                      <Link
+                        href={`/artists/${tattoo?.tattoo?.artist?.slug || tattoo?.tattoo?.artist?.id}`}
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                        onClick={(e) => {
+                          e.preventDefault(); // For now, prevent navigation
+                          // TODO: Open artist modal or navigate as needed
                         }}
                       >
-                        {tattoo?.tattoo?.artist?.name || 'Unknown Artist'}
-                      </Typography>
-                    </Link>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color: '#000000',
+                            fontSize: isMobile ? '1.1rem' : '1.25rem',
+                            '&:hover': { 
+                              color: 'primary.main',
+                              textDecoration: 'underline'
+                            }
+                          }}
+                        >
+                          {tattoo?.tattoo?.artist?.name || 'Unknown Artist'}
+                        </Typography>
+                      </Link>
+                      
+                      {/* Action buttons inline with artist name */}
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {/* Save Tattoo Button */}
+                        <IconButton
+                          onClick={handleSaveTattoo}
+                          disabled={userData?.loading}
+                          size="small"
+                          sx={{
+                            color: isTattooSaved ? 'primary.main' : '#000000',
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.1)'
+                            }
+                          }}
+                        >
+                          {isTattooSaved ? <BookmarkIcon fontSize="small" /> : <BookmarkBorderIcon fontSize="small" />}
+                        </IconButton>
+
+                        {/* Follow Artist Button */}
+                        {tattoo?.tattoo?.artist && (
+                          <IconButton
+                            onClick={handleFollowArtist}
+                            disabled={userData?.loading}
+                            size="small"
+                            sx={{
+                              color: isArtistFollowed ? 'primary.main' : '#000000',
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.1)'
+                              }
+                            }}
+                          >
+                            {isArtistFollowed ? <PersonRemoveIcon fontSize="small" /> : <PersonAddIcon fontSize="small" />}
+                          </IconButton>
+                        )}
+                      </Box>
+                    </Box>
+                    
                     {tattoo?.tattoo?.studio?.name && (
                       <Typography variant="body2" sx={{ color: '#000000' }}>
                         {tattoo.tattoo.studio.name}
@@ -446,56 +490,6 @@ const TattooModal: React.FC<TattooModalProps> = ({ tattooId, open, onClose, curr
                 )}
               </Box>
 
-              {/* Action buttons */}
-              <Box sx={{ mt: 'auto', pt: isMobile ? 1.5 : 2 }}>
-                <Stack 
-                  direction={isMobile ? "column" : "row"} 
-                  spacing={1} 
-                  justifyContent="flex-end"
-                >
-                  {/* Save Tattoo Button */}
-                  <Button
-                    variant={isTattooSaved ? "contained" : "outlined"}
-                    size="small"
-                    startIcon={isTattooSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-                    onClick={handleSaveTattoo}
-                    disabled={userData?.loading}
-                    sx={{
-                      color: isTattooSaved ? '#ffffff' : '#000000',
-                      borderColor: '#000000',
-                      backgroundColor: isTattooSaved ? '#000000' : 'transparent',
-                      '&:hover': {
-                        backgroundColor: isTattooSaved ? '#333333' : 'rgba(0, 0, 0, 0.1)',
-                        borderColor: '#000000'
-                      }
-                    }}
-                  >
-                    {isTattooSaved ? 'Saved' : 'Save Tattoo'}
-                  </Button>
-
-                  {/* Follow Artist Button */}
-                  {tattoo?.tattoo?.artist && (
-                    <Button
-                      variant={isArtistFollowed ? "contained" : "outlined"}
-                      size="small"
-                      startIcon={isArtistFollowed ? <PersonRemoveIcon /> : <PersonAddIcon />}
-                      onClick={handleFollowArtist}
-                      disabled={userData?.loading}
-                      sx={{
-                        color: isArtistFollowed ? '#ffffff' : '#000000',
-                        borderColor: '#000000',
-                        backgroundColor: isArtistFollowed ? '#000000' : 'transparent',
-                        '&:hover': {
-                          backgroundColor: isArtistFollowed ? '#333333' : 'rgba(0, 0, 0, 0.1)',
-                          borderColor: '#000000'
-                        }
-                      }}
-                    >
-                      {isArtistFollowed ? 'Following' : 'Follow Artist'}
-                    </Button>
-                  )}
-                </Stack>
-              </Box>
             </Box>
           </Box>
         )}
