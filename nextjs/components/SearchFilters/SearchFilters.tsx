@@ -24,6 +24,7 @@ interface SearchFiltersProps {
     useMyLocation?: boolean;
     useAnyLocation?: boolean;
     applySavedStyles?: boolean;
+    booksOpen?: boolean;
     locationCoords?: {
       lat: number;
       lng: number;
@@ -37,6 +38,7 @@ interface SearchFiltersProps {
     location?: string;
     useMyLocation?: boolean;
     applySavedStyles?: boolean;
+    booksOpen?: boolean;
     locationCoords?: {
       lat: number;
       lng: number;
@@ -51,6 +53,7 @@ interface SearchFiltersProps {
     useMyLocation?: boolean;
     useAnyLocation?: boolean;
     applySavedStyles?: boolean;
+    booksOpen?: boolean;
     locationCoords?: {
       lat: number;
       lng: number;
@@ -90,6 +93,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   const [useMyLocation, setUseMyLocation] = useState<boolean>(initialFilters.useMyLocation !== undefined ? initialFilters.useMyLocation : true);
   const [useAnyLocation, setUseAnyLocation] = useState<boolean>(initialFilters.useAnyLocation || false);
   const [applySavedStyles, setApplySavedStyles] = useState<boolean>(initialFilters.applySavedStyles || false);
+  const [booksOpen, setBooksOpen] = useState<boolean>(initialFilters.booksOpen || false);
   const [location, setLocation] = useState<string>(initialFilters.location || '');
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | undefined>(initialFilters.locationCoords);
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
@@ -148,6 +152,11 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         setApplySavedStyles(currentFilters.applySavedStyles);
       }
 
+      if (currentFilters.booksOpen !== undefined &&
+          currentFilters.booksOpen !== booksOpen) {
+        setBooksOpen(currentFilters.booksOpen);
+      }
+
       if (currentFilters.location !== undefined &&
           currentFilters.location !== location) {
         setLocation(currentFilters.location);
@@ -198,6 +207,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         useMyLocation,
         useAnyLocation,
         applySavedStyles,
+        booksOpen,
         locationCoords
       });
     }, 500);
@@ -227,6 +237,28 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       useMyLocation,
       useAnyLocation,
       applySavedStyles: newApplySavedStyles,
+      booksOpen,
+      locationCoords
+    });
+  };
+
+  // Handle books open checkbox change
+  const handleBooksOpenChange = () => {
+    const newBooksOpen = !booksOpen;
+    setBooksOpen(newBooksOpen);
+
+    // Immediately trigger search with updated booksOpen flag
+    onFilterChange({
+      searchString,
+      styles: selectedStyles,
+      distance,
+      distanceUnit,
+      location,
+      useMyLocation,
+      useAnyLocation,
+      applySavedStyles,
+          booksOpen,
+      booksOpen: newBooksOpen,
       locationCoords
     });
   };
@@ -251,6 +283,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
+          booksOpen,
+      booksOpen,
       locationCoords
     });
   };
@@ -270,6 +304,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
+          booksOpen,
+      booksOpen,
       locationCoords
     });
   };
@@ -288,6 +324,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
+          booksOpen,
+      booksOpen,
       locationCoords
     });
   };
@@ -322,6 +360,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           useMyLocation: true,
           useAnyLocation: false,
           applySavedStyles,
+        booksOpen,
           locationCoords: myCoords
         });
       } catch (error) {
@@ -338,6 +377,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           useMyLocation: true,
           useAnyLocation: false,
           applySavedStyles,
+        booksOpen,
           locationCoords
         });
       } finally {
@@ -354,6 +394,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         useMyLocation: false,
         useAnyLocation: false,
         applySavedStyles,
+        booksOpen,
         locationCoords
       });
 
@@ -376,6 +417,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         useMyLocation: false,
         useAnyLocation: true,
         applySavedStyles,
+        booksOpen,
         locationCoords: undefined
       });
     }
@@ -410,6 +452,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           useMyLocation: false,
           useAnyLocation: false,
           applySavedStyles,
+        booksOpen,
           locationCoords: coords
         });
 
@@ -442,6 +485,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         useMyLocation: false,
         useAnyLocation: false,
         applySavedStyles,
+        booksOpen,
         locationCoords
       });
 
@@ -473,6 +517,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
+          booksOpen,
       locationCoords
     });
   };
@@ -488,6 +533,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     setUseMyLocation(locationSettings.useMyLocation);
     setUseAnyLocation(locationSettings.useAnyLocation);
     setApplySavedStyles(false);
+    setBooksOpen(false);
     setLocation(locationSettings.location);
     setLocationCoords(undefined);
 
@@ -509,6 +555,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           ...locationSettings,
           distanceUnit: 'mi',
           applySavedStyles: false,
+          booksOpen: false,
           locationCoords: myCoords
         });
       } catch (error) {
@@ -519,7 +566,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           styles: [],
           ...locationSettings,
           distanceUnit: 'mi',
-          applySavedStyles: false
+          applySavedStyles: false,
+          booksOpen: false
         });
       } finally {
         setGeoLoading(false);
@@ -531,7 +579,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         styles: [],
         ...locationSettings,
         distanceUnit: 'mi',
-        applySavedStyles: false
+        applySavedStyles: false,
+        booksOpen: false
       });
     }
   };
@@ -557,12 +606,14 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     useMyLocation,
     useAnyLocation,
     applySavedStyles,
+    booksOpen,
     location,
     locationCoords,
     geoLoading,
     geoError,
     onSearchChange: handleSearchChange,
     onApplySavedStylesChange: handleApplySavedStylesChange,
+    onBooksOpenChange: handleBooksOpenChange,
     onStyleChange: handleStyleChange,
     onDistanceChange: handleDistanceChange,
     onDistanceUnitChange: handleDistanceUnitChange,

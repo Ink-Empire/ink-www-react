@@ -17,6 +17,7 @@ export default function ArtistList() {
         searchString: '',
         styles: [], // Empty array - no auto-applied styles  
         applySavedStyles: false, // Default to false
+        booksOpen: false, // Default to false
         ...locationSettings,
         distanceUnit: 'mi',
         locationCoords: user?.location_lat_long ? 
@@ -42,6 +43,7 @@ export default function ArtistList() {
         useMyLocation?: boolean;
         useAnyLocation?: boolean;
         applySavedStyles?: boolean;
+        booksOpen?: boolean;
         locationCoords?: { lat: number; lng: number };
     }) => {
         // Handle applySavedStyles - merge user's saved styles with selected styles if enabled
@@ -62,6 +64,7 @@ export default function ArtistList() {
             useMyLocation: filters.useMyLocation,
             useAnyLocation: filters.useAnyLocation,
             applySavedStyles: filters.applySavedStyles,
+            booksOpen: filters.booksOpen,
             subject: 'artists'
         };
 
@@ -119,6 +122,7 @@ export default function ArtistList() {
                             useMyLocation: initialFilters.useMyLocation,
                             useAnyLocation: initialFilters.useAnyLocation,
                             applySavedStyles: initialFilters.applySavedStyles,
+                            booksOpen: initialFilters.booksOpen,
                             location: initialFilters.location,
                         }}
                         currentFilters={{
@@ -129,6 +133,7 @@ export default function ArtistList() {
                             useMyLocation: searchParams.useMyLocation,
                             useAnyLocation: searchParams.useAnyLocation,
                             applySavedStyles: searchParams.applySavedStyles,
+                            booksOpen: searchParams.booksOpen,
                             location: searchParams.location,
                             locationCoords: searchParams.locationCoords,
                         }}

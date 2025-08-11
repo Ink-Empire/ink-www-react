@@ -75,6 +75,7 @@ export default function Home() {
       searchString: router.query.searchString || "",
       styles: [], // Empty array - no auto-applied styles
       applySavedStyles: false, // Default to false
+      booksOpen: false, // Default to false
       ...locationSettings,
       distanceUnit: "mi",
       subject: "tattoos",
@@ -152,6 +153,7 @@ export default function Home() {
     useMyLocation?: boolean;
     useAnyLocation?: boolean;
     applySavedStyles?: boolean;
+    booksOpen?: boolean;
     locationCoords?: { lat: number; lng: number };
   }) => {
     // Handle applySavedStyles - merge user's saved styles with selected styles if enabled
@@ -173,6 +175,7 @@ export default function Home() {
       useMyLocation: filters.useMyLocation,
       useAnyLocation: filters.useAnyLocation,
       applySavedStyles: filters.applySavedStyles,
+      booksOpen: filters.booksOpen,
       subject: "tattoos",
     };
 
@@ -239,6 +242,7 @@ export default function Home() {
               useMyLocation: initialSearchParams.useMyLocation,
               useAnyLocation: initialSearchParams.useAnyLocation,
               applySavedStyles: initialSearchParams.applySavedStyles,
+              booksOpen: initialSearchParams.booksOpen,
               location: initialSearchParams.location,
             }}
             currentFilters={{
@@ -249,6 +253,7 @@ export default function Home() {
               useMyLocation: searchParams.useMyLocation,
               useAnyLocation: searchParams.useAnyLocation,
               applySavedStyles: searchParams.applySavedStyles,
+              booksOpen: searchParams.booksOpen,
               location: searchParams.location,
               locationCoords: searchParams.locationCoords,
             }}

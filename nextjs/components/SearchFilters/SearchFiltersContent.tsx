@@ -79,12 +79,14 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
   useMyLocation,
   useAnyLocation,
   applySavedStyles,
+  booksOpen,
   location,
   locationCoords,
   geoLoading,
   geoError,
   onSearchChange,
   onApplySavedStylesChange,
+  onBooksOpenChange,
   onStyleChange,
   onDistanceChange,
   onDistanceUnitChange,
@@ -291,6 +293,22 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
           />
         </Box>
       )}
+
+        <Box sx={{ mb: 3 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={booksOpen}
+                onChange={onBooksOpenChange}
+                size="small"
+                color="primary"
+              />
+            }
+            label={
+              <Typography variant="body2">Only show artists with books open</Typography>
+            }
+          />
+        </Box>
 
       {/* Styles */}
       <Box sx={{ mb: 3 }}>

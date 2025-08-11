@@ -7,12 +7,14 @@ export interface SearchFiltersUIProps {
   useMyLocation: boolean;
   useAnyLocation: boolean;
   applySavedStyles: boolean;
+  booksOpen: boolean;
   location: string;
   locationCoords?: { lat: number; lng: number };
   geoLoading: boolean;
   geoError: string | null;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onApplySavedStylesChange: () => void;
+  onBooksOpenChange: () => void;
   onStyleChange: (styleId: number) => void;
   onDistanceChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onDistanceUnitChange: (unit: 'mi' | 'km') => void;
