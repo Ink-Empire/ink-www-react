@@ -37,6 +37,11 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
     onStepComplete(selectedStyles);
   };
 
+  const handleSkip = () => {
+    // Skip with empty selection
+    onStepComplete([]);
+  };
+
   // Filter out styles that are already selected as specialties
   const availableStyles = styles.filter(style => !specialtyStyles.includes(style.id));
   const specialtyStyleNames = styles
@@ -79,8 +84,8 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
   }
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-      <Box sx={{ textAlign: 'center', mb: 4 }}>
+    <Box sx={{ width: '100%', maxWidth: '100%' }}>
+      <Box sx={{ textAlign: 'center', mb: 3 }}>
         <Typography
           variant="h4"
           component="h1"
@@ -88,6 +93,7 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
             mb: 2,
             fontWeight: 'bold',
             color: '#e8dbc5',
+            fontSize: { xs: '1.5rem', md: '2rem' },
           }}
         >
           What styles do you enjoy working in?
@@ -96,11 +102,11 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
         <Typography
           variant="body1"
           sx={{
-            mb: 3,
+            mb: 2,
             color: 'text.secondary',
-            fontSize: '1.1rem',
-            lineHeight: 1.6,
-            maxWidth: 600,
+            fontSize: { xs: '0.95rem', md: '1rem' },
+            lineHeight: 1.5,
+            maxWidth: 500,
             mx: 'auto',
           }}
         >
@@ -136,7 +142,8 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
           </Typography>
         </Box>
       ) : (
-        <Grid container spacing={2} sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <Grid container spacing={2} sx={{ maxWidth: 600, justifyContent: 'center' }}>
           {availableStyles.map((style) => (
             <Grid item xs={6} sm={4} md={3} key={style.id}>
               <Chip
@@ -170,60 +177,20 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
               />
             </Grid>
           ))}
-        </Grid>
+          </Grid>
+        </Box>
       )}
 
-      <Stack 
-        direction={{ xs: 'column', sm: 'row' }} 
-        justifyContent="space-between" 
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        spacing={{ xs: 2, sm: 0 }}
-      >
-        <Button
-          variant="outlined"
-          onClick={onBack}
-          sx={{
-            color: '#e8dbc5',
-            borderColor: '#e8dbc5',
-            width: { xs: '100%', sm: 'auto' },
-            order: { xs: 3, sm: 1 },
-            '&:hover': {
-              backgroundColor: 'rgba(232, 219, 197, 0.1)',
-              borderColor: '#e8dbc5',
-            },
-          }}
-        >
-          Back
-        </Button>
-        
-        <Typography
-          variant="body2"
-          sx={{
-            color: 'text.secondary',
-            fontStyle: 'italic',
-            textAlign: 'center',
-            maxWidth: { xs: 'none', sm: 300 },
-            order: { xs: 1, sm: 2 },
-          }}
-        >
-          These preferences help us show you inspiration and connect you with clients looking for these styles.
-        </Typography>
 
-        <Stack 
-          direction={{ xs: 'column-reverse', sm: 'row' }} 
-          spacing={2} 
-          sx={{ 
-            width: { xs: '100%', sm: 'auto' },
-            order: { xs: 2, sm: 3 }
-          }}
-        >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <Button
             variant="outlined"
-            onClick={handleContinue}
+            onClick={handleSkip}
             sx={{
               color: '#e8dbc5',
               borderColor: '#e8dbc5',
-              width: { xs: '100%', sm: 'auto' },
+              minWidth: { xs: '120px', sm: '100px' },
               '&:hover': {
                 backgroundColor: 'rgba(232, 219, 197, 0.1)',
                 borderColor: '#e8dbc5',
@@ -240,7 +207,7 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
               backgroundColor: '#339989',
               color: '#000',
               fontWeight: 'bold',
-              width: { xs: '100%', sm: 'auto' },
+              minWidth: { xs: '120px', sm: '100px' },
               '&:hover': {
                 backgroundColor: '#2a7f7a',
               },
@@ -249,7 +216,24 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
             Continue
           </Button>
         </Stack>
-      </Stack>
+
+        {/* Back button on the right */}
+        <Button
+          variant="outlined"
+          onClick={onBack}
+          sx={{
+            color: '#e8dbc5',
+            borderColor: '#e8dbc5',
+            minWidth: '80px',
+            '&:hover': {
+              backgroundColor: 'rgba(232, 219, 197, 0.1)',
+              borderColor: '#e8dbc5',
+            },
+          }}
+        >
+          Back
+        </Button>
+      </Box>
 
       <Typography
         variant="body2"

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { OnboardingWizard, OnboardingData } from '../components/onboarding';
+import { OnboardingWizard, OnboardingData } from '../components/Onboarding';
 import { setToken } from '@/utils/auth';
-import { getCsrfToken, fetchCsrfToken } from '@/utils/api';
+import { getCsrfToken, fetchCsrfToken, api } from '@/utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
 
 const RegisterPage: React.FC = () => {
   const router = useRouter();
@@ -14,7 +15,7 @@ const RegisterPage: React.FC = () => {
   const handleRegistrationComplete = async (data: OnboardingData) => {
     try {
       setIsRegistering(true);
-      console.log('Registration/onboarding completed with data:', data);
+      console.log('Registration/Onboarding completed with data:', data);
       
       // Generate slug from username (same logic as original registration form)
       const generateSlug = (username: string) => {
@@ -63,7 +64,14 @@ const RegisterPage: React.FC = () => {
         
         // Set the authentication token if provided
         if (result.token) {
+          console.log('Setting token and refreshing auth state');
           setToken(result.token);
+          
+          // Clear the API cache to ensure fresh user data
+          api.clearUserCache();
+          
+          // Wait a moment for token to be set properly
+          await new Promise(resolve => setTimeout(resolve, 200));
           
           // Refresh the auth context to load the user data
           try {
@@ -81,20 +89,9 @@ const RegisterPage: React.FC = () => {
             const imageFormData = new FormData();
             imageFormData.append('profile_photo', data.userDetails.profileImage);
             
-            const imageResponse = await fetch(`/api/users/profile-photo`, {
-              method: 'POST',
-              body: imageFormData,
-              credentials: 'include',
-              headers: {
-                'Authorization': `Bearer ${result.token}`,
-                'X-XSRF-TOKEN': csrfToken || '',
-                'X-Requested-With': 'XMLHttpRequest',
-              }
-            });
-            
-            if (imageResponse.ok) {
-              console.log('Profile image uploaded successfully');
-            }
+            // Use the api utility which handles CSRF tokens properly for FormData
+            const imageResponse = await api.post('/users/profile-photo', imageFormData);
+            console.log('Profile image uploaded successfully');
           } catch (imgErr) {
             console.error('Failed to upload profile image:', imgErr);
             // Continue with registration even if image upload fails
@@ -134,6 +131,47 @@ const RegisterPage: React.FC = () => {
         onComplete={handleRegistrationComplete}
         onCancel={handleRegistrationCancel}
       />
+
+      {/* Loading Backdrop */}
+      <Backdrop
+        sx={{
+          color: '#339989',
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backgroundColor: 'rgba(26, 14, 17, 0.8)',
+        }}
+        open={isRegistering}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <CircularProgress size={60} sx={{ color: '#339989' }} />
+          <Typography
+            variant="h6"
+            sx={{
+              color: '#e8dbc5',
+              textAlign: 'center',
+              fontWeight: 'bold',
+            }}
+          >
+            Creating your account...
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: '#e8dbc5',
+              textAlign: 'center',
+              opacity: 0.8,
+            }}
+          >
+            Please wait while we set up your profile
+          </Typography>
+        </Box>
+      </Backdrop>
     </>
   );
 };

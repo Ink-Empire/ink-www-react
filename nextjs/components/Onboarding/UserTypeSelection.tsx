@@ -17,9 +17,10 @@ import {
 interface UserTypeSelectionProps {
   onStepComplete: (userType: 'client' | 'artist' | 'studio') => void;
   onBack?: () => void;
+  onCancel?: () => void;
 }
 
-const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, onBack }) => {
+const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, onBack, onCancel }) => {
   const userTypes = [
     {
       type: 'client' as const,
@@ -45,7 +46,7 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
   ];
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto', textAlign: 'center' }}>
+    <Box sx={{ width: '100%', textAlign: 'center' }}>
       <Typography
         variant="h4"
         component="h1"
@@ -53,6 +54,7 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
           mb: 2,
           fontWeight: 'bold',
           color: '#e8dbc5',
+          fontSize: { xs: '1.5rem', md: '2rem' },
         }}
       >
         Welcome to InkedIn
@@ -61,16 +63,18 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
       <Typography
         variant="body1"
         sx={{
-          mb: 4,
+          mb: 3,
           color: 'text.secondary',
-          fontSize: '1.1rem',
-          lineHeight: 1.6,
+          fontSize: { xs: '0.95rem', md: '1rem' },
+          lineHeight: 1.5,
+          maxWidth: 450,
+          mx: 'auto',
         }}
       >
         Let's get you set up! Tell us what brings you to our community.
       </Typography>
 
-      <Stack spacing={3}>
+      <Stack spacing={{ xs: 2, md: 3 }} sx={{ maxWidth: 500, mx: 'auto' }}>
         {userTypes.map((userType) => {
           const IconComponent = userType.icon;
           return (
@@ -89,22 +93,23 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
               }}
               onClick={() => onStepComplete(userType.type)}
             >
-              <CardContent sx={{ p: { xs: 3, md: 4 } }}>
+              <CardContent sx={{ p: { xs: 2, md: 3 } }}>
                 <Stack 
-                  direction={{ xs: 'column', sm: 'row' }} 
-                  spacing={3} 
+                  direction="row" 
+                  spacing={2} 
                   alignItems="center"
-                  sx={{ textAlign: { xs: 'center', sm: 'left' } }}
+                  sx={{ textAlign: 'left' }}
                 >
                   <Avatar
                     sx={{
-                      width: { xs: 50, sm: 60 },
-                      height: { xs: 50, sm: 60 },
+                      width: 48,
+                      height: 48,
                       backgroundColor: userType.color,
                       color: '#000',
+                      flexShrink: 0,
                     }}
                   >
-                    <IconComponent sx={{ fontSize: { xs: 25, sm: 30 } }} />
+                    <IconComponent sx={{ fontSize: 24 }} />
                   </Avatar>
                   
                   <Box sx={{ flex: 1 }}>
@@ -138,6 +143,27 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
           );
         })}
       </Stack>
+
+      {/* Cancel button in bottom right */}
+      {onCancel && (
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="outlined"
+            onClick={onCancel}
+            sx={{
+              color: '#e8dbc5',
+              borderColor: '#e8dbc5',
+              minWidth: '80px',
+              '&:hover': {
+                backgroundColor: 'rgba(232, 219, 197, 0.1)',
+                borderColor: '#e8dbc5',
+              },
+            }}
+          >
+            Cancel
+          </Button>
+        </Box>
+      )}
 
       {onBack && (
         <Box sx={{ mt: 4, textAlign: 'center' }}>

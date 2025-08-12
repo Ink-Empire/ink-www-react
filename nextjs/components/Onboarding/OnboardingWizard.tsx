@@ -150,7 +150,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           return (
             <UserTypeSelection 
               onStepComplete={handleUserTypeComplete}
-              onBack={onCancel}
+              onCancel={onCancel}
             />
           );
         }
@@ -358,20 +358,22 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       )}
 
       {/* Main Content */}
-      <Box sx={{ flex: 1, p: { xs: 1, md: 4 } }}>
+      <Box sx={{ flex: 1, p: { xs: 2, md: 4 }, display: 'flex', justifyContent: 'center' }}>
         <Paper
           elevation={2}
           sx={{
-            p: { xs: 2, sm: 4, md: 6 },
+            p: { xs: 3, sm: 4, md: 5 },
             backgroundColor: '#2a1a1e',
             color: 'white',
             borderRadius: { xs: 2, md: 3 },
-            maxWidth: 1200,
+            maxWidth: { xs: '95%', sm: 700, md: 900 },
+            width: '100%',
             mx: 'auto',
-            minHeight: { xs: '400px', md: '600px' },
+            minHeight: 'auto', // Let content determine height
+            maxHeight: 'none', // Remove height constraints
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            flexDirection: 'column',
+            my: 2, // Add vertical margin
           }}
         >
           {getCurrentStepComponent()}

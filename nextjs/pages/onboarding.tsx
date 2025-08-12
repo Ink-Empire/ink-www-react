@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { OnboardingWizard, OnboardingData } from '../components/onboarding';
+import { OnboardingWizard, OnboardingData } from '../components/Onboarding';
 import { useAuth } from '../contexts/AuthContext';
 import { getToken, setToken } from '../utils/auth';
 import { api, getCsrfToken, fetchCsrfToken } from '../utils/api';
@@ -30,7 +30,7 @@ const OnboardingPage: React.FC = () => {
         // Get user type from registration flow
         const storedUserType = localStorage.getItem('onboarding_user_type');
         if (storedUserType) {
-          // Map registration types to onboarding types
+          // Map registration types to Onboarding types
           const typeMapping: Record<string, 'client' | 'artist' | 'studio'> = {
             'user': 'client',
             'artist': 'artist', 
@@ -42,7 +42,7 @@ const OnboardingPage: React.FC = () => {
         }
         
       } catch (error) {
-        console.error('Error initializing onboarding:', error);
+        console.error('Error initializing Onboarding:', error);
       } finally {
         setIsInitializing(false);
       }
@@ -77,7 +77,7 @@ const OnboardingPage: React.FC = () => {
       await fetchCsrfToken();
       const csrfToken = getCsrfToken();
       
-      // Submit onboarding data to API
+      // Submit Onboarding data to API
       const response = await fetch('/api/user/onboarding', {
         method: 'POST',
         headers: {
@@ -97,11 +97,11 @@ const OnboardingPage: React.FC = () => {
         const redirectPath = data.userType === 'artist' ? '/profile' : '/';
         router.push(redirectPath);
       } else {
-        throw new Error('Failed to save onboarding data');
+        throw new Error('Failed to save Onboarding data');
       }
     } catch (error) {
-      console.error('Error completing onboarding:', error);
-      // Even if API fails, redirect to home - onboarding is not critical
+      console.error('Error completing Onboarding:', error);
+      // Even if API fails, redirect to home - Onboarding is not critical
       router.push('/');
     }
   };

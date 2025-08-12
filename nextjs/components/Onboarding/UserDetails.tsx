@@ -269,7 +269,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 sx={{
                   width: 120,
                   height: 120,
-                  backgroundColor: '#339989',
+                  backgroundColor: '#ffffff',
                   color: '#000',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
@@ -540,13 +540,32 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             </Alert>
           )}
 
-          <Stack 
-            direction={{ xs: 'column-reverse', sm: 'row' }} 
-            justifyContent="space-between" 
-            alignItems="center" 
-            spacing={{ xs: 2, sm: 0 }}
-            sx={{ width: '100%' }}
-          >
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isSubmitting}
+              startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
+              sx={{
+                backgroundColor: '#339989',
+                color: '#000',
+                fontWeight: 'bold',
+                minWidth: '150px',
+                '&:hover': {
+                  backgroundColor: '#2a7f7a',
+                },
+                '&:disabled': {
+                  backgroundColor: 'rgba(232, 219, 197, 0.3)',
+                  color: 'rgba(0, 0, 0, 0.5)',
+                },
+              }}
+            >
+              {isSubmitting ? 'Updating Profile...' : 'Continue'}
+            </Button>
+
+            {/* Back button on the right */}
             <Button
               variant="outlined"
               onClick={onBack}
@@ -554,7 +573,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               sx={{
                 color: '#e8dbc5',
                 borderColor: '#e8dbc5',
-                width: { xs: '100%', sm: 'auto' },
+                minWidth: '80px',
                 '&:hover': {
                   backgroundColor: 'rgba(232, 219, 197, 0.1)',
                   borderColor: '#e8dbc5',
@@ -567,30 +586,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             >
               Back
             </Button>
-
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={isSubmitting}
-              startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
-              sx={{
-                backgroundColor: '#339989',
-                color: '#000',
-                fontWeight: 'bold',
-                px: 4,
-                width: { xs: '100%', sm: 'auto' },
-                '&:hover': {
-                  backgroundColor: '#2a7f7a',
-                },
-                '&:disabled': {
-                  backgroundColor: 'rgba(232, 219, 197, 0.3)',
-                  color: 'rgba(0, 0, 0, 0.5)',
-                },
-              }}
-            >
-              {isSubmitting ? 'Creating Profile...' : 'Complete Setup'}
-            </Button>
-          </Stack>
+          </Box>
         </Stack>
       </form>
 
