@@ -12,139 +12,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
-import { fetchCsrfToken } from '@/utils/api';
+import { withAuth } from '@/components/WithAuth';
 
 const ProfilePage: React.FC = () => {
   const router = useRouter();
-  const { userData, updateUser, updateStyles, logout, loading, error } = useUser();
-  const { fetchCurrentUser } = useAuth();
+  const { userData, updateUser, updateStyles, loading, error } = useUser();
+  const { user: authUser, logout: authLogout } = useAuth();
   const { styles, getStyleName } = useStyles();
   const { profilePhoto, takeProfilePhoto, deleteProfilePhoto } = useProfilePhoto();
+  
   // Only fetch working hours for artists
   const isArtist = userData?.type === 'artist';
   const { workingHours, saveWorkingHours, loading: hoursLoading, error: hoursError } = useWorkingHours(isArtist ? userData?.id : null);
-  
-  // Debug working hours data
-  console.log('Working Hours Debug:', { 
-    userId: userData?.id,
-    workingHours, 
-    length: workingHours?.length,
-    hoursLoading,
-    hoursError
-  });
-
-
-
-  // TEMPORARILY DISABLED - Load current user data when the component mounts
-  useEffect(() => {
-    console.log('Profile page useEffect running - DISABLED for debugging');
-    return; // Early return to disable the entire effect
-    // IIFE to allow async operations
-    (async () => {
-      try {
-        // Check token status immediately
-        const token = localStorage.getItem('auth_token');
-        console.log('Profile page loaded - token status:', token ? 'present' : 'missing');
-        
-        if (!token) {
-          console.warn('No auth token found, user may need to log in again');
-          // Redirect to login since we can't proceed without a token
-          router.push('/login');
-          return;
-        }
-        
-        // Fetch CSRF token as early as possible
-        try {
-          console.log('Fetching CSRF token on profile page load');
-          await fetchCsrfToken();
-          console.log('CSRF token fetch completed');
-        } catch (err) {
-          console.error('Failed to fetch CSRF token:', err);
-        }
-        
-        // First get the user ID from localStorage
-        const userId = localStorage.getItem('user_id');
-        console.log('User ID from localStorage:', userId);
-        
-        // Clear existing userData from localStorage to ensure we get fresh data
-        localStorage.removeItem('user_data');
-        console.log('Cleared existing user data cache on profile page load');
-        
-        // Try multiple approaches to fetch user data
-        let userData = null;
-        
-        // 1. First try: Use the fetchCurrentUser from AuthContext (uses /users/me)
-        try {
-          console.log('Attempting to fetch user via AuthContext...');
-          const authUser = await fetchCurrentUser();
-          if (authUser) {
-            console.log('Successfully fetched user from AuthContext');
-            userData = authUser;
-          }
-        } catch (authErr) {
-          console.error('Error fetching from AuthContext:', authErr);
-        }
-        
-        // 2. Second try: Use the user hooks approach (if first try failed)
-        if (!userData) {
-          try {
-            const authUser = await fetchCurrentUser();
-            if (authUser) {
-              console.log('Successfully fetched user via AuthContext');
-              userData = authUser;
-            }
-          } catch (hookErr) {
-            console.error('Error fetching via hooks:', hookErr);
-          }
-        }
-        
-        // 3. Third try: Direct API call with user ID if available (most reliable if we have userId)
-        if (userId && (!userData || !userData.id)) {
-          try {
-            console.log(`Attempting direct API call with user ID: ${userId}`);
-            const response = await api.get(`/users/${userId}`, { 
-              requiresAuth: true,
-              useCache: false // Force fresh data
-            });
-            
-            if (response) {
-              console.log('Successfully fetched user via direct API call');
-              // Extract user data (might be nested in data property)
-              const directUserData = response.data || response;
-              userData = directUserData;
-            }
-          } catch (directErr) {
-            console.error('Error with direct API call:', directErr);
-          }
-        }
-        
-        // If we have user data from any of the approaches, store it in localStorage
-        if (userData) {
-          // Ensure the user ID is set correctly
-          if (userId && !userData.id) {
-            userData.id = Number(userId);
-          }
-          
-          // Store the data in localStorage for UserContext to pick up
-          console.log('Storing user data in localStorage:', userData);
-          localStorage.setItem('user_data', JSON.stringify(userData));
-          
-          // Also store the user ID separately for easier access
-          if (userData.id) {
-            localStorage.setItem('user_id', userData.id.toString());
-          }
-        } else {
-          console.error('Failed to fetch user data through all available methods');
-          // Don't redirect to login - let the UserContext handle authentication
-          // The user might still be authenticated but have network issues
-        }
-      } catch (error) {
-        console.error('Error in profile page initialization:', error);
-        // Don't redirect to login - let the UserContext handle authentication
-        // The user might still be authenticated but have network issues
-      }
-    })();
-  }, []);
   
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
@@ -195,8 +74,7 @@ const ProfilePage: React.FC = () => {
 
   // Logout
   const handleLogout = () => {
-    logout();
-    router.push('/');
+    authLogout();
   };
 
   // Open styles modal
@@ -509,4 +387,4 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-export default ProfilePage;
+export default withAuth(ProfilePage);

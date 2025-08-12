@@ -176,39 +176,19 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     }
   }
 
-  // Add auth token if required or available (for personalized results)
-  // Public endpoints work without a token but may return personalized results if token is provided
+  // Check for bearer token (if using token-based auth)
   const token = getToken(`api-${method}-${endpoint}`);
   
   if (token) {
     requestHeaders['Authorization'] = `Bearer ${token}`;
     console.log(`Including auth token in ${method} ${endpoint} request`);
   } else if (requiresAuth) {
-    // Only show warning if endpoint explicitly requires auth
-    console.warn(`No auth token available for ${method} ${endpoint} request that requires authentication`);
-  } else {
-    console.log(`No auth token available for ${method} ${endpoint} request (not required)`);
+    // For session-based auth, we rely on cookies - no explicit token needed
+    console.log(`Using session-based auth for ${method} ${endpoint} request`);
   }
 
-  // Automatically include user_id in request body for authenticated users on specific endpoints
-  if (token && typeof window !== 'undefined') {
-    const userId = localStorage.getItem('user_id');
-    if (userId && (method === 'POST' || method === 'PUT')) {
-      // Add user_id to body for artist-related endpoints
-      if (endpoint.includes('/artists') || endpoint.includes('/tattoos') || endpoint.includes('/appointments')) {
-        if (body instanceof FormData) {
-          // For FormData, append user_id as form field
-          body.append('user_id', userId);
-        } else if (body && typeof body === 'object') {
-          body.user_id = parseInt(userId, 10);
-          console.log(`Added user_id ${userId} to ${method} ${endpoint} request body`);
-        } else if (!body) {
-          body = { user_id: parseInt(userId, 10) };
-          console.log(`Created request body with user_id ${userId} for ${method} ${endpoint}`);
-        }
-      }
-    }
-  }
+  // For session-based auth, user identification is handled server-side via session
+  // No need to manually include user_id in request body
 
   const requestOptions: RequestInit = {
     method,

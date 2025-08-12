@@ -19,16 +19,28 @@ const LoginPage: React.FC = () => {
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>();
   
   const onSubmit = async (data: FormValues) => {
-    setIsLoading(true);
     setError(null);
     
     try {
-      await login(data);
-      router.push('/');
+      await login({
+        ...data,
+        setErrors: (errors: any) => {
+          // Handle validation errors from the API
+          if (errors.email) {
+            setError(errors.email.join(' '));
+          } else if (errors.password) {
+            setError(errors.password.join(' '));
+          } else {
+            setError('Login failed. Please check your credentials.');
+          }
+        },
+        setIsLoading,
+        onSuccess: () => {
+          router.push('/');
+        }
+      });
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
