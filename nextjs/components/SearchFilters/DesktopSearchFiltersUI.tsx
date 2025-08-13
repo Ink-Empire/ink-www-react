@@ -36,10 +36,12 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
         position: 'fixed',
         left: 0,
         top: '96px',
-        height: 'calc(100% - 96px)',
-        width: isExpanded ? '260px' : '40px',
+        height: 'calc(100vh - 96px)',
+        width: isExpanded ? '280px' : '48px',
         transition: 'width 0.3s ease',
-        zIndex: 10
+        zIndex: 10,
+        backgroundColor: '#2a1a1e',
+        border: '1px solid rgba(232, 219, 197, 0.1)',
       }}
     >
       {/* Toggle button */}
@@ -48,18 +50,17 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
         aria-label={isExpanded ? 'Collapse filter sidebar' : 'Expand filter sidebar'}
         sx={{
           position: 'absolute',
-          right: -5,
+          right: -16,
           top: '20px',
-          transform: 'translateX(50%)',
-          backgroundColor: 'secondary.main',
+          backgroundColor: '#339989',
           color: 'white',
           '&:hover': {
-            backgroundColor: 'secondary.dark',
+            backgroundColor: '#2a7f7a',
           },
           width: 32,
           height: 32,
           boxShadow: 2,
-          zIndex: 2
+          zIndex: 11
         }}
       >
         {isExpanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}

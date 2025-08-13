@@ -229,9 +229,8 @@ export default function Home() {
       </Head>
 
       <div className="py-3">
-        <div className="w-full">
-          {/* Search Filters Component */}
-          <SearchFilters
+        {/* Search Filters Component */}
+        <SearchFilters
             type="tattoos"
             onFilterChange={handleFilterChange}
             initialFilters={{
@@ -263,6 +262,14 @@ export default function Home() {
             onCreateTattoo={() => setIsCreateModalOpen(true)}
           />
 
+        {/* Main Content Wrapper with Sidebar Spacing */}
+        <div 
+          style={{
+            marginLeft: sidebarExpanded ? '280px' : '48px',
+            transition: 'margin-left 0.3s ease',
+            padding: '0 16px'
+          }}
+        >
           {/* Active Filters Component */}
           <ActiveFilterBadges
             searchString={searchParams.searchString}
@@ -415,6 +422,7 @@ export default function Home() {
             </>
           )}
         </div>
+        {/* End Main Content Wrapper */}
       </div>
 
       {/* Create Tattoo Modal */}

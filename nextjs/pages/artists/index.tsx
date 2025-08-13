@@ -107,7 +107,13 @@ export default function ArtistList() {
             </Head>
 
             <div className="py-6">
-                <div className={`transition-all duration-300 ${sidebarExpanded ? 'md:pl-60' : 'pl-16'}`}>
+                <div 
+                    style={{
+                        marginLeft: sidebarExpanded ? '280px' : '48px',
+                        transition: 'margin-left 0.3s ease',
+                        padding: '0 16px'
+                    }}
+                >
                     <h1 className="tattoo-heading text-center mb-8">Artists</h1>
 
                     {/* Search Filters Component */}
