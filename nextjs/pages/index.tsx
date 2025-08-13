@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { useTheme, useMediaQuery } from "@mui/material";
 import TattooCard from "../components/TattooCard";
 import TattooModal from "../components/TattooModal";
 import SearchFilters from "../components/SearchFilters";
@@ -19,6 +20,8 @@ export default function Home() {
   const { styles } = useStyles();
   const router = useRouter();
   const { studio_id } = router.query;
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
 
   // State for studio name (for filter display)
@@ -265,7 +268,7 @@ export default function Home() {
         {/* Main Content Wrapper with Sidebar Spacing */}
         <div 
           style={{
-            marginLeft: sidebarExpanded ? '280px' : '48px',
+            marginLeft: isDesktop ? (sidebarExpanded ? '280px' : '48px') : '0',
             transition: 'margin-left 0.3s ease',
             padding: '0 16px'
           }}

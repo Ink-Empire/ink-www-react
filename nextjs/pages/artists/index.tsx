@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import Head from 'next/head';
+import { useTheme, useMediaQuery } from '@mui/material';
 import ArtistCard from '../../components/ArtistCard';
 import SearchFilters from '../../components/SearchFilters';
 import ActiveFilterBadges from '../../components/ActiveFilterBadges';
@@ -10,6 +11,8 @@ import { distancePreferences } from '@/utils/distancePreferences';
 
 export default function ArtistList() {
     const user = useUserData();
+    const theme = useTheme();
+    const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
     
     const locationSettings = distancePreferences.getDefaultLocationSettings(!!user?.location_lat_long);
     
@@ -109,7 +112,7 @@ export default function ArtistList() {
             <div className="py-6">
                 <div 
                     style={{
-                        marginLeft: sidebarExpanded ? '280px' : '48px',
+                        marginLeft: isDesktop ? (sidebarExpanded ? '280px' : '48px') : '0',
                         transition: 'margin-left 0.3s ease',
                         padding: '0 16px'
                     }}
