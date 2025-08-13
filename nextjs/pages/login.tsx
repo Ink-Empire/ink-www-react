@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
@@ -15,11 +15,26 @@ const LoginPage: React.FC = () => {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>();
   
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+    };
+  }, []);
+  
   const onSubmit = async (data: FormValues) => {
     setError(null);
+    
+    // Clear any pending error timeout
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+    }
     
     try {
       await login({
@@ -30,8 +45,6 @@ const LoginPage: React.FC = () => {
             setError(errors.email.join(' '));
           } else if (errors.password) {
             setError(errors.password.join(' '));
-          } else {
-            setError('Login failed. Please check your credentials.');
           }
         },
         setIsLoading,
