@@ -283,14 +283,35 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </IconButton>
                 </Stack>
               ) : (
-                <Button 
-                  component={Link} 
-                  href="/login"
-                  size="small"
-                  sx={{ color: 'text.primary', fontSize: '0.8rem' }}
-                >
-                  Login
-                </Button>
+                <Stack direction="row" spacing={0.5}>
+                  <Button 
+                    component={Link} 
+                    href="/login"
+                    size="small"
+                    sx={{ 
+                      color: 'text.primary', 
+                      fontSize: '0.8rem',
+                      minWidth: { xs: '60px', sm: 'auto' },
+                      px: { xs: 1, sm: 2 }
+                    }}
+                  >
+                    Login
+                  </Button>
+                  <Button
+                    component={Link}
+                    href="/register"
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    sx={{ 
+                      fontSize: '0.8rem',
+                      minWidth: { xs: '65px', sm: 'auto' },
+                      px: { xs: 1, sm: 2 }
+                    }}
+                  >
+                    Sign up
+                  </Button>
+                </Stack>
               )}
             </Box>
           )}

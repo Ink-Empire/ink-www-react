@@ -1,8 +1,9 @@
 import { useRouter } from 'next/router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import useSWR from 'swr';
 
 import { api } from '../utils/api';
+import { clearAuthCache, clearUserSpecificCache } from '../utils/clearAuthCache';
 
 interface User {
   id: number;
@@ -31,8 +32,12 @@ interface UseAuthOptions {
 }
 
 const fetcher = async (url: string) => {
-  const response = await api.get(url);
-  return response.data || response;
+  try {
+    const response = await api.get(url);
+    return response.data || response;
+  } catch (error: any) {
+    throw error;
+  }
 };
 
 export const useAuth = ({
@@ -41,6 +46,7 @@ export const useAuth = ({
   redirectIfUnauthenticated = '/login',
 }: UseAuthOptions = {}) => {
   const router = useRouter();
+  const isLoggingIn = useRef(false);
 
   const {
     data: user,
@@ -54,11 +60,13 @@ export const useAuth = ({
       revalidateIfStale: false,
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      keepPreviousData: true,
+      keepPreviousData: false, // Don't keep previous data to avoid showing stale user info
       onErrorRetry: (error) => {
         // Never retry on 401, user is unauthenticated
         if (error.status === 401) return;
       },
+      // Disable error retry to prevent error state flashing during login
+      errorRetryCount: 0,
     }
   );
 
@@ -77,6 +85,7 @@ export const useAuth = ({
     setIsLoading?: (loading: boolean) => void;
     onSuccess?: () => void;
   }) => {
+    isLoggingIn.current = true;
     await csrf();
 
     setIsLoading?.(true);
@@ -85,10 +94,22 @@ export const useAuth = ({
     try {
       await api.post('/login', credentials);
       
-      // Immediately refresh user data after successful login
-      await mutate();
+      // Clear any previous error state before refreshing user data
+      // This prevents the brief "unable to authenticate" flash
+      await mutate(undefined, { revalidate: true });
       onSuccess?.();
     } catch (error: any) {
+      console.error('Login failed:', error);
+      
+      // Clear all cached data on login failure
+      await mutate(null, { revalidate: false });
+      
+      // Clear all authentication-related cached data
+      clearUserSpecificCache();
+      
+      // Clear API cache
+      api.clearUserCache?.();
+      
       if (error.response?.status === 422) {
         setErrors?.(error.response.data.errors);
       } else {
@@ -96,6 +117,7 @@ export const useAuth = ({
       }
     } finally {
       setIsLoading?.(false);
+      isLoggingIn.current = false;
     }
   };
 
@@ -109,6 +131,9 @@ export const useAuth = ({
     // Optimistically update user to null and don't revalidate
     await mutate(null, { revalidate: false });
     
+    // Clear all authentication and user-related cached data
+    clearAuthCache();
+    
     // Clear API cache
     api.clearUserCache?.();
     
@@ -118,24 +143,40 @@ export const useAuth = ({
     }
   };
 
-  // Handle middleware redirects
+  // Handle middleware redirects and clear stale data
   useEffect(() => {
     if (middleware === 'guest' && redirectIfAuthenticated && user) {
       router.push(redirectIfAuthenticated);
     }
 
-    if (middleware === 'auth' && error) {
-      if (error?.response?.status === 401) {
-        console.log('User is no longer authorized, forcing logout');
-        logout();
+    // Only force logout for auth middleware if we're not currently loading or logging in
+    // and we had a user but now have a 401 error (session expired)
+    if (middleware === 'auth' && error && !isLoading && !isLoggingIn.current) {
+      if (error?.response?.status === 401 && user === null) {
+        // Only logout if we previously had a user (session expired scenario)
+        // Don't logout on initial 401 errors when user was never authenticated
+        const hadUser = typeof window !== 'undefined' && localStorage.getItem('user_data');
+        if (hadUser) {
+          console.log('User session expired, forcing logout');
+          logout();
+        }
       }
     }
-  }, [user, error, isLoading, router, middleware, redirectIfAuthenticated]);
+    
+    // Clear localStorage when there's an authentication error, but not during loading or login
+    // to prevent flashing during login process
+    if (error && !isLoading && !isLoggingIn.current && typeof window !== 'undefined') {
+      console.log('Authentication error detected, clearing stale cached data');
+      clearUserSpecificCache();
+    }
+  }, [user, error, isLoading, router, middleware, redirectIfAuthenticated, isLoggingIn]);
 
   return {
     user,
     isLoading,
-    isAuthenticated: Boolean(user && !error),
+    // More resilient authentication check - consider authenticated if we have user data
+    // even if there's a stale error (prevents flashing during login transitions)
+    isAuthenticated: Boolean(user),
     login,
     logout,
     mutate,
