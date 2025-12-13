@@ -10,6 +10,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useStyles } from '../../contexts/StyleContext';
+import { colors } from '@/styles/colors';
 
 interface StylesSelectionProps {
   onStepComplete: (selectedStyles: number[]) => void;
@@ -66,7 +67,7 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
   if (loading) {
     return (
       <Box sx={{ maxWidth: 800, mx: 'auto', textAlign: 'center', py: 8 }}>
-        <CircularProgress sx={{ color: '#339989' }} size={60} />
+        <CircularProgress sx={{ color: colors.accent }} size={60} />
         <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
           Loading tattoo styles...
         </Typography>
@@ -84,11 +85,11 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
           variant="outlined"
           onClick={onBack}
           sx={{
-            color: '#e8dbc5',
-            borderColor: '#e8dbc5',
+            color: colors.textSecondary,
+            borderColor: colors.textSecondary,
             '&:hover': {
               backgroundColor: 'rgba(232, 219, 197, 0.1)',
-              borderColor: '#e8dbc5',
+              borderColor: colors.textSecondary,
             },
           }}
         >
@@ -107,7 +108,7 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
           sx={{
             mb: 2,
             fontWeight: 'bold',
-            color: '#e8dbc5',
+            color: colors.textSecondary,
             fontSize: { xs: '1.5rem', md: '2rem' }, // Slightly smaller for compact panel
           }}
         >
@@ -131,7 +132,7 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
         <Typography
           variant="body2"
           sx={{
-            color: '#339989',
+            color: colors.accent,
             fontWeight: 'bold',
             mb: 1,
           }}
@@ -154,14 +155,14 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
                 fontSize: '0.9rem',
                 fontWeight: 'bold',
                 transition: 'all 0.3s ease',
-                backgroundColor: selectedStyles.includes(style.id) ? '#339989' : 'transparent',
-                color: selectedStyles.includes(style.id) ? '#000' : '#e8dbc5',
-                borderColor: selectedStyles.includes(style.id) ? '#339989' : 'rgba(232, 219, 197, 0.5)',
+                backgroundColor: selectedStyles.includes(style.id) ? colors.accent : 'transparent',
+                color: selectedStyles.includes(style.id) ? '#000' : colors.textSecondary,
+                borderColor: selectedStyles.includes(style.id) ? colors.accent : 'rgba(232, 219, 197, 0.5)',
                 '&:hover': {
                   backgroundColor: selectedStyles.includes(style.id)
-                    ? '#2a7f7a'
+                    ? colors.accentDark
                     : 'rgba(232, 219, 197, 0.1)',
-                  borderColor: selectedStyles.includes(style.id) ? '#2a7f7a' : '#e8dbc5',
+                  borderColor: selectedStyles.includes(style.id) ? colors.accentDark : colors.textSecondary,
                   transform: 'translateY(-1px)',
                   boxShadow: '0 4px 12px rgba(51, 153, 137, 0.2)',
                 },
@@ -203,12 +204,12 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
             variant="outlined"
             onClick={handleSkip}
             sx={{
-              color: '#e8dbc5',
-              borderColor: '#e8dbc5',
+              color: colors.textSecondary,
+              borderColor: colors.textSecondary,
               minWidth: { xs: '120px', sm: '100px' },
               '&:hover': {
                 backgroundColor: 'rgba(232, 219, 197, 0.1)',
-                borderColor: '#e8dbc5',
+                borderColor: colors.textSecondary,
               },
             }}
           >
@@ -220,12 +221,12 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
             onClick={handleContinue}
             disabled={selectedStyles.length === 0}
             sx={{
-              backgroundColor: '#339989',
+              backgroundColor: colors.accent,
               color: '#000',
               fontWeight: 'bold',
               minWidth: { xs: '120px', sm: '100px' },
               '&:hover': {
-                backgroundColor: '#2a7f7a',
+                backgroundColor: colors.accentDark,
               },
               '&:disabled': {
                 backgroundColor: 'rgba(232, 219, 197, 0.3)',
@@ -242,12 +243,12 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
           variant="outlined"
           onClick={onBack}
           sx={{
-            color: '#e8dbc5',
-            borderColor: '#e8dbc5',
+            color: colors.textSecondary,
+            borderColor: colors.textSecondary,
             minWidth: '80px',
             '&:hover': {
               backgroundColor: 'rgba(232, 219, 197, 0.1)',
-              borderColor: '#e8dbc5',
+              borderColor: colors.textSecondary,
             },
           }}
         >

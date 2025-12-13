@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Typography } from '@mui/material';
+import { colors } from '@/styles/colors';
 
 interface LogoTextProps {
   color?: string;
@@ -7,8 +8,8 @@ interface LogoTextProps {
   fontSize?: string | number;
 }
 
-const LogoText: React.FC<LogoTextProps> = ({ 
-  color = '#339989', 
+const LogoText: React.FC<LogoTextProps> = ({
+  color = colors.accent,
   className = '',
   fontSize
 }) => {

@@ -16,6 +16,7 @@ import StylesSelection from './StylesSelection';
 import ArtistPreferencesSelection from './ArtistPreferencesSelection';
 import UserDetails from './UserDetails';
 import AccountSetup from './AccountSetup';
+import { colors } from '@/styles/colors';
 
 export interface OnboardingData {
   userType?: 'client' | 'artist' | 'studio';
@@ -299,7 +300,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             height: 6,
             backgroundColor: 'rgba(232, 219, 197, 0.2)',
             '& .MuiLinearProgress-bar': {
-              backgroundColor: '#339989',
+              backgroundColor: colors.accent,
             },
           }}
         />
@@ -315,20 +316,20 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               '& .MuiStepLabel-label': {
                 color: 'text.secondary',
                 '&.Mui-active': {
-                  color: '#339989',
+                  color: colors.accent,
                   fontWeight: 'bold',
                 },
                 '&.Mui-completed': {
-                  color: '#e8dbc5',
+                  color: colors.textSecondary,
                 },
               },
               '& .MuiStepIcon-root': {
                 color: 'rgba(232, 219, 197, 0.3)',
                 '&.Mui-active': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
                 '&.Mui-completed': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
               },
             }}
@@ -348,7 +349,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           <Typography
             variant="body2"
             sx={{
-              color: '#339989',
+              color: colors.accent,
               fontWeight: 'bold',
             }}
           >
@@ -363,7 +364,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           elevation={2}
           sx={{
             p: { xs: 3, sm: 4, md: 5 },
-            backgroundColor: '#2a1a1e',
+            backgroundColor: colors.surface,
             color: 'white',
             borderRadius: { xs: 2, md: 3 },
             maxWidth: { xs: '95%', sm: 700, md: 900 },

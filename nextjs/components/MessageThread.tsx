@@ -13,6 +13,7 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import { formatDistanceToNow } from 'date-fns';
 import { api } from '../utils/api';
+import { colors } from '@/styles/colors';
 
 interface Message {
   id: number;
@@ -116,7 +117,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress sx={{ color: '#339989' }} />
+        <CircularProgress sx={{ color: colors.accent }} />
       </Box>
     );
   }
@@ -171,19 +172,19 @@ const MessageThread: React.FC<MessageThreadProps> = ({
                 alignItems: 'flex-start',
                 gap: 1
               }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: message.sender.id === currentUserId ? '#339989' : '#666',
+                <Avatar sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: message.sender.id === currentUserId ? colors.accent : '#666',
                   fontSize: 14
                 }}>
                   {message.sender.name.charAt(0).toUpperCase()}
                 </Avatar>
-                
+
                 <Paper sx={{
                   p: 2,
                   maxWidth: '70%',
-                  bgcolor: message.sender.id === currentUserId ? '#339989' : '#333',
+                  bgcolor: message.sender.id === currentUserId ? colors.accent : '#333',
                   color: 'white',
                   borderRadius: '16px',
                   ...(message.sender.id === currentUserId ? {
@@ -236,7 +237,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
                   borderColor: '#666'
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#339989'
+                  borderColor: colors.accent
                 }
               },
               '& .MuiInputBase-input::placeholder': {
@@ -251,9 +252,9 @@ const MessageThread: React.FC<MessageThreadProps> = ({
             sx={{
               minWidth: 'auto',
               p: 1.5,
-              bgcolor: '#339989',
+              bgcolor: colors.accent,
               '&:hover': {
-                bgcolor: '#267b6e'
+                bgcolor: colors.accentDark
               },
               '&:disabled': {
                 bgcolor: '#555'

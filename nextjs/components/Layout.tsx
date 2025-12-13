@@ -3,13 +3,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
-import { useUser } from '../contexts/UserContext';
 import { useInboxCount } from '../hooks';
-import { AppBar, Toolbar, Typography, Button, Box, Container, Avatar, Stack, Tabs, Tab, Badge, IconButton, Drawer, List, ListItem, ListItemText, useMediaQuery, useTheme } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, Container, Avatar, Stack, Badge, IconButton, Drawer, List, ListItem, ListItemText, useMediaQuery, useTheme } from '@mui/material';
 import InboxIcon from '@mui/icons-material/Inbox';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import LogoText from './LogoText';
+import { DebugAuth } from './DebugAuth';
+import { colors } from '@/styles/colors';
 
 interface LayoutProps {
   children: ReactNode;
@@ -17,7 +18,11 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { isAuthenticated, user, logout } = useAuth();
-  const { userData } = useUser();
+  
+  // Debug: Log user data to console
+  useEffect(() => {
+    console.log('Layout - Debug user data:', { isAuthenticated, user });
+  }, [isAuthenticated, user]);
   const router = useRouter();
   const { count: inboxCount } = useInboxCount(user?.id);
   const theme = useTheme();
@@ -33,12 +38,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     // Check for profile image sources in order of preference
     if ((user as any)?.image) {
       setAvatarUrl((user as any).image);
-    } else if (userData?.profilePhoto?.webviewPath) {
-      setAvatarUrl(userData.profilePhoto.webviewPath);
     } else {
       setAvatarUrl(null);
     }
-  }, [user, userData]);
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -49,12 +52,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getInitials = () => {
     if (user?.first_name) {
       return user.first_name.charAt(0);
-    } else if (userData?.name) {
-      return userData.name.charAt(0);
+    } else if (user?.name) {
+      return user.name.charAt(0);
     } else if (user?.email) {
       return user.email.charAt(0);
-    } else if (userData?.email) {
-      return userData.email.charAt(0);
     }
     return '?';
   };
@@ -63,19 +64,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getDisplayName = () => {
     if (user?.first_name && user?.last_name) {
       return `${user.first_name} ${user.last_name}`;
-    } else if (userData?.name) {
-      return userData.name;
+    } else if (user?.name) {
+      return user.name;
     } else if (user?.email) {
       return user.email;
-    } else if (userData?.email) {
-      return userData.email;
     }
     return 'Profile';
   };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static" elevation={2} sx={{ backgroundColor: '#120a0d' }}>
+      <AppBar position="static" elevation={2} sx={{ backgroundColor: colors.background }}>
         <Toolbar sx={{ justifyContent: 'space-between', minHeight: { xs: 56, sm: 64 } }}>
           {/* Mobile Menu Button */}
           {isMobile && (
@@ -111,56 +110,98 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             />
             <LogoText fontSize={isMobile ? "1.5rem" : "2.5rem"} />
           </Box>
-          
-          {/* Desktop Navigation */}
+
+          {/* Spacer to push nav to the right */}
+          {!isMobile && <Box sx={{ flexGrow: 1 }} />}
+
+          {/* Desktop Navigation Links */}
           {!isMobile && (
-            <Tabs 
-              value={
-                router.pathname === '/' ? 0 :
-                router.pathname.startsWith('/artists') ? 1 : false
-              }
-              indicatorColor="primary"
-              textColor="inherit"
-              TabIndicatorProps={{ sx: { height: 3 } }}
-              sx={{ ml: 2 }}
-            >
-              <Tab 
-                label="Home" 
-                component={Link} 
-                href="/" 
-                sx={{ minWidth: 'auto' }}
-              />
-              <Tab 
-                label="Artists" 
-                component={Link} 
-                href="/artists" 
-                sx={{ minWidth: 'auto' }}
-              />
-            </Tabs>
+            <Stack direction="row" spacing={4} alignItems="center">
+              <Typography
+                component={Link}
+                href="/artists"
+                sx={{
+                  color: colors.accent,
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  '&:hover': {
+                    color: colors.accentHover,
+                  },
+                }}
+              >
+                Find Artists
+              </Typography>
+              <Typography
+                component={Link}
+                href="/tattoos"
+                sx={{
+                  color: colors.accent,
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  '&:hover': {
+                    color: colors.accentHover,
+                  },
+                }}
+              >
+                Styles
+              </Typography>
+              <Typography
+                component={Link}
+                href="/how-it-works"
+                sx={{
+                  color: colors.accent,
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  '&:hover': {
+                    color: colors.accentHover,
+                  },
+                }}
+              >
+                How It Works
+              </Typography>
+              <Typography
+                component={Link}
+                href="/for-artists"
+                sx={{
+                  color: colors.accent,
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  '&:hover': {
+                    color: colors.accentHover,
+                  },
+                }}
+              >
+                For Artists
+              </Typography>
+            </Stack>
           )}
-          
+
           {/* User Menu - Desktop */}
           {!isMobile && (
-            <Box>
+            <Box sx={{ ml: 4 }}>
               {isAuthenticated ? (
                 <Stack direction="row" spacing={2} alignItems="center">
                   <IconButton
                     component={Link}
                     href="/inbox"
-                    sx={{ 
-                      color: 'text.primary',
-                      '&:hover': { 
-                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                    sx={{
+                      color: colors.textPrimary,
+                      '&:hover': {
+                        backgroundColor: `${colors.accent}1A`
                       }
                     }}
                   >
-                    <Badge 
-                      badgeContent={inboxCount > 0 ? inboxCount : null} 
+                    <Badge
+                      badgeContent={inboxCount > 0 ? inboxCount : null}
                       color="error"
                       sx={{
                         '& .MuiBadge-badge': {
-                          backgroundColor: '#339989',
-                          color: 'white',
+                          backgroundColor: colors.accent,
+                          color: colors.background,
                           fontWeight: 'bold'
                         }
                       }}
@@ -169,66 +210,93 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </Badge>
                   </IconButton>
 
-                  <Button 
-                    component={Link} 
+                  <Button
+                    component={Link}
                     href="/profile"
                     startIcon={
-                      <Avatar 
+                      <Avatar
                         src={avatarUrl || undefined}
                         alt={getDisplayName()}
-                        sx={{ 
-                          width: 32, 
+                        sx={{
+                          width: 32,
                           height: 32,
-                          bgcolor: 'primary.light',
-                          color: 'primary.contrastText',
+                          bgcolor: colors.accent,
+                          color: colors.background,
                         }}
                       >
                         {getInitials()}
                       </Avatar>
                     }
-                    sx={{ 
-                      textTransform: 'none', 
-                      color: 'text.primary',
-                      '&:hover': { 
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                    sx={{
+                      textTransform: 'none',
+                      color: colors.textPrimary,
+                      '&:hover': {
+                        backgroundColor: `${colors.accent}1A`
                       }
                     }}
                   >
                     {getDisplayName()}
                   </Button>
-                  
+
                   <Button
                     variant="outlined"
-                    color="primary"
                     size="small"
                     onClick={handleLogout}
+                    sx={{
+                      color: colors.textPrimary,
+                      borderColor: colors.textSecondary,
+                      '&:hover': {
+                        borderColor: colors.textPrimary,
+                        backgroundColor: 'transparent'
+                      }
+                    }}
                   >
                     Log out
                   </Button>
                 </Stack>
               ) : (
                 <Stack direction="row" spacing={2}>
-                  <Button 
-                    component={Link} 
+                  <Button
+                    component={Link}
                     href="/login"
-                    sx={{ color: 'text.primary' }}
+                    variant="outlined"
+                    sx={{
+                      color: colors.textPrimary,
+                      borderColor: colors.textSecondary,
+                      textTransform: 'none',
+                      px: 3,
+                      '&:hover': {
+                        borderColor: colors.textPrimary,
+                        backgroundColor: 'transparent'
+                      }
+                    }}
                   >
-                    Log in
+                    Sign In
                   </Button>
                   <Button
                     component={Link}
                     href="/register"
                     variant="contained"
-                    color="primary"
-                    size="small"
+                    disableElevation
+                    sx={{
+                      backgroundColor: `${colors.accent} !important`,
+                      color: `${colors.background} !important`,
+                      textTransform: 'none',
+                      px: 3,
+                      fontWeight: 600,
+                      border: 'none',
+                      '&:hover': {
+                        backgroundColor: `${colors.accentHover} !important`,
+                      }
+                    }}
                   >
-                    Sign up
+                    Join Now
                   </Button>
                 </Stack>
               )}
             </Box>
           )}
-          
+
           {/* Mobile User Avatar/Login */}
           {isMobile && (
             <Box>
@@ -238,20 +306,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     component={Link}
                     href="/inbox"
                     size="small"
-                    sx={{ 
+                    sx={{
                       color: 'text.primary',
-                      '&:hover': { 
-                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                      '&:hover': {
+                        backgroundColor: `${colors.accent}1A`
                       }
                     }}
                   >
-                    <Badge 
-                      badgeContent={inboxCount > 0 ? inboxCount : null} 
+                    <Badge
+                      badgeContent={inboxCount > 0 ? inboxCount : null}
                       color="error"
                       sx={{
                         '& .MuiBadge-badge': {
-                          backgroundColor: '#339989',
-                          color: 'white',
+                          backgroundColor: colors.accent,
+                          color: colors.background,
                           fontWeight: 'bold',
                           fontSize: '0.7rem',
                           minWidth: '16px',
@@ -283,33 +351,46 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </IconButton>
                 </Stack>
               ) : (
-                <Stack direction="row" spacing={0.5}>
-                  <Button 
-                    component={Link} 
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    component={Link}
                     href="/login"
+                    variant="outlined"
                     size="small"
-                    sx={{ 
-                      color: 'text.primary', 
+                    sx={{
+                      color: colors.textPrimary,
+                      borderColor: colors.textSecondary,
                       fontSize: '0.8rem',
-                      minWidth: { xs: '60px', sm: 'auto' },
-                      px: { xs: 1, sm: 2 }
+                      textTransform: 'none',
+                      px: 2,
+                      '&:hover': {
+                        borderColor: colors.textPrimary,
+                        backgroundColor: 'transparent'
+                      }
                     }}
                   >
-                    Login
+                    Sign In
                   </Button>
                   <Button
                     component={Link}
                     href="/register"
                     variant="contained"
-                    color="primary"
                     size="small"
-                    sx={{ 
+                    disableElevation
+                    sx={{
+                      backgroundColor: `${colors.accent} !important`,
+                      color: `${colors.background} !important`,
                       fontSize: '0.8rem',
-                      minWidth: { xs: '65px', sm: 'auto' },
-                      px: { xs: 1, sm: 2 }
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      border: 'none',
+                      px: 2,
+                      '&:hover': {
+                        backgroundColor: `${colors.accentHover} !important`,
+                      }
                     }}
                   >
-                    Sign up
+                    Join Now
                   </Button>
                 </Stack>
               )}
@@ -324,8 +405,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           onClose={() => setMobileMenuOpen(false)}
           PaperProps={{
             sx: {
-              backgroundColor: '#1c0f13',
-              color: 'white',
+              backgroundColor: colors.background,
+              color: colors.textPrimary,
               width: 280
             }
           }}
@@ -354,61 +435,93 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </Stack>
             
             <List>
-              <ListItem 
-                component={Link}
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                sx={{ 
-                  borderRadius: 1,
-                  mb: 1,
-                  backgroundColor: router.pathname === '/' ? 'rgba(51, 153, 137, 0.2)' : 'transparent',
-                  '&:hover': {
-                    backgroundColor: 'rgba(51, 153, 137, 0.1)'
-                  }
-                }}
-              >
-                <ListItemText primary="Home" />
-              </ListItem>
-              
-              <ListItem 
+              <ListItem
                 component={Link}
                 href="/artists"
                 onClick={() => setMobileMenuOpen(false)}
-                sx={{ 
+                sx={{
                   borderRadius: 1,
                   mb: 1,
-                  backgroundColor: router.pathname.startsWith('/artists') ? 'rgba(51, 153, 137, 0.2)' : 'transparent',
+                  backgroundColor: router.pathname.startsWith('/artists') ? `${colors.accent}33` : 'transparent',
                   '&:hover': {
-                    backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                    backgroundColor: `${colors.accent}1A`
                   }
                 }}
               >
-                <ListItemText primary="Artists" />
+                <ListItemText primary="Find Artists" />
               </ListItem>
-              
+
+              <ListItem
+                component={Link}
+                href="/tattoos"
+                onClick={() => setMobileMenuOpen(false)}
+                sx={{
+                  borderRadius: 1,
+                  mb: 1,
+                  backgroundColor: router.pathname === '/tattoos' ? `${colors.accent}33` : 'transparent',
+                  '&:hover': {
+                    backgroundColor: `${colors.accent}1A`
+                  }
+                }}
+              >
+                <ListItemText primary="Styles" />
+              </ListItem>
+
+              <ListItem
+                component={Link}
+                href="/how-it-works"
+                onClick={() => setMobileMenuOpen(false)}
+                sx={{
+                  borderRadius: 1,
+                  mb: 1,
+                  backgroundColor: router.pathname === '/how-it-works' ? `${colors.accent}33` : 'transparent',
+                  '&:hover': {
+                    backgroundColor: `${colors.accent}1A`
+                  }
+                }}
+              >
+                <ListItemText primary="How It Works" />
+              </ListItem>
+
+              <ListItem
+                component={Link}
+                href="/for-artists"
+                onClick={() => setMobileMenuOpen(false)}
+                sx={{
+                  borderRadius: 1,
+                  mb: 1,
+                  backgroundColor: router.pathname === '/for-artists' ? `${colors.accent}33` : 'transparent',
+                  '&:hover': {
+                    backgroundColor: `${colors.accent}1A`
+                  }
+                }}
+              >
+                <ListItemText primary="For Artists" />
+              </ListItem>
+
               {isAuthenticated ? (
                 <>
                   <ListItem 
                     component={Link}
                     href="/profile"
                     onClick={() => setMobileMenuOpen(false)}
-                    sx={{ 
+                    sx={{
                       borderRadius: 1,
                       mb: 1,
                       '&:hover': {
-                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                        backgroundColor: `${colors.accent}1A`
                       }
                     }}
                   >
                     <Stack direction="row" alignItems="center" spacing={2}>
-                      <Avatar 
+                      <Avatar
                         src={avatarUrl || undefined}
                         alt={getDisplayName()}
-                        sx={{ 
-                          width: 24, 
+                        sx={{
+                          width: 24,
                           height: 24,
-                          bgcolor: 'primary.light',
-                          color: 'primary.contrastText',
+                          bgcolor: colors.accent,
+                          color: colors.background,
                         }}
                       >
                         {getInitials()}
@@ -416,18 +529,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <ListItemText primary={getDisplayName()} />
                     </Stack>
                   </ListItem>
-                  
-                  <ListItem 
+
+                  <ListItem
                     onClick={() => {
                       handleLogout();
                       setMobileMenuOpen(false);
                     }}
-                    sx={{ 
+                    sx={{
                       borderRadius: 1,
                       mb: 1,
                       cursor: 'pointer',
                       '&:hover': {
-                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                        backgroundColor: `${colors.accent}1A`
                       }
                     }}
                   >
@@ -436,35 +549,45 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </>
               ) : (
                 <>
-                  <ListItem 
+                  <ListItem
                     component={Link}
                     href="/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    sx={{ 
+                    sx={{
                       borderRadius: 1,
                       mb: 1,
+                      border: `1px solid ${colors.textSecondary}`,
                       '&:hover': {
-                        backgroundColor: 'rgba(51, 153, 137, 0.1)'
+                        backgroundColor: `${colors.accent}1A`
                       }
                     }}
                   >
-                    <ListItemText primary="Log in" />
+                    <ListItemText primary="Sign In" sx={{ textAlign: 'center' }} />
                   </ListItem>
-                  
-                  <ListItem 
+
+                  <ListItem
                     component={Link}
                     href="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    sx={{ 
+                    sx={{
                       borderRadius: 1,
                       mb: 1,
-                      backgroundColor: 'rgba(51, 153, 137, 0.8)',
+                      backgroundColor: colors.accent,
                       '&:hover': {
-                        backgroundColor: 'rgba(51, 153, 137, 1)'
+                        backgroundColor: colors.accentHover
                       }
                     }}
                   >
-                    <ListItemText primary="Sign up" />
+                    <ListItemText
+                      primary="Join Now"
+                      sx={{
+                        textAlign: 'center',
+                        '& .MuiTypography-root': {
+                          color: colors.background,
+                          fontWeight: 600
+                        }
+                      }}
+                    />
                   </ListItem>
                 </>
               )}
@@ -481,13 +604,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             px: { xs: 1, sm: 3 }
           }}
         >
-          <Box 
-            sx={{ 
-              bgcolor: '#2a1a1e', 
-              borderRadius: 2, 
-              p: { xs: 2, sm: 3 }, 
-              boxShadow: 1, 
-              color: 'text.primary' 
+          <Box
+            sx={{
+              bgcolor: colors.surface,
+              borderRadius: 2,
+              p: { xs: 2, sm: 3 },
+              boxShadow: 1,
+              color: 'text.primary'
             }}
           >
             {children}
@@ -502,7 +625,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           borderColor: 'rgba(255, 255, 255, 0.1)',
           py: 3,
           mt: 'auto',
-          bgcolor: '#120a0d'
+          bgcolor: colors.background
         }}
       >
         <Container maxWidth="lg">
@@ -548,6 +671,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Stack>
         </Container>
       </Box>
+      
+      {/* Debug component for development */}
+      {/*<DebugAuth />*/}
     </Box>
   );
 };

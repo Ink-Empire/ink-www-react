@@ -7,15 +7,16 @@ import { useStyles } from '@/contexts/StyleContext';
 import { fetchCsrfToken, getCsrfToken } from '@/utils/api';
 import { getToken } from '@/utils/auth';
 import StyleModal from '@/components/StyleModal';
-import { 
-  Box, 
-  Button, 
-  TextField, 
-  Typography, 
-  CircularProgress, 
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  CircularProgress,
   Paper,
   Grid
 } from '@mui/material';
+import { colors } from '@/styles/colors';
 
 export default function UpdateTattoo() {
   const router = useRouter();
@@ -336,10 +337,10 @@ export default function UpdateTattoo() {
                     {selectedStyles.map(styleId => {
                       const style = styles.find(s => s.id === styleId);
                       return (
-                        <Box 
+                        <Box
                           key={styleId}
-                          sx={{ 
-                            bgcolor: '#339989', 
+                          sx={{
+                            bgcolor: colors.accent,
                             color: 'white',
                             px: 1,
                             py: 0.5,
@@ -365,11 +366,11 @@ export default function UpdateTattoo() {
                   Back
                 </Button>
                 
-                <Button 
-                  type="submit" 
-                  variant="contained" 
+                <Button
+                  type="submit"
+                  variant="contained"
                   disabled={isSubmitting || !about}
-                  sx={{ bgcolor: '#339989', '&:hover': { bgcolor: '#2d7e75' } }}
+                  sx={{ bgcolor: colors.accent, '&:hover': { bgcolor: colors.accentDark } }}
                 >
                   {isSubmitting ? (
                     <>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import WorkingHoursDisplay from "@/components/WorkingHoursDisplay";
+import { colors } from '@/styles/colors';
 
 interface WorkingHoursProps {
   isOpen: boolean;
@@ -176,9 +177,8 @@ const WorkingHoursModal: React.FC<WorkingHoursProps> = ({
                       value={selectedStartTime}
                       onChange={(e) => setSelectedStartTime(e.target.value)}
                       className="w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2
-                        focus:outline-none focus:ring-2 focus:ring-persian-green focus:border-persian-green text-sm text-black 
-                        accent-[#339989]"
-                      style={{colorScheme: 'light'}}
+                        focus:outline-none focus:ring-2 focus:ring-persian-green focus:border-persian-green text-sm text-black"
+                      style={{colorScheme: 'light', accentColor: colors.accent}}
                     />
                   </div>
                   <div className="flex-none pt-5 pb-1.5 text-black">to</div>
@@ -189,9 +189,8 @@ const WorkingHoursModal: React.FC<WorkingHoursProps> = ({
                       value={selectedEndTime}
                       onChange={(e) => setSelectedEndTime(e.target.value)}
                       className="w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2
-                        focus:outline-none focus:ring-2 focus:ring-persian-green focus:border-persian-green text-sm text-black
-                        accent-[#339989]"
-                      style={{colorScheme: 'light'}}
+                        focus:outline-none focus:ring-2 focus:ring-persian-green focus:border-persian-green text-sm text-black"
+                      style={{colorScheme: 'light', accentColor: colors.accent}}
                     />
                   </div>
                 </div>
@@ -208,7 +207,8 @@ const WorkingHoursModal: React.FC<WorkingHoursProps> = ({
                             id={`day-${index}`}
                             checked={selectedDays.includes(index)}
                             onChange={() => handleDaySelection(index)}
-                            className="h-4 w-4 text-persian-green focus:ring-persian-green border-gray-300 rounded accent-[#339989]"
+                            className="h-4 w-4 text-persian-green focus:ring-persian-green border-gray-300 rounded"
+                            style={{accentColor: colors.accent}}
                           />
                           <label htmlFor={`day-${index}`} className="ml-1.5 text-sm text-black">
                             {day.substring(0, 3)}

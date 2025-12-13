@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
 import AppointmentCard from './AppointmentCard';
 import HistoryTab from './HistoryTab';
+import { colors } from '@/styles/colors';
 
 interface InboxProps {
   userId?: number;
@@ -109,7 +110,7 @@ const Inbox: React.FC<InboxProps> = ({ userId, userType = 'artist' }) => {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <InboxIcon sx={{ fontSize: 32, color: '#339989' }} />
+          <InboxIcon sx={{ fontSize: 32, color: colors.accent }} />
           <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
             Inbox
           </Typography>
@@ -126,10 +127,10 @@ const Inbox: React.FC<InboxProps> = ({ userId, userType = 'artist' }) => {
           onClick={handleRefresh}
           disabled={loading}
           sx={{
-            color: '#339989',
-            borderColor: '#339989',
+            color: colors.accent,
+            borderColor: colors.accent,
             '&:hover': {
-              borderColor: '#267b6e',
+              borderColor: colors.accentDark,
               bgcolor: 'rgba(51, 153, 137, 0.1)'
             }
           }}
@@ -145,12 +146,12 @@ const Inbox: React.FC<InboxProps> = ({ userId, userType = 'artist' }) => {
           onChange={handleTabChange}
           sx={{
             '& .MuiTabs-indicator': {
-              backgroundColor: '#339989'
+              backgroundColor: colors.accent
             },
             '& .MuiTab-root': {
               color: '#888',
               '&.Mui-selected': {
-                color: '#339989'
+                color: colors.accent
               }
             }
           }}
@@ -166,7 +167,7 @@ const Inbox: React.FC<InboxProps> = ({ userId, userType = 'artist' }) => {
                     minWidth: '16px',
                     height: '16px',
                     padding: '0 4px',
-                    backgroundColor: '#339989'
+                    backgroundColor: colors.accent
                   }
                 }}
               >
@@ -197,7 +198,7 @@ const Inbox: React.FC<InboxProps> = ({ userId, userType = 'artist' }) => {
         <Box>
           {/* Error state */}
           {error && (
-            <Alert severity="error" sx={{ mb: 3, bgcolor: '#2a1a1e', border: '1px solid #f44336' }}>
+            <Alert severity="error" sx={{ mb: 3, bgcolor: colors.surface, border: `1px solid ${colors.error}` }}>
               {error}
             </Alert>
           )}
@@ -205,7 +206,7 @@ const Inbox: React.FC<InboxProps> = ({ userId, userType = 'artist' }) => {
           {/* Loading state */}
           {loading && (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress sx={{ color: '#339989' }} />
+              <CircularProgress sx={{ color: colors.accent }} />
             </Box>
           )}
 

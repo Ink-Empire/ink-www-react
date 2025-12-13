@@ -11,14 +11,51 @@
 }
 
 :root {
-  --primary-color: #339989;
-  --secondary-color: #bc6c25;
-  --accent-color: #DC0F38;
-  --background-color: #1c0f13;
-  --text-color: #ffffff;
-  --card-background: #2a1a1e;
-  --card-hover: #382932;
-  --border-color: #382932;
+  /* Backgrounds */
+  --background: #0F0F0F;
+  --surface: #1A1A1A;
+
+  /* Text */
+  --text-primary: #F5F4F0;
+  --text-secondary: #A3A299;
+  --text-muted: rgba(163, 162, 153, 0.7);
+
+  /* Accent (Gold) */
+  --accent: #C9A962;
+  --accent-hover: #E4C675;
+  --accent-dark: #A88B4A;
+
+  /* Status Colors */
+  --success: #4A9B7F;
+  --error: #C75D5D;
+  --warning: #D4A24C;
+  --info: #5B8FB9;
+
+  /* Borders */
+  --border: #2A2A2A;
+  --border-light: #3A3A3A;
+
+  /* Calendar/Availability */
+  --available: #4A9B7F;
+  --today-highlight: #C9A962;
+
+  /* Aliases for common usage */
+  --primary: #C9A962;
+  --primary-light: #E4C675;
+  --primary-dark: #A88B4A;
+  --secondary: #A3A299;
+  --secondary-light: #B8B8AE;
+  --secondary-dark: #8A8A82;
+
+  /* Legacy aliases (for backwards compatibility) */
+  --primary-color: var(--primary);
+  --secondary-color: var(--secondary);
+  --accent-color: var(--accent);
+  --background-color: var(--background);
+  --text-color: var(--text-primary);
+  --card-background: var(--surface);
+  --card-hover: var(--border);
+  --border-color: var(--border);
 }
 
 * {
@@ -565,8 +602,8 @@ a {
 .fc .fc-available-day,
 .artist-calendar .fc .fc-available-day {
   opacity: 1 !important;
-  background-color: #00A896 !important;
-  border-color: #00A896 !important;
+  background-color: var(--available) !important;
+  border-color: var(--available) !important;
 }
 
 /* Force the background events to be visible */
@@ -574,7 +611,7 @@ a {
 .fc .fc-bg-event,
 .artist-calendar .fc .fc-bg-event {
   opacity: 1 !important;
-  background-color: #00A896 !important;
+  background-color: var(--available) !important;
 }
 
 /* Direct styles for day cells */
@@ -585,14 +622,14 @@ a {
 
 .artist-calendar .fc-daygrid-day.available-day,
 .artist-calendar .fc .fc-daygrid-day.available-day {
-  background-color: #00A896 !important;
+  background-color: var(--available) !important;
 }
 
 /* Background events */
 .artist-calendar .fc-daygrid-day-bg .fc-bg-event,
 .artist-calendar .fc .fc-daygrid-day-bg .fc-bg-event {
   opacity: 1 !important;
-  background-color: #00A896 !important;
+  background-color: var(--available) !important;
   z-index: 1 !important;
 }
 
@@ -600,7 +637,7 @@ a {
 .fc-day-today,
 .fc .fc-day-today,
 .artist-calendar .fc .fc-day-today,
-.fc-day-today.fc-day-past, 
+.fc-day-today.fc-day-past,
 .fc-day-today.fc-day-future {
   background-color: transparent !important;
 }
@@ -609,14 +646,14 @@ a {
 .fc-business-day,
 .fc .fc-business-day,
 .artist-calendar .fc .fc-business-day {
-  background-color: #00A896 !important;
+  background-color: var(--available) !important;
 }
 
 /* Direct styling for events */
 .artist-calendar .fc-event,
 .artist-calendar .fc .fc-event {
-  background-color: #00A896 !important;
-  border-color: #00A896 !important;
+  background-color: var(--available) !important;
+  border-color: var(--available) !important;
 }
 
 /* Increase specificity for day cells */
@@ -627,7 +664,7 @@ a {
 /* Style for available days - added by JavaScript */
 .artist-calendar [data-date].available-day,
 .artist-calendar [data-date].available-day-cell {
-  background-color: #00A896 !important;
+  background-color: var(--available) !important;
 }
 
 .available-day-cell {
@@ -648,25 +685,25 @@ a {
 
 /* Global style that will apply to all elements with inline style */
 [style*="background-color: #00A896"] {
-  background-color: #00A896 !important;
+  background-color: var(--available) !important;
 }
 
 .artist-calendar .fc {
-  --fc-border-color: #382932;
-  --fc-page-bg-color: #1c0f13;
-  --fc-neutral-bg-color: #2a1a1e;
-  --fc-neutral-text-color: #E8DBC5;
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--background);
+  --fc-neutral-bg-color: var(--background-elevated);
+  --fc-neutral-text-color: var(--text-secondary);
   --fc-today-bg-color: transparent;
-  --fc-event-bg-color: #00A896;
-  --fc-event-border-color: #00A896;
+  --fc-event-bg-color: var(--available);
+  --fc-event-border-color: var(--available);
 }
 
 .artist-calendar .fc-col-header-cell {
-  background-color: #2a1a1e;
+  background-color: var(--background-elevated);
 }
 
 .artist-calendar .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-  color: #FF5722;
+  color: var(--today-highlight);
   font-weight: bold;
 }
 
@@ -676,18 +713,18 @@ a {
 }
 
 .artist-calendar .fc-button {
-  background-color: #2a1a1e;
-  border-color: #382932;
-  color: #E8DBC5;
+  background-color: var(--background-elevated);
+  border-color: var(--border);
+  color: var(--text-secondary);
 }
 
 .artist-calendar .fc-button:hover {
-  background-color: #382932;
+  background-color: var(--background-hover);
 }
 
 .artist-calendar .fc-button-active {
-  background-color: #00A896 !important;
-  border-color: #00A896 !important;
+  background-color: var(--available) !important;
+  border-color: var(--available) !important;
   color: white !important;
 }
 
@@ -697,24 +734,45 @@ a {
     @apply px-3 py-2 sm:px-4 sm:py-2 rounded font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 text-sm sm:text-base min-h-[44px] flex items-center justify-center;
   }
   .btn-primary {
-    @apply btn bg-[#339989] text-white hover:bg-[#247c6c] focus:ring-[#339989];
+    background-color: var(--primary);
+    @apply btn text-white focus:ring-2;
+  }
+  .btn-primary:hover {
+    background-color: var(--primary-dark);
   }
   .btn-secondary {
-    @apply btn bg-[#bc6c25] text-white hover:bg-[#9e5b1e] focus:ring-[#bc6c25];
+    background-color: var(--secondary);
+    @apply btn text-white focus:ring-2;
+  }
+  .btn-secondary:hover {
+    background-color: var(--secondary-dark);
   }
   .btn-accent {
-    @apply btn bg-[#DC0F38] text-white hover:bg-[#b00929] focus:ring-[#DC0F38];
+    background-color: var(--accent);
+    @apply btn text-white focus:ring-2;
+  }
+  .btn-accent:hover {
+    background-color: var(--accent-dark);
   }
   .input {
-    @apply block w-full px-3 py-2 border border-[#d6c9b3] rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#339989] focus:border-[#339989] text-base min-h-[44px];
+    border-color: var(--border-light);
+    @apply block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none text-base min-h-[44px];
+  }
+  .input:focus {
+    border-color: var(--primary);
+    --tw-ring-color: var(--primary);
   }
   .card {
-    @apply p-4 sm:p-6 rounded-lg shadow-sm bg-[#2a1a1e] text-white border border-[#382932] transition-all duration-200 ease-in-out;
+    background-color: var(--background-elevated);
+    border-color: var(--border);
+    @apply p-4 sm:p-6 rounded-lg shadow-sm text-white border transition-all duration-200 ease-in-out;
   }
-  .card-hover {
-    @apply hover:shadow-md hover:-translate-y-1 hover:bg-[#382932];
+  .card-hover:hover {
+    background-color: var(--background-hover);
+    @apply shadow-md -translate-y-1;
   }
   .tattoo-heading {
-    @apply font-tattoo text-[#339989] text-xl sm:text-2xl md:text-4xl;
+    color: var(--primary);
+    @apply font-tattoo text-xl sm:text-2xl md:text-4xl;
   }
 }

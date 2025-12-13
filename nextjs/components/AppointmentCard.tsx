@@ -12,6 +12,7 @@ import ReplyIcon from '@mui/icons-material/Reply';
 import CloseIcon from '@mui/icons-material/Close';
 import { api } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { colors } from '@/styles/colors';
 
 interface Message {
   id: number;
@@ -205,7 +206,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   }, [messagesExpanded, messages, user?.id]);
 
   const getTypeColor = (type: string) => {
-    return type === 'consultation' ? '#2196f3' : '#339989';
+    return type === 'consultation' ? colors.info : colors.accent;
   };
 
   const getTypeIcon = (type: string) => {
@@ -248,13 +249,13 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     (isCurrentUserArtist ? `client${appointment.client_id}` : `artist${appointment.artist_id}`);
 
   return (
-    <Card 
-      sx={{ 
-        mb: 2, 
-        bgcolor: '#2a1a1e', 
+    <Card
+      sx={{
+        mb: 2,
+        bgcolor: colors.surface,
         border: '1px solid #444',
         '&:hover': {
-          border: '1px solid #339989',
+          border: `1px solid ${colors.accent}`,
           transform: 'translateY(-2px)',
           transition: 'all 0.2s ease-in-out'
         }
@@ -279,7 +280,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
             label={appointment.status.toUpperCase()}
             size="small"
             sx={{
-              bgcolor: '#ff9800',
+              bgcolor: colors.warning,
               color: 'white'
             }}
           />
@@ -287,7 +288,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
         {/* Client information */}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Avatar sx={{ width: 40, height: 40, bgcolor: '#339989', mr: 2 }}>
+          <Avatar sx={{ width: 40, height: 40, bgcolor: colors.accent, mr: 2 }}>
             <PersonIcon />
           </Avatar>
           <Box>
@@ -301,7 +302,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         </Box>
 
         {/* Appointment title */}
-        <Typography variant="h6" sx={{ color: '#339989', mb: 1, fontWeight: 'bold' }}>
+        <Typography variant="h6" sx={{ color: colors.accent, mb: 1, fontWeight: 'bold' }}>
           {appointment.title}
         </Typography>
 
@@ -338,19 +339,19 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
             startIcon={<MessageIcon />}
             endIcon={messagesExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             sx={{
-              color: '#339989',
+              color: colors.accent,
               '&:hover': { bgcolor: 'rgba(51, 153, 137, 0.1)' },
               mb: 1
             }}
           >
-            Messages {appointment.has_unread_messages && <Chip label="!" size="small" sx={{ ml: 1, bgcolor: '#f44336', color: 'white' }} />}
+            Messages {appointment.has_unread_messages && <Chip label="!" size="small" sx={{ ml: 1, bgcolor: colors.error, color: 'white' }} />}
           </Button>
 
           <Collapse in={messagesExpanded}>
             <Box sx={{ mt: 2, p: 2, bgcolor: '#1a1a1a', borderRadius: 1, border: '1px solid #333' }}>
               {loadingMessages ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                  <CircularProgress size={20} sx={{ color: '#339989' }} />
+                  <CircularProgress size={20} sx={{ color: colors.accent }} />
                 </Box>
               ) : (
                 <>
@@ -362,10 +363,10 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                         ref={(el) => messageRefs.current[message.id] = el}
                         data-message-id={message.id}
                         sx={{ 
-                          mb: 2, 
+                          mb: 2,
                           p: 1,
                           ml: message.parent_message_id ? 2 : 0,
-                          borderLeft: message.parent_message_id ? '2px solid #339989' : 'none',
+                          borderLeft: message.parent_message_id ? `2px solid ${colors.accent}` : 'none',
                           bgcolor: message.parent_message_id ? '#1e1e1e' : 'transparent',
                           opacity: message.read_at ? 0.8 : 1,
                           border: !message.read_at && message.recipient_id === user?.id ? '1px solid rgba(51, 153, 137, 0.3)' : 'none'
@@ -374,10 +375,10 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, justifyContent: 'space-between' }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             {message.parent_message_id && <ReplyIcon sx={{ fontSize: 12, color: '#666' }} />}
-                            <Typography variant="caption" sx={{ color: '#339989', fontWeight: 'bold' }}>
-                              {message.sender?.name || 
-                                (message.sender_id === appointment.client_id ? 
-                                  (appointment.client?.name || displayUsername) : 
+                            <Typography variant="caption" sx={{ color: colors.accent, fontWeight: 'bold' }}>
+                              {message.sender?.name ||
+                                (message.sender_id === appointment.client_id ?
+                                  (appointment.client?.name || displayUsername) :
                                   (appointment.artist?.name || displayUsername)
                                 )
                               }
@@ -386,25 +387,25 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                               {format(parseISO(message.created_at), 'MMM d, h:mm a')}
                             </Typography>
                             {!message.read_at && message.recipient_id === user?.id && (
-                              <Box 
-                                sx={{ 
-                                  width: 6, 
-                                  height: 6, 
-                                  borderRadius: '50%', 
-                                  bgcolor: '#339989',
+                              <Box
+                                sx={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  bgcolor: colors.accent,
                                   ml: 1
-                                }} 
+                                }}
                               />
                             )}
                           </Box>
                           <Button
                             size="small"
                             onClick={() => handleReplyTo(message)}
-                            sx={{ 
-                              minWidth: 'auto', 
+                            sx={{
+                              minWidth: 'auto',
                               p: 0.5,
                               color: '#666',
-                              '&:hover': { color: '#339989' }
+                              '&:hover': { color: colors.accent }
                             }}
                           >
                             <ReplyIcon sx={{ fontSize: 14 }} />
@@ -432,7 +433,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                       alignItems: 'flex-start',
                       gap: 1
                     }}>
-                      <ReplyIcon sx={{ fontSize: 16, color: '#339989', mt: 0.5 }} />
+                      <ReplyIcon sx={{ fontSize: 16, color: colors.accent, mt: 0.5 }} />
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="caption" sx={{ color: '#888' }}>
                           Replying to {replyingTo.sender?.name || 
@@ -450,11 +451,11 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                       <Button
                         size="small"
                         onClick={cancelReply}
-                        sx={{ 
-                          minWidth: 'auto', 
+                        sx={{
+                          minWidth: 'auto',
                           p: 0.5,
                           color: '#666',
-                          '&:hover': { color: '#f44336' }
+                          '&:hover': { color: colors.error }
                         }}
                       >
                         <CloseIcon sx={{ fontSize: 14 }} />
@@ -480,8 +481,8 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                         '& .MuiOutlinedInput-root': {
                           color: 'white',
                           '& fieldset': { borderColor: '#444' },
-                          '&:hover fieldset': { borderColor: '#339989' },
-                          '&.Mui-focused fieldset': { borderColor: '#339989' }
+                          '&:hover fieldset': { borderColor: colors.accent },
+                          '&.Mui-focused fieldset': { borderColor: colors.accent }
                         }
                       }}
                     />
@@ -490,9 +491,9 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                       disabled={!newMessage.trim() || sendingMessage}
                       sx={{
                         minWidth: 'auto',
-                        bgcolor: '#339989',
+                        bgcolor: colors.accent,
                         color: 'white',
-                        '&:hover': { bgcolor: '#267b6e' },
+                        '&:hover': { bgcolor: colors.accentDark },
                         '&:disabled': { bgcolor: '#555', color: '#888' }
                       }}
                     >
@@ -514,8 +515,8 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 onClick={() => onDecline(appointment.id)}
                 disabled={loading}
                 sx={{
-                  color: '#f44336',
-                  borderColor: '#f44336',
+                  color: colors.error,
+                  borderColor: colors.error,
                   '&:hover': {
                     borderColor: '#d32f2f',
                     bgcolor: 'rgba(244, 67, 54, 0.1)'
@@ -531,9 +532,9 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 onClick={() => onAccept(appointment.id)}
                 disabled={loading}
                 sx={{
-                  bgcolor: '#339989',
+                  bgcolor: colors.accent,
                   '&:hover': {
-                    bgcolor: '#267b6e'
+                    bgcolor: colors.accentDark
                   }
                 }}
               >

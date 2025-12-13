@@ -10,6 +10,7 @@ import {
   Alert,
 } from '@mui/material';
 import { useStyles } from '../../contexts/StyleContext';
+import { colors } from '@/styles/colors';
 
 interface ArtistPreferencesSelectionProps {
   onStepComplete: (preferredStyles: number[]) => void;
@@ -51,7 +52,7 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
   if (loading) {
     return (
       <Box sx={{ maxWidth: 800, mx: 'auto', textAlign: 'center', py: 8 }}>
-        <CircularProgress sx={{ color: '#339989' }} size={60} />
+        <CircularProgress sx={{ color: colors.accent }} size={60} />
         <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
           Loading tattoo styles...
         </Typography>
@@ -69,11 +70,11 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
           variant="outlined"
           onClick={onBack}
           sx={{
-            color: '#e8dbc5',
-            borderColor: '#e8dbc5',
+            color: colors.textSecondary,
+            borderColor: colors.textSecondary,
             '&:hover': {
               backgroundColor: 'rgba(232, 219, 197, 0.1)',
-              borderColor: '#e8dbc5',
+              borderColor: colors.textSecondary,
             },
           }}
         >
@@ -92,7 +93,7 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
           sx={{
             mb: 2,
             fontWeight: 'bold',
-            color: '#e8dbc5',
+            color: colors.textSecondary,
             fontSize: { xs: '1.5rem', md: '2rem' },
           }}
         >
@@ -115,7 +116,7 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
 
         {specialtyStyleNames.length > 0 && (
           <Box sx={{ mb: 3, p: 3, backgroundColor: 'rgba(51, 153, 137, 0.1)', borderRadius: 2 }}>
-            <Typography variant="body2" sx={{ color: '#339989', fontWeight: 'bold', mb: 2 }}>
+            <Typography variant="body2" sx={{ color: colors.accent, fontWeight: 'bold', mb: 2 }}>
               Your specialties: {specialtyStyleNames.join(', ')}
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
@@ -127,7 +128,7 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
         <Typography
           variant="body2"
           sx={{
-            color: '#339989',
+            color: colors.accent,
             fontWeight: 'bold',
           }}
         >
@@ -156,14 +157,14 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
                   fontSize: '0.9rem',
                   fontWeight: 'bold',
                   transition: 'all 0.3s ease',
-                  backgroundColor: selectedStyles.includes(style.id) ? '#339989' : 'transparent',
-                  color: selectedStyles.includes(style.id) ? '#000' : '#e8dbc5',
-                  borderColor: selectedStyles.includes(style.id) ? '#339989' : 'rgba(232, 219, 197, 0.5)',
+                  backgroundColor: selectedStyles.includes(style.id) ? colors.accent : 'transparent',
+                  color: selectedStyles.includes(style.id) ? '#000' : colors.textSecondary,
+                  borderColor: selectedStyles.includes(style.id) ? colors.accent : 'rgba(232, 219, 197, 0.5)',
                   '&:hover': {
-                    backgroundColor: selectedStyles.includes(style.id) 
-                      ? '#2a7f7a' 
+                    backgroundColor: selectedStyles.includes(style.id)
+                      ? colors.accentDark
                       : 'rgba(232, 219, 197, 0.1)',
-                    borderColor: selectedStyles.includes(style.id) ? '#2a7f7a' : '#e8dbc5',
+                    borderColor: selectedStyles.includes(style.id) ? colors.accentDark : colors.textSecondary,
                     transform: 'translateY(-1px)',
                     boxShadow: '0 4px 12px rgba(51, 153, 137, 0.2)',
                   },
@@ -188,28 +189,28 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
             variant="outlined"
             onClick={handleSkip}
             sx={{
-              color: '#e8dbc5',
-              borderColor: '#e8dbc5',
+              color: colors.textSecondary,
+              borderColor: colors.textSecondary,
               minWidth: { xs: '120px', sm: '100px' },
               '&:hover': {
                 backgroundColor: 'rgba(232, 219, 197, 0.1)',
-                borderColor: '#e8dbc5',
+                borderColor: colors.textSecondary,
               },
             }}
           >
             Skip for now
           </Button>
-          
+
           <Button
             variant="contained"
             onClick={handleContinue}
             sx={{
-              backgroundColor: '#339989',
+              backgroundColor: colors.accent,
               color: '#000',
               fontWeight: 'bold',
               minWidth: { xs: '120px', sm: '100px' },
               '&:hover': {
-                backgroundColor: '#2a7f7a',
+                backgroundColor: colors.accentDark,
               },
             }}
           >
@@ -222,12 +223,12 @@ const ArtistPreferencesSelection: React.FC<ArtistPreferencesSelectionProps> = ({
           variant="outlined"
           onClick={onBack}
           sx={{
-            color: '#e8dbc5',
-            borderColor: '#e8dbc5',
+            color: colors.textSecondary,
+            borderColor: colors.textSecondary,
             minWidth: '80px',
             '&:hover': {
               backgroundColor: 'rgba(232, 219, 197, 0.1)',
-              borderColor: '#e8dbc5',
+              borderColor: colors.textSecondary,
             },
           }}
         >

@@ -6,6 +6,7 @@ import { setToken } from '@/utils/auth';
 import { getCsrfToken, fetchCsrfToken, api } from '@/utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
+import { colors } from '@/styles/colors';
 
 const RegisterPage: React.FC = () => {
   const router = useRouter();
@@ -135,7 +136,7 @@ const RegisterPage: React.FC = () => {
       {/* Loading Backdrop */}
       <Backdrop
         sx={{
-          color: '#339989',
+          color: colors.accent,
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backgroundColor: 'rgba(26, 14, 17, 0.8)',
         }}
@@ -149,11 +150,11 @@ const RegisterPage: React.FC = () => {
             gap: 2,
           }}
         >
-          <CircularProgress size={60} sx={{ color: '#339989' }} />
+          <CircularProgress size={60} sx={{ color: colors.accent }} />
           <Typography
             variant="h6"
             sx={{
-              color: '#e8dbc5',
+              color: colors.textSecondary,
               textAlign: 'center',
               fontWeight: 'bold',
             }}
@@ -163,7 +164,7 @@ const RegisterPage: React.FC = () => {
           <Typography
             variant="body2"
             sx={{
-              color: '#e8dbc5',
+              color: colors.textSecondary,
               textAlign: 'center',
               opacity: 0.8,
             }}

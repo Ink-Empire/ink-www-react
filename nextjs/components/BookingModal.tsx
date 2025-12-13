@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
 import { api } from '../utils/api';
+import { colors } from '@/styles/colors';
 
 interface ArtistSettings {
   id: number;
@@ -189,15 +190,15 @@ export default function BookingModal({
       aria-labelledby="booking-modal"
       aria-describedby="modal-for-booking-appointments"
     >
-      <Paper 
-        sx={{ 
-          position: 'absolute', 
-          top: '50%', 
-          left: '50%', 
+      <Paper
+        sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
           transform: 'translate(-50%, -50%)',
           width: 400,
           maxWidth: '90%',
-          bgcolor: '#2a1a1e',
+          bgcolor: colors.surface,
           boxShadow: 24,
           borderRadius: 1,
           p: 4,
@@ -207,7 +208,7 @@ export default function BookingModal({
         {/* Show login prompt if user is not authenticated */}
         {!isAuthenticated ? (
           <>
-            <Typography variant="h5" component="h2" sx={{ mb: 2, color: '#339989' }}>
+            <Typography variant="h5" component="h2" sx={{ mb: 2, color: colors.accent }}>
               Account Required
             </Typography>
             
@@ -229,12 +230,12 @@ export default function BookingModal({
                 <Button
                   variant="outlined"
                   onClick={handleLoginClick}
-                  sx={{ 
-                    borderColor: '#339989',
-                    color: '#339989',
-                    '&:hover': { 
-                      borderColor: '#267b6e',
-                      color: '#267b6e',
+                  sx={{
+                    borderColor: colors.accent,
+                    color: colors.accent,
+                    '&:hover': {
+                      borderColor: colors.accentDark,
+                      color: colors.accentDark,
                       bgcolor: 'rgba(51, 153, 137, 0.1)'
                     }
                   }}
@@ -244,9 +245,9 @@ export default function BookingModal({
                 <Button
                   variant="contained"
                   onClick={handleRegisterClick}
-                  sx={{ 
-                    bgcolor: '#339989',
-                    '&:hover': { bgcolor: '#267b6e' }
+                  sx={{
+                    bgcolor: colors.accent,
+                    '&:hover': { bgcolor: colors.accentDark }
                   }}
                 >
                   Sign Up
@@ -256,22 +257,22 @@ export default function BookingModal({
           </>
         ) : (
           <>
-            <Typography variant="h5" component="h2" sx={{ mb: 2, color: '#339989' }}>
+            <Typography variant="h5" component="h2" sx={{ mb: 2, color: colors.accent }}>
               {acceptsBoth ? 'Book with Artist' : acceptsConsultations ? 'Book Consultation' : 'Book Appointment'}
             </Typography>
 
             {/* Show booking status */}
             {!booksOpen && (
-              <Alert severity="warning" sx={{ mb: 2, bgcolor: '#2a1a1e', border: '1px solid #f57c00' }}>
+              <Alert severity="warning" sx={{ mb: 2, bgcolor: colors.surface, border: `1px solid ${colors.warning}` }}>
                 This artist's booking is currently closed.
               </Alert>
             )}
 
             {/* Show what artist accepts if not both */}
             {!acceptsBoth && booksOpen && (
-              <Alert 
-                severity="info" 
-                sx={{ mb: 2, bgcolor: '#2a1a1e', border: '1px solid #339989', color: '#339989' }}
+              <Alert
+                severity="info"
+                sx={{ mb: 2, bgcolor: colors.surface, border: `1px solid ${colors.accent}`, color: colors.accent }}
               >
                 This artist accepts {acceptsConsultations ? 'consultations' : 'appointments'} only.
               </Alert>
@@ -292,16 +293,16 @@ export default function BookingModal({
                   value={bookingType}
                   onChange={(e) => setBookingType(e.target.value)}
                   label="Booking Type"
-                  sx={{ 
+                  sx={{
                     color: 'white',
                     '.MuiOutlinedInput-notchedOutline': {
                       borderColor: '#444'
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#339989'
+                      borderColor: colors.accent
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#339989'
+                      borderColor: colors.accent
                     }
                   }}
                 >
@@ -320,16 +321,16 @@ export default function BookingModal({
                   value={selectedTimeSlot}
                   onChange={(e) => setSelectedTimeSlot(e.target.value)}
                   label="Select Time"
-                  sx={{ 
+                  sx={{
                     color: 'white',
                     '.MuiOutlinedInput-notchedOutline': {
                       borderColor: '#444'
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#339989'
+                      borderColor: colors.accent
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#339989'
+                      borderColor: colors.accent
                     }
                   }}
                 >
@@ -351,16 +352,16 @@ export default function BookingModal({
                 placeholder="Describe what you're interested in..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                sx={{ 
+                sx={{
                   mb: 3,
                   color: 'white',
                   '& label': { color: '#888' },
-                  '& label.Mui-focused': { color: '#339989' },
+                  '& label.Mui-focused': { color: colors.accent },
                   '& .MuiInputBase-input': { color: 'white' },
                   '& .MuiOutlinedInput-root': {
                     '& fieldset': { borderColor: '#444' },
                     '&:hover fieldset': { borderColor: '#666' },
-                    '&.Mui-focused fieldset': { borderColor: '#339989' }
+                    '&.Mui-focused fieldset': { borderColor: colors.accent }
                   }
                 }}
               />
@@ -381,9 +382,9 @@ export default function BookingModal({
                   variant="contained"
                   onClick={handleBookAppointment}
                   disabled={isSubmitting}
-                  sx={{ 
-                    bgcolor: '#339989',
-                    '&:hover': { bgcolor: '#267b6e' },
+                  sx={{
+                    bgcolor: colors.accent,
+                    '&:hover': { bgcolor: colors.accentDark },
                     '&:disabled': { bgcolor: '#555' }
                   }}
                 >

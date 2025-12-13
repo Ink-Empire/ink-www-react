@@ -182,9 +182,6 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     // Loop through each day starting from today (not past dates)
     const currentDate = new Date(today);
     
-    // Define Persian Green for available days
-    const PERSIAN_GREEN = '#00A896';
-    
     let dayCount = 0;
     while (currentDate <= endOfNextMonth) {
       const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
@@ -266,10 +263,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
             start: dateStr,
             end: dateStr,
             allDay: true,
-            backgroundColor: PERSIAN_GREEN,
-            borderColor: PERSIAN_GREEN,
-            display: 'background', // 'background', 'block', or undefined
-            color: PERSIAN_GREEN,
+            display: 'background',
             className: 'fc-available-day',
             extendedProps: {
               status: 'available' as 'available',

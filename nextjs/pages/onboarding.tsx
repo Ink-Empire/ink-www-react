@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getToken, setToken } from '../utils/auth';
 import { api, getCsrfToken, fetchCsrfToken } from '../utils/api';
 import { Box, CircularProgress, Typography } from '@mui/material';
+import { colors } from '@/styles/colors';
 
 const OnboardingPage: React.FC = () => {
   const router = useRouter();
@@ -121,19 +122,19 @@ const OnboardingPage: React.FC = () => {
           <link rel="icon" href="/assets/img/logo.png" />
         </Head>
         
-        <Box 
-          sx={{ 
+        <Box
+          sx={{
             minHeight: '100vh',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#1a0e11',
+            backgroundColor: colors.background,
             color: 'white',
           }}
         >
-          <CircularProgress sx={{ color: '#339989', mb: 2 }} size={60} />
-          <Typography variant="h6" sx={{ color: '#e8dbc5' }}>
+          <CircularProgress sx={{ color: colors.accent, mb: 2 }} size={60} />
+          <Typography variant="h6" sx={{ color: colors.textSecondary }}>
             Setting up your profile...
           </Typography>
         </Box>

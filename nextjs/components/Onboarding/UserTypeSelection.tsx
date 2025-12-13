@@ -13,6 +13,7 @@ import {
   Brush as BrushIcon,
   Business as BusinessIcon,
 } from '@mui/icons-material';
+import { colors } from '@/styles/colors';
 
 interface UserTypeSelectionProps {
   onStepComplete: (userType: 'client' | 'artist' | 'studio') => void;
@@ -27,21 +28,21 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
       title: 'Tattoo Enthusiast',
       description: 'I\'m looking for inspiration, artists, and planning my next tattoo',
       icon: PersonIcon,
-      color: '#e8dbc5',
+      color: colors.textSecondary,
     },
     {
       type: 'artist' as const,
       title: 'Tattoo Artist',
       description: 'I create beautiful tattoos and want to showcase my work',
       icon: BrushIcon,
-      color: '#339989',
+      color: colors.accent,
     },
     {
       type: 'studio' as const,
       title: 'Tattoo Studio',
       description: 'I represent a studio and manage multiple artists',
       icon: BusinessIcon,
-      color: '#2a7f7a',
+      color: colors.accentDark,
     },
   ];
 
@@ -53,7 +54,7 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
         sx={{
           mb: 2,
           fontWeight: 'bold',
-          color: '#e8dbc5',
+          color: colors.textSecondary,
           fontSize: { xs: '1.5rem', md: '2rem' },
         }}
       >
@@ -83,7 +84,7 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
               sx={{
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
-                backgroundColor: '#2a1a1e',
+                backgroundColor: colors.surface,
                 border: '2px solid transparent',
                 '&:hover': {
                   border: `2px solid ${userType.color}`,
@@ -151,12 +152,12 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
             variant="outlined"
             onClick={onCancel}
             sx={{
-              color: '#e8dbc5',
-              borderColor: '#e8dbc5',
+              color: colors.textSecondary,
+              borderColor: colors.textSecondary,
               minWidth: '80px',
               '&:hover': {
                 backgroundColor: 'rgba(232, 219, 197, 0.1)',
-                borderColor: '#e8dbc5',
+                borderColor: colors.textSecondary,
               },
             }}
           >
@@ -171,11 +172,11 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
             variant="outlined"
             onClick={onBack}
             sx={{
-              color: '#e8dbc5',
-              borderColor: '#e8dbc5',
+              color: colors.textSecondary,
+              borderColor: colors.textSecondary,
               '&:hover': {
                 backgroundColor: 'rgba(232, 219, 197, 0.1)',
-                borderColor: '#e8dbc5',
+                borderColor: colors.textSecondary,
               },
             }}
           >

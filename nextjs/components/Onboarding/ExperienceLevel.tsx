@@ -12,6 +12,7 @@ import {
   School as SchoolIcon,
   Star as StarIcon,
 } from '@mui/icons-material';
+import { colors } from '@/styles/colors';
 
 interface ExperienceLevelProps {
   onStepComplete: (experienceLevel: 'beginner' | 'experienced') => void;
@@ -25,7 +26,7 @@ const ExperienceLevel: React.FC<ExperienceLevelProps> = ({ onStepComplete, onBac
       title: 'New to Tattoos',
       description: 'I\'m just starting my tattoo journey and would love some guidance',
       icon: SchoolIcon,
-      color: '#e8dbc5',
+      color: colors.textSecondary,
       details: 'Perfect! We\'ll help you discover artists, understand the process, and find inspiration for your first tattoo.',
     },
     {
@@ -33,7 +34,7 @@ const ExperienceLevel: React.FC<ExperienceLevelProps> = ({ onStepComplete, onBac
       title: 'Experienced Collector',
       description: 'I already have tattoos and know what I\'m looking for',
       icon: StarIcon,
-      color: '#339989',
+      color: colors.accent,
       details: 'Great! You can dive right in to discover new artists, share your collection, and connect with the community.',
     },
   ];
@@ -46,7 +47,7 @@ const ExperienceLevel: React.FC<ExperienceLevelProps> = ({ onStepComplete, onBac
         sx={{
           mb: 2,
           fontWeight: 'bold',
-          color: '#e8dbc5',
+          color: colors.textSecondary,
         }}
       >
         Your Tattoo Experience
@@ -73,7 +74,7 @@ const ExperienceLevel: React.FC<ExperienceLevelProps> = ({ onStepComplete, onBac
               sx={{
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
-                backgroundColor: '#2a1a1e',
+                backgroundColor: colors.surface,
                 border: '2px solid transparent',
                 '&:hover': {
                   border: `2px solid ${level.color}`,
@@ -159,13 +160,13 @@ const ExperienceLevel: React.FC<ExperienceLevelProps> = ({ onStepComplete, onBac
           variant="outlined"
           onClick={onBack}
           sx={{
-            color: '#e8dbc5',
-            borderColor: '#e8dbc5',
+            color: colors.textSecondary,
+            borderColor: colors.textSecondary,
             width: { xs: '100%', sm: 'auto' },
             order: { xs: 2, sm: 1 },
             '&:hover': {
               backgroundColor: 'rgba(232, 219, 197, 0.1)',
-              borderColor: '#e8dbc5',
+              borderColor: colors.textSecondary,
             },
           }}
         >
