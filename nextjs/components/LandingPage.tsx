@@ -35,9 +35,9 @@ const LandingPage: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/artists?searchString=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`/tattoos?searchString=${encodeURIComponent(searchQuery.trim())}`);
     } else {
-      router.push('/artists');
+      router.push('/tattoos');
     }
   };
 

@@ -71,6 +71,27 @@ export default function TattoosPage() {
     return tattoos.response.find((t: any) => t.id.toString() === selectedTattooId);
   };
 
+  // Get current tattoo index for navigation
+  const getCurrentTattooIndex = () => {
+    if (!selectedTattooId || !tattoos?.response) return -1;
+    return tattoos.response.findIndex((t: any) => t.id.toString() === selectedTattooId);
+  };
+
+  // Navigation handlers
+  const handlePreviousTattoo = () => {
+    const currentIndex = getCurrentTattooIndex();
+    if (currentIndex > 0) {
+      setSelectedTattooId(tattoos.response[currentIndex - 1].id.toString());
+    }
+  };
+
+  const handleNextTattoo = () => {
+    const currentIndex = getCurrentTattooIndex();
+    if (currentIndex < tattoos.response.length - 1) {
+      setSelectedTattooId(tattoos.response[currentIndex + 1].id.toString());
+    }
+  };
+
   // Initialize with user preferences
   const initialSearchParams = useMemo(() => {
     const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
@@ -535,7 +556,10 @@ export default function TattoosPage() {
         tattooId={selectedTattooId}
         open={isTattooModalOpen}
         onClose={handleCloseTattooModal}
-        currentUser={me}
+        onPrevious={handlePreviousTattoo}
+        onNext={handleNextTattoo}
+        hasPrevious={getCurrentTattooIndex() > 0}
+        hasNext={tattoos?.response ? getCurrentTattooIndex() < tattoos.response.length - 1 : false}
         tattooFavorite={selectedTattooId ? getTattooFavoriteStatus(selectedTattooId) : false}
         artistFavorite={getCurrentTattoo()?.artist?.id ? getArtistFollowStatus(getCurrentTattoo().artist.id) : false}
       />

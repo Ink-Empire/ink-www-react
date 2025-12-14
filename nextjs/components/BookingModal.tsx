@@ -25,20 +25,22 @@ interface BookingModalProps {
   selectedWorkingHours: any;
   artistId?: number;
   settings?: ArtistSettings;
+  bookingType: string | null;
 }
 
-export default function BookingModal({ 
-  open, 
-  onClose, 
-  selectedDate, 
-  selectedWorkingHours, 
+export default function BookingModal({
+  open,
+  onClose,
+  selectedDate,
+  selectedWorkingHours,
   artistId,
-  settings
+  settings,
+  bookingType: initialBookingType
 }: BookingModalProps) {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
   const [notes, setNotes] = useState<string>('');
-  const [bookingType, setBookingType] = useState<string>('');
+  const [bookingType, setBookingType] = useState<string>(initialBookingType || '');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const { user, isAuthenticated } = useAuth();
   const { showError, showSuccess } = useDialog();
@@ -75,20 +77,11 @@ export default function BookingModal({
       setSelectedTimeSlot(slots[0] || '');
     }
 
-    // Set default booking type based on what artist accepts
-    if (open && settings) {
-      const acceptsConsultations = settings.accepts_consultations === 1;
-      const acceptsAppointments = settings.accepts_appointments === 1;
-      
-      if (acceptsConsultations && !acceptsAppointments) {
-        setBookingType('consultation');
-      } else if (!acceptsConsultations && acceptsAppointments) {
-        setBookingType('appointment');
-      } else if (acceptsConsultations && acceptsAppointments) {
-        setBookingType(''); // Let user choose
-      }
+    // Set booking type from prop when modal opens
+    if (open && initialBookingType) {
+      setBookingType(initialBookingType);
     }
-  }, [selectedWorkingHours, open, settings]);
+  }, [selectedWorkingHours, open, initialBookingType]);
 
   const handleBookAppointment = async () => {
     if (!selectedDate || !selectedTimeSlot) {
@@ -178,10 +171,10 @@ export default function BookingModal({
   };
 
   // Helper functions to determine what artist accepts
-  const acceptsConsultations = settings?.accepts_consultations === 1;
-  const acceptsAppointments = settings?.accepts_appointments === 1;
+  const acceptsConsultations = settings?.accepts_consultations === true;
+  const acceptsAppointments = settings?.accepts_appointments === true;
   const acceptsBoth = acceptsConsultations && acceptsAppointments;
-  const booksOpen = settings?.books_open === 1 || settings?.books_open === true;
+  const booksOpen = settings?.books_open === true || settings?.books_open === true;
 
   return (
     <Modal

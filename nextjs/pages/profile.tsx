@@ -810,7 +810,7 @@ const ProfilePage: React.FC = () => {
           </Typography>
         </SettingsSection>
 
-        {/* Your Rates Section (artists only) */}
+        {/* Rates Section (artists only) */}
         {isArtist && (
           <SettingsSection title="Your Rates" icon={<AttachMoneyIcon sx={{ fontSize: 20 }} />}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem' }}>
@@ -824,11 +824,11 @@ const ProfilePage: React.FC = () => {
                   sx={inputStyles}
                 />
               </FormGroup>
-              <FormGroup label="Minimum Session">
+              <FormGroup label="Minimum Session Length (in hours)">
                 <TextField
                   fullWidth
                   size="small"
-                  placeholder="2 hours"
+                  placeholder="2"
                   value={formData.minimumSession}
                   onChange={(e) => handleFieldChange('minimumSession', e.target.value)}
                   sx={inputStyles}

@@ -30,10 +30,10 @@ type BookingType = 'consultation' | 'appointment';
 const viewConfig = {
   consultation: {
     title: 'Consultation',
-    description: 'A free 15-minute video call to discuss your tattoo idea, placement, sizing, and get a quote before committing.',
+    description: 'Set aside time to discuss your tattoo idea, placement, sizing, and get a quote before committing.',
     duration: '15 minutes',
     cost: 'Free',
-    modalDescription: (artistName: string) => `You're requesting a free 15-minute video consultation with ${artistName} to discuss your tattoo idea.`,
+    modalDescription: (artistName: string) => `You're requesting a consultation with ${artistName} to discuss your tattoo idea.`,
     modalDuration: '15 min',
     modalCost: 'Free'
   },
@@ -569,7 +569,7 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
               }}
             >
               Consultation
-              <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}>Free 15-min call</Box>
+              <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}></Box>
             </Button>
             <Button
               onClick={() => setBookingType('appointment')}

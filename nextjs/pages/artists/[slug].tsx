@@ -10,15 +10,14 @@ import ImageIcon from '@mui/icons-material/Image';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import StarIcon from '@mui/icons-material/Star';
 import CloseIcon from '@mui/icons-material/Close';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
 import { useArtist } from '../../hooks';
 import { useAuth } from '../../contexts/AuthContext';
-import TattooUpload from '@/components/TattooUpload';
+import TattooCreateWizard from '@/components/TattooCreateWizard';
+import TattooModal from '@/components/TattooModal';
 import ArtistProfileCalendar from '@/components/ArtistProfileCalendar';
 import BookingModal from '@/components/BookingModal';
 import { colors } from '@/styles/colors';
@@ -33,9 +32,10 @@ export default function ArtistDetail() {
     const [bookingModalOpen, setBookingModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedWorkingHours, setSelectedWorkingHours] = useState<any>(null);
+    const [selectedBookingType, setSelectedBookingType] = useState<'consultation' | 'appointment' | null>(null);
     const [selectedStyleFilter, setSelectedStyleFilter] = useState<string>('all');
-    const [lightboxOpen, setLightboxOpen] = useState(false);
-    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
+    const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     const isOwner = isAuthenticated && user && (user.slug === slug || user.id === artist?.id);
@@ -80,28 +80,46 @@ export default function ArtistDetail() {
     const handleDateSelected = (date: Date, workingHoursData: any, bookingType: 'consultation' | 'appointment') => {
         setSelectedDate(date);
         setSelectedWorkingHours(workingHoursData);
+        setSelectedBookingType(bookingType);
         setBookingModalOpen(true);
     };
 
     const handleCloseBookingModal = () => {
         setBookingModalOpen(false);
         setSelectedDate(null);
+        setSelectedBookingType(null);
     };
 
-    const openLightbox = (index: number) => {
-        setLightboxIndex(index);
-        setLightboxOpen(true);
+    // Tattoo modal handlers
+    const handleTattooClick = (tattooId: string) => {
+        setSelectedTattooId(tattooId);
+        setIsTattooModalOpen(true);
     };
 
-    const closeLightbox = () => {
-        setLightboxOpen(false);
+    const handleCloseTattooModal = () => {
+        setIsTattooModalOpen(false);
+        setSelectedTattooId(null);
     };
 
-    const navigateLightbox = (direction: number) => {
-        let newIndex = lightboxIndex + direction;
-        if (newIndex < 0) newIndex = filteredPortfolio.length - 1;
-        if (newIndex >= filteredPortfolio.length) newIndex = 0;
-        setLightboxIndex(newIndex);
+    // Get current tattoo index for navigation
+    const getCurrentTattooIndex = () => {
+        if (!selectedTattooId) return -1;
+        return filteredPortfolio.findIndex((t: any) => t.id.toString() === selectedTattooId);
+    };
+
+    // Navigation handlers
+    const handlePreviousTattoo = () => {
+        const currentIndex = getCurrentTattooIndex();
+        if (currentIndex > 0) {
+            setSelectedTattooId(filteredPortfolio[currentIndex - 1].id.toString());
+        }
+    };
+
+    const handleNextTattoo = () => {
+        const currentIndex = getCurrentTattooIndex();
+        if (currentIndex < filteredPortfolio.length - 1) {
+            setSelectedTattooId(filteredPortfolio[currentIndex + 1].id.toString());
+        }
     };
 
     const handleMessageArtist = () => {
@@ -119,8 +137,6 @@ export default function ArtistDetail() {
         }
         // TODO: Implement save artist functionality
     };
-
-    const currentTattoo = filteredPortfolio[lightboxIndex];
 
     if (artistLoading) {
         return (
@@ -426,7 +442,7 @@ export default function ArtistDetail() {
                                         return (
                                             <Box
                                                 key={tattoo.id}
-                                                onClick={() => openLightbox(index)}
+                                                onClick={() => handleTattooClick(tattoo.id.toString())}
                                                 sx={{
                                                     aspectRatio: '1',
                                                     bgcolor: colors.background,
@@ -727,187 +743,27 @@ export default function ArtistDetail() {
                 )}
             </Box>
 
-            {/* Lightbox Modal */}
-            <Modal
-                open={lightboxOpen}
-                onClose={closeLightbox}
-                sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-                <Box sx={{
-                    position: 'relative',
-                    maxWidth: 900,
-                    maxHeight: '90vh',
-                    display: 'flex',
-                    gap: 3,
-                    p: 2,
-                    outline: 'none'
-                }}>
-                    {/* Close Button */}
-                    <IconButton
-                        onClick={closeLightbox}
-                        sx={{
-                            position: 'absolute',
-                            top: -20,
-                            right: -20,
-                            bgcolor: colors.surface,
-                            border: `1px solid ${colors.border}`,
-                            color: colors.textPrimary,
-                            '&:hover': { bgcolor: colors.background, borderColor: colors.accent, color: colors.accent }
-                        }}
-                    >
-                        <CloseIcon />
-                    </IconButton>
+            {/* Tattoo Detail Modal */}
+            <TattooModal
+                tattooId={selectedTattooId}
+                artistName={artist.name}
+                open={isTattooModalOpen}
+                onClose={handleCloseTattooModal}
+                onPrevious={handlePreviousTattoo}
+                onNext={handleNextTattoo}
+                hasPrevious={getCurrentTattooIndex() > 0}
+                hasNext={getCurrentTattooIndex() < filteredPortfolio.length - 1}
+            />
 
-                    {/* Nav Buttons */}
-                    <IconButton
-                        onClick={() => navigateLightbox(-1)}
-                        sx={{
-                            position: 'absolute',
-                            left: -60,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            bgcolor: colors.surface,
-                            border: `1px solid ${colors.border}`,
-                            color: colors.textPrimary,
-                            '&:hover': { bgcolor: colors.background, borderColor: colors.accent, color: colors.accent }
-                        }}
-                    >
-                        <ChevronLeftIcon />
-                    </IconButton>
-                    <IconButton
-                        onClick={() => navigateLightbox(1)}
-                        sx={{
-                            position: 'absolute',
-                            right: -60,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            bgcolor: colors.surface,
-                            border: `1px solid ${colors.border}`,
-                            color: colors.textPrimary,
-                            '&:hover': { bgcolor: colors.background, borderColor: colors.accent, color: colors.accent }
-                        }}
-                    >
-                        <ChevronRightIcon />
-                    </IconButton>
-
-                    {/* Image */}
-                    <Box sx={{
-                        flex: 1,
-                        maxWidth: 600,
-                        bgcolor: colors.surface,
-                        borderRadius: '12px',
-                        overflow: 'hidden'
-                    }}>
-                        {currentTattoo?.primary_image?.uri ? (
-                            <Box sx={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
-                                <Image
-                                    src={currentTattoo.primary_image.uri}
-                                    alt={currentTattoo.title || 'Tattoo'}
-                                    fill
-                                    style={{ objectFit: 'cover' }}
-                                />
-                            </Box>
-                        ) : (
-                            <Box sx={{
-                                width: '100%',
-                                aspectRatio: '1',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                bgcolor: colors.background,
-                                color: colors.textSecondary
-                            }}>
-                                No Image
-                            </Box>
-                        )}
-                    </Box>
-
-                    {/* Info Panel */}
-                    <Box sx={{
-                        width: 280,
-                        bgcolor: colors.surface,
-                        borderRadius: '12px',
-                        p: 2
-                    }}>
-                        {currentTattoo?.styles?.[0] && (
-                            <Box sx={{
-                                display: 'inline-block',
-                                px: 1.25,
-                                py: 0.5,
-                                bgcolor: `${colors.accent}1A`,
-                                borderRadius: '100px',
-                                fontSize: '0.8rem',
-                                color: colors.accent,
-                                fontWeight: 500,
-                                mb: 1
-                            }}>
-                                {typeof currentTattoo.styles[0] === 'string' ? currentTattoo.styles[0] : currentTattoo.styles[0].name}
-                            </Box>
-                        )}
-                        <Typography sx={{
-                            fontFamily: '"Cormorant Garamond", Georgia, serif',
-                            fontSize: '1.5rem',
-                            fontWeight: 500,
-                            color: colors.textPrimary,
-                            mb: 1
-                        }}>
-                            {currentTattoo?.title || 'Untitled'}
-                        </Typography>
-                        <Typography sx={{
-                            color: colors.textSecondary,
-                            fontSize: '0.9rem',
-                            lineHeight: 1.6,
-                            mb: 2
-                        }}>
-                            {currentTattoo?.description || 'No description available.'}
-                        </Typography>
-
-                        <Box sx={{ borderTop: `1px solid ${colors.border}`, pt: 1.5 }}>
-                            {[
-                                { label: 'Placement', value: currentTattoo?.placement || 'Not specified' },
-                                { label: 'Artist', value: artist.name }
-                            ].map((item, idx) => (
-                                <Box key={idx} sx={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    py: 0.75,
-                                    fontSize: '0.85rem'
-                                }}>
-                                    <Typography sx={{ color: colors.textSecondary }}>{item.label}</Typography>
-                                    <Typography sx={{ color: colors.textPrimary, fontWeight: 500 }}>{item.value}</Typography>
-                                </Box>
-                            ))}
-                        </Box>
-                    </Box>
-                </Box>
-            </Modal>
-
-            {/* TattooUpload Modal */}
-            <Modal
+            {/* Tattoo Create Wizard */}
+            <TattooCreateWizard
                 open={uploadModalOpen}
                 onClose={handleCloseUploadModal}
-                aria-labelledby="tattoo-upload-modal"
-            >
-                <Paper
-                    sx={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        maxWidth: '90%',
-                        maxHeight: '90%',
-                        overflow: 'auto',
-                        bgcolor: colors.surface,
-                        boxShadow: 24,
-                        borderRadius: 2
-                    }}
-                >
-                    <TattooUpload
-                        onClose={handleCloseUploadModal}
-                        onSuccess={handleUploadSuccess}
-                    />
-                </Paper>
-            </Modal>
+                onSuccess={() => {
+                    handleCloseUploadModal();
+                    router.replace(router.asPath);
+                }}
+            />
 
             <BookingModal
                 open={bookingModalOpen}
@@ -916,6 +772,7 @@ export default function ArtistDetail() {
                 selectedWorkingHours={selectedWorkingHours}
                 artistId={artist?.id}
                 settings={artist?.settings}
+                bookingType={selectedBookingType}
             />
 
             {/* Login Required Modal */}
