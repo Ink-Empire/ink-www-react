@@ -61,7 +61,7 @@ const LoginPage: React.FC = () => {
         },
         setIsLoading,
         onSuccess: () => {
-          router.push('/');
+          router.push('/dashboard');
         }
       });
     } catch (err: any) {
@@ -250,18 +250,6 @@ const LoginPage: React.FC = () => {
             </Button>
           </Stack>
         </form>
-
-        <Typography
-          variant="body2"
-          sx={{
-            mt: 3,
-            textAlign: 'center',
-            color: 'text.secondary',
-            fontStyle: 'italic',
-          }}
-        >
-          Welcome back to InkedIn! Ready to connect with the tattoo community?
-        </Typography>
       </Paper>
     </Box>
   );
