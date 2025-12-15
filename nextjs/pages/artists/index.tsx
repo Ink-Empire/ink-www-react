@@ -11,7 +11,7 @@ import ArtistCard from '../../components/ArtistCard';
 import SearchFilters from '../../components/SearchFilters';
 import Layout from '../../components/Layout';
 import { useArtists } from '@/hooks';
-import { useUserData } from '@/contexts/UserContext';
+import { useUserData } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStyles } from '@/contexts/StyleContext';
 import { distancePreferences } from '@/utils/distancePreferences';

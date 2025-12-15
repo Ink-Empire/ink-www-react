@@ -15,7 +15,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useTattoo } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
-import { useUserData } from '../contexts/UserContext';
+import { useUserData } from '../contexts/AuthContext';
 import { colors } from '@/styles/colors';
 
 interface TattooModalProps {

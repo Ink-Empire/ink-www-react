@@ -125,7 +125,17 @@ const LoginPage: React.FC = () => {
         <form onSubmit={handleSubmit(onSubmit)}>
           <Stack spacing={3}>
             {error && (
-              <Alert severity="error">
+              <Alert
+                severity="error"
+                sx={{
+                  bgcolor: `${colors.error}1A`,
+                  color: colors.error,
+                  border: `1px solid ${colors.error}40`,
+                  '& .MuiAlert-icon': {
+                    color: colors.error,
+                  },
+                }}
+              >
                 {error}
               </Alert>
             )}

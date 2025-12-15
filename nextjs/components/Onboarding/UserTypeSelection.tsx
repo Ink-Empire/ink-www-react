@@ -33,7 +33,7 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
     {
       type: 'artist' as const,
       title: 'Tattoo Artist',
-      description: 'I create beautiful tattoos and want to showcase my work',
+      description: 'I create tattoos and want to showcase my work',
       icon: BrushIcon,
       color: colors.accent,
     },

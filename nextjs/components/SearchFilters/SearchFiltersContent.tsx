@@ -15,7 +15,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useStyles } from '@/contexts/StyleContext';
-import { useUserData } from '@/contexts/UserContext';
+import { useUserData } from '@/contexts/AuthContext';
 import { SearchFiltersUIProps } from './types';
 import { colors } from '@/styles/colors';
 

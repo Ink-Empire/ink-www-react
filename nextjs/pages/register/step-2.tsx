@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
 import Link from 'next/link';
-import { useUser, UserProvider } from '@/contexts/UserContext';
+import { useUser, UserProvider } from '@/contexts/AuthContext';
 import { api, getCsrfToken, fetchCsrfToken } from '@/utils/api';
 import { getToken, setToken } from '@/utils/auth';
 import StyleModal from '@/components/StyleModal';

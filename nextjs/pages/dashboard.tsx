@@ -138,7 +138,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
 
-  const userName = user?.name?.split(' ')[0] || user?.username || 'Artist';
+  const userName = user?.name?.split(' ')[0] || user?.username || '';
 
   return (
     <Layout>
@@ -165,7 +165,7 @@ export default function Dashboard() {
               color: colors.textPrimary,
               mb: 0.25
             }}>
-              Welcome back, {userName}
+              Welcome back {userName}
             </Typography>
             <Typography sx={{ color: colors.textSecondary, fontSize: '0.95rem' }}>
               Here's what's happening this week

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useUserData } from '@/contexts/UserContext';
+import { useUserData } from '@/contexts/AuthContext';
 import { 
   Card, 
   CardContent, 

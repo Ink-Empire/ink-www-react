@@ -2,7 +2,6 @@ import React from 'react';
 import { AppProps } from 'next/app';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AuthProvider } from '../contexts/AuthContext';
-import { UserProvider } from '../contexts/UserContext';
 import { StyleProvider } from '../contexts/StyleContext';
 import { DialogProvider } from '../contexts/DialogContext';
 import theme from '../styles/theme';
@@ -13,13 +12,11 @@ function MyApp({ Component, pageProps }: AppProps) {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <UserProvider>
-          <StyleProvider>
-            <DialogProvider>
-              <Component {...pageProps} />
-            </DialogProvider>
-          </StyleProvider>
-        </UserProvider>
+        <StyleProvider>
+          <DialogProvider>
+            <Component {...pageProps} />
+          </DialogProvider>
+        </StyleProvider>
       </AuthProvider>
     </ThemeProvider>
   );

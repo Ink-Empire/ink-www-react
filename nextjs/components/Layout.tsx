@@ -595,26 +595,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </Drawer>
       </AppBar>
 
-      <Box component="main" sx={{ flexGrow: 1 }}>
-        <Container 
-          maxWidth="lg" 
-          sx={{ 
-            py: { xs: 2, sm: 4 },
-            px: { xs: 1, sm: 3 }
-          }}
-        >
-          <Box
+      <Box component="main" sx={{ flexGrow: 1, bgcolor: colors.background }}>
+        {/* Skip container wrapper for auth pages - they handle their own layout */}
+        {router.pathname === '/login' || router.pathname === '/register' || router.pathname.startsWith('/register/') ? (
+          children
+        ) : (
+          <Container
+            maxWidth="lg"
             sx={{
-              bgcolor: colors.surface,
-              borderRadius: 2,
-              p: { xs: 2, sm: 3 },
-              boxShadow: 1,
-              color: 'text.primary'
+              py: { xs: 2, sm: 4 },
+              px: { xs: 1, sm: 3 }
             }}
           >
-            {children}
-          </Box>
-        </Container>
+            <Box
+              sx={{
+                bgcolor: colors.surface,
+                borderRadius: 2,
+                p: { xs: 2, sm: 3 },
+                boxShadow: 1,
+                color: 'text.primary'
+              }}
+            >
+              {children}
+            </Box>
+          </Container>
+        )}
       </Box>
 
       <Box 

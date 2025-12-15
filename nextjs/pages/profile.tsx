@@ -17,14 +17,15 @@ import EventIcon from '@mui/icons-material/Event';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import GroupIcon from '@mui/icons-material/Group';
 import ChatIcon from '@mui/icons-material/Chat';
-import { UserProvider, useUser } from '@/contexts/UserContext';
-import { useAuth } from '@/contexts/AuthContext';
+import PublicIcon from '@mui/icons-material/Public';
+import { useAuth, useUser } from '@/contexts/AuthContext';
 import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
@@ -32,8 +33,20 @@ import { withAuth } from '@/components/WithAuth';
 import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
 
+// Navigation items for sidebar
+const navItems = [
+  { id: 'photo', label: 'Photo', icon: CameraAltIcon },
+  { id: 'about', label: 'About', icon: PersonIcon },
+  { id: 'studio', label: 'Studio', icon: LocationOnIcon },
+  { id: 'styles', label: 'Styles', icon: StarIcon },
+  { id: 'hours', label: 'Hours', icon: AccessTimeIcon },
+  { id: 'booking', label: 'Booking & Rates', icon: EventIcon },
+  { id: 'travel', label: 'Travel', icon: PublicIcon },
+];
+
 // Collapsible Settings Section Component
 interface SettingsSectionProps {
+  id?: string;
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
@@ -41,6 +54,7 @@ interface SettingsSectionProps {
 }
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({
+  id,
   title,
   icon,
   children,
@@ -49,13 +63,16 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   return (
-    <Box sx={{
-      bgcolor: colors.surface,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      mb: '1.5rem',
-      overflow: 'hidden'
-    }}>
+    <Box
+      id={id}
+      sx={{
+        bgcolor: colors.surface,
+        borderRadius: '12px',
+        border: `1px solid ${colors.border}`,
+        mb: '1.5rem',
+        overflow: 'hidden'
+      }}
+    >
       {/* Section Header */}
       <Box
         onClick={() => setIsExpanded(!isExpanded)}
@@ -224,7 +241,37 @@ const ProfilePage: React.FC = () => {
 
   // Only fetch working hours for artists
   const isArtist = userData?.type === 'artist';
-  const { workingHours, saveWorkingHours, loading: hoursLoading, error: hoursError } = useWorkingHours(isArtist ? userData?.id : null);
+
+  // Sidebar navigation state
+  const [activeSection, setActiveSection] = useState('photo');
+
+  // Scroll spy effect
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = navItems.map(item => document.getElementById(item.id));
+      const offset = 100;
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = sections[i];
+        if (section && window.scrollY >= section.offsetTop - offset) {
+          setActiveSection(navItems[i].id);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const offset = 80;
+      const top = element.offsetTop - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+  };
 
   // Modal states
   const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -232,7 +279,7 @@ const ProfilePage: React.FC = () => {
   const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
   const [fieldName, setFieldName] = useState('');
 
-  // Form states
+  // Form states - basic profile info
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -243,20 +290,20 @@ const ProfilePage: React.FC = () => {
     city: '',
     state: '',
     country: '',
-    postalCode: '',
-    hourlyRate: '',
-    minimumSession: '',
-    depositAmount: '',
-    consultationFee: ''
+    postalCode: ''
   });
 
-  // Artist settings state
+  // Artist settings state - includes both booking preferences AND rates
   const [artistSettings, setArtistSettings] = useState({
     books_open: false,
     accepts_appointments: false,
     accepts_walk_ins: false,
     accepts_consultations: false,
-    accepts_deposits: false
+    accepts_deposits: false,
+    hourly_rate: '',
+    minimum_session: '',
+    deposit_amount: '',
+    consultation_fee: ''
   });
 
   // Track unsaved changes
@@ -265,6 +312,16 @@ const ProfilePage: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // Extract artist ID safely - ensure it's always a number or null
+  const artistId = React.useMemo(() => {
+    if (!userData?.id) return null;
+    const id = typeof userData.id === 'object' ? null : Number(userData.id);
+    return isNaN(id as number) ? null : id;
+  }, [userData?.id]);
+
+  // Fetch working hours using safe artistId
+  const { workingHours, saveWorkingHours, loading: hoursLoading, error: hoursError } = useWorkingHours(isArtist ? artistId : null);
 
   // Initialize form data from userData
   useEffect(() => {
@@ -280,30 +337,40 @@ const ProfilePage: React.FC = () => {
         city: (userData as any).studio?.city || '',
         state: (userData as any).studio?.state || '',
         country: (userData as any).studio?.country || '',
-        postalCode: (userData as any).studio?.postal_code || '',
-        hourlyRate: (userData as any).hourly_rate || '',
-        minimumSession: (userData as any).minimum_session || '',
-        depositAmount: (userData as any).deposit_amount || '',
-        consultationFee: (userData as any).consultation_fee || ''
+        postalCode: (userData as any).studio?.postal_code || ''
       });
       setSelectedStyles(userData.styles || []);
     }
   }, [userData]);
 
-  // Fetch artist settings
+  // Fetch artist settings (booking preferences + rates)
   useEffect(() => {
-    if (isArtist && userData?.id) {
-      fetchArtistSettings();
+    if (isArtist && artistId) {
+      fetchArtistSettings(artistId);
     }
-  }, [isArtist, userData?.id]);
+  }, [isArtist, artistId]);
 
-  const fetchArtistSettings = async () => {
+  const fetchArtistSettings = async (id: number) => {
     try {
-      const response = await api.get<{ data: any }>(`/artists/${userData?.id}/settings`, {
+      const response = await api.get<{ data: any }>(`/artists/${id}/settings`, {
         requiresAuth: true
       });
       if (response?.data) {
-        setArtistSettings(prev => ({ ...prev, ...response.data }));
+        // Convert 0 or null to empty string so placeholders show
+        const toDisplayValue = (val: any) => (val && val !== 0) ? String(val) : '';
+
+        setArtistSettings(prev => ({
+          ...prev,
+          books_open: response.data.books_open ?? prev.books_open,
+          accepts_appointments: response.data.accepts_appointments ?? prev.accepts_appointments,
+          accepts_walk_ins: response.data.accepts_walk_ins ?? prev.accepts_walk_ins,
+          accepts_consultations: response.data.accepts_consultations ?? prev.accepts_consultations,
+          accepts_deposits: response.data.accepts_deposits ?? prev.accepts_deposits,
+          hourly_rate: toDisplayValue(response.data.hourly_rate),
+          minimum_session: toDisplayValue(response.data.minimum_session),
+          deposit_amount: toDisplayValue(response.data.deposit_amount),
+          consultation_fee: toDisplayValue(response.data.consultation_fee)
+        }));
       }
     } catch (err) {
       console.error('Error fetching artist settings:', err);
@@ -316,8 +383,10 @@ const ProfilePage: React.FC = () => {
     setHasUnsavedChanges(true);
   };
 
-  // Handle artist setting toggle
-  const handleSettingToggle = async (key: keyof typeof artistSettings) => {
+  // Handle artist setting toggle (boolean settings)
+  const handleSettingToggle = async (key: 'books_open' | 'accepts_appointments' | 'accepts_walk_ins' | 'accepts_consultations' | 'accepts_deposits') => {
+    if (!artistId) return;
+
     const newValue = !artistSettings[key];
     const previousSettings = { ...artistSettings };
 
@@ -326,7 +395,7 @@ const ProfilePage: React.FC = () => {
 
     try {
       setSavingSettings(true);
-      await api.put(`/artists/${userData?.id}/settings`, {
+      await api.put(`/artists/${artistId}/settings`, {
         [key]: newValue
       }, { requiresAuth: true });
 
@@ -336,6 +405,54 @@ const ProfilePage: React.FC = () => {
       // Revert on error
       setArtistSettings(previousSettings);
       setToastMessage('Failed to update setting');
+      setShowToast(true);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  // Handle rate field changes (string settings)
+  const handleRateChange = (key: 'hourly_rate' | 'minimum_session' | 'deposit_amount' | 'consultation_fee', value: string) => {
+    console.log('Rate changed:', key, value);
+    setArtistSettings(prev => ({ ...prev, [key]: value }));
+    setHasUnsavedSettings(true);
+  };
+
+  // Track unsaved settings changes
+  const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
+
+  // Save all artist settings (rates + preferences)
+  const handleSaveSettings = async () => {
+    if (!artistId) {
+      console.error('handleSaveSettings: No artistId available');
+      return;
+    }
+
+    // Convert string values to numbers for the API (send 0 for empty values)
+    const payload = {
+      hourly_rate: artistSettings.hourly_rate ? parseFloat(artistSettings.hourly_rate) : 0,
+      minimum_session: artistSettings.minimum_session ? parseFloat(artistSettings.minimum_session) : 0,
+      deposit_amount: artistSettings.deposit_amount ? parseFloat(artistSettings.deposit_amount) : 0,
+      consultation_fee: artistSettings.consultation_fee ? parseFloat(artistSettings.consultation_fee) : 0
+    };
+
+    console.log('Saving settings:', {
+      endpoint: `/artists/${artistId}/settings`,
+      artistId,
+      payload
+    });
+
+    try {
+      setSavingSettings(true);
+      const response = await api.put(`/artists/${artistId}/settings`, payload, { requiresAuth: true });
+      console.log('Settings save response:', response);
+
+      setHasUnsavedSettings(false);
+      setToastMessage('Settings saved successfully');
+      setShowToast(true);
+    } catch (err: any) {
+      console.error('Settings save error:', err);
+      setToastMessage(`Failed to save settings: ${err.message || 'Unknown error'}`);
       setShowToast(true);
     } finally {
       setSavingSettings(false);
@@ -388,14 +505,19 @@ const ProfilePage: React.FC = () => {
         city: (userData as any).studio?.city || '',
         state: (userData as any).studio?.state || '',
         country: (userData as any).studio?.country || '',
-        postalCode: (userData as any).studio?.postal_code || '',
-        hourlyRate: (userData as any).hourly_rate || '',
-        minimumSession: (userData as any).minimum_session || '',
-        depositAmount: (userData as any).deposit_amount || '',
-        consultationFee: (userData as any).consultation_fee || ''
+        postalCode: (userData as any).studio?.postal_code || ''
       });
     }
     setHasUnsavedChanges(false);
+  };
+
+  // Discard settings changes (rates)
+  const handleDiscardSettings = () => {
+    // Re-fetch settings from API to reset
+    if (artistId) {
+      fetchArtistSettings(artistId);
+    }
+    setHasUnsavedSettings(false);
   };
 
   // Open styles modal
@@ -479,23 +601,100 @@ const ProfilePage: React.FC = () => {
 
   return (
     <Layout>
-      <Box sx={{
-        maxWidth: '720px',
-        mx: 'auto',
-        p: { xs: '1.5rem 1rem 6rem', md: '2rem 1.5rem 4rem' }
-      }}>
-        {/* Page Header */}
-        <Box sx={{ mb: '2rem' }}>
-          <Typography sx={{ fontSize: '1.75rem', fontWeight: 600, color: colors.textPrimary, mb: '0.5rem' }}>
-            Your Profile
-          </Typography>
-          <Typography sx={{ fontSize: '0.95rem', color: colors.textSecondary }}>
-            This is how clients see you on InkedIn
-          </Typography>
+      <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
+        {/* Sidebar Navigation - Desktop */}
+        <Box
+          sx={{
+            display: { xs: 'none', md: 'flex' },
+            flexDirection: 'column',
+            position: 'fixed',
+            top: 64,
+            left: 0,
+            bottom: 0,
+            width: 72,
+            bgcolor: colors.background,
+            borderRight: `1px solid ${colors.border}`,
+            py: 3,
+            zIndex: 1000,
+            transition: 'width 0.2s ease',
+            overflow: 'hidden',
+            '&:hover': {
+              width: 220,
+              '& .nav-label': { opacity: 1 }
+            }
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, px: 1.5, flex: 1 }}>
+            {navItems
+              .filter(item => {
+                // Filter out artist-only sections for non-artists
+                if (!isArtist && ['studio', 'hours', 'booking', 'travel'].includes(item.id)) {
+                  return false;
+                }
+                return true;
+              })
+              .map(item => {
+                const Icon = item.icon;
+                return (
+                  <Box
+                    key={item.id}
+                    onClick={() => scrollToSection(item.id)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      px: 1.5,
+                      py: 1.5,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      color: activeSection === item.id ? colors.textPrimary : colors.textSecondary,
+                      fontWeight: activeSection === item.id ? 600 : 400,
+                      transition: 'all 0.15s ease',
+                      whiteSpace: 'nowrap',
+                      '&:hover': { bgcolor: colors.surface }
+                    }}
+                  >
+                    <Icon sx={{ fontSize: 24, flexShrink: 0 }} />
+                    <Typography
+                      className="nav-label"
+                      sx={{
+                        fontSize: '0.95rem',
+                        opacity: 0,
+                        transition: 'opacity 0.15s ease'
+                      }}
+                    >
+                      {item.label}
+                    </Typography>
+                  </Box>
+                );
+              })}
+          </Box>
         </Box>
 
-        {/* Profile Photo Section */}
+        {/* Main Content */}
         <Box sx={{
+          flex: 1,
+          ml: { xs: 0, md: '72px' },
+          pb: { xs: 12, md: 4 },
+          maxWidth: '720px',
+          mx: 'auto',
+          width: '100%',
+          p: { xs: '1.5rem 1rem 6rem', md: '2rem 1.5rem 4rem' }
+        }}>
+          {/* Page Header */}
+          <Box sx={{ mb: '2rem' }}>
+            <Typography sx={{ fontSize: '1.75rem', fontWeight: 600, color: colors.textPrimary, mb: '0.5rem' }}>
+              Your Profile
+            </Typography>
+            <Typography sx={{ fontSize: '0.95rem', color: colors.textSecondary }}>
+              This is how clients see you on InkedIn
+            </Typography>
+          </Box>
+
+          {/* Profile Photo Section */}
+          <Box
+            id="photo"
+            sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -602,40 +801,72 @@ const ProfilePage: React.FC = () => {
             )}
           </Box>
 
-          {/* View Public Page Link (artists only) */}
-          {isArtist && userData?.id && (
-            <Link
-              href={`/artists/${userData.slug || userData.id}`}
-              style={{ textDecoration: 'none', width: '100%', maxWidth: '280px' }}
-            >
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                p: '0.75rem 1.25rem',
-                mt: '0.75rem',
-                bgcolor: '#242424',
-                border: `1px solid ${colors.borderLight}`,
-                borderRadius: '8px',
-                color: colors.textPrimary,
-                fontSize: '0.9rem',
-                fontWeight: 500,
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  borderColor: colors.accent,
-                  color: colors.accent
-                }
-              }}>
-                <VisibilityIcon sx={{ fontSize: 18 }} />
-                View My Public Page
-              </Box>
-            </Link>
+          {/* Quick Links (artists only) */}
+          {isArtist && artistId && (
+            <Box sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: '0.75rem',
+              width: '100%',
+              maxWidth: '400px',
+              mt: '0.75rem'
+            }}>
+              <Link
+                href="/dashboard"
+                style={{ textDecoration: 'none', flex: 1 }}
+              >
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  p: '0.75rem 1rem',
+                  bgcolor: colors.accent,
+                  borderRadius: '8px',
+                  color: colors.background,
+                  fontSize: '0.9rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: colors.accentHover
+                  }
+                }}>
+                  <DashboardIcon sx={{ fontSize: 18 }} />
+                  Dashboard
+                </Box>
+              </Link>
+              <Link
+                href={`/artists/${userData?.slug || artistId}`}
+                style={{ textDecoration: 'none', flex: 1 }}
+              >
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  p: '0.75rem 1rem',
+                  bgcolor: '#242424',
+                  border: `1px solid ${colors.borderLight}`,
+                  borderRadius: '8px',
+                  color: colors.textPrimary,
+                  fontSize: '0.9rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: colors.accent,
+                    color: colors.accent
+                  }
+                }}>
+                  <VisibilityIcon sx={{ fontSize: 18 }} />
+                  Public Profile
+                </Box>
+              </Link>
+            </Box>
           )}
         </Box>
 
         {/* About You Section */}
-        <SettingsSection title="About You" icon={<PersonIcon sx={{ fontSize: 20 }} />}>
+          <SettingsSection id="about" title="About You" icon={<PersonIcon sx={{ fontSize: 20 }} />}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem' }}>
             <FormGroup label="First Name">
               <TextField
@@ -679,8 +910,8 @@ const ProfilePage: React.FC = () => {
         </SettingsSection>
 
         {/* Your Studio Section (artists only) */}
-        {isArtist && (
-          <SettingsSection title="Your Studio" icon={<LocationOnIcon sx={{ fontSize: 20 }} />}>
+          {isArtist && (
+            <SettingsSection id="studio" title="Your Studio" icon={<LocationOnIcon sx={{ fontSize: 20 }} />}>
             <FormGroup label="Studio Name">
               <TextField
                 fullWidth
@@ -743,7 +974,7 @@ const ProfilePage: React.FC = () => {
         )}
 
         {/* Your Styles Section */}
-        <SettingsSection title="Your Styles" icon={<StarIcon sx={{ fontSize: 20 }} />}>
+          <SettingsSection id="styles" title="Your Styles" icon={<StarIcon sx={{ fontSize: 20 }} />}>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: '1rem' }}>
             {selectedStyles.map(styleId => (
               <Box
@@ -810,59 +1041,9 @@ const ProfilePage: React.FC = () => {
           </Typography>
         </SettingsSection>
 
-        {/* Rates Section (artists only) */}
-        {isArtist && (
-          <SettingsSection title="Your Rates" icon={<AttachMoneyIcon sx={{ fontSize: 20 }} />}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem' }}>
-              <FormGroup label="Hourly Rate">
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="$200"
-                  value={formData.hourlyRate}
-                  onChange={(e) => handleFieldChange('hourlyRate', e.target.value)}
-                  sx={inputStyles}
-                />
-              </FormGroup>
-              <FormGroup label="Minimum Session Length (in hours)">
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="2"
-                  value={formData.minimumSession}
-                  onChange={(e) => handleFieldChange('minimumSession', e.target.value)}
-                  sx={inputStyles}
-                />
-              </FormGroup>
-            </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem' }}>
-              <FormGroup label="Deposit Amount">
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="$150"
-                  value={formData.depositAmount}
-                  onChange={(e) => handleFieldChange('depositAmount', e.target.value)}
-                  sx={inputStyles}
-                />
-              </FormGroup>
-              <FormGroup label="Consultation Fee">
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Free"
-                  value={formData.consultationFee}
-                  onChange={(e) => handleFieldChange('consultationFee', e.target.value)}
-                  sx={inputStyles}
-                />
-              </FormGroup>
-            </Box>
-          </SettingsSection>
-        )}
-
         {/* Your Hours Section (artists only) */}
-        {isArtist && (
-          <SettingsSection title="Your Hours" icon={<AccessTimeIcon sx={{ fontSize: 20 }} />}>
+          {isArtist && (
+            <SettingsSection id="hours" title="Your Hours" icon={<AccessTimeIcon sx={{ fontSize: 20 }} />}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '1rem' }}>
               <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary }}>
                 Weekly Schedule
@@ -894,9 +1075,111 @@ const ProfilePage: React.FC = () => {
           </SettingsSection>
         )}
 
-        {/* Booking Preferences Section (artists only) */}
-        {isArtist && (
-          <SettingsSection title="Booking Preferences" icon={<EventIcon sx={{ fontSize: 20 }} />}>
+        {/* Booking & Rates Section (artists only) */}
+          {isArtist && (
+            <SettingsSection id="booking" title="Booking & Rates" icon={<EventIcon sx={{ fontSize: 20 }} />}>
+            {/* Rates Section */}
+            <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, mb: '0.75rem' }}>
+              Your Rates
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem', mb: '1.5rem' }}>
+              <FormGroup label="Hourly Rate">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="$200"
+                  value={artistSettings.hourly_rate}
+                  onChange={(e) => handleRateChange('hourly_rate', e.target.value)}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+              <FormGroup label="Minimum Session (hours)">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="2"
+                  value={artistSettings.minimum_session}
+                  onChange={(e) => handleRateChange('minimum_session', e.target.value)}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem', mb: '1.5rem' }}>
+              <FormGroup label="Deposit Amount">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="$150"
+                  value={artistSettings.deposit_amount}
+                  onChange={(e) => handleRateChange('deposit_amount', e.target.value)}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+              <FormGroup label="Consultation Fee">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Free"
+                  value={artistSettings.consultation_fee}
+                  onChange={(e) => handleRateChange('consultation_fee', e.target.value)}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+            </Box>
+
+            {/* Save Rates Button */}
+            {hasUnsavedSettings && (
+              <Box sx={{ display: 'flex', gap: '0.75rem', mb: '1.5rem' }}>
+                <Box
+                  component="button"
+                  onClick={handleDiscardSettings}
+                  sx={{
+                    px: '1rem',
+                    py: '0.5rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: `1px solid ${colors.borderLight}`,
+                    bgcolor: 'transparent',
+                    color: colors.textPrimary,
+                    fontFamily: 'inherit',
+                    '&:hover': { borderColor: colors.accent, color: colors.accent }
+                  }}
+                >
+                  Discard
+                </Box>
+                <Box
+                  component="button"
+                  onClick={handleSaveSettings}
+                  disabled={savingSettings}
+                  sx={{
+                    px: '1rem',
+                    py: '0.5rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: 'none',
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    fontFamily: 'inherit',
+                    opacity: savingSettings ? 0.7 : 1,
+                    '&:hover': { bgcolor: colors.accentHover }
+                  }}
+                >
+                  {savingSettings ? 'Saving...' : 'Save Rates'}
+                </Box>
+              </Box>
+            )}
+
+            {/* Divider */}
+            <Box sx={{ height: '1px', bgcolor: colors.border, mb: '1.5rem' }} />
+
+            {/* Booking Preferences */}
+            <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, mb: '0.5rem' }}>
+              Booking Preferences
+            </Typography>
             <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: '1rem', opacity: 0.7 }}>
               Configure what types of bookings and services you offer
             </Typography>
@@ -968,10 +1251,33 @@ const ProfilePage: React.FC = () => {
               </Typography>
             </Box>
           </SettingsSection>
-        )}
+          )}
 
-        {/* Account Section */}
-        <SettingsSection title="Account" icon={<PersonIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
+          {/* Travel & Guest Spots Section (artists only) */}
+          {isArtist && (
+            <SettingsSection id="travel" title="Travel & Guest Spots" icon={<PublicIcon sx={{ fontSize: 20 }} />}>
+              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, mb: '1rem' }}>
+                Let studios know you're interested in guest artist opportunities. This feature is coming soon.
+              </Typography>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                p: '1rem',
+                bgcolor: `${colors.accent}1A`,
+                border: `1px solid ${colors.accent}33`,
+                borderRadius: '8px'
+              }}>
+                <PublicIcon sx={{ fontSize: 20, color: colors.accent, flexShrink: 0, mt: '2px' }} />
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5 }}>
+                  When studios in your dream destinations view your profile, you'll be notified on your dashboard.
+                </Typography>
+              </Box>
+            </SettingsSection>
+          )}
+
+          {/* Account Section */}
+          <SettingsSection id="account" title="Account" icon={<PersonIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <Box
               onClick={() => { setFieldName('email'); setAccountModalOpen(true); }}
@@ -1046,13 +1352,68 @@ const ProfilePage: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-        </SettingsSection>
+          </SettingsSection>
+        </Box>
+
+        {/* Bottom Navigation - Mobile */}
+        <Box
+          sx={{
+            display: { xs: 'flex', md: 'none' },
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            bgcolor: colors.background,
+            borderTop: `1px solid ${colors.border}`,
+            py: 1,
+            px: 1,
+            zIndex: 50,
+            justifyContent: 'space-around',
+            overflowX: 'auto'
+          }}
+        >
+          {navItems
+            .filter(item => {
+              // Filter out artist-only sections for non-artists
+              if (!isArtist && ['studio', 'hours', 'booking', 'travel'].includes(item.id)) {
+                return false;
+              }
+              return true;
+            })
+            .map(item => {
+              const Icon = item.icon;
+              return (
+                <Box
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 0.25,
+                    px: 1,
+                    py: 0.75,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    color: activeSection === item.id ? colors.accent : colors.textSecondary,
+                    transition: 'color 0.15s ease',
+                    minWidth: 50
+                  }}
+                >
+                  <Icon sx={{ fontSize: 22 }} />
+                  <Typography sx={{ fontSize: '0.6rem', fontWeight: activeSection === item.id ? 600 : 400 }}>
+                    {item.label}
+                  </Typography>
+                </Box>
+              );
+            })}
+        </Box>
       </Box>
 
       {/* Save Bar */}
       <Box sx={{
         position: 'fixed',
-        bottom: 0,
+        bottom: { xs: 60, md: 0 },
         left: 0,
         right: 0,
         bgcolor: colors.surface,
@@ -1060,7 +1421,7 @@ const ProfilePage: React.FC = () => {
         p: { xs: '1rem', md: '1rem 2rem' },
         transform: hasUnsavedChanges ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.3s ease',
-        zIndex: 50
+        zIndex: 100
       }}>
         <Box sx={{
           maxWidth: '720px',
@@ -1146,12 +1507,12 @@ const ProfilePage: React.FC = () => {
       />
 
       {/* Modal for setting working hours */}
-      {isArtist && (
+      {isArtist && artistId && (
         <WorkingHoursModal
           isOpen={workingHoursModalOpen}
           onClose={() => setWorkingHoursModalOpen(false)}
           onSave={handleSaveWorkingHours}
-          artistId={userData?.id || 0}
+          artistId={artistId}
           initialWorkingHours={workingHours}
         />
       )}
@@ -1160,7 +1521,7 @@ const ProfilePage: React.FC = () => {
       {showToast && (
         <Box sx={{
           position: 'fixed',
-          bottom: hasUnsavedChanges ? '80px' : '1rem',
+          bottom: { xs: hasUnsavedChanges ? 140 : 80, md: hasUnsavedChanges ? 80 : 16 },
           right: '1rem',
           px: '1rem',
           py: '0.75rem',
@@ -1169,7 +1530,7 @@ const ProfilePage: React.FC = () => {
           borderRadius: '8px',
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
           border: `1px solid ${colors.border}`,
-          zIndex: 100
+          zIndex: 150
         }}>
           {toastMessage}
         </Box>
