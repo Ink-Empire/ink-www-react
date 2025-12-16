@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -13,7 +13,6 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import StarIcon from '@mui/icons-material/Star';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import BusinessIcon from '@mui/icons-material/Business';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '@/styles/colors';
 
@@ -135,11 +134,22 @@ const mockGuestSpots = [
   }
 ];
 
+type DashboardTab = 'artist' | 'studio';
+
 export default function Dashboard() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
+  const [activeTab, setActiveTab] = useState<DashboardTab>('artist');
 
   const userName = user?.name?.split(' ')[0] || user?.username || '';
+  const userInitials = user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.username?.slice(0, 2).toUpperCase() || 'U';
+  const ownedStudio = user?.owned_studio || user?.studio;
+  const studioInitials = ownedStudio?.name
+    ? ownedStudio.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'ST';
+  const hasStudio = user?.is_studio_admin && ownedStudio;
 
   return (
     <Layout>
@@ -156,7 +166,7 @@ export default function Dashboard() {
           alignItems: { xs: 'flex-start', md: 'center' },
           flexDirection: { xs: 'column', md: 'row' },
           gap: 2,
-          mb: 3
+          mb: 2
         }}>
           <Box>
             <Typography sx={{
@@ -173,31 +183,11 @@ export default function Dashboard() {
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap' }}>
-            {/* Studio Dashboard Link - only show if user is a studio admin */}
-            {user?.is_studio_admin && user?.studio && (
-              <Button
-                component={Link}
-                href={`/studios/${user.studio.slug}/dashboard`}
-                sx={{
-                  flex: { xs: 1, md: 'none' },
-                  px: 2,
-                  py: 1,
-                  color: colors.textPrimary,
-                  border: `1px solid ${colors.accent}`,
-                  borderRadius: '6px',
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  fontSize: '0.9rem',
-                  '&:hover': { bgcolor: `${colors.accent}15`, borderColor: colors.accent }
-                }}
-                startIcon={<BusinessIcon sx={{ fontSize: 18, color: colors.accent }} />}
-              >
-                {user.studio.name || 'Studio Dashboard'}
-              </Button>
-            )}
             <Button
               component={Link}
-              href={user?.slug ? `/artists/${user.slug}` : '#'}
+              href={activeTab === 'studio' && ownedStudio?.slug
+                ? `/studios/${ownedStudio.slug}`
+                : (user?.slug ? `/artists/${user.slug}` : '#')}
               sx={{
                 flex: { xs: 1, md: 'none' },
                 px: 2,
@@ -234,6 +224,31 @@ export default function Dashboard() {
           </Box>
         </Box>
 
+        {/* Dashboard Tabs - only show if user has a studio */}
+        {hasStudio && (
+          <Box sx={{
+            display: 'flex',
+            gap: 3,
+            mb: 3,
+            borderBottom: `1px solid ${colors.border}`,
+            pb: 0
+          }}>
+            <DashboardTab
+              label="My Artist Profile"
+              initials={userInitials}
+              isActive={activeTab === 'artist'}
+              onClick={() => setActiveTab('artist')}
+              accentAvatar
+            />
+            <DashboardTab
+              label={ownedStudio?.name || 'My Studio'}
+              initials={studioInitials}
+              isActive={activeTab === 'studio'}
+              onClick={() => setActiveTab('studio')}
+            />
+          </Box>
+        )}
+
         {/* Stats Row */}
         <Box sx={{
           display: 'grid',
@@ -241,33 +256,66 @@ export default function Dashboard() {
           gap: 2,
           mb: 3
         }}>
-          <StatCard
-            icon={<CalendarMonthIcon />}
-            value={mockStats.upcomingAppointments}
-            label="Upcoming Appointments"
-            trend={mockStats.appointmentsTrend}
-            trendUp
-          />
-          <StatCard
-            icon={<VisibilityIcon />}
-            value={mockStats.profileViews.toLocaleString()}
-            label="Profile Views This Month"
-            trend={mockStats.viewsTrend}
-            trendUp
-          />
-          <StatCard
-            icon={<FavoriteIcon />}
-            value={mockStats.savesThisWeek}
-            label="Saves This Week"
-            trend={mockStats.savesTrend}
-            trendUp
-          />
-          <StatCard
-            icon={<ChatBubbleOutlineIcon />}
-            value={mockStats.unreadMessages}
-            label="Unread Messages"
-            trend="New"
-          />
+          {activeTab === 'artist' ? (
+            <>
+              <StatCard
+                icon={<CalendarMonthIcon />}
+                value={mockStats.upcomingAppointments}
+                label="Upcoming Appointments"
+                trend={mockStats.appointmentsTrend}
+                trendUp
+              />
+              <StatCard
+                icon={<VisibilityIcon />}
+                value={mockStats.profileViews.toLocaleString()}
+                label="Profile Views This Month"
+                trend={mockStats.viewsTrend}
+                trendUp
+              />
+              <StatCard
+                icon={<FavoriteIcon />}
+                value={mockStats.savesThisWeek}
+                label="Saves This Week"
+                trend={mockStats.savesTrend}
+                trendUp
+              />
+              <StatCard
+                icon={<ChatBubbleOutlineIcon />}
+                value={mockStats.unreadMessages}
+                label="Unread Messages"
+                trend="New"
+              />
+            </>
+          ) : (
+            <>
+              <StatCard
+                icon={<CalendarMonthIcon />}
+                value={24}
+                label="Studio Bookings This Week"
+                trend="+5"
+                trendUp
+              />
+              <StatCard
+                icon={<VisibilityIcon />}
+                value="3,842"
+                label="Studio Page Views"
+                trend="+22%"
+                trendUp
+              />
+              <StatCard
+                icon={<StarIcon />}
+                value={3}
+                label="Artists at Studio"
+                trend=""
+              />
+              <StatCard
+                icon={<ChatBubbleOutlineIcon />}
+                value={12}
+                label="Studio Inquiries"
+                trend="New"
+              />
+            </>
+          )}
         </Box>
 
         {/* Main Grid */}
@@ -280,7 +328,7 @@ export default function Dashboard() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Upcoming Schedule */}
             <Card
-              title="Upcoming Schedule"
+              title={activeTab === 'artist' ? 'Upcoming Schedule' : 'Studio Schedule'}
               action={<CardLink href="/calendar">View Calendar →</CardLink>}
             >
               <Box>
@@ -293,30 +341,112 @@ export default function Dashboard() {
 
           {/* Side Column */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Clients to Reach Out To */}
-            <Card title="Clients to Reach Out To">
-              <Box>
-                {mockClients.map((client, index) => (
-                  <ClientItem key={client.id} client={client} isLast={index === mockClients.length - 1} />
-                ))}
-              </Box>
-            </Card>
+            {activeTab === 'artist' ? (
+              <>
+                {/* Clients to Reach Out To */}
+                <Card title="Clients to Reach Out To">
+                  <Box>
+                    {mockClients.map((client, index) => (
+                      <ClientItem key={client.id} client={client} isLast={index === mockClients.length - 1} />
+                    ))}
+                  </Box>
+                </Card>
 
-            {/* Recent Activity */}
-            <Card
-              title="Recent Activity"
-              action={<CardLink href="/activity">View All →</CardLink>}
-            >
-              <Box>
-                {mockActivity.map((activity, index) => (
-                  <ActivityItem key={activity.id} activity={activity} isLast={index === mockActivity.length - 1} />
-                ))}
-              </Box>
-            </Card>
+                {/* Recent Activity */}
+                <Card
+                  title="Recent Activity"
+                  action={<CardLink href="/activity">View All →</CardLink>}
+                >
+                  <Box>
+                    {mockActivity.map((activity, index) => (
+                      <ActivityItem key={activity.id} activity={activity} isLast={index === mockActivity.length - 1} />
+                    ))}
+                  </Box>
+                </Card>
+              </>
+            ) : (
+              <>
+                {/* Studio Artists */}
+                <Card title="Studio Artists">
+                  <Box>
+                    {[
+                      { id: 1, name: user?.name || 'You', initials: userInitials, role: 'Owner', status: 'Active' },
+                      { id: 2, name: 'Alex Chen', initials: 'AC', role: 'Resident Artist', status: 'Active' },
+                      { id: 3, name: 'Maria Santos', initials: 'MS', role: 'Guest Artist', status: 'On Break' },
+                    ].map((artist, index, arr) => (
+                      <Box key={artist.id} sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        p: 2,
+                        borderBottom: index === arr.length - 1 ? 'none' : `1px solid ${colors.border}`,
+                      }}>
+                        <Avatar sx={{
+                          width: 44,
+                          height: 44,
+                          bgcolor: artist.id === 1 ? colors.accent : colors.background,
+                          color: artist.id === 1 ? colors.background : colors.textSecondary,
+                          fontSize: '0.9rem',
+                          fontWeight: 600
+                        }}>
+                          {artist.initials}
+                        </Avatar>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
+                            {artist.name}
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+                            {artist.role}
+                          </Typography>
+                        </Box>
+                        <Box sx={{
+                          px: 1,
+                          py: 0.5,
+                          borderRadius: '100px',
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          bgcolor: artist.status === 'Active' ? `${colors.success}26` : `${colors.textMuted}26`,
+                          color: artist.status === 'Active' ? colors.success : colors.textMuted
+                        }}>
+                          {artist.status}
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Card>
+
+                {/* Studio Activity */}
+                <Card
+                  title="Studio Activity"
+                  action={<CardLink href="/activity">View All →</CardLink>}
+                >
+                  <Box>
+                    {[
+                      { id: 1, text: 'New booking request from Sarah K.', time: '1 hour ago' },
+                      { id: 2, text: 'Alex Chen completed appointment', time: '3 hours ago' },
+                      { id: 3, text: 'Studio page viewed 47 times today', time: '5 hours ago' },
+                    ].map((item, index, arr) => (
+                      <Box key={item.id} sx={{
+                        p: 2,
+                        borderBottom: index === arr.length - 1 ? 'none' : `1px solid ${colors.border}`,
+                      }}>
+                        <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary, mb: 0.25 }}>
+                          {item.text}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted }}>
+                          {item.time}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Card>
+              </>
+            )}
           </Box>
         </Box>
 
-        {/* Guest Spot Opportunities */}
+        {/* Guest Spot Opportunities - Artist Tab Only */}
+        {activeTab === 'artist' && (
         <Box sx={{ mt: 3 }}>
           <Card
             title="Guest Spot Opportunities"
@@ -377,8 +507,56 @@ export default function Dashboard() {
             </Box>
           </Card>
         </Box>
+        )}
       </Box>
     </Layout>
+  );
+}
+
+// Dashboard Tab Component
+function DashboardTab({ label, initials, isActive, onClick, accentAvatar }: {
+  label: string;
+  initials: string;
+  isActive: boolean;
+  onClick: () => void;
+  accentAvatar?: boolean;
+}) {
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        pb: 1.5,
+        px: 0.5,
+        cursor: 'pointer',
+        borderBottom: isActive ? `2px solid ${colors.accent}` : '2px solid transparent',
+        mb: '-1px',
+        transition: 'border-color 0.2s',
+        '&:hover': {
+          borderColor: isActive ? colors.accent : colors.borderLight
+        }
+      }}
+    >
+      <Avatar sx={{
+        width: 32,
+        height: 32,
+        bgcolor: accentAvatar ? colors.accent : colors.surface,
+        color: accentAvatar ? colors.background : colors.textSecondary,
+        fontSize: '0.75rem',
+        fontWeight: 600
+      }}>
+        {initials}
+      </Avatar>
+      <Typography sx={{
+        fontSize: '0.95rem',
+        fontWeight: isActive ? 600 : 500,
+        color: isActive ? colors.textPrimary : colors.textSecondary
+      }}>
+        {label}
+      </Typography>
+    </Box>
   );
 }
 

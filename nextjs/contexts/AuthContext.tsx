@@ -31,6 +31,11 @@ interface User {
     name: string;
     slug: string;
   };
+  owned_studio?: {
+    id: number;
+    name: string;
+    slug: string;
+  } | null;
   [key: string]: any; // Allow additional properties from API
 }
 
