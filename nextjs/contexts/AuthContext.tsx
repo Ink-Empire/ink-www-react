@@ -23,6 +23,14 @@ interface User {
     tattoos?: number[];
     studios?: number[];
   };
+  // Studio admin fields
+  is_studio_admin?: boolean;
+  studio_id?: number;
+  studio?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
   [key: string]: any; // Allow additional properties from API
 }
 
@@ -128,10 +136,20 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const router = useRouter();
 
-  // Initialize with stored user for immediate UI
-  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  // Initialize as null to avoid hydration mismatch (server vs client)
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Load stored user after hydration (client-side only)
+  useEffect(() => {
+    const storedUser = getStoredUser();
+    if (storedUser) {
+      setUser(storedUser);
+    }
+    setIsHydrated(true);
+  }, []);
 
   // Fetch CSRF cookie
   const csrf = useCallback(async () => {
@@ -168,13 +186,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // Validate session on mount
+  // Validate session after hydration
   useEffect(() => {
+    if (!isHydrated) return;
+
     let mounted = true;
 
     const validateSession = async () => {
-      setIsLoading(true);
-
       const storedUser = getStoredUser();
       if (storedUser) {
         // Validate with server
@@ -199,7 +217,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => {
       mounted = false;
     };
-  }, [fetchUser]);
+  }, [isHydrated, fetchUser]);
 
   // Login
   const login = useCallback(async ({

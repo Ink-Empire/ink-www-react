@@ -16,12 +16,16 @@ interface StylesSelectionProps {
   onStepComplete: (selectedStyles: number[]) => void;
   onBack: () => void;
   userType: 'client' | 'artist' | 'studio';
+  title?: string; // Optional override for the title
+  subtitle?: string; // Optional override for the description
 }
 
 const StylesSelection: React.FC<StylesSelectionProps> = ({
   onStepComplete,
   onBack,
-  userType
+  userType,
+  title: customTitle,
+  subtitle: customSubtitle,
 }) => {
   const { styles, loading, error } = useStyles();
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
@@ -112,7 +116,7 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
             fontSize: { xs: '1.5rem', md: '2rem' }, // Slightly smaller for compact panel
           }}
         >
-          {getTitle()}
+          {customTitle || getTitle()}
         </Typography>
 
         <Typography
@@ -126,7 +130,7 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
             mx: 'auto',
           }}
         >
-          {getDescription()}
+          {customSubtitle || getDescription()}
         </Typography>
 
         <Typography

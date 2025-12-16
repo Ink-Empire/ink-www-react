@@ -123,6 +123,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
           {/* Email Field */}
           <TextField
             label="Email Address"
+            name="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -131,6 +132,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
             helperText={errors.email || 'This will be used to log in to your account'}
             fullWidth
             required
+            autoComplete="email"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
@@ -155,6 +157,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
           {/* Password Field */}
           <TextField
             label="Password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -163,6 +166,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
             helperText={errors.password || 'Must be at least 8 characters'}
             fullWidth
             required
+            autoComplete="new-password"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
@@ -187,6 +191,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
           {/* Password Confirmation Field */}
           <TextField
             label="Confirm Password"
+            name="password_confirmation"
             type="password"
             value={passwordConfirmation}
             onChange={(e) => setPasswordConfirmation(e.target.value)}
@@ -195,6 +200,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
             helperText={errors.passwordConfirmation}
             fullWidth
             required
+            autoComplete="new-password"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {

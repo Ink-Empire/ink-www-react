@@ -5,5 +5,7 @@ export { default as StylesSelection } from './StylesSelection';
 export { default as ArtistPreferencesSelection } from './ArtistPreferencesSelection';
 export { default as UserDetails } from './UserDetails';
 export { default as AccountSetup } from './AccountSetup';
+export { default as StudioOwnerCheck } from './StudioOwnerCheck';
+export { default as StudioDetails } from './StudioDetails';
 
 export type { OnboardingData } from './OnboardingWizard';

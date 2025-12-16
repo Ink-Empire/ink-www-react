@@ -13,6 +13,7 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import StarIcon from '@mui/icons-material/Star';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import BusinessIcon from '@mui/icons-material/Business';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '@/styles/colors';
 
@@ -171,7 +172,29 @@ export default function Dashboard() {
               Here's what's happening this week
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' } }}>
+          <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap' }}>
+            {/* Studio Dashboard Link - only show if user is a studio admin */}
+            {user?.is_studio_admin && user?.studio && (
+              <Button
+                component={Link}
+                href={`/studios/${user.studio.slug}/dashboard`}
+                sx={{
+                  flex: { xs: 1, md: 'none' },
+                  px: 2,
+                  py: 1,
+                  color: colors.textPrimary,
+                  border: `1px solid ${colors.accent}`,
+                  borderRadius: '6px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.9rem',
+                  '&:hover': { bgcolor: `${colors.accent}15`, borderColor: colors.accent }
+                }}
+                startIcon={<BusinessIcon sx={{ fontSize: 18, color: colors.accent }} />}
+              >
+                {user.studio.name || 'Studio Dashboard'}
+              </Button>
+            )}
             <Button
               component={Link}
               href={user?.slug ? `/artists/${user.slug}` : '#'}

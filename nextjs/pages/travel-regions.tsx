@@ -497,7 +497,7 @@ const TravelRegionsPage: React.FC = () => {
                 '&:hover': { bgcolor: colors.accentHover, borderColor: colors.accentHover }
               }}
             >
-              Save Destinations
+              Save
             </Box>
           </Box>
         </Box>

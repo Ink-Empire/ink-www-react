@@ -12,34 +12,36 @@ import {
 } from '@mui/material';
 import {
   PhotoCamera as PhotoCameraIcon,
-  Person as PersonIcon,
+  Store as StoreIcon,
   LocationOn as LocationOnIcon,
   MyLocation as MyLocationIcon,
 } from '@mui/icons-material';
 import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
 
-interface UserDetailsProps {
-  onStepComplete: (userDetails: {
+interface StudioDetailsProps {
+  onStepComplete: (studioDetails: {
     name: string;
     username: string;
     bio: string;
     profileImage?: File | null;
     location: string;
     locationLatLong: string;
+    email?: string;
+    phone?: string;
   }) => void;
   onBack: () => void;
-  userType: 'client' | 'artist' | 'studio';
 }
 
-const UserDetails: React.FC<UserDetailsProps> = ({ 
-  onStepComplete, 
-  onBack, 
-  userType 
+const StudioDetails: React.FC<StudioDetailsProps> = ({
+  onStepComplete,
+  onBack,
 }) => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
   const [location, setLocation] = useState('');
@@ -48,7 +50,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { getCurrentPosition, getLocation } = useAppGeolocation();
 
@@ -60,16 +62,16 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         setErrors(prev => ({ ...prev, profileImage: 'Please select a valid image file' }));
         return;
       }
-      
+
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setErrors(prev => ({ ...prev, profileImage: 'Image must be less than 5MB' }));
         return;
       }
-      
+
       setProfileImage(file);
       setErrors(prev => ({ ...prev, profileImage: '' }));
-      
+
       // Create preview URL
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -99,31 +101,27 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const handleGetCurrentLocation = async () => {
     setIsGettingLocation(true);
     setErrors(prev => ({ ...prev, location: '' }));
-    
+
     try {
       const position = await getCurrentPosition();
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       setLocationLatLong(`${lat},${lng}`);
-      
+
       // Use reverse geocoding to get address
       const locationData = await getLocation(lat, lng);
-      console.log('Reverse geocoding result:', locationData);
-      
+
       if (locationData.items && locationData.items.length > 0) {
         const address = locationData.items[0].address;
-        console.log('Address object:', address);
-        
+
         const locationStr = [
-          address.city, 
-          address.state, 
+          address.city,
+          address.state,
           address.countryCode
         ].filter(Boolean).join(', ');
-        
-        console.log('Generated location string:', locationStr);
+
         setLocation(locationStr || 'Current Location');
       } else {
-        console.log('No location items found, using fallback');
         setLocation('Current Location');
       }
     } catch (err) {
@@ -137,11 +135,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Studio name is required';
     }
-    
+
     if (!username.trim()) {
       newErrors.username = 'Username is required';
     } else if (username.length < 3) {
@@ -149,7 +147,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       newErrors.username = 'Username can only contain letters, numbers, and underscores';
     }
-    
+
     if (!bio.trim()) {
       newErrors.bio = 'Bio is required';
     } else if (bio.length < 10) {
@@ -157,24 +155,29 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     } else if (bio.length > 500) {
       newErrors.bio = 'Bio must be less than 500 characters';
     }
-    
+
     if (!location.trim()) {
       newErrors.location = 'Location is required';
     }
-    
+
+    // Email is optional, but if provided must be valid format
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       await onStepComplete({
         name: name.trim(),
@@ -183,45 +186,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         profileImage,
         location: location.trim(),
         locationLatLong: locationLatLong,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
       });
     } catch (error) {
-      console.error('Error submitting user details:', error);
+      console.error('Error submitting studio details:', error);
       setErrors({ submit: 'Failed to save details. Please try again.' });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const getTitle = () => {
-    switch (userType) {
-      case 'artist':
-        return 'Tell us about yourself';
-      case 'studio':
-        return 'Tell us about your studio';
-      default:
-        return 'Create your profile';
-    }
-  };
-
-  const getNamePlaceholder = () => {
-    switch (userType) {
-      case 'artist':
-        return 'Your full name or artist name';
-      case 'studio':
-        return 'Your studio name';
-      default:
-        return 'Your full name';
-    }
-  };
-
-  const getBioPlaceholder = () => {
-    switch (userType) {
-      case 'artist':
-        return 'Tell people about your tattoo style, experience, and what inspires your art...';
-      case 'studio':
-        return 'Describe your studio\'s atmosphere, specialties, and what makes you unique...';
-      default:
-        return 'Tell the community about yourself, your tattoo interests, or anything you\'d like to share...';
     }
   };
 
@@ -237,9 +209,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             color: colors.textSecondary,
           }}
         >
-          {getTitle()}
+          Tell us about your studio
         </Typography>
-        
+
         <Typography
           variant="body1"
           sx={{
@@ -249,21 +221,21 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             lineHeight: 1.6,
           }}
         >
-          Let's set up your profile so others can get to know you better.
+          Now let's set up your studio's public profile.
         </Typography>
       </Box>
 
       <form onSubmit={handleSubmit}>
         <Stack spacing={4}>
-          {/* Profile Image */}
+          {/* Studio Image */}
           <Box sx={{ textAlign: 'center' }}>
             <Typography
               variant="h6"
               sx={{ mb: 2, color: colors.textSecondary }}
             >
-              Profile Photo
+              Studio Photo or Logo
             </Typography>
-            
+
             <Box sx={{ position: 'relative', display: 'inline-block' }}>
               <Avatar
                 src={profileImagePreview || undefined}
@@ -281,9 +253,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 }}
                 onClick={handleImageClick}
               >
-                {!profileImagePreview && <PersonIcon sx={{ fontSize: 60 }} />}
+                {!profileImagePreview && <StoreIcon sx={{ fontSize: 60 }} />}
               </Avatar>
-              
+
               <IconButton
                 sx={{
                   position: 'absolute',
@@ -302,7 +274,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 <PhotoCameraIcon sx={{ fontSize: 20 }} />
               </IconButton>
             </Box>
-            
+
             <input
               ref={fileInputRef}
               type="file"
@@ -310,7 +282,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               onChange={handleImageChange}
               style={{ display: 'none' }}
             />
-            
+
             <Typography
               variant="body2"
               sx={{
@@ -319,9 +291,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 fontStyle: 'italic',
               }}
             >
-              Click to add a profile photo (optional)
+              Click to add a studio photo or logo (optional)
             </Typography>
-            
+
             {errors.profileImage && (
               <Alert severity="error" sx={{ mt: 1 }}>
                 {errors.profileImage}
@@ -329,18 +301,18 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             )}
           </Box>
 
-          {/* Name Field */}
+          {/* Studio Name Field */}
           <TextField
-            label={userType === 'studio' ? 'Studio Name' : 'Name'}
-            name="name"
+            label="Studio Name"
+            name="studio_name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={getNamePlaceholder()}
+            placeholder="Your studio's name"
             error={!!errors.name}
             helperText={errors.name}
             fullWidth
             required
-            autoComplete="name"
+            autoComplete="organization"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
@@ -364,16 +336,15 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
           {/* Username Field */}
           <TextField
-            label="Username"
-            name="username"
+            label="Studio Username"
+            name="studio_username"
             value={username}
             onChange={(e) => setUsername(e.target.value.toLowerCase())}
-            placeholder="Choose a unique username"
+            placeholder="Choose a unique username for your studio"
             error={!!errors.username}
-            helperText={errors.username || 'This will be your unique identifier on the platform'}
+            helperText={errors.username || 'This will be your studio\'s URL: inkedin.com/studios/username'}
             fullWidth
             required
-            autoComplete="username"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
@@ -397,11 +368,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
           {/* Bio Field */}
           <TextField
-            label="Bio"
-            name="bio"
+            label="Studio Bio"
+            name="studio_bio"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            placeholder={getBioPlaceholder()}
+            placeholder="Describe your studio's atmosphere, specialties, and what makes you unique..."
             error={!!errors.bio}
             helperText={errors.bio || `${bio.length}/500 characters`}
             fullWidth
@@ -429,31 +400,97 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             }}
           />
 
+          {/* Email Field (Optional) */}
+          <TextField
+            label="Studio Email (Optional)"
+            name="studio_email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="contact@yourstudio.com"
+            error={!!errors.email}
+            helperText={errors.email || 'A public contact email for your studio'}
+            fullWidth
+            type="email"
+            autoComplete="email"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(232, 219, 197, 0.5)',
+                },
+                '&:hover fieldset': {
+                  borderColor: colors.textSecondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: colors.accent,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: colors.textSecondary,
+                '&.Mui-focused': {
+                  color: colors.accent,
+                },
+              },
+            }}
+          />
+
+          {/* Phone Field (Optional) */}
+          <TextField
+            label="Studio Phone (Optional)"
+            name="studio_phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="(555) 123-4567"
+            error={!!errors.phone}
+            helperText={errors.phone || 'A contact phone number for your studio'}
+            fullWidth
+            type="tel"
+            autoComplete="tel"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'rgba(232, 219, 197, 0.5)',
+                },
+                '&:hover fieldset': {
+                  borderColor: colors.textSecondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: colors.accent,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: colors.textSecondary,
+                '&.Mui-focused': {
+                  color: colors.accent,
+                },
+              },
+            }}
+          />
+
           {/* Location Field */}
           <Box>
             <Typography
               variant="h6"
               sx={{ mb: 2, color: colors.textSecondary }}
             >
-              Location
+              Studio Location
             </Typography>
-            
-            <Stack 
-              direction={{ xs: 'column', sm: 'row' }} 
-              justifyContent="space-between" 
-              alignItems={{ xs: 'stretch', sm: 'center' }} 
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              justifyContent="space-between"
+              alignItems={{ xs: 'stretch', sm: 'center' }}
               spacing={{ xs: 1, sm: 0 }}
               sx={{ mb: 2 }}
             >
-              <Typography 
-                variant="body2" 
-                sx={{ 
+              <Typography
+                variant="body2"
+                sx={{
                   color: 'text.secondary',
                   textAlign: { xs: 'center', sm: 'left' },
                   mb: { xs: 1, sm: 0 }
                 }}
               >
-                {useMyLocation ? 'Using your current location' : 'Enter your location manually'}
+                {useMyLocation ? 'Using current location' : 'Enter your studio\'s address'}
               </Typography>
               <Button
                 variant="text"
@@ -503,8 +540,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               </Box>
             ) : (
               <TextField
-                label="Your Location"
-                name="location"
+                label="Studio Address"
+                name="studio_location"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="City, State/Province, Country"
@@ -512,23 +549,23 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 helperText={errors.location}
                 fullWidth
                 required
-                autoComplete="address-level2"
+                autoComplete="street-address"
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     '& fieldset': {
                       borderColor: 'rgba(232, 219, 197, 0.5)',
                     },
                     '&:hover fieldset': {
-                      borderColor: '#e8dbc5',
+                      borderColor: colors.textSecondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#339989',
+                      borderColor: colors.accent,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#e8dbc5',
+                    color: colors.textSecondary,
                     '&.Mui-focused': {
-                      color: '#339989',
+                      color: colors.accent,
                     },
                   },
                 }}
@@ -570,7 +607,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 },
               }}
             >
-              {isSubmitting ? 'Updating Profile...' : 'Continue'}
+              {isSubmitting ? 'Creating Studio...' : 'Create Studio'}
             </Button>
 
             {/* Back button on the right */}
@@ -607,10 +644,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           fontStyle: 'italic',
         }}
       >
-        You can always update your profile information later in your settings.
+        You can always update your studio information later in your dashboard.
       </Typography>
     </Box>
   );
 };
 
-export default UserDetails;
+export default StudioDetails;
