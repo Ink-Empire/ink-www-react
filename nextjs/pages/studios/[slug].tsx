@@ -22,6 +22,8 @@ import NavigationIcon from '@mui/icons-material/Navigation';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CampaignIcon from '@mui/icons-material/Campaign';
+import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import { useStudio, useStudioArtists, useStudioGallery } from '../../hooks/useStudios';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooModal from '@/components/TattooModal';
@@ -583,7 +585,7 @@ export default function StudioDetail() {
 
             {/* Style Tags */}
             {studioStyles.length > 0 && (
-              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: studio.seeking_guest_artists ? 1 : 0 }}>
                 {studioStyles.slice(0, 5).map((styleName: string, index: number) => (
                   <Box key={index} sx={{
                     px: 1.25,
@@ -597,6 +599,38 @@ export default function StudioDetail() {
                     {styleName}
                   </Box>
                 ))}
+              </Box>
+            )}
+
+            {/* Seeking Guest Artists Badge */}
+            {studio.seeking_guest_artists && (
+              <Box>
+                <Box sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: `${colors.success}1A`,
+                  border: `1px solid ${colors.success}4D`,
+                  borderRadius: '100px',
+                  fontSize: '0.85rem',
+                  color: colors.success,
+                  fontWeight: 500
+                }}>
+                  <FlightTakeoffIcon sx={{ fontSize: 16 }} />
+                  Seeking Guest Artists
+                </Box>
+                {studio.guest_spot_details && (
+                  <Typography sx={{
+                    fontSize: '0.85rem',
+                    color: colors.textSecondary,
+                    mt: 0.75,
+                    fontStyle: 'italic'
+                  }}>
+                    {studio.guest_spot_details}
+                  </Typography>
+                )}
               </Box>
             )}
           </Box>
@@ -1034,6 +1068,56 @@ export default function StudioDetail() {
                         </Typography>
                       </Link>
                     )}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Announcements Card */}
+              {studio.announcements && studio.announcements.length > 0 && (
+                <Box sx={{
+                  bgcolor: colors.surface,
+                  borderRadius: '12px',
+                  p: 2,
+                  border: `1px solid ${colors.border}`
+                }}>
+                  <Typography sx={{
+                    fontFamily: '"Cormorant Garamond", Georgia, serif',
+                    fontSize: '1.25rem',
+                    fontWeight: 500,
+                    mb: 1.5,
+                    color: colors.textPrimary,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <CampaignIcon sx={{ color: colors.accent }} />
+                    Announcements
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {studio.announcements.map((announcement: any) => (
+                      <Box key={announcement.id} sx={{
+                        p: 1.5,
+                        bgcolor: colors.background,
+                        borderRadius: '8px',
+                        borderLeft: `3px solid ${colors.accent}`
+                      }}>
+                        <Typography sx={{
+                          fontWeight: 600,
+                          fontSize: '0.9rem',
+                          color: colors.textPrimary,
+                          mb: 0.5
+                        }}>
+                          {announcement.title}
+                        </Typography>
+                        <Typography sx={{
+                          fontSize: '0.85rem',
+                          color: colors.textSecondary,
+                          lineHeight: 1.5
+                        }}>
+                          {announcement.content}
+                        </Typography>
+                      </Box>
+                    ))}
                   </Box>
                 </Box>
               )}
