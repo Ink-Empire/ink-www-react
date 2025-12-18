@@ -8,6 +8,7 @@ import { useArtistAppointments } from '@/hooks';
 interface ArtistCalendarProps {
   artistIdOrSlug: string | number;
   onDateSelected?: (date: Date, workingHours: any) => void;
+  isOwnCalendar?: boolean; // If true, always show calendar even with books closed
 }
 
 // Interface for working hours from API
@@ -38,7 +39,7 @@ interface CalendarEvent {
   };
 }
 
-const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateSelected }) => {
+const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateSelected, isOwnCalendar = false }) => {
   const { user } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -121,16 +122,16 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
         console.log(booksAreOpen);
 
 
-        // Only fetch working hours if books are open
-        if (booksAreOpen) {
+        // Fetch working hours if books are open OR if viewing own calendar
+        if (booksAreOpen || isOwnCalendar) {
           // Use the API endpoint from ink-api
           const data = await api.get<{ data: WorkingHour[] }>(
               `/artists/${artist.slug}/working-hours`,
               { requiresAuth: false }
           );
-          
+
           console.log('Working hours API response:', data);
-          
+
           // We know the API returns data.data directly
           if (data && typeof data === 'object' && 'data' in data) {
             setWorkingHours(data.data);
@@ -139,7 +140,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
             setWorkingHours([]);
           }
         } else {
-          console.log('Books are closed or no settings data, not fetching working hours');
+          console.log('Books are closed and not own calendar, not fetching working hours');
           setWorkingHours([]);
         }
       } catch (error) {
@@ -152,7 +153,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     };
     
     fetchArtistAndWorkingHours();
-  }, [artist?.id]);
+  }, [artist?.id, isOwnCalendar]);
 
   // Generate available days based on working hours
   const generateAvailableDays = () => {
@@ -161,8 +162,8 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
       return [];
     }
     
-    // Don't generate days if books are closed
-    if (booksOpen === false) {
+    // Don't generate days if books are closed (unless viewing own calendar)
+    if (booksOpen === false && !isOwnCalendar) {
       console.log('Books are closed, not generating available days');
       return [];
     }
@@ -294,7 +295,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
       // Set the events with only the API-based available days
       setEvents(availableDays);
     }
-  }, [fetchedAppointments, appointmentsLoading, workingHours, workingHoursLoading, booksOpen, artist?.id]);
+  }, [fetchedAppointments, appointmentsLoading, workingHours, workingHoursLoading, booksOpen, artist?.id, isOwnCalendar]);
   
   // Set up click event handlers for day cells
   useEffect(() => {
@@ -435,8 +436,8 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
     );
   }
 
-  // Render books closed warning
-  if (!workingHoursLoading && booksOpen === false) {
+  // Render books closed warning (only for OTHER artists, not own calendar)
+  if (!workingHoursLoading && booksOpen === false && !isOwnCalendar) {
     return (
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded shadow">
         <div className="flex items-center">
@@ -448,7 +449,7 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
           <div className="ml-3">
             <h3 className="text-lg font-medium text-yellow-800">Books Currently Closed</h3>
             <p className="text-sm text-yellow-700 mt-1">
-              This artist's books are currently closed and they are not accepting new appointments at this time. 
+              This artist's books are currently closed and they are not accepting new appointments at this time.
               Please check back later or contact the artist directly for more information.
             </p>
           </div>

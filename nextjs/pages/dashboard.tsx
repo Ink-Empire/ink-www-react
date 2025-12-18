@@ -26,123 +26,74 @@ import { api } from '@/utils/api';
 import EditStudioModal from '../components/EditStudioModal';
 import AddArtistModal from '../components/AddArtistModal';
 
-// Placeholder data - will be replaced with API calls
-const mockStats = {
-  upcomingAppointments: 8,
-  appointmentsTrend: '+2',
-  profileViews: 1247,
-  viewsTrend: '+18%',
-  savesThisWeek: 89,
-  savesTrend: '+24',
-  unreadMessages: 5
+// Types for dashboard data
+interface DashboardStats {
+  upcomingAppointments: number;
+  appointmentsTrend: string;
+  profileViews: number;
+  viewsTrend: string;
+  savesThisWeek: number;
+  savesTrend: string;
+  unreadMessages: number;
+}
+
+interface ScheduleItem {
+  id: number;
+  day: number;
+  month: string;
+  time: string;
+  title: string;
+  clientName: string;
+  clientInitials: string;
+  type: string;
+}
+
+interface ClientItem {
+  id: number;
+  name: string;
+  initials: string;
+  hint: string;
+  hintType: string;
+}
+
+interface ActivityItem {
+  id: number;
+  user: string;
+  action: string;
+  target: string;
+  time: string;
+  type: string;
+}
+
+interface GuestSpotStudio {
+  id: number;
+  name: string;
+  initials: string;
+  location: string;
+  viewedAgo: string;
+  rating: number;
+  reviews: number;
+  styles: string[];
+  seeking: boolean;
+}
+
+interface GuestSpotRegion {
+  region: string;
+  flag: string;
+  studioCount: number;
+  studios: GuestSpotStudio[];
+}
+
+// Default empty states
+const defaultStats: DashboardStats = {
+  upcomingAppointments: 0,
+  appointmentsTrend: '+0',
+  profileViews: 0,
+  viewsTrend: '+0%',
+  savesThisWeek: 0,
+  savesTrend: '+0',
+  unreadMessages: 0
 };
-
-const mockSchedule = [
-  {
-    id: 1,
-    day: 14,
-    month: 'Dec',
-    time: '10:00 AM – 2:00 PM',
-    title: 'Neo-Traditional Wolf Sleeve (Session 2)',
-    clientName: 'Mike Rodriguez',
-    clientInitials: 'MR',
-    type: 'appointment'
-  },
-  {
-    id: 2,
-    day: 14,
-    month: 'Dec',
-    time: '4:30 PM – 5:00 PM',
-    title: 'New Client Consultation',
-    clientName: 'Emma Kim',
-    clientInitials: 'EK',
-    type: 'consultation'
-  },
-  {
-    id: 3,
-    day: 16,
-    month: 'Dec',
-    time: '11:00 AM – 4:00 PM',
-    title: 'Japanese Koi Back Piece (Session 1)',
-    clientName: 'David Lee',
-    clientInitials: 'DL',
-    type: 'appointment'
-  },
-  {
-    id: 4,
-    day: 17,
-    month: 'Dec',
-    time: '1:00 PM – 3:00 PM',
-    title: 'Fine Line Botanical Forearm',
-    clientName: 'Sarah Park',
-    clientInitials: 'SP',
-    type: 'appointment'
-  }
-];
-
-const mockClients = [
-  { id: 1, name: 'Alex Liu', initials: 'AL', hint: 'Saved 3 of your pieces', hintType: 'save' },
-  { id: 2, name: 'Jordan Taylor', initials: 'JT', hint: 'Requested similar design', hintType: 'message' },
-  { id: 3, name: 'Rachel Nguyen', initials: 'RN', hint: 'Viewed profile 5 times', hintType: 'view' },
-  { id: 4, name: 'Chris Martinez', initials: 'CM', hint: 'Liked your recent work', hintType: 'like' }
-];
-
-const mockActivity = [
-  { id: 1, user: 'Alex Liu', action: 'saved', target: 'Neo-Trad Wolf', time: '2 hours ago', type: 'save' },
-  { id: 2, user: 'Maria Santos', action: 'liked', target: 'Japanese Koi', time: '4 hours ago', type: 'like' },
-  { id: 3, user: 'Jordan Taylor', action: 'sent you a message', target: '', time: '5 hours ago', type: 'message' },
-  { id: 4, user: 'Ryan Chen', action: 'liked', target: 'Geometric Sleeve', time: 'Yesterday', type: 'like' }
-];
-
-const mockGuestSpots = [
-  {
-    region: 'Paris, France',
-    flag: '🇫🇷',
-    studioCount: 3,
-    studios: [
-      {
-        id: 1,
-        name: 'Tin-Tin Tatouages',
-        initials: 'TN',
-        location: 'Le Marais, Paris',
-        viewedAgo: '2 days ago',
-        rating: 4.9,
-        reviews: 127,
-        styles: ['Traditional', 'Neo-Trad', 'Japanese'],
-        seeking: true
-      },
-      {
-        id: 2,
-        name: 'Art & Encre',
-        initials: 'AE',
-        location: 'Bastille, Paris',
-        viewedAgo: '5 days ago',
-        rating: 4.7,
-        reviews: 89,
-        styles: ['Fine Line', 'Blackwork'],
-        seeking: false
-      }
-    ]
-  },
-  {
-    region: 'Tokyo, Japan',
-    flag: '🇯🇵',
-    studioCount: 1,
-    studios: [
-      {
-        id: 3,
-        name: 'Three Tides Tattoo',
-        initials: '三',
-        location: 'Shibuya, Tokyo',
-        viewedAgo: '3 days ago',
-        rating: 5.0,
-        reviews: 312,
-        styles: ['Japanese', 'Irezumi', 'Traditional'],
-        seeking: true
-      }
-    ]
-  }
-];
 
 type DashboardTab = 'artist' | 'studio';
 
@@ -192,6 +143,11 @@ export default function Dashboard() {
   const [artistTattoos, setArtistTattoos] = useState<Tattoo[]>([]);
   const [isLoadingTattoos, setIsLoadingTattoos] = useState(false);
 
+  // Dashboard stats and schedule (fetched from API)
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>(defaultStats);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
   // Announcement form
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
   const [isAddingAnnouncement, setIsAddingAnnouncement] = useState(false);
@@ -220,6 +176,46 @@ export default function Dashboard() {
   useEffect(() => {
     if (user?.id) {
       loadArtistTattoos();
+    }
+  }, [user?.id]);
+
+  // Load dashboard stats and schedule
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!user?.id) return;
+
+      setIsLoadingStats(true);
+      try {
+        // Fetch stats and schedule in parallel
+        const [statsRes, scheduleRes] = await Promise.all([
+          api.get(`/artists/${user.id}/dashboard-stats`, { requiresAuth: true }).catch(() => null),
+          api.get(`/artists/${user.id}/upcoming-schedule`, { requiresAuth: true }).catch(() => null)
+        ]);
+
+        if (statsRes?.data) {
+          setDashboardStats({
+            upcomingAppointments: statsRes.data.upcoming_appointments || 0,
+            appointmentsTrend: statsRes.data.appointments_trend || '+0',
+            profileViews: statsRes.data.profile_views || 0,
+            viewsTrend: statsRes.data.views_trend || '+0%',
+            savesThisWeek: statsRes.data.saves_this_week || 0,
+            savesTrend: statsRes.data.saves_trend || '+0',
+            unreadMessages: 0 // TODO: Add unread messages API
+          });
+        }
+
+        if (scheduleRes?.data) {
+          setSchedule(scheduleRes.data);
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    if (user?.id) {
+      loadDashboardData();
     }
   }, [user?.id]);
 
@@ -455,28 +451,28 @@ export default function Dashboard() {
             <>
               <StatCard
                 icon={<CalendarMonthIcon />}
-                value={mockStats.upcomingAppointments}
+                value={dashboardStats.upcomingAppointments}
                 label="Upcoming Appointments"
-                trend={mockStats.appointmentsTrend}
+                trend={dashboardStats.appointmentsTrend}
                 trendUp
               />
               <StatCard
                 icon={<VisibilityIcon />}
-                value={mockStats.profileViews.toLocaleString()}
-                label="Profile Views This Month"
-                trend={mockStats.viewsTrend}
+                value={dashboardStats.profileViews.toLocaleString()}
+                label="Profile Views This Week"
+                trend={dashboardStats.viewsTrend}
                 trendUp
               />
               <StatCard
                 icon={<FavoriteIcon />}
-                value={mockStats.savesThisWeek}
+                value={dashboardStats.savesThisWeek}
                 label="Saves This Week"
-                trend={mockStats.savesTrend}
+                trend={dashboardStats.savesTrend}
                 trendUp
               />
               <StatCard
                 icon={<ChatBubbleOutlineIcon />}
-                value={mockStats.unreadMessages}
+                value={dashboardStats.unreadMessages}
                 label="Unread Messages"
                 trend="New"
               />
@@ -524,12 +520,20 @@ export default function Dashboard() {
             {/* Upcoming Schedule */}
             <Card
               title={activeTab === 'artist' ? 'Upcoming Schedule' : 'Studio Schedule'}
-              action={<CardLink href="/calendar">View Calendar →</CardLink>}
+              action={<CardLink href={activeTab === 'artist' ? '/calendar' : '/studio-calendar'}>View Calendar →</CardLink>}
             >
               <Box>
-                {mockSchedule.map((item, index) => (
-                  <ScheduleItem key={item.id} item={item} isLast={index === mockSchedule.length - 1} />
-                ))}
+                {schedule.length > 0 ? (
+                  schedule.map((item, index) => (
+                    <ScheduleItemComponent key={item.id} item={item} isLast={index === schedule.length - 1} />
+                  ))
+                ) : (
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
+                      No upcoming appointments scheduled
+                    </Typography>
+                  </Box>
+                )}
               </Box>
             </Card>
           </Box>
@@ -601,10 +605,10 @@ export default function Dashboard() {
 
                 {/* Clients to Reach Out To */}
                 <Card title="Clients to Reach Out To">
-                  <Box>
-                    {mockClients.map((client, index) => (
-                      <ClientItem key={client.id} client={client} isLast={index === mockClients.length - 1} />
-                    ))}
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
+                      Client insights coming soon
+                    </Typography>
                   </Box>
                 </Card>
 
@@ -613,10 +617,10 @@ export default function Dashboard() {
                   title="Recent Activity"
                   action={<CardLink href="/activity">View All →</CardLink>}
                 >
-                  <Box>
-                    {mockActivity.map((activity, index) => (
-                      <ActivityItem key={activity.id} activity={activity} isLast={index === mockActivity.length - 1} />
-                    ))}
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
+                      Activity feed coming soon
+                    </Typography>
                   </Box>
                 </Card>
 
@@ -1118,9 +1122,11 @@ export default function Dashboard() {
             action={<CardLink href="/travel-regions">Manage Travel Regions →</CardLink>}
           >
             <Box>
-              {mockGuestSpots.map((region, index) => (
-                <RegionGroup key={region.region} region={region} isLast={index === mockGuestSpots.length - 1} />
-              ))}
+              <Box sx={{ p: 3, textAlign: 'center' }}>
+                <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
+                  Guest spot opportunities coming soon
+                </Typography>
+              </Box>
 
               {/* Add Region CTA */}
               <Box sx={{
@@ -1362,7 +1368,7 @@ function CardLink({ href, children }: { href: string; children: React.ReactNode 
 }
 
 // Schedule Item Component
-function ScheduleItem({ item, isLast }: { item: typeof mockSchedule[0]; isLast: boolean }) {
+function ScheduleItemComponent({ item, isLast }: { item: ScheduleItem; isLast: boolean }) {
   return (
     <Box sx={{
       display: 'flex',
@@ -1432,7 +1438,7 @@ function ScheduleItem({ item, isLast }: { item: typeof mockSchedule[0]; isLast: 
 }
 
 // Client Item Component
-function ClientItem({ client, isLast }: { client: typeof mockClients[0]; isLast: boolean }) {
+function ClientItemComponent({ client, isLast }: { client: ClientItem; isLast: boolean }) {
   const hintIcons: Record<string, React.ReactNode> = {
     save: <BookmarkIcon sx={{ fontSize: 14, color: colors.accent }} />,
     message: <ChatBubbleOutlineIcon sx={{ fontSize: 14, color: colors.accent }} />,
@@ -1490,7 +1496,7 @@ function ClientItem({ client, isLast }: { client: typeof mockClients[0]; isLast:
 }
 
 // Activity Item Component
-function ActivityItem({ activity, isLast }: { activity: typeof mockActivity[0]; isLast: boolean }) {
+function ActivityItemComponent({ activity, isLast }: { activity: ActivityItem; isLast: boolean }) {
   const activityIcons: Record<string, { icon: React.ReactNode; color: string }> = {
     save: { icon: <BookmarkIcon sx={{ fontSize: 16 }} />, color: colors.accent },
     like: { icon: <FavoriteIcon sx={{ fontSize: 16 }} />, color: colors.error },
@@ -1533,7 +1539,7 @@ function ActivityItem({ activity, isLast }: { activity: typeof mockActivity[0]; 
 }
 
 // Region Group Component
-function RegionGroup({ region, isLast }: { region: typeof mockGuestSpots[0]; isLast: boolean }) {
+function RegionGroup({ region, isLast }: { region: GuestSpotRegion; isLast: boolean }) {
   return (
     <Box sx={{
       p: 2,
@@ -1564,7 +1570,7 @@ function RegionGroup({ region, isLast }: { region: typeof mockGuestSpots[0]; isL
 }
 
 // Studio Card Component
-function StudioCard({ studio }: { studio: typeof mockGuestSpots[0]['studios'][0] }) {
+function StudioCard({ studio }: { studio: GuestSpotStudio }) {
   return (
     <Box sx={{
       bgcolor: colors.background,
