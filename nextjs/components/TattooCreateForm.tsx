@@ -27,6 +27,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/api';
 import { useRouter } from 'next/router';
+import { colors } from '@/styles/colors';
 
 interface Style {
   id: number;
@@ -225,20 +226,20 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
   }
 
   return (
-    <Card sx={{ mt: 3, bgcolor: '#2a1a1e', border: '1px solid #444' }}>
+    <Card sx={{ mt: 3, bgcolor: colors.surface, border: '1px solid #444' }}>
       <CardContent>
         <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
           Create New Tattoo Post
         </Typography>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2, bgcolor: '#2a1a1e', border: '1px solid #f44336' }}>
+          <Alert severity="error" sx={{ mb: 2, bgcolor: colors.surface, border: `1px solid ${colors.error}` }}>
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2, bgcolor: '#2a1a1e', border: '1px solid #4caf50' }}>
+          <Alert severity="success" sx={{ mb: 2, bgcolor: colors.surface, border: '1px solid #4caf50' }}>
             Tattoo post created successfully! Redirecting...
           </Alert>
         )}
@@ -256,10 +257,10 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
               startIcon={<PhotoCamera />}
               disabled={selectedFiles.length >= 5 || submitting}
               sx={{
-                color: '#339989',
-                borderColor: '#339989',
+                color: colors.accent,
+                borderColor: colors.accent,
                 '&:hover': {
-                  borderColor: '#267b6e',
+                  borderColor: colors.accentDark,
                   bgcolor: 'rgba(51, 153, 137, 0.1)'
                 }
               }}
@@ -327,16 +328,16 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
               '& .MuiOutlinedInput-root': {
                 color: 'white',
                 '& fieldset': { borderColor: '#444' },
-                '&:hover fieldset': { borderColor: '#339989' },
-                '&.Mui-focused fieldset': { borderColor: '#339989' }
+                '&:hover fieldset': { borderColor: colors.accent },
+                '&.Mui-focused fieldset': { borderColor: colors.accent }
               },
               '& .MuiInputLabel-root': { color: '#888' }
             }}
           />
 
           {/* Primary Style */}
-          <FormControl 
-            fullWidth 
+          <FormControl
+            fullWidth
             sx={{ mb: 3 }}
             disabled={submitting || loadingStyles}
           >
@@ -348,8 +349,8 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
               sx={{
                 color: 'white',
                 '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#339989' },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#339989' }
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent }
               }}
             >
               {styles.map((style) => (
@@ -377,11 +378,11 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
                   {(selected as number[]).map((value) => {
                     const style = styles.find(s => s.id === value);
                     return (
-                      <Chip 
-                        key={value} 
-                        label={style?.name} 
+                      <Chip
+                        key={value}
+                        label={style?.name}
                         size="small"
-                        sx={{ bgcolor: '#339989', color: 'white' }}
+                        sx={{ bgcolor: colors.accent, color: 'white' }}
                       />
                     );
                   })}
@@ -390,8 +391,8 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
               sx={{
                 color: 'white',
                 '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#339989' },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#339989' }
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent }
               }}
             >
               {styles
@@ -412,8 +413,8 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
             disabled={submitting || selectedFiles.length === 0 || !description.trim() || primaryStyleId === ''}
             startIcon={submitting ? <CircularProgress size={20} /> : <SendIcon />}
             sx={{
-              bgcolor: '#339989',
-              '&:hover': { bgcolor: '#267b6e' },
+              bgcolor: colors.accent,
+              '&:hover': { bgcolor: colors.accentDark },
               '&:disabled': { bgcolor: '#555', color: '#888' }
             }}
           >

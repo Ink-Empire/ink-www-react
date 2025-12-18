@@ -16,11 +16,14 @@ import StylesSelection from './StylesSelection';
 import ArtistPreferencesSelection from './ArtistPreferencesSelection';
 import UserDetails from './UserDetails';
 import AccountSetup from './AccountSetup';
+import StudioOwnerCheck from './StudioOwnerCheck';
+import StudioDetails from './StudioDetails';
+import { colors } from '@/styles/colors';
 
 export interface OnboardingData {
   userType?: 'client' | 'artist' | 'studio';
   experienceLevel?: 'beginner' | 'experienced';
-  selectedStyles: number[]; // For clients: interests, For artists/studios: specialties
+  selectedStyles: number[]; // For clients: interests, For artists: specialties
   preferredStyles?: number[]; // For artists only: additional styles they enjoy working in
   userDetails?: {
     name: string;
@@ -34,6 +37,26 @@ export interface OnboardingData {
     email: string;
     password: string;
     password_confirmation: string;
+  };
+  // Studio-specific details (separate from owner's userDetails)
+  studioDetails?: {
+    name: string;
+    username: string;
+    bio: string;
+    profileImage?: File | null;
+    location: string;
+    locationLatLong: string;
+    email?: string; // Optional contact email for the studio
+    phone?: string; // Optional phone number for the studio
+  };
+  // Studio owner info - populated when userType is 'studio'
+  studioOwner?: {
+    hasExistingAccount: boolean;
+    existingAccountEmail?: string;
+    existingAccountId?: number;
+    ownerType: 'artist' | 'user'; // Is the owner also a tattoo artist?
+    // Artist-specific fields (when ownerType === 'artist')
+    artistStyles?: number[]; // Owner's personal specialty styles
   };
 }
 
@@ -60,17 +83,28 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const getSteps = () => {
     // If we have initial user type from registration, skip the user type step
     let steps = initialUserType ? [] : ['User Type'];
-    
+
     // Add experience level step for clients only
     if (onboardingData.userType === 'client') {
       steps = [...steps, 'Experience', 'Interests', 'Profile', 'Account'];
     } else if (onboardingData.userType === 'artist') {
       steps = [...steps, 'Specialties', 'Preferences', 'Profile', 'Account'];
+    } else if (onboardingData.userType === 'studio') {
+      // Studios: Owner check -> (Artist styles if owner is artist) -> Your Profile -> Account -> Studio Profile
+      // Note: Studio styles are derived from artists who work there, not set during signup
+      const isOwnerArtist = onboardingData.studioOwner?.ownerType === 'artist';
+      if (isOwnerArtist) {
+        // Artist owner: Owner -> Your Styles -> Your Profile -> Account -> Studio Profile
+        steps = [...steps, 'Owner', 'Your Styles', 'Your Profile', 'Account', 'Studio Profile'];
+      } else {
+        // Non-artist owner: Owner -> Your Profile -> Account -> Studio Profile
+        steps = [...steps, 'Owner', 'Your Profile', 'Account', 'Studio Profile'];
+      }
     } else {
-      // Studios
+      // Default/undefined
       steps = [...steps, 'Specialties', 'Profile', 'Account'];
     }
-    
+
     return steps;
   };
 
@@ -87,9 +121,19 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     setCurrentStep(currentStep + 1);
   };
 
+  const handleStudioOwnerComplete = (ownerData: {
+    hasExistingAccount: boolean;
+    existingAccountEmail?: string;
+    existingAccountId?: number;
+    ownerType: 'artist' | 'user';
+  }) => {
+    setOnboardingData(prev => ({ ...prev, studioOwner: ownerData }));
+    setCurrentStep(currentStep + 1);
+  };
+
   const handleStylesComplete = (selectedStyles: number[]) => {
     setOnboardingData(prev => ({ ...prev, selectedStyles }));
-    
+
     // Simply advance to next step
     setCurrentStep(currentStep + 1);
   };
@@ -99,8 +143,46 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     setCurrentStep(currentStep + 1);
   };
 
+  // Studio owner artist-specific handlers
+  const handleOwnerArtistStylesComplete = (artistStyles: number[]) => {
+    setOnboardingData(prev => ({
+      ...prev,
+      studioOwner: {
+        ...prev.studioOwner!,
+        artistStyles,
+      },
+    }));
+    setCurrentStep(currentStep + 1);
+  };
+
+  const handleOwnerArtistPreferencesComplete = (artistPreferences: number[]) => {
+    setOnboardingData(prev => ({
+      ...prev,
+      studioOwner: {
+        ...prev.studioOwner!,
+        artistPreferences,
+      },
+    }));
+    setCurrentStep(currentStep + 1);
+  };
+
   const handleUserDetailsComplete = (userDetails: OnboardingData['userDetails']) => {
     setOnboardingData(prev => ({ ...prev, userDetails }));
+    setCurrentStep(currentStep + 1);
+  };
+
+  const handleStudioDetailsComplete = (studioDetails: OnboardingData['studioDetails']) => {
+    // Studio details is the final step - call onComplete with all data
+    const completeData = {
+      ...onboardingData,
+      studioDetails,
+    };
+    onComplete(completeData);
+  };
+
+  // For studio flow: save credentials and advance to studio details step
+  const handleStudioAccountSetupComplete = (credentials: OnboardingData['credentials']) => {
+    setOnboardingData(prev => ({ ...prev, credentials }));
     setCurrentStep(currentStep + 1);
   };
 
@@ -109,7 +191,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       ...onboardingData,
       credentials,
     };
-    
+
     onComplete(completeData);
   };
 
@@ -137,55 +219,75 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
   const getCurrentStepComponent = () => {
     const isClient = onboardingData.userType === 'client';
+    const isArtist = onboardingData.userType === 'artist';
+    const isStudio = onboardingData.userType === 'studio';
     const hasInitialUserType = !!initialUserType;
-    
-    // Adjust step indices based on whether we skip user type selection
-    const adjustedStep = hasInitialUserType ? currentStep : currentStep;
-    const stepOffset = hasInitialUserType ? 1 : 0;
-    
-    switch (adjustedStep) {
-      case 0:
-        // Only show user type selection if we don't have initial user type
-        if (!hasInitialUserType) {
-          return (
-            <UserTypeSelection 
-              onStepComplete={handleUserTypeComplete}
-              onCancel={onCancel}
-            />
-          );
-        }
-        // If we have initial user type, fall through to next step
-        
-      case (0 + stepOffset):
-        if (isClient) {
+
+    // Calculate effective step based on whether we have initial user type
+    const effectiveStep = hasInitialUserType ? currentStep + 1 : currentStep;
+
+    // Step 0: User Type Selection (only if no initial user type)
+    if (effectiveStep === 0) {
+      return (
+        <UserTypeSelection
+          onStepComplete={handleUserTypeComplete}
+          onCancel={onCancel}
+        />
+      );
+    }
+
+    // From here, step 1+ depends on user type
+    // Client flow: Experience -> Interests -> Profile -> Account
+    // Artist flow: Specialties -> Preferences -> Profile -> Account
+    // Studio flow: Owner Check -> Specialties -> Profile -> Account
+
+    if (isClient) {
+      // Client flow
+      switch (effectiveStep) {
+        case 1:
           return (
             <ExperienceLevel
               onStepComplete={handleExperienceLevelComplete}
               onBack={handleBack}
             />
           );
-        } else {
-          // For artists and studios, show specialties/interests selection
+        case 2:
           return (
             <StylesSelection
               onStepComplete={handleStylesComplete}
               onBack={handleBack}
-              userType={onboardingData.userType!}
+              userType="client"
             />
           );
-        }
-        
-      case (1 + stepOffset):
-        if (isClient) {
+        case 3:
+          return (
+            <UserDetails
+              onStepComplete={handleUserDetailsComplete}
+              onBack={handleBack}
+              userType="client"
+            />
+          );
+        case 4:
+          return (
+            <AccountSetup
+              onStepComplete={handleAccountSetupComplete}
+              onBack={handleBack}
+              userType="client"
+            />
+          );
+      }
+    } else if (isArtist) {
+      // Artist flow
+      switch (effectiveStep) {
+        case 1:
           return (
             <StylesSelection
               onStepComplete={handleStylesComplete}
               onBack={handleBack}
-              userType={onboardingData.userType!}
+              userType="artist"
             />
           );
-        } else if (onboardingData.userType === 'artist') {
-          // For artists: show preferences selection (step 2 in their flow)
+        case 2:
           return (
             <ArtistPreferencesSelection
               onStepComplete={handlePreferencesComplete}
@@ -193,92 +295,116 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               specialtyStyles={onboardingData.selectedStyles}
             />
           );
-        } else {
-          // For studios: go directly to profile (step 2 in their flow)
+        case 3:
           return (
             <UserDetails
               onStepComplete={handleUserDetailsComplete}
               onBack={handleBack}
-              userType={onboardingData.userType!}
+              userType="artist"
             />
           );
-        }
-        
-      case (2 + stepOffset):
-        if (isClient) {
-          // For clients: after experience and styles → profile  
-          return (
-            <UserDetails
-              onStepComplete={handleUserDetailsComplete}
-              onBack={handleBack}
-              userType={onboardingData.userType!}
-            />
-          );
-        } else if (onboardingData.userType === 'artist') {
-          // For artists: after specialties and preferences → profile
-          return (
-            <UserDetails
-              onStepComplete={handleUserDetailsComplete}
-              onBack={handleBack}
-              userType={onboardingData.userType!}
-            />
-          );
-        } else {
-          // For studios: after specialties and profile → account
+        case 4:
           return (
             <AccountSetup
               onStepComplete={handleAccountSetupComplete}
               onBack={handleBack}
-              userType={onboardingData.userType!}
+              userType="artist"
             />
           );
-        }
+      }
+    } else if (isStudio) {
+      const isOwnerArtist = onboardingData.studioOwner?.ownerType === 'artist';
 
-      case 3:
-        // Handle case when stepOffset = 0 and we're on step 3
-        if (isClient) {
-          // For clients: after experience, styles, profile → account
-          return (
-            <AccountSetup
-              onStepComplete={handleAccountSetupComplete}
-              onBack={handleBack}
-              userType={onboardingData.userType!}
-            />
-          );
-        } else if (onboardingData.userType === 'artist') {
-          // For artists: after specialties, preferences, profile → account
-          return (
-            <AccountSetup
-              onStepComplete={handleAccountSetupComplete}
-              onBack={handleBack}
-              userType={onboardingData.userType!}
-            />
-          );
-        } else {
-          // Studios should not reach step 3 when stepOffset = 0 (they have 4 steps total)
-          // But if they do, show account setup
-          return (
-            <AccountSetup
-              onStepComplete={handleAccountSetupComplete}
-              onBack={handleBack}
-              userType={onboardingData.userType!}
-            />
-          );
+      if (isOwnerArtist) {
+        // Artist owner flow: Owner -> Your Styles -> Your Profile -> Account -> Studio Profile
+        switch (effectiveStep) {
+          case 1:
+            return (
+              <StudioOwnerCheck
+                onStepComplete={handleStudioOwnerComplete}
+                onBack={handleBack}
+              />
+            );
+          case 2:
+            // Your personal artist styles
+            return (
+              <StylesSelection
+                onStepComplete={handleOwnerArtistStylesComplete}
+                onBack={handleBack}
+                userType="artist"
+                title="Your Specialty Styles"
+                subtitle="Select the tattoo styles you specialize in as an artist"
+              />
+            );
+          case 3:
+            // Owner's personal profile (they are an artist)
+            return (
+              <UserDetails
+                onStepComplete={handleUserDetailsComplete}
+                onBack={handleBack}
+                userType="artist"
+              />
+            );
+          case 4:
+            // Account credentials - then advances to studio details
+            return (
+              <AccountSetup
+                onStepComplete={handleStudioAccountSetupComplete}
+                onBack={handleBack}
+                userType="artist"
+              />
+            );
+          case 5:
+            // Studio profile - final step
+            return (
+              <StudioDetails
+                onStepComplete={handleStudioDetailsComplete}
+                onBack={handleBack}
+              />
+            );
         }
-
-      case 4:
-        // Final step when stepOffset = 0 (clients and artists): AccountSetup
-        return (
-          <AccountSetup
-            onStepComplete={handleAccountSetupComplete}
-            onBack={handleBack}
-            userType={onboardingData.userType!}
-          />
-        );
-        
-      default:
-        return null;
+      } else {
+        // Non-artist owner flow: Owner -> Your Profile -> Account -> Studio Profile
+        switch (effectiveStep) {
+          case 1:
+            return (
+              <StudioOwnerCheck
+                onStepComplete={handleStudioOwnerComplete}
+                onBack={handleBack}
+              />
+            );
+          case 2:
+            // Owner's personal profile (they are a regular user)
+            return (
+              <UserDetails
+                onStepComplete={handleUserDetailsComplete}
+                onBack={handleBack}
+                userType="client"
+              />
+            );
+          case 3:
+            // Account credentials - then advances to studio details
+            return (
+              <AccountSetup
+                onStepComplete={handleStudioAccountSetupComplete}
+                onBack={handleBack}
+                userType="client"
+              />
+            );
+          case 4:
+            // Studio profile - final step
+            return (
+              <StudioDetails
+                onStepComplete={handleStudioDetailsComplete}
+                onBack={handleBack}
+              />
+            );
+        }
+      }
     }
+
+    // Fallback - shouldn't reach here
+    return null;
   };
 
   return (
@@ -299,7 +425,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             height: 6,
             backgroundColor: 'rgba(232, 219, 197, 0.2)',
             '& .MuiLinearProgress-bar': {
-              backgroundColor: '#339989',
+              backgroundColor: colors.accent,
             },
           }}
         />
@@ -315,20 +441,20 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               '& .MuiStepLabel-label': {
                 color: 'text.secondary',
                 '&.Mui-active': {
-                  color: '#339989',
+                  color: colors.accent,
                   fontWeight: 'bold',
                 },
                 '&.Mui-completed': {
-                  color: '#e8dbc5',
+                  color: colors.textSecondary,
                 },
               },
               '& .MuiStepIcon-root': {
                 color: 'rgba(232, 219, 197, 0.3)',
                 '&.Mui-active': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
                 '&.Mui-completed': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
               },
             }}
@@ -348,7 +474,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           <Typography
             variant="body2"
             sx={{
-              color: '#339989',
+              color: colors.accent,
               fontWeight: 'bold',
             }}
           >
@@ -363,7 +489,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           elevation={2}
           sx={{
             p: { xs: 3, sm: 4, md: 5 },
-            backgroundColor: '#2a1a1e',
+            backgroundColor: colors.surface,
             color: 'white',
             borderRadius: { xs: 2, md: 3 },
             maxWidth: { xs: '95%', sm: 700, md: 900 },

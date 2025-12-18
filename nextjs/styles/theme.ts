@@ -1,50 +1,46 @@
 import { createTheme } from '@mui/material/styles';
 import { Theme, ThemeOptions } from '@mui/material/styles';
-
-// Define our custom colors
-const colors = {
-  licorice: '#1c0f13',
-  pearl: '#e8dbc5',
-  persianGreen: '#339989',
-  tigersEye: '#bc6c25',
-  crimson: '#DC0F38',
-  warmBeige: '#e5cbb8'
-};
+import { colors } from './colors';
 
 // Create a theme instance
 const theme = createTheme({
   palette: {
     primary: {
-      main: colors.persianGreen,
-      light: '#4fb3a7',
-      dark: '#247c6c',
-      contrastText: '#ffffff',
+      main: colors.primary,
+      light: colors.primaryLight,
+      dark: colors.primaryDark,
+      contrastText: colors.background,
     },
     secondary: {
-      main: colors.tigersEye,
-      light: '#d1883b',
-      dark: '#984f18',
-      contrastText: '#ffffff',
+      main: colors.secondary,
+      light: colors.secondaryLight,
+      dark: colors.secondaryDark,
+      contrastText: colors.background,
     },
     error: {
-      main: colors.crimson,
-      light: '#e54060',
-      dark: '#b00929',
-      contrastText: '#ffffff',
+      main: colors.error,
+      contrastText: colors.textPrimary,
+    },
+    warning: {
+      main: colors.warning,
+      contrastText: colors.background,
+    },
+    success: {
+      main: colors.success,
+      contrastText: colors.textPrimary,
+    },
+    info: {
+      main: colors.info,
+      contrastText: colors.textPrimary,
     },
     background: {
-      default: colors.licorice,
-      paper: colors.licorice,
+      default: colors.background,
+      paper: colors.surface,
     },
     text: {
-      primary: '#ffffff',
-      secondary: 'rgba(255, 255, 255, 0.7)',
-      disabled: 'rgba(255, 255, 255, 0.5)',
-    },
-    // Custom colors
-    warmBeige: {
-      main: colors.warmBeige,
-      contrastText: '#000000',
+      primary: colors.textPrimary,
+      secondary: colors.textSecondary,
+      disabled: colors.textMuted,
     },
   },
   typography: {
@@ -52,27 +48,27 @@ const theme = createTheme({
     fontFamilyTattoo: '"Tattoo-Font", cursive',
     h1: {
       fontWeight: 500,
-      color: '#ffffff',
+      color: colors.textPrimary,
     },
     h2: {
       fontWeight: 500,
-      color: '#ffffff',
+      color: colors.textPrimary,
     },
     h3: {
       fontWeight: 500,
-      color: '#ffffff',
+      color: colors.textPrimary,
     },
     h4: {
       fontWeight: 500,
-      color: '#ffffff',
+      color: colors.textPrimary,
     },
     h5: {
       fontWeight: 500,
-      color: '#ffffff',
+      color: colors.textPrimary,
     },
     h6: {
       fontWeight: 500,
-      color: '#ffffff',
+      color: colors.textPrimary,
     },
     button: {
       textTransform: 'none',
@@ -98,8 +94,8 @@ const theme = createTheme({
         root: {
           borderRadius: 12,
           boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
-          backgroundColor: '#2a1a1e',
-          color: '#ffffff',
+          backgroundColor: colors.surface,
+          color: colors.textPrimary,
         },
       },
     },
@@ -130,21 +126,6 @@ declare module '@mui/material/styles' {
   interface TypographyVariantsOptions {
     tattoo?: React.CSSProperties;
   }
-
-  // Custom palette colors
-  interface Palette {
-    warmBeige: {
-      main: string;
-      contrastText: string;
-    };
-  }
-
-  interface PaletteOptions {
-    warmBeige?: {
-      main: string;
-      contrastText: string;
-    };
-  }
 }
 
 // Update the Typography's variant prop options
@@ -163,4 +144,6 @@ theme.typography.tattoo = {
   },
 };
 
+// Re-export colors for convenience
+export { colors } from './colors';
 export default theme;

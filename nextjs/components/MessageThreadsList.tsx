@@ -12,6 +12,7 @@ import {
 import ChatBubbleIcon from '@mui/icons-material/ChatBubble';
 import { formatDistanceToNow } from 'date-fns';
 import { api } from '../utils/api';
+import { colors } from '@/styles/colors';
 
 interface AppointmentWithMessages {
   id: number;
@@ -80,7 +81,7 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress sx={{ color: '#339989' }} />
+        <CircularProgress sx={{ color: colors.accent }} />
       </Box>
     );
   }
@@ -116,7 +117,7 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
               p: 2,
               mb: 1,
               bgcolor: selectedThreadId === thread.id ? '#333' : '#2a2a2a',
-              border: selectedThreadId === thread.id ? '1px solid #339989' : '1px solid transparent',
+              border: selectedThreadId === thread.id ? `1px solid ${colors.accent}` : '1px solid transparent',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               '&:hover': {
@@ -128,18 +129,18 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               {/* Avatar */}
-              <Badge 
-                badgeContent={thread.unread_count || 0} 
+              <Badge
+                badgeContent={thread.unread_count || 0}
                 color="primary"
                 sx={{
                   '& .MuiBadge-badge': {
-                    bgcolor: '#339989',
+                    bgcolor: colors.accent,
                     color: 'white'
                   }
                 }}
               >
-                <Avatar sx={{ 
-                  bgcolor: '#339989',
+                <Avatar sx={{
+                  bgcolor: colors.accent,
                   width: 48,
                   height: 48
                 }}>

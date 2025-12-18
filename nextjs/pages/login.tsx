@@ -13,6 +13,7 @@ import {
   Paper,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { colors } from '@/styles/colors';
 
 type FormValues = {
   email: string;
@@ -60,7 +61,7 @@ const LoginPage: React.FC = () => {
         },
         setIsLoading,
         onSuccess: () => {
-          router.push('/');
+          router.push('/dashboard');
         }
       });
     } catch (err: any) {
@@ -69,12 +70,12 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <Box 
-      sx={{ 
+    <Box
+      sx={{
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#1a0e11',
+        backgroundColor: colors.background,
         alignItems: 'center',
         justifyContent: 'center',
         p: { xs: 2, md: 4 },
@@ -84,7 +85,7 @@ const LoginPage: React.FC = () => {
         elevation={2}
         sx={{
           p: { xs: 3, sm: 4, md: 5 },
-          backgroundColor: '#2a1a1e',
+          backgroundColor: colors.surface,
           color: 'white',
           borderRadius: { xs: 2, md: 3 },
           maxWidth: 500,
@@ -99,12 +100,12 @@ const LoginPage: React.FC = () => {
             sx={{
               mb: 2,
               fontWeight: 'bold',
-              color: '#e8dbc5',
+              color: colors.textSecondary,
             }}
           >
             Sign in to your account
           </Typography>
-          
+
           <Typography
             variant="body1"
             sx={{
@@ -115,7 +116,7 @@ const LoginPage: React.FC = () => {
             }}
           >
             Or{' '}
-            <Link href="/register" style={{ color: '#339989', textDecoration: 'none' }}>
+            <Link href="/register" style={{ color: colors.accent, textDecoration: 'none' }}>
               create a new account
             </Link>
           </Typography>
@@ -124,7 +125,17 @@ const LoginPage: React.FC = () => {
         <form onSubmit={handleSubmit(onSubmit)}>
           <Stack spacing={3}>
             {error && (
-              <Alert severity="error">
+              <Alert
+                severity="error"
+                sx={{
+                  bgcolor: `${colors.error}1A`,
+                  color: colors.error,
+                  border: `1px solid ${colors.error}40`,
+                  '& .MuiAlert-icon': {
+                    color: colors.error,
+                  },
+                }}
+              >
                 {error}
               </Alert>
             )}
@@ -185,32 +196,32 @@ const LoginPage: React.FC = () => {
                     borderColor: 'rgba(232, 219, 197, 0.5)',
                   },
                   '&:hover fieldset': {
-                    borderColor: '#e8dbc5',
+                    borderColor: colors.textSecondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#339989',
+                    borderColor: colors.accent,
                   },
                   '& input': {
-                    color: '#e8dbc5',
+                    color: colors.textSecondary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#e8dbc5',
+                  color: colors.textSecondary,
                   '&.Mui-focused': {
-                    color: '#339989',
+                    color: colors.accent,
                   },
                 },
               }}
             />
 
             {/* Remember Me and Forgot Password */}
-            <Stack 
-              direction="row" 
-              justifyContent="space-between" 
+            <Stack
+              direction="row"
+              justifyContent="space-between"
               alignItems="center"
               sx={{ mt: 2 }}
             >
-              <Typography variant="body2" sx={{ color: '#e8dbc5' }}>
+              <Typography variant="body2" sx={{ color: colors.textSecondary }}>
                 <input
                   type="checkbox"
                   id="remember-me"
@@ -219,7 +230,7 @@ const LoginPage: React.FC = () => {
                 <label htmlFor="remember-me">Remember me</label>
               </Typography>
 
-              <Link href="/forgot-password" style={{ color: '#339989', textDecoration: 'none', fontSize: '0.875rem' }}>
+              <Link href="/forgot-password" style={{ color: colors.accent, textDecoration: 'none', fontSize: '0.875rem' }}>
                 Forgot your password?
               </Link>
             </Stack>
@@ -231,13 +242,13 @@ const LoginPage: React.FC = () => {
               disabled={isLoading}
               startIcon={isLoading ? <CircularProgress size={20} /> : null}
               sx={{
-                backgroundColor: '#339989',
+                backgroundColor: colors.accent,
                 color: '#000',
                 fontWeight: 'bold',
                 px: 4,
                 py: 2,
                 '&:hover': {
-                  backgroundColor: '#2a7f7a',
+                  backgroundColor: colors.accentDark,
                 },
                 '&:disabled': {
                   backgroundColor: 'rgba(232, 219, 197, 0.3)',
@@ -249,18 +260,6 @@ const LoginPage: React.FC = () => {
             </Button>
           </Stack>
         </form>
-
-        <Typography
-          variant="body2"
-          sx={{
-            mt: 3,
-            textAlign: 'center',
-            color: 'text.secondary',
-            fontStyle: 'italic',
-          }}
-        >
-          Welcome back to InkedIn! Ready to connect with the tattoo community?
-        </Typography>
       </Paper>
     </Box>
   );

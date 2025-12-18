@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchCsrfToken, getCsrfToken } from '../utils/api';
 import { getToken } from '../utils/auth';
 import { useRouter } from 'next/router';
+import { colors } from '@/styles/colors';
 
 interface TattooUploadProps {
   onClose: () => void;
@@ -282,12 +283,12 @@ const TattooUpload: React.FC<TattooUploadProps> = ({ onClose }) => {
           <Button variant="outlined" onClick={onClose} disabled={isUploading}>
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            color="primary" 
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
             disabled={isUploading || selectedFiles.length === 0}
-            sx={{ bgcolor: '#339989', '&:hover': { bgcolor: '#2d7e75' } }}
+            sx={{ bgcolor: colors.accent, '&:hover': { bgcolor: colors.accentDark } }}
           >
             {isUploading ? (
               <>

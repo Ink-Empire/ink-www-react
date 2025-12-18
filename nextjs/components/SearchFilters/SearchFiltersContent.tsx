@@ -1,74 +1,83 @@
-import React from 'react';
-import { styled, alpha } from '@mui/material/styles';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
-  InputBase,
-  MenuItem,
-  FormControl,
-  Select,
+  TextField,
   Checkbox,
   Radio,
   RadioGroup,
-  TextField,
   FormControlLabel,
-  Button,
   CircularProgress,
-  IconButton,
+  Slider,
+  Switch,
 } from '@mui/material';
-import {
-  Search as SearchIcon,
-  Clear as ClearIcon,
-  Add as AddIcon,
-  LocationOn as LocationOnIcon,
-} from '@mui/icons-material';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useStyles } from '@/contexts/StyleContext';
-import { useUserData } from '@/contexts/UserContext';
+import { useUserData } from '@/contexts/AuthContext';
 import { SearchFiltersUIProps } from './types';
+import { colors } from '@/styles/colors';
 
-// Styled components
-const Search = styled('div')(({ theme }) => ({
-  position: 'relative',
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
-  },
-  marginBottom: theme.spacing(2),
-  width: '100%',
-  border: `1px solid #e8dbc5`,
-}));
+// Filter Section Component
+interface FilterSectionProps {
+  title: string;
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+}
 
-const SearchIconWrapper = styled('div')(({ theme }) => ({
-  padding: theme.spacing(0, 2),
-  height: '100%',
-  position: 'absolute',
-  pointerEvents: 'none',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: theme.palette.text.secondary,
-}));
+const FilterSection: React.FC<FilterSectionProps> = ({ title, children, defaultExpanded = true }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
-  color: 'inherit',
-  width: '100%',
-  '& .MuiInputBase-input': {
-    padding: theme.spacing(1, 1, 1, 0),
-    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-    transition: theme.transitions.create('width'),
-    width: '100%',
-  },
-}));
-
-const StylesContainer = styled(Box)(({ theme }) => ({
-  maxHeight: 200,
-  overflow: 'auto',
-  padding: theme.spacing(1),
-  border: `1px solid #e8dbc5`,
-  borderRadius: theme.shape.borderRadius,
-  marginTop: theme.spacing(1),
-}));
+  return (
+    <Box sx={{
+      borderBottom: `1px solid ${colors.border}`,
+      pb: 0.5,
+      mb: 0.5,
+      '&:last-child': { borderBottom: 'none' }
+    }}>
+      <Box
+        onClick={() => setIsExpanded(!isExpanded)}
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          py: '0.75rem',
+          cursor: 'pointer',
+          userSelect: 'none',
+          '&:hover h3': { color: colors.textPrimary }
+        }}
+      >
+        <Typography
+          component="h3"
+          sx={{
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: colors.textSecondary,
+            transition: 'color 0.2s ease'
+          }}
+        >
+          {title}
+        </Typography>
+        <ExpandMoreIcon
+          sx={{
+            color: colors.textSecondary,
+            fontSize: '1rem',
+            transition: 'transform 0.2s ease',
+            transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)'
+          }}
+        />
+      </Box>
+      {isExpanded && (
+        <Box sx={{ pb: '0.75rem' }}>
+          {children}
+        </Box>
+      )}
+    </Box>
+  );
+};
 
 export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
   type,
@@ -81,7 +90,6 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
   applySavedStyles,
   booksOpen,
   location,
-  locationCoords,
   geoLoading,
   geoError,
   onSearchChange,
@@ -92,284 +100,428 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
   onDistanceUnitChange,
   onLocationOptionChange,
   onLocationChange,
-  onApplyFilters,
   onClearFilters,
-  onCreateTattoo
 }) => {
   const { styles, loading: stylesLoading } = useStyles();
   const me = useUserData();
+  const [styleSearch, setStyleSearch] = useState('');
 
-  // Distance options in miles
-  const distanceOptions = [25, 50, 75, 100];
+  // Filter styles based on search
+  const filteredStyles = useMemo(() => {
+    if (!styleSearch.trim()) return styles;
+    const search = styleSearch.toLowerCase();
+    return styles.filter(style =>
+      style.name.toLowerCase().includes(search)
+    );
+  }, [styles, styleSearch]);
+
+  // Search hints
+  const searchHints = type === 'artists'
+    ? ['wolf', 'floral', 'traditional', 'realism']
+    : ['dragon', 'rose', 'sleeve', 'minimalist'];
+
+  const handleSearchHintClick = (hint: string) => {
+    const event = { target: { value: hint } } as React.ChangeEvent<HTMLInputElement>;
+    onSearchChange(event);
+  };
+
+  const handleClearSearch = () => {
+    const event = { target: { value: '' } } as React.ChangeEvent<HTMLInputElement>;
+    onSearchChange(event);
+  };
+
+  // Handle distance slider change
+  const handleDistanceSliderChange = (_: Event, newValue: number | number[]) => {
+    const value = Array.isArray(newValue) ? newValue[0] : newValue;
+    const event = { target: { value: value.toString() } } as React.ChangeEvent<HTMLSelectElement>;
+    onDistanceChange(event);
+  };
 
   return (
     <Box sx={{
       width: '100%',
       height: '100%',
       overflowY: 'auto',
-      p: 2,
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      '&::-webkit-scrollbar': { width: 6 },
+      '&::-webkit-scrollbar-track': { background: 'transparent' },
+      '&::-webkit-scrollbar-thumb': {
+        background: colors.background,
+        borderRadius: 3
+      }
     }}>
-      {/* Search input */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Search
-        </Typography>
-        <Search>
-          <SearchIconWrapper>
-            <SearchIcon />
-          </SearchIconWrapper>
-          <StyledInputBase
-            placeholder={type === 'artists' ? "Artist name or studio" : "enter artist, description or tags"}
+      {/* Search Section */}
+      <FilterSection title="Search">
+        <Box sx={{ position: 'relative', mb: 0.5 }}>
+          <SearchIcon sx={{
+            position: 'absolute',
+            left: '0.875rem',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 16,
+            height: 16,
+            color: colors.textSecondary
+          }} />
+          <TextField
+            fullWidth
+            placeholder="Search..."
             value={searchString}
             onChange={onSearchChange}
-            inputProps={{ 'aria-label': 'search' }}
-            endAdornment={
-              searchString ? (
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    // This will be handled by parent component
-                    const event = { target: { value: '' } } as React.ChangeEvent<HTMLInputElement>;
-                    onSearchChange(event);
-                  }}
-                  sx={{ mr: 1 }}
-                >
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              ) : null
-            }
-          />
-        </Search>
-      </Box>
-
-      {/* Create Tattoo Button for Artists */}
-      {me?.type === 'artist' && onCreateTattoo && (
-        <Box sx={{ mb: 3 }}>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={onCreateTattoo}
-            fullWidth
+            size="small"
             sx={{
-              py: 1.5,
-            }}
-          >
-            Upload
-          </Button>
-        </Box>
-      )}
-
-      {/* Location origin selection */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Location:
-        </Typography>
-
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <FormControl component="fieldset">
-            <RadioGroup
-              value={
-                useAnyLocation
-                  ? 'any'
-                  : useMyLocation
-                    ? 'my'
-                    : 'custom'
+              '& .MuiOutlinedInput-root': {
+                bgcolor: colors.background,
+                pl: '2.5rem',
+                '& fieldset': { borderColor: `${colors.textPrimary}1A` },
+                '&:hover fieldset': { borderColor: `${colors.textPrimary}1A` },
+                '&.Mui-focused fieldset': { borderColor: colors.accent }
+              },
+              '& .MuiInputBase-input': {
+                fontSize: '0.9rem',
+                color: colors.textPrimary,
+                '&::placeholder': { color: colors.textSecondary, opacity: 1 }
               }
-              onChange={(e) => onLocationOptionChange(e.target.value as 'my' | 'custom' | 'any')}
-            >
-              <FormControlLabel
-                  value="any"
-                  control={<Radio size="small" color="primary" />}
-                  label={<Typography variant="body2">Anywhere</Typography>}
-              />
-              <FormControlLabel
-                value="my"
-                control={<Radio size="small" color="primary" />}
-                label={<Typography variant="body2">Near Me</Typography>}
-              />
-              <FormControlLabel
-                value="custom"
-                control={<Radio size="small" color="primary" />}
-                label={<Typography variant="body2">Near:</Typography>}
-              />
-            </RadioGroup>
-          </FormControl>
+            }}
+            InputProps={{
+              sx: { pl: 0 },
+              endAdornment: searchString ? (
+                <ClearIcon
+                  onClick={handleClearSearch}
+                  sx={{
+                    fontSize: 18,
+                    color: colors.textSecondary,
+                    cursor: 'pointer',
+                    transition: 'color 0.15s ease',
+                    '&:hover': { color: colors.textPrimary }
+                  }}
+                />
+              ) : null
+            }}
+          />
+        </Box>
 
-          {/* Only show the location input when custom location is selected */}
-          {!useMyLocation && !useAnyLocation && (
+        {/* Search Hints */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', mt: '0.6rem', alignItems: 'center' }}>
+          <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mr: '0.25rem' }}>
+            Try:
+          </Typography>
+          {searchHints.map((hint) => (
+            <Box
+              key={hint}
+              onClick={() => handleSearchHintClick(hint)}
+              sx={{
+                px: '0.6rem',
+                py: '0.25rem',
+                bgcolor: colors.background,
+                border: `1px solid ${colors.textPrimary}1A`,
+                borderRadius: '100px',
+                fontSize: '0.75rem',
+                color: colors.textSecondary,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                '&:hover': {
+                  borderColor: colors.accent,
+                  color: colors.accent,
+                  bgcolor: `${colors.accent}1A`
+                }
+              }}
+            >
+              {hint}
+            </Box>
+          ))}
+        </Box>
+        <Typography sx={{
+          fontSize: '0.75rem',
+          color: colors.textSecondary,
+          mt: '0.5rem',
+          fontStyle: 'italic'
+        }}>
+          Search by {type === 'artists' ? 'artist, studio, or subject matter' : 'artist, description, or tags'}
+        </Typography>
+      </FilterSection>
+
+      {/* Location Section */}
+      <FilterSection title="Location">
+        <RadioGroup
+          value={useAnyLocation ? 'any' : useMyLocation ? 'my' : 'custom'}
+          onChange={(e) => onLocationOptionChange(e.target.value as 'my' | 'custom' | 'any')}
+        >
+          {[
+            { value: 'any', label: 'Anywhere' },
+            { value: 'my', label: 'Near me' },
+            { value: 'custom', label: 'Custom location' }
+          ].map((option) => (
+            <FormControlLabel
+              key={option.value}
+              value={option.value}
+              control={
+                <Radio
+                  size="small"
+                  sx={{
+                    color: colors.textSecondary,
+                    '&.Mui-checked': { color: colors.accent }
+                  }}
+                />
+              }
+              label={
+                <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary }}>
+                  {option.label}
+                </Typography>
+              }
+              sx={{
+                m: 0,
+                p: '0.6rem 0.75rem',
+                borderRadius: '6px',
+                transition: 'background 0.15s ease',
+                '&:hover': { bgcolor: colors.background }
+              }}
+            />
+          ))}
+        </RadioGroup>
+
+        {/* Custom Location Input */}
+        {!useMyLocation && !useAnyLocation && (
+          <Box sx={{ mt: 0.5, pl: '2rem' }}>
             <TextField
-              placeholder="Enter city, zip, or address"
+              fullWidth
+              placeholder="City, state, or country"
               value={location}
               onChange={onLocationChange}
               size="small"
-              fullWidth
-              variant="outlined"
               error={Boolean(geoError)}
               helperText={geoError}
-              InputProps={{
-                sx: {
-                  fontSize: '0.875rem',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#e8dbc5'
-                  }
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: colors.background,
+                  '& fieldset': { borderColor: `${colors.textPrimary}1A` },
+                  '&:hover fieldset': { borderColor: `${colors.textPrimary}1A` },
+                  '&.Mui-focused fieldset': { borderColor: colors.accent }
                 },
-                endAdornment: geoLoading ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : null
+                '& .MuiInputBase-input': {
+                  fontSize: '0.85rem',
+                  color: colors.textPrimary,
+                  '&::placeholder': { color: colors.textSecondary, opacity: 1 }
+                }
+              }}
+              InputProps={{
+                endAdornment: geoLoading ? <CircularProgress size={16} /> : null
               }}
             />
-          )}
-        </Box>
-      </Box>
+          </Box>
+        )}
+      </FilterSection>
 
-      {/* Distance selection - only show when location-based filtering is active */}
+      {/* Distance Section - Only show when location-based filtering is active */}
       {(useMyLocation || (!useMyLocation && !useAnyLocation)) && (
-        <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Distance
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FormControlLabel
-                value="mi"
-                control={
-                  <Radio
-                    size="small"
-                    checked={distanceUnit === 'mi'}
-                    onChange={() => onDistanceUnitChange('mi')}
-                    color="primary"
-                  />
+        <FilterSection title="Distance">
+          <Box sx={{ px: 0.5 }}>
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '0.85rem',
+              color: colors.textSecondary,
+              mb: 0.5
+            }}>
+              <span>Within</span>
+              <span>
+                <Box component="span" sx={{ color: colors.accent, fontWeight: 500 }}>
+                  {distance || 50}
+                </Box>
+                {' '}{distanceUnit}
+              </span>
+            </Box>
+            <Slider
+              value={distance || 50}
+              onChange={handleDistanceSliderChange}
+              min={5}
+              max={200}
+              sx={{
+                color: colors.accent,
+                '& .MuiSlider-track': { bgcolor: colors.accent },
+                '& .MuiSlider-rail': { bgcolor: colors.background },
+                '& .MuiSlider-thumb': {
+                  bgcolor: colors.accent,
+                  '&:hover, &.Mui-focusVisible': {
+                    boxShadow: `0 0 0 8px ${colors.accent}33`
+                  }
                 }
-                label={<Typography variant="body2">miles</Typography>}
-              />
-              <FormControlLabel
-                value="km"
-                control={
-                  <Radio
-                    size="small"
-                    checked={distanceUnit === 'km'}
-                    onChange={() => onDistanceUnitChange('km')}
-                    color="primary"
-                  />
-                }
-                label={<Typography variant="body2">km</Typography>}
-              />
+              }}
+            />
+            {/* Unit Toggle */}
+            <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+              {['mi', 'km'].map((unit) => (
+                <Box
+                  key={unit}
+                  onClick={() => onDistanceUnitChange(unit as 'mi' | 'km')}
+                  sx={{
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    ...(distanceUnit === unit ? {
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      fontWeight: 500
+                    } : {
+                      bgcolor: colors.background,
+                      color: colors.textSecondary,
+                      '&:hover': { color: colors.textPrimary }
+                    })
+                  }}
+                >
+                  {unit}
+                </Box>
+              ))}
             </Box>
           </Box>
-          <FormControl fullWidth variant="outlined" size="small" sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8dbc5' } }}>
-            <Select
-              value={distance}
-              onChange={onDistanceChange}
-              displayEmpty
-              sx={{ borderColor: '#e8dbc5' }}
-            >
-              {distanceOptions.map(option => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
+        </FilterSection>
       )}
 
-      {/* Apply Saved Search */}
-      {me?.styles && me.styles.length > 0 && (
-        <Box sx={{ mb: 3 }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={applySavedStyles}
-                onChange={onApplySavedStylesChange}
-                size="small"
-                color="primary"
-              />
+      {/* Styles Section */}
+      <FilterSection title="Styles">
+        {/* Style Search */}
+        <TextField
+          fullWidth
+          placeholder="Filter styles..."
+          value={styleSearch}
+          onChange={(e) => setStyleSearch(e.target.value)}
+          size="small"
+          sx={{
+            mb: '0.75rem',
+            '& .MuiOutlinedInput-root': {
+              bgcolor: colors.background,
+              '& fieldset': { borderColor: `${colors.textPrimary}1A` },
+              '&:hover fieldset': { borderColor: `${colors.textPrimary}1A` },
+              '&.Mui-focused fieldset': { borderColor: colors.accent }
+            },
+            '& .MuiInputBase-input': {
+              fontSize: '0.85rem',
+              color: colors.textPrimary,
+              '&::placeholder': { color: colors.textSecondary, opacity: 1 }
             }
-            label={
-              <Typography variant="body2">Apply my saved styles</Typography>
-            }
-          />
-        </Box>
-      )}
+          }}
+        />
 
-        <Box sx={{ mb: 3 }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={booksOpen}
-                onChange={onBooksOpenChange}
-                size="small"
-                color="primary"
-              />
-            }
-            label={
-              <Typography variant="body2">Only show artists with books open</Typography>
-            }
-          />
-        </Box>
-
-      {/* Styles */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Styles
-        </Typography>
-        <StylesContainer>
+        {/* Scrollable Styles List */}
+        <Box sx={{
+          maxHeight: 280,
+          overflowY: 'auto',
+          mr: '-0.5rem',
+          pr: '0.5rem',
+          '&::-webkit-scrollbar': { width: 5 },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
+          '&::-webkit-scrollbar-thumb': {
+            background: colors.background,
+            borderRadius: 3,
+            '&:hover': { background: colors.textSecondary }
+          }
+        }}>
           {stylesLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
               <CircularProgress size={20} />
             </Box>
+          ) : filteredStyles.length === 0 ? (
+            <Typography sx={{
+              fontSize: '0.85rem',
+              color: colors.textSecondary,
+              textAlign: 'center',
+              py: '1rem'
+            }}>
+              No styles match your search
+            </Typography>
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {styles.map(style => (
-                <FormControlLabel
-                  key={style.id}
-                  control={
-                    <Checkbox
-                      checked={selectedStyles.includes(style.id)}
-                      onChange={() => onStyleChange(style.id)}
-                      size="small"
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Typography variant="body2">{style.name}</Typography>
-                  }
+            filteredStyles.map((style) => (
+              <Box
+                key={style.id}
+                onClick={() => onStyleChange(style.id)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  p: '0.6rem 0.75rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease',
+                  '&:hover': { bgcolor: colors.background }
+                }}
+              >
+                <Checkbox
+                  checked={selectedStyles.includes(style.id)}
+                  size="small"
+                  sx={{
+                    p: 0,
+                    color: colors.textSecondary,
+                    '&.Mui-checked': { color: colors.accent }
+                  }}
                 />
-              ))}
-            </Box>
+                <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary, flex: 1 }}>
+                  {style.name}
+                </Typography>
+              </Box>
+            ))
           )}
-        </StylesContainer>
-      </Box>
+        </Box>
+      </FilterSection>
 
-      {/* Filter buttons */}
-      <Box sx={{
-        mt: 'auto',
-        pt: 2,
-        borderTop: 1,
-        borderColor: 'divider',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1
-      }}>
-        <Button
-          variant="contained"
-          color="secondary"
-          fullWidth
-          onClick={onApplyFilters}
-        >
-          Apply Filters
-        </Button>
-        <Button
-          variant="outlined"
-          color="inherit"
-          fullWidth
-          onClick={onClearFilters}
-        >
-          Clear
-        </Button>
-      </Box>
+      {/* Availability Section */}
+      <FilterSection title="Availability">
+        {/* Books Open Toggle */}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          py: '0.75rem'
+        }}>
+          <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary }}>
+            Books open
+          </Typography>
+          <Switch
+            checked={booksOpen}
+            onChange={onBooksOpenChange}
+            size="small"
+            sx={{
+              '& .MuiSwitch-switchBase': {
+                '&.Mui-checked': {
+                  color: colors.accent,
+                  '& + .MuiSwitch-track': { bgcolor: colors.accent }
+                }
+              },
+              '& .MuiSwitch-track': { bgcolor: colors.background }
+            }}
+          />
+        </Box>
+
+        {/* Apply Saved Styles Toggle */}
+        {me?.styles && me.styles.length > 0 && (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            py: '0.75rem'
+          }}>
+            <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary }}>
+              Use my saved styles
+            </Typography>
+            <Switch
+              checked={applySavedStyles}
+              onChange={onApplySavedStylesChange}
+              size="small"
+              sx={{
+                '& .MuiSwitch-switchBase': {
+                  '&.Mui-checked': {
+                    color: colors.accent,
+                    '& + .MuiSwitch-track': { bgcolor: colors.accent }
+                  }
+                },
+                '& .MuiSwitch-track': { bgcolor: colors.background }
+              }}
+            />
+          </Box>
+        )}
+      </FilterSection>
     </Box>
   );
 };

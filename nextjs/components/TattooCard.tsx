@@ -1,28 +1,23 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import {TattooType} from '../models/tattoo.interface';
-import {Card, CardContent, CardActionArea, CardMedia, Typography, Box, Stack, Chip, IconButton, useMediaQuery, useTheme} from '@mui/material';
+import { Box, Typography, IconButton, Avatar } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
-import {useUserData} from '@/contexts/UserContext';
+import { useUserData } from '@/contexts/AuthContext';
+import { colors } from '@/styles/colors';
 
 interface TattooCardProps {
-    tattoo: any; // Using any for now as the tattoo JSON doesn't match the interface exactly
+    tattoo: any;
     onTattooClick?: (tattooId: string) => void;
 }
 
-const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
+const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
     const [isFavorite, setIsFavorite] = React.useState(false);
     const user = useUserData();
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-    // Determine the image URI from either primary_image or image
     const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
-
-    // Determine the artist image URI
     const artistImageUri = tattoo.artist?.primary_image?.uri || tattoo.artist?.image?.uri;
 
     React.useEffect(() => {
@@ -31,54 +26,38 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
         }
     }, [user, tattoo.id]);
 
-    // Handle adding tattoo to favorites (same pattern as ArtistCard)
     const handleAddToFavorites = (event: React.MouseEvent) => {
-        // Stop event propagation to prevent card click
         event.stopPropagation();
-        
-        // Toggle favorite status via the UserContext method
+        event.preventDefault();
+
         if (user?.toggleFavorite) {
             user.toggleFavorite('tattoo', tattoo.id)
                 .catch(err => console.error('Error toggling favorite:', err));
-        } else {
-            console.warn('User not logged in or toggleFavorite not available');
         }
     };
 
-    // Get style tags (limit to first 6 for consistent card height)
+    // Get style tags (limit to first 3 for card)
     const getStyleTags = () => {
-        if (!tattoo.styles || tattoo.styles.length === 0) return null;
-
-        // Limit to max 6 style tags (for 2 rows of 3 tags)
-        const limitedStyles = tattoo.styles.slice(0, 6);
-
-        return limitedStyles.map((style, index) => {
-            // Handle both string styles and object styles
-            const styleText = typeof style === 'string'
-                ? style
-                : style && typeof style === 'object' && 'name' in style
-                    ? style.name
-                    : '';
-
-            return styleText ? (
-                <Chip
-                    key={index}
-                    label={styleText}
-                    size="small"
-                    variant="outlined"
-                    color="secondary"
-                    sx={{
-                        m: 0.5,
-                        borderRadius: 1,
-                        fontSize: '0.7rem'
-                    }}
-                />
-            ) : null;
-        });
+        if (!tattoo.styles || tattoo.styles.length === 0) return [];
+        return tattoo.styles.slice(0, 3).map((style: any) => {
+            if (typeof style === 'string') return style;
+            if (style && typeof style === 'object' && 'name' in style) return style.name;
+            return '';
+        }).filter(Boolean);
     };
 
-    // Calculate if we need to show "more styles" indicator
-    const hasMoreStyles = tattoo.styles && tattoo.styles.length > 6;
+    const styleTags = getStyleTags();
+
+    // Get artist initials for avatar fallback
+    const getArtistInitials = () => {
+        const name = tattoo.artist?.name;
+        if (!name) return 'A';
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+            return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    };
 
     const handleTattooClick = () => {
         if (onTattooClick && tattoo.id) {
@@ -87,226 +66,241 @@ const TattooCard: React.FC<TattooCardProps> = ({tattoo, onTattooClick}) => {
     };
 
     return (
-        <Card
-            variant="outlined"
+        <Box
+            onClick={handleTattooClick}
             sx={{
-                height: isMobile ? 320 : 400,
-                display: 'flex',
-                flexDirection: 'column',
-                transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                boxShadow: '0 2px 8px rgba(232, 219, 197, 0.4)',
+                bgcolor: colors.surface,
+                borderRadius: '12px',
+                overflow: 'hidden',
+                border: `1px solid ${colors.border}`,
+                transition: 'all 0.25s ease',
+                cursor: 'pointer',
                 '&:hover': {
-                    transform: isMobile ? 'none' : 'translateY(-4px)',
-                    boxShadow: isMobile ? '0 2px 8px rgba(232, 219, 197, 0.4)' : '0 6px 12px rgba(232, 219, 197, 0.6)'
-                },
-                position: 'relative',
-                '&:active': {
-                    transform: isMobile ? 'scale(0.98)' : 'translateY(-4px)'
+                    borderColor: `${colors.accent}4D`,
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 12px 24px rgba(0, 0, 0, 0.3)',
+                    '& .card-image img': {
+                        transform: 'scale(1.03)'
+                    }
                 }
             }}
         >
-            {/* Bookmark Icon - Top Right (same pattern as ArtistCard) */}
-            {user && (
-            <IconButton
-                size="small"
-                onClick={handleAddToFavorites}
-                sx={{
-                    position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    zIndex: 2,
-                    backgroundColor: 'rgba(28, 15, 19, 0.7)', // Same as ArtistCard
-                    '&:hover': {
-                        backgroundColor: 'rgba(28, 15, 19, 0.9)'
-                    },
-                    borderRadius: '50%'
-                }}
-            >
-                {isFavorite ? (
-                    <BookmarkIcon sx={{color: '#339989', fontSize: '1.2rem'}}/>
-                ) : (
-                    <BookmarkBorderIcon sx={{color: '#e8dbc5', fontSize: '1.2rem'}}/>
-                )}
-            </IconButton>
-            )}
-            <CardActionArea
-                onClick={handleTattooClick}
-                sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'stretch',
-                    height: '100%'
-                }}
-            >
+            {/* Card Header */}
+            <Box sx={{
+                p: '1rem 1rem 0.75rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem'
+            }}>
                 {/* Artist Avatar */}
-                <Box sx={{
-                    px: 2,
-                    pt: 2,
-                    pb: 1
-                }}>
-                    <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        mb: 0.2
-                    }}>
-                        {artistImageUri && (
-                            <Link
-                                href={`/artists/${tattoo.artist?.slug || tattoo.artist?.id}`}
-                                onClick={(e) => e.stopPropagation()} // Prevent triggering the card click
-                            >
-                                <Box
-                                    sx={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: '50%',
-                                        overflow: 'hidden',
-                                        position: 'relative',
-                                        mr: 1.5,
-                                        border: '1px solid #eee',
-                                        transition: 'transform 0.2s ease-in-out',
-                                        '&:hover': {
-                                            transform: 'scale(1.05)'
-                                        }
-                                    }}
-                                >
-                                    <Image
-                                        src={artistImageUri}
-                                        alt={tattoo.artist?.name || 'Artist'}
-                                        fill
-                                        style={{objectFit: 'cover'}}
-                                    />
-                                </Box>
-                            </Link>
-                        )}
-                        <Link
-                            href={`/artists/${tattoo.artist?.slug || tattoo.artist?.id}`}
-                            onClick={(e) => e.stopPropagation()} // Prevent triggering the card click
-                            style={{
-                                textDecoration: 'none',
-                                color: 'inherit',
-                                '&:hover': {textDecoration: 'underline'}
-                            }}
-                        >
-                            <Typography variant="subtitle2" noWrap sx={{'&:hover': {color: '#339989'}}}>
-                                {tattoo.artist?.name || 'Unknown Artist'}
-                            </Typography>
-                        </Link>
-                    </Box>
+                <Link
+                    href={`/artists/${tattoo.artist?.slug || tattoo.artist?.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ textDecoration: 'none' }}
+                >
+                    {artistImageUri ? (
+                        <Box sx={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            position: 'relative',
+                            transition: 'transform 0.2s ease',
+                            '&:hover': { transform: 'scale(1.05)' }
+                        }}>
+                            <Image
+                                src={artistImageUri}
+                                alt={tattoo.artist?.name || 'Artist'}
+                                fill
+                                style={{ objectFit: 'cover' }}
+                            />
+                        </Box>
+                    ) : (
+                        <Avatar sx={{
+                            width: 44,
+                            height: 44,
+                            bgcolor: colors.background,
+                            color: colors.accent,
+                            fontSize: '1rem',
+                            fontWeight: 600,
+                            flexShrink: 0,
+                            transition: 'transform 0.2s ease',
+                            '&:hover': { transform: 'scale(1.05)' }
+                        }}>
+                            {getArtistInitials()}
+                        </Avatar>
+                    )}
+                </Link>
 
-                    {/* Studio details moved to the left */}
-                    {tattoo?.studio?.name && (
+                {/* Info */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Link
+                        href={`/artists/${tattoo.artist?.slug || tattoo.artist?.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ textDecoration: 'none' }}
+                    >
+                        <Typography sx={{
+                            fontSize: '1rem',
+                            fontWeight: 600,
+                            color: colors.textPrimary,
+                            mb: '0.1rem',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            transition: 'color 0.15s ease',
+                            '&:hover': { color: colors.accent }
+                        }}>
+                            {tattoo.artist?.name || 'Unknown Artist'}
+                        </Typography>
+                    </Link>
+                    {tattoo.studio?.name && (
                         <Link
-                            href={`/?studio_id=${tattoo.studio.id}`}
-                            onClick={(e) => {
-                                e.stopPropagation(); // Prevent triggering the card click
-                            }}
-                            style={{
-                                textDecoration: 'none',
-                                color: 'inherit'
-                            }}
+                            href={`/tattoos?studio_id=${tattoo.studio.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ textDecoration: 'none' }}
                         >
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{
-                                    fontSize: '0.75rem',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    mt: 0.5,
-                                    '&:hover': {
-                                        color: '#339989',
-                                        textDecoration: 'underline'
-                                    },
-                                    cursor: 'pointer'
-                                }}
-                            >
+                            <Typography sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                mb: '0.1rem',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                '&:hover': { textDecoration: 'underline' }
+                            }}>
                                 {tattoo.studio.name}
                             </Typography>
                         </Link>
                     )}
-
-                    {tattoo?.studio?.location && (
-                        <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            mt: 0.5 
+                    {tattoo.studio?.location && (
+                        <Typography sx={{
+                            fontSize: '0.8rem',
+                            color: colors.textSecondary,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem'
                         }}>
-                            <LocationOnIcon 
-                                fontSize="small" 
-                                sx={{ 
-                                    fontSize: '0.75rem', 
-                                    mr: 0.5, 
-                                    color: 'text.secondary' 
-                                }} 
-                            />
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{
-                                    fontSize: '0.75rem',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
+                            <LocationOnIcon sx={{ fontSize: 12, flexShrink: 0 }} />
+                            <Box component="span" sx={{
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                            }}>
                                 {tattoo.studio.location}
-                            </Typography>
-                        </Box>
+                            </Box>
+                        </Typography>
                     )}
                 </Box>
 
-                {/* Tattoo Image - Takes up the rest of the card */}
-                {imageUri && (
-                    <Box sx={{
-                        position: 'relative',
-                        flexGrow: 1,
-                        width: '100%'
-                    }}>
-                        <CardMedia
-                            component="img"
-                            image={imageUri}
-                            alt={tattoo.title || 'Tattoo'}
-                            sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                                objectPosition: 'center'
-                            }}
-                        />
-
-
-                        {/* Optional title overlay at the bottom */}
-                        {tattoo.title && (
-                            <Box sx={{
-                                position: 'absolute',
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
-                                padding: '20px 16px 8px',
-                                textShadow: '0 1px 2px rgba(0,0,0,0.6)'
-                            }}>
-                                <Typography
-                                    variant="body2"
-                                    color="white"
-                                    sx={{
-                                        fontWeight: 'medium',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap'
-                                    }}
-                                >
-                                </Typography>
-                            </Box>
+                {/* Bookmark Button */}
+                {user && (
+                    <IconButton
+                        onClick={handleAddToFavorites}
+                        sx={{
+                            p: '0.25rem',
+                            color: isFavorite ? colors.accent : colors.textSecondary,
+                            transition: 'color 0.15s ease',
+                            '&:hover': {
+                                color: colors.accent,
+                                bgcolor: 'transparent'
+                            }
+                        }}
+                    >
+                        {isFavorite ? (
+                            <BookmarkIcon sx={{ fontSize: 20 }} />
+                        ) : (
+                            <BookmarkBorderIcon sx={{ fontSize: 20 }} />
                         )}
+                    </IconButton>
+                )}
+            </Box>
+
+            {/* Card Image */}
+            <Box
+                className="card-image"
+                sx={{
+                    aspectRatio: '4/5',
+                    bgcolor: colors.background,
+                    position: 'relative',
+                    overflow: 'hidden'
+                }}
+            >
+                {imageUri ? (
+                    <Image
+                        src={imageUri}
+                        alt={tattoo.title || 'Tattoo'}
+                        fill
+                        style={{
+                            objectFit: 'cover',
+                            transition: 'transform 0.3s ease'
+                        }}
+                    />
+                ) : (
+                    <Box sx={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: colors.textSecondary,
+                        fontSize: '0.8rem'
+                    }}>
+                        No Image
                     </Box>
                 )}
-            </CardActionArea>
-        </Card>
+
+                {/* Style Badges */}
+                {styleTags.length > 0 && (
+                    <Box sx={{
+                        position: 'absolute',
+                        bottom: '0.75rem',
+                        left: '0.75rem',
+                        right: '0.75rem',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '0.35rem'
+                    }}>
+                        {styleTags.map((style: string, index: number) => (
+                            <Box
+                                key={index}
+                                sx={{
+                                    px: '0.6rem',
+                                    py: '0.25rem',
+                                    bgcolor: 'rgba(15, 15, 15, 0.85)',
+                                    backdropFilter: 'blur(4px)',
+                                    borderRadius: '100px',
+                                    fontSize: '0.7rem',
+                                    color: colors.textPrimary,
+                                    fontWeight: 500
+                                }}
+                            >
+                                {style}
+                            </Box>
+                        ))}
+                    </Box>
+                )}
+            </Box>
+
+            {/* Card Footer */}
+            {tattoo.title && (
+                <Box sx={{
+                    p: '0.75rem 1rem',
+                    borderTop: `1px solid ${colors.border}`
+                }}>
+                    <Typography sx={{
+                        fontSize: '0.85rem',
+                        color: colors.textPrimary,
+                        fontWeight: 500,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                    }}>
+                        {tattoo.title}
+                    </Typography>
+                </Box>
+            )}
+        </Box>
     );
 };
 

@@ -5,6 +5,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
 import InfoIcon from '@mui/icons-material/Info';
 import HelpIcon from '@mui/icons-material/Help';
+import { colors } from '@/styles/colors';
 
 export type DialogType = 'success' | 'error' | 'warning' | 'info' | 'confirm';
 
@@ -41,32 +42,32 @@ const Dialog: React.FC<DialogProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircleIcon sx={{ fontSize: 48, color: '#339989' }} />;
+        return <CheckCircleIcon sx={{ fontSize: 48, color: colors.success }} />;
       case 'error':
-        return <ErrorIcon sx={{ fontSize: 48, color: '#f44336' }} />;
+        return <ErrorIcon sx={{ fontSize: 48, color: colors.error }} />;
       case 'warning':
-        return <WarningIcon sx={{ fontSize: 48, color: '#ff9800' }} />;
+        return <WarningIcon sx={{ fontSize: 48, color: colors.warning }} />;
       case 'confirm':
-        return <HelpIcon sx={{ fontSize: 48, color: '#339989' }} />;
+        return <HelpIcon sx={{ fontSize: 48, color: colors.accent }} />;
       case 'info':
       default:
-        return <InfoIcon sx={{ fontSize: 48, color: '#2196f3' }} />;
+        return <InfoIcon sx={{ fontSize: 48, color: colors.info }} />;
     }
   };
 
   const getIconColor = () => {
     switch (type) {
       case 'success':
-        return '#339989';
+        return colors.success;
       case 'error':
-        return '#f44336';
+        return colors.error;
       case 'warning':
-        return '#ff9800';
+        return colors.warning;
       case 'confirm':
-        return '#339989';
+        return colors.accent;
       case 'info':
       default:
-        return '#2196f3';
+        return colors.info;
     }
   };
 
@@ -80,19 +81,19 @@ const Dialog: React.FC<DialogProps> = ({
       aria-labelledby="dialog-title"
       aria-describedby="dialog-message"
     >
-      <Paper 
-        sx={{ 
-          position: 'absolute', 
-          top: '50%', 
-          left: '50%', 
+      <Paper
+        sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
           transform: 'translate(-50%, -50%)',
           width: 400,
           maxWidth: '90%',
-          bgcolor: '#2a1a1e',
+          bgcolor: colors.surface,
           boxShadow: 24,
           borderRadius: 2,
           p: 4,
-          color: 'white',
+          color: colors.textPrimary,
           textAlign: 'center'
         }}
       >
@@ -150,14 +151,14 @@ const Dialog: React.FC<DialogProps> = ({
           <Button
             variant="contained"
             onClick={handleConfirm}
-            sx={{ 
+            sx={{
               bgcolor: getIconColor(),
-              '&:hover': { 
-                bgcolor: type === 'success' ? '#267b6e' 
-                       : type === 'error' ? '#d32f2f'
-                       : type === 'warning' ? '#f57c00'
-                       : type === 'confirm' ? '#267b6e'
-                       : '#1976d2'
+              '&:hover': {
+                bgcolor: type === 'success' ? colors.success
+                       : type === 'error' ? colors.error
+                       : type === 'warning' ? colors.warning
+                       : type === 'confirm' ? colors.accentDark
+                       : colors.info
               },
               minWidth: '80px'
             }}

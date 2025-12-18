@@ -160,6 +160,7 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   const url = `/api${endpoint}`;
 
   const requestHeaders: HeadersInit = {
+    'Accept': 'application/json', // Always request JSON responses
     ...headers,
   };
 

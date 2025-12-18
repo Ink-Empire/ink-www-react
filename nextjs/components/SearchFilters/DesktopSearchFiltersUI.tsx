@@ -1,24 +1,10 @@
 import React from 'react';
-import { styled } from '@mui/material/styles';
-import {
-  Paper,
-  IconButton,
-} from '@mui/material';
-import {
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-} from '@mui/icons-material';
+import { Box, Typography, IconButton } from '@mui/material';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { SearchFiltersContent } from './SearchFiltersContent';
 import { SearchFiltersUIProps } from './types';
-
-const FilterPaper = styled(Paper)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
-  boxShadow: theme.shadows[3],
-  borderRadius: 0,
-}));
+import { colors } from '@/styles/colors';
 
 interface DesktopSearchFiltersUIProps extends SearchFiltersUIProps {
   isExpanded: boolean;
@@ -31,17 +17,19 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
   ...contentProps
 }) => {
   return (
-    <FilterPaper
+    <Box
       sx={{
         position: 'fixed',
         left: 0,
-        top: '96px',
-        height: 'calc(100vh - 96px)',
+        top: '64px',
+        height: 'calc(100vh - 64px)',
         width: isExpanded ? '280px' : '48px',
-        transition: 'width 0.3s ease',
+        transition: 'width 0.3s ease, transform 0.3s ease',
         zIndex: 10,
-        backgroundColor: '#2a1a1e',
-        border: '1px solid rgba(232, 219, 197, 0.1)',
+        bgcolor: colors.surface,
+        borderRight: `1px solid ${colors.border}`,
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
       {/* Toggle button */}
@@ -52,11 +40,9 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
           position: 'absolute',
           right: -16,
           top: '20px',
-          backgroundColor: '#339989',
-          color: 'white',
-          '&:hover': {
-            backgroundColor: '#2a7f7a',
-          },
+          bgcolor: colors.accent,
+          color: colors.background,
+          '&:hover': { bgcolor: colors.accentHover },
           width: 32,
           height: 32,
           boxShadow: 2,
@@ -66,8 +52,57 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
         {isExpanded ? <ChevronLeftIcon /> : <ChevronRightIcon />}
       </IconButton>
 
-      {/* Filter content - only show when expanded */}
-      {isExpanded && <SearchFiltersContent {...contentProps} />}
-    </FilterPaper>
+      {/* Sidebar content - only show when expanded */}
+      {isExpanded && (
+        <>
+          {/* Sidebar Header */}
+          <Box sx={{
+            p: '1.25rem 1.25rem 1rem',
+            borderBottom: `1px solid ${colors.border}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <Typography sx={{
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              color: colors.textPrimary
+            }}>
+              Filters
+            </Typography>
+            <Box
+              component="button"
+              onClick={contentProps.onClearFilters}
+              sx={{
+                fontSize: '0.8rem',
+                color: colors.accent,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 500,
+                '&:hover': { textDecoration: 'underline' }
+              }}
+            >
+              Clear all
+            </Box>
+          </Box>
+
+          {/* Sidebar Content */}
+          <Box sx={{
+            flex: 1,
+            overflowY: 'auto',
+            p: '1rem 1.25rem',
+            '&::-webkit-scrollbar': { width: 6 },
+            '&::-webkit-scrollbar-track': { background: 'transparent' },
+            '&::-webkit-scrollbar-thumb': {
+              background: colors.background,
+              borderRadius: 3
+            }
+          }}>
+            <SearchFiltersContent {...contentProps} />
+          </Box>
+        </>
+      )}
+    </Box>
   );
 };

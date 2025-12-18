@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import { useStyles } from '@/contexts/StyleContext';
 import { useAppGeolocation } from '@/utils/geolocation';
-import { useUserData } from '@/contexts/UserContext';
+import { useUserData } from '@/contexts/AuthContext';
 import { distancePreferences } from '@/utils/distancePreferences';
 import { MobileSearchFiltersUI } from './MobileSearchFiltersUI';
 import { DesktopSearchFiltersUI } from './DesktopSearchFiltersUI';

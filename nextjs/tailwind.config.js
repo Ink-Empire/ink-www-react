@@ -7,22 +7,45 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Backgrounds
+        background: 'var(--background)',
+        surface: 'var(--surface)',
+        // Text
+        text: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
+        },
+        // Accent (Gold)
+        accent: {
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
+          dark: 'var(--accent-dark)',
+        },
+        // Primary (alias for accent)
         primary: {
-          DEFAULT: '#2563EB',
-          dark: '#1D4ED8',
-          light: '#60A5FA',
+          DEFAULT: 'var(--primary)',
+          light: 'var(--primary-light)',
+          dark: 'var(--primary-dark)',
         },
+        // Secondary
         secondary: {
-          DEFAULT: '#10B981',
-          dark: '#059669',
-          light: '#34D399',
+          DEFAULT: 'var(--secondary)',
+          light: 'var(--secondary-light)',
+          dark: 'var(--secondary-dark)',
         },
-        background: {
-          light: '#F9FAFB',
-          dark: '#111827',
+        // Status colors
+        success: 'var(--success)',
+        error: 'var(--error)',
+        warning: 'var(--warning)',
+        info: 'var(--info)',
+        // Borders
+        border: {
+          DEFAULT: 'var(--border)',
+          light: 'var(--border-light)',
         },
-        pearl: '#F5F5F0',
-        'persian-green': '#00A693',
+        // Semantic
+        available: 'var(--available)',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

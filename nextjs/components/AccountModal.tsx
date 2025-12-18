@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useUser } from '../contexts/UserContext';
+import { useUser } from '../contexts/AuthContext';
 
 interface AccountModalProps {
   isOpen: boolean;

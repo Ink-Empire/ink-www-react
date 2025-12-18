@@ -17,6 +17,7 @@ import {
   MyLocation as MyLocationIcon,
 } from '@mui/icons-material';
 import { useAppGeolocation } from '../../utils/geolocation';
+import { colors } from '@/styles/colors';
 
 interface UserDetailsProps {
   onStepComplete: (userDetails: {
@@ -233,7 +234,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           sx={{
             mb: 2,
             fontWeight: 'bold',
-            color: '#e8dbc5',
+            color: colors.textSecondary,
           }}
         >
           {getTitle()}
@@ -258,7 +259,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           <Box sx={{ textAlign: 'center' }}>
             <Typography
               variant="h6"
-              sx={{ mb: 2, color: '#e8dbc5' }}
+              sx={{ mb: 2, color: colors.textSecondary }}
             >
               Profile Photo
             </Typography>
@@ -288,12 +289,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                   position: 'absolute',
                   bottom: -5,
                   right: -5,
-                  backgroundColor: '#339989',
+                  backgroundColor: colors.accent,
                   color: '#000',
                   width: 40,
                   height: 40,
                   '&:hover': {
-                    backgroundColor: '#2a7f7a',
+                    backgroundColor: colors.accentDark,
                   },
                 }}
                 onClick={handleImageClick}
@@ -331,6 +332,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           {/* Name Field */}
           <TextField
             label={userType === 'studio' ? 'Studio Name' : 'Name'}
+            name="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={getNamePlaceholder()}
@@ -338,22 +340,23 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             helperText={errors.name}
             fullWidth
             required
+            autoComplete="name"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
                   borderColor: 'rgba(232, 219, 197, 0.5)',
                 },
                 '&:hover fieldset': {
-                  borderColor: '#e8dbc5',
+                  borderColor: colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#339989',
+                  borderColor: colors.accent,
                 },
               },
               '& .MuiInputLabel-root': {
-                color: '#e8dbc5',
+                color: colors.textSecondary,
                 '&.Mui-focused': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
               },
             }}
@@ -362,6 +365,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           {/* Username Field */}
           <TextField
             label="Username"
+            name="username"
             value={username}
             onChange={(e) => setUsername(e.target.value.toLowerCase())}
             placeholder="Choose a unique username"
@@ -369,22 +373,23 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             helperText={errors.username || 'This will be your unique identifier on the platform'}
             fullWidth
             required
+            autoComplete="username"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
                   borderColor: 'rgba(232, 219, 197, 0.5)',
                 },
                 '&:hover fieldset': {
-                  borderColor: '#e8dbc5',
+                  borderColor: colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#339989',
+                  borderColor: colors.accent,
                 },
               },
               '& .MuiInputLabel-root': {
-                color: '#e8dbc5',
+                color: colors.textSecondary,
                 '&.Mui-focused': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
               },
             }}
@@ -393,6 +398,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           {/* Bio Field */}
           <TextField
             label="Bio"
+            name="bio"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder={getBioPlaceholder()}
@@ -408,16 +414,16 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                   borderColor: 'rgba(232, 219, 197, 0.5)',
                 },
                 '&:hover fieldset': {
-                  borderColor: '#e8dbc5',
+                  borderColor: colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#339989',
+                  borderColor: colors.accent,
                 },
               },
               '& .MuiInputLabel-root': {
-                color: '#e8dbc5',
+                color: colors.textSecondary,
                 '&.Mui-focused': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
               },
             }}
@@ -427,7 +433,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           <Box>
             <Typography
               variant="h6"
-              sx={{ mb: 2, color: '#e8dbc5' }}
+              sx={{ mb: 2, color: colors.textSecondary }}
             >
               Location
             </Typography>
@@ -456,7 +462,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 disabled={isGettingLocation}
                 startIcon={useMyLocation ? <LocationOnIcon /> : <MyLocationIcon />}
                 sx={{
-                  color: '#339989',
+                  color: colors.accent,
                   textTransform: 'none',
                   fontSize: '0.875rem',
                   width: { xs: '100%', sm: 'auto' },
@@ -484,13 +490,13 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               >
                 {isGettingLocation ? (
                   <>
-                    <CircularProgress size={20} sx={{ color: '#339989', mr: 2 }} />
+                    <CircularProgress size={20} sx={{ color: colors.accent, mr: 2 }} />
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       Getting your location...
                     </Typography>
                   </>
                 ) : (
-                  <Typography variant="body1" sx={{ color: '#e8dbc5' }}>
+                  <Typography variant="body1" sx={{ color: colors.textSecondary }}>
                     {location || 'Location detected'}
                   </Typography>
                 )}
@@ -498,6 +504,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             ) : (
               <TextField
                 label="Your Location"
+                name="location"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="City, State/Province, Country"
@@ -505,6 +512,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 helperText={errors.location}
                 fullWidth
                 required
+                autoComplete="address-level2"
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     '& fieldset': {
@@ -549,12 +557,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               disabled={isSubmitting}
               startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
               sx={{
-                backgroundColor: '#339989',
+                backgroundColor: colors.accent,
                 color: '#000',
                 fontWeight: 'bold',
                 minWidth: '150px',
                 '&:hover': {
-                  backgroundColor: '#2a7f7a',
+                  backgroundColor: colors.accentDark,
                 },
                 '&:disabled': {
                   backgroundColor: 'rgba(232, 219, 197, 0.3)',
@@ -571,12 +579,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               onClick={onBack}
               disabled={isSubmitting}
               sx={{
-                color: '#e8dbc5',
-                borderColor: '#e8dbc5',
+                color: colors.textSecondary,
+                borderColor: colors.textSecondary,
                 minWidth: '80px',
                 '&:hover': {
                   backgroundColor: 'rgba(232, 219, 197, 0.1)',
-                  borderColor: '#e8dbc5',
+                  borderColor: colors.textSecondary,
                 },
                 '&:disabled': {
                   borderColor: 'rgba(232, 219, 197, 0.3)',

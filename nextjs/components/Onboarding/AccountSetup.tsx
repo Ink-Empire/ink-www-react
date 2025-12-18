@@ -8,6 +8,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { colors } from '@/styles/colors';
 
 interface AccountSetupProps {
   onStepComplete: (credentials: {
@@ -98,7 +99,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
           sx={{
             mb: 2,
             fontWeight: 'bold',
-            color: '#e8dbc5',
+            color: colors.textSecondary,
           }}
         >
           {getTitle()}
@@ -122,6 +123,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
           {/* Email Field */}
           <TextField
             label="Email Address"
+            name="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -130,22 +132,23 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
             helperText={errors.email || 'This will be used to log in to your account'}
             fullWidth
             required
+            autoComplete="email"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
                   borderColor: 'rgba(232, 219, 197, 0.5)',
                 },
                 '&:hover fieldset': {
-                  borderColor: '#e8dbc5',
+                  borderColor: colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#339989',
+                  borderColor: colors.accent,
                 },
               },
               '& .MuiInputLabel-root': {
-                color: '#e8dbc5',
+                color: colors.textSecondary,
                 '&.Mui-focused': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
               },
             }}
@@ -154,6 +157,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
           {/* Password Field */}
           <TextField
             label="Password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -162,22 +166,23 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
             helperText={errors.password || 'Must be at least 8 characters'}
             fullWidth
             required
+            autoComplete="new-password"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
                   borderColor: 'rgba(232, 219, 197, 0.5)',
                 },
                 '&:hover fieldset': {
-                  borderColor: '#e8dbc5',
+                  borderColor: colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#339989',
+                  borderColor: colors.accent,
                 },
               },
               '& .MuiInputLabel-root': {
-                color: '#e8dbc5',
+                color: colors.textSecondary,
                 '&.Mui-focused': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
               },
             }}
@@ -186,6 +191,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
           {/* Password Confirmation Field */}
           <TextField
             label="Confirm Password"
+            name="password_confirmation"
             type="password"
             value={passwordConfirmation}
             onChange={(e) => setPasswordConfirmation(e.target.value)}
@@ -194,22 +200,23 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
             helperText={errors.passwordConfirmation}
             fullWidth
             required
+            autoComplete="new-password"
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
                   borderColor: 'rgba(232, 219, 197, 0.5)',
                 },
                 '&:hover fieldset': {
-                  borderColor: '#e8dbc5',
+                  borderColor: colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#339989',
+                  borderColor: colors.accent,
                 },
               },
               '& .MuiInputLabel-root': {
-                color: '#e8dbc5',
+                color: colors.textSecondary,
                 '&.Mui-focused': {
-                  color: '#339989',
+                  color: colors.accent,
                 },
               },
             }}
@@ -233,12 +240,12 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
               onClick={onBack}
               disabled={isSubmitting}
               sx={{
-                color: '#e8dbc5',
-                borderColor: '#e8dbc5',
+                color: colors.textSecondary,
+                borderColor: colors.textSecondary,
                 width: { xs: '100%', sm: 'auto' },
                 '&:hover': {
                   backgroundColor: 'rgba(232, 219, 197, 0.1)',
-                  borderColor: '#e8dbc5',
+                  borderColor: colors.textSecondary,
                 },
                 '&:disabled': {
                   borderColor: 'rgba(232, 219, 197, 0.3)',
@@ -255,13 +262,13 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
               disabled={isSubmitting}
               startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
               sx={{
-                backgroundColor: '#339989',
+                backgroundColor: colors.accent,
                 color: '#000',
                 fontWeight: 'bold',
                 px: 4,
                 width: { xs: '100%', sm: 'auto' },
                 '&:hover': {
-                  backgroundColor: '#2a7f7a',
+                  backgroundColor: colors.accentDark,
                 },
                 '&:disabled': {
                   backgroundColor: 'rgba(232, 219, 197, 0.3)',

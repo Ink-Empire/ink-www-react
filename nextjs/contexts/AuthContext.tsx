@@ -1,18 +1,42 @@
-import React, { createContext, useContext, ReactNode } from 'react';
-import { useAuth as useAuthHook } from '../hooks/useAuth';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useRouter } from 'next/router';
+import { api } from '../utils/api';
 
+// User interface - complete user data
 interface User {
   id: number;
   name: string;
   first_name?: string;
   last_name?: string;
   email: string;
-  username: string;
-  slug: string;
-  type_id: number;
+  username?: string;
+  slug?: string;
+  type?: string;
+  type_id?: number;
   bio?: string;
   location?: string;
-  image?: string;
+  image?: any;
+  styles?: number[];
+  phone?: string;
+  favorites?: {
+    artists?: number[];
+    tattoos?: number[];
+    studios?: number[];
+  };
+  // Studio admin fields
+  is_studio_admin?: boolean;
+  studio_id?: number;
+  studio?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
+  owned_studio?: {
+    id: number;
+    name: string;
+    slug: string;
+  } | null;
+  [key: string]: any; // Allow additional properties from API
 }
 
 interface LoginCredentials {
@@ -25,36 +49,361 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  error: string | null;
   login: (credentials: LoginCredentials & {
     setErrors?: (errors: any) => void;
     setIsLoading?: (loading: boolean) => void;
     onSuccess?: () => void;
   }) => Promise<void>;
   logout: () => Promise<void>;
-  mutate: () => Promise<any>;
+  updateUser: (data: Partial<User>) => Promise<void>;
+  updateStyles: (styles: number[]) => Promise<void>;
+  toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number) => Promise<void>;
+  refreshUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isAuthenticated: false,
+  error: null,
   login: async () => {},
   logout: async () => {},
-  mutate: async () => {},
+  updateUser: async () => {},
+  updateStyles: async () => {},
+  toggleFavorite: async () => {},
+  refreshUser: async () => null,
 });
+
+// Single localStorage key for user data
+const USER_KEY = 'user';
+
+// Helper to get user from localStorage
+const getStoredUser = (): User | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem(USER_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && parsed.id) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading user from localStorage:', e);
+  }
+  return null;
+};
+
+// Helper to save user to localStorage
+const saveUser = (user: User | null): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(USER_KEY);
+    }
+  } catch (e) {
+    console.error('Error saving user to localStorage:', e);
+  }
+};
+
+// Clear all auth storage
+const clearStorage = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    // Clear known keys
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('csrf_token');
+
+    // Clear API caches
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('api_cache:') || key.startsWith('studios_cache:'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  } catch (e) {
+    console.error('Error clearing storage:', e);
+  }
+};
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const auth = useAuthHook();
+  const router = useRouter();
+
+  // Initialize as null to avoid hydration mismatch (server vs client)
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Load stored user after hydration (client-side only)
+  useEffect(() => {
+    const storedUser = getStoredUser();
+    if (storedUser) {
+      setUser(storedUser);
+    }
+    setIsHydrated(true);
+  }, []);
+
+  // Fetch CSRF cookie
+  const csrf = useCallback(async () => {
+    try {
+      await fetch('/sanctum/csrf-cookie', {
+        method: 'GET',
+        credentials: 'include'
+      });
+    } catch (e) {
+      console.error('Failed to fetch CSRF cookie:', e);
+    }
+  }, []);
+
+  // Fetch user from API
+  const fetchUser = useCallback(async (): Promise<User | null> => {
+    try {
+      const response = await api.get<any>('/users/me', { useCache: false });
+      const userData = response.data || response;
+
+      if (userData && userData.id) {
+        setUser(userData);
+        saveUser(userData);
+        setError(null);
+        return userData;
+      }
+      return null;
+    } catch (err: any) {
+      console.log('fetchUser error:', err?.message || err);
+      if (err?.message?.includes('401') || err?.message?.includes('Unauthenticated')) {
+        setUser(null);
+        saveUser(null);
+      }
+      return null;
+    }
+  }, []);
+
+  // Validate session after hydration
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    let mounted = true;
+
+    const validateSession = async () => {
+      const storedUser = getStoredUser();
+      if (storedUser) {
+        // Validate with server
+        const serverUser = await fetchUser();
+        if (mounted && !serverUser) {
+          console.log('Session expired, clearing stored user');
+          setUser(null);
+          saveUser(null);
+        }
+      } else {
+        // Try to fetch in case there's a valid session
+        await fetchUser();
+      }
+
+      if (mounted) {
+        setIsLoading(false);
+      }
+    };
+
+    validateSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isHydrated, fetchUser]);
+
+  // Login
+  const login = useCallback(async ({
+    setErrors,
+    setIsLoading: setLoginLoading,
+    onSuccess,
+    ...credentials
+  }: LoginCredentials & {
+    setErrors?: (errors: any) => void;
+    setIsLoading?: (loading: boolean) => void;
+    onSuccess?: () => void;
+  }) => {
+    setLoginLoading?.(true);
+    setErrors?.([]);
+
+    try {
+      await csrf();
+      await api.post<any>('/login', credentials);
+
+      // Fetch user data after login
+      const userResponse = await api.get<any>('/users/me', { useCache: false });
+      const userData = userResponse.data || userResponse;
+
+      if (userData && userData.id) {
+        setUser(userData);
+        saveUser(userData);
+        setError(null);
+        console.log('Login successful:', userData.email);
+        onSuccess?.();
+      } else {
+        throw new Error('Login succeeded but failed to get user data');
+      }
+    } catch (err: any) {
+      console.error('Login failed:', err);
+      setUser(null);
+      saveUser(null);
+
+      if (err.response?.status === 422) {
+        setErrors?.(err.response.data.errors);
+      } else {
+        setErrors?.({ email: [err.message || 'Login failed. Please try again.'] });
+      }
+      throw err;
+    } finally {
+      setLoginLoading?.(false);
+    }
+  }, [csrf]);
+
+  // Logout
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/logout', {});
+    } catch (err) {
+      console.error('Logout API error:', err);
+    }
+
+    setUser(null);
+    clearStorage();
+    api.clearCache?.();
+
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      router.push('/login');
+    }
+  }, [router]);
+
+  // Update user data
+  const updateUser = useCallback(async (data: Partial<User>): Promise<void> => {
+    if (!user?.id) {
+      setError('User is not logged in');
+      throw new Error('User is not logged in');
+    }
+
+    try {
+      const response = await api.put<any>(`/users/${user.id}`, data, {
+        requiresAuth: true
+      });
+
+      const updatedUser = response.user || response.data || response;
+      if (updatedUser) {
+        const mergedUser = { ...user, ...updatedUser };
+        setUser(mergedUser);
+        saveUser(mergedUser);
+      }
+    } catch (err) {
+      console.error('Error updating user:', err);
+      setError('Failed to update user');
+      throw err;
+    }
+  }, [user]);
+
+  // Update styles shorthand
+  const updateStyles = useCallback(async (styles: number[]): Promise<void> => {
+    return updateUser({ styles });
+  }, [updateUser]);
+
+  // Toggle favorite
+  const toggleFavorite = useCallback(async (type: 'artist' | 'tattoo' | 'studio', id: number): Promise<void> => {
+    if (!user?.id) {
+      setError('User is not logged in');
+      throw new Error('User is not logged in');
+    }
+
+    const typeKey = `${type}s` as 'artists' | 'tattoos' | 'studios';
+    const currentFavorites = user.favorites || {};
+    const currentList = currentFavorites[typeKey] || [];
+    const isAlreadyFavorite = currentList.includes(id);
+
+    const updatedList = isAlreadyFavorite
+      ? currentList.filter(itemId => itemId !== id)
+      : [...currentList, id];
+
+    const updatedFavorites = { ...currentFavorites, [typeKey]: updatedList };
+
+    try {
+      await api.post(`/users/favorites/${type}`, {
+        ids: id,
+        action: isAlreadyFavorite ? 'remove' : 'add'
+      }, { requiresAuth: true });
+
+      const updatedUser = { ...user, favorites: updatedFavorites };
+      setUser(updatedUser);
+      saveUser(updatedUser);
+    } catch (err) {
+      console.error('Error updating favorites:', err);
+      throw err;
+    }
+  }, [user]);
+
+  // Refresh user data
+  const refreshUser = useCallback(async (): Promise<User | null> => {
+    return fetchUser();
+  }, [fetchUser]);
 
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated: Boolean(user),
+        error,
+        login,
+        logout,
+        updateUser,
+        updateStyles,
+        toggleFavorite,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+// Alias for backwards compatibility with UserContext usage
+export const useUser = () => {
+  const auth = useContext(AuthContext);
+  return {
+    userData: auth.user || {},
+    loading: auth.isLoading,
+    error: auth.error,
+    updateUser: auth.updateUser,
+    updateStyles: auth.updateStyles,
+    toggleFavorite: auth.toggleFavorite,
+    logout: auth.logout,
+  };
+};
+
+// Returns user data directly with methods attached (for legacy useUserData compatibility)
+export const useUserData = () => {
+  const auth = useContext(AuthContext);
+  const userData = auth.user || {};
+
+  return {
+    ...userData,
+    updateUser: auth.updateUser,
+    updateStyles: auth.updateStyles,
+    toggleFavorite: auth.toggleFavorite,
+    logout: auth.logout,
+    loading: auth.isLoading,
+    error: auth.error,
+  };
+};

@@ -1,4 +1,5 @@
 import Document, { Html, Head, Main, NextScript, DocumentContext } from 'next/document';
+import { colors } from '@/styles/colors';
 
 class MyDocument extends Document {
   static async getInitialProps(ctx: DocumentContext) {
@@ -12,7 +13,7 @@ class MyDocument extends Document {
         <Head>
           <link rel="icon" href="/favicon.png" />
           <link rel="apple-touch-icon" href="/favicon.png" />
-          <meta name="theme-color" content="#339989" />
+          <meta name="theme-color" content={colors.accent} />
           <link rel="preload" href="/fonts/tatFont.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
           <link rel="preload" href="/fonts/tattoo.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
           <style dangerouslySetInnerHTML={{

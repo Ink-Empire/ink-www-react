@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 interface WithAuthProps {
   children: React.ReactNode;
@@ -8,15 +8,20 @@ interface WithAuthProps {
   redirectTo?: string;
 }
 
-export const WithAuth: React.FC<WithAuthProps> = ({ 
-  children, 
+export const WithAuth: React.FC<WithAuthProps> = ({
+  children,
   fallback = <div>Loading...</div>,
   redirectTo = '/login'
 }) => {
-  const { user, isLoading } = useAuth({
-    middleware: 'auth',
-    redirectIfUnauthenticated: redirectTo
-  });
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
+
+  // Redirect if not authenticated
+  React.useEffect(() => {
+    if (!isLoading && !user) {
+      router.push(redirectTo);
+    }
+  }, [isLoading, user, router, redirectTo]);
 
   if (isLoading) {
     return <>{fallback}</>;
@@ -35,10 +40,15 @@ export function withAuth<P extends object>(
   options: { redirectTo?: string } = {}
 ) {
   const AuthenticatedComponent = (props: P) => {
-    const { user, isLoading } = useAuth({
-      middleware: 'auth',
-      redirectIfUnauthenticated: options.redirectTo || '/login'
-    });
+    const router = useRouter();
+    const { user, isLoading } = useAuth();
+
+    // Redirect if not authenticated
+    React.useEffect(() => {
+      if (!isLoading && !user) {
+        router.push(options.redirectTo || '/login');
+      }
+    }, [isLoading, user, router]);
 
     if (isLoading) {
       return <div className="flex justify-center items-center min-h-screen">
@@ -47,7 +57,7 @@ export function withAuth<P extends object>(
     }
 
     if (!user) {
-      return null; // useAuth will handle redirect
+      return null;
     }
 
     return <Component {...props} />;
