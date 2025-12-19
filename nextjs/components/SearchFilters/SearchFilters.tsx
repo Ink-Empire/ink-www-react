@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import {
@@ -64,6 +64,7 @@ interface SearchFiltersProps {
   initialExpanded?: boolean;
   isLoading?: boolean;
   onCreateTattoo?: () => void;
+  urlStyleName?: string; // Style name from URL to auto-select
 }
 
 export const SearchFilters: React.FC<SearchFiltersProps> = ({
@@ -74,7 +75,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   onSidebarToggle,
   initialExpanded = true,
   isLoading = false,
-  onCreateTattoo
+  onCreateTattoo,
+  urlStyleName
 }) => {
   // Mobile detection
   const theme = useTheme();
@@ -85,9 +87,25 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   const me = useUserData();
   const geoService = useAppGeolocation();
 
+  // Resolve URL style name to ID
+  const urlStyleId = useMemo(() => {
+    if (!urlStyleName || styles.length === 0) return undefined;
+    const found = styles.find(s => s.name.toLowerCase() === urlStyleName.toLowerCase());
+    return found?.id;
+  }, [urlStyleName, styles]);
+
+  // Compute initial styles including URL style
+  const initialStylesWithUrl = useMemo(() => {
+    const baseStyles = initialFilters.styles || [];
+    if (urlStyleId && !baseStyles.includes(urlStyleId)) {
+      return [...baseStyles, urlStyleId];
+    }
+    return baseStyles;
+  }, [initialFilters.styles, urlStyleId]);
+
   // Filter states
   const [searchString, setSearchString] = useState(initialFilters.searchString || '');
-  const [selectedStyles, setSelectedStyles] = useState<number[]>(initialFilters.styles || []);
+  const [selectedStyles, setSelectedStyles] = useState<number[]>(initialStylesWithUrl);
   const [distance, setDistance] = useState<number>(initialFilters.distance || 50);
   const [distanceUnit, setDistanceUnit] = useState<'mi' | 'km'>(initialFilters.distanceUnit || 'mi');
   const [useMyLocation, setUseMyLocation] = useState<boolean>(initialFilters.useMyLocation !== undefined ? initialFilters.useMyLocation : true);
@@ -105,6 +123,29 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   // Debounce search with timer ref
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const locationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const urlStyleAppliedRef = useRef(false);
+
+  // Apply URL style when it resolves (styles may load async)
+  useEffect(() => {
+    if (urlStyleId && !urlStyleAppliedRef.current && !selectedStyles.includes(urlStyleId)) {
+      urlStyleAppliedRef.current = true;
+      const newStyles = [...selectedStyles, urlStyleId];
+      setSelectedStyles(newStyles);
+      // Immediately trigger search with the URL style
+      onFilterChange({
+        searchString,
+        styles: newStyles,
+        distance,
+        distanceUnit,
+        location,
+        useMyLocation,
+        useAnyLocation,
+        applySavedStyles,
+        booksOpen,
+        locationCoords
+      });
+    }
+  }, [urlStyleId]);
 
   // Watch for external filter changes (e.g., from ActiveFilterBadges)
   useEffect(() => {

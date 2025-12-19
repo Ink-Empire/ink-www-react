@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStyles } from '../contexts/StyleContext';
+import { Box, Typography, Button, Checkbox, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { colors } from '@/styles/colors';
 
 interface StyleModalProps {
   isOpen: boolean;
@@ -11,7 +14,7 @@ interface StyleModalProps {
 const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onApply, selectedStyles: initialSelectedStyles }) => {
   const { styles } = useStyles();
   const [localSelectedStyles, setLocalSelectedStyles] = useState<number[]>([]);
-  
+
   // Initialize local state when the modal opens or selected styles change
   useEffect(() => {
     setLocalSelectedStyles([...initialSelectedStyles]);
@@ -54,66 +57,156 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onApply, selec
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
+    <Box
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'rgba(0, 0, 0, 0.7)',
+      }}
+      onClick={onClose}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          maxWidth: 420,
+          bgcolor: colors.surface,
+          borderRadius: '12px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          overflow: 'hidden',
+          border: `1px solid ${colors.border}`,
+          mx: 2,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
-            <button 
+        <Box
+          sx={{
+            px: 2.5,
+            py: 2,
+            bgcolor: colors.background,
+            borderBottom: `1px solid ${colors.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton
               onClick={onClose}
-              className="mr-2 text-gray-500 hover:text-gray-700"
+              sx={{
+                color: colors.textSecondary,
+                p: 0.5,
+                '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' },
+              }}
               aria-label="Close"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <h2 className="text-lg font-medium text-gray-900">Styles</h2>
-          </div>
-          <button 
+              <CloseIcon sx={{ fontSize: 22 }} />
+            </IconButton>
+            <Typography
+              sx={{
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                color: colors.textPrimary,
+              }}
+            >
+              Select Styles
+            </Typography>
+          </Box>
+          <Button
             onClick={handleApply}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            sx={{
+              px: 2.5,
+              py: 0.75,
+              bgcolor: colors.accent,
+              color: colors.background,
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              borderRadius: '6px',
+              textTransform: 'none',
+              '&:hover': {
+                bgcolor: colors.accentHover,
+              },
+            }}
           >
             Apply
-          </button>
-        </div>
-        
+          </Button>
+        </Box>
+
         {/* Content */}
-        <div className="max-h-96 overflow-y-auto">
-          <ul className="divide-y divide-gray-200">
-            {/* Select All option */}
-            <li className="px-4 py-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">
-                  {hasAnyChecked() ? 'Deselect All' : 'Select All'}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={hasAnyChecked() && localSelectedStyles.length === styles.length}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-              </div>
-            </li>
-            
-            {/* Style options */}
-            {styles.map(style => (
-              <li key={style.id} className="px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-900">{style.name}</span>
-                  <input
-                    type="checkbox"
-                    checked={isSelected(style.id)}
-                    onChange={() => toggleStyle(style.id)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
+        <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+          {/* Select All option */}
+          <Box
+            sx={{
+              px: 2.5,
+              py: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: `1px solid ${colors.border}`,
+              cursor: 'pointer',
+              '&:hover': { bgcolor: `${colors.accent}0D` },
+            }}
+            onClick={toggleSelectAll}
+          >
+            <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
+              {hasAnyChecked() ? 'Deselect All' : 'Select All'}
+            </Typography>
+            <Checkbox
+              checked={hasAnyChecked() && localSelectedStyles.length === styles.length}
+              onChange={toggleSelectAll}
+              sx={{
+                color: colors.textMuted,
+                '&.Mui-checked': { color: colors.accent },
+                p: 0,
+              }}
+            />
+          </Box>
+
+          {/* Style options */}
+          {styles.map((style) => (
+            <Box
+              key={style.id}
+              sx={{
+                px: 2.5,
+                py: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: `1px solid ${colors.border}`,
+                cursor: 'pointer',
+                bgcolor: isSelected(style.id) ? `${colors.accent}1A` : 'transparent',
+                '&:hover': { bgcolor: isSelected(style.id) ? `${colors.accent}26` : `${colors.accent}0D` },
+                '&:last-child': { borderBottom: 'none' },
+              }}
+              onClick={() => toggleStyle(style.id)}
+            >
+              <Typography
+                sx={{
+                  fontSize: '0.9rem',
+                  fontWeight: isSelected(style.id) ? 600 : 400,
+                  color: isSelected(style.id) ? colors.accent : colors.textPrimary,
+                }}
+              >
+                {style.name}
+              </Typography>
+              <Checkbox
+                checked={isSelected(style.id)}
+                onChange={() => toggleStyle(style.id)}
+                sx={{
+                  color: colors.textMuted,
+                  '&.Mui-checked': { color: colors.accent },
+                  p: 0,
+                }}
+              />
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

@@ -4,9 +4,11 @@ import Head from 'next/head';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStyles } from '@/contexts/StyleContext';
+import { useTags } from '@/contexts/TagContext';
 import { fetchCsrfToken, getCsrfToken } from '@/utils/api';
 import { getToken } from '@/utils/auth';
 import StyleModal from '@/components/StyleModal';
+import TagModal from '@/components/TagModal';
 import {
   Box,
   Button,
@@ -30,9 +32,12 @@ export default function UpdateTattoo() {
   const [error, setError] = useState<string | null>(null);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
-  
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
+
   const { user, isAuthenticated } = useAuth();
   const { styles } = useStyles();
+  const { tags } = useTags();
 
   // Fetch tattoo data based on ID in URL
   useEffect(() => {
@@ -116,10 +121,19 @@ export default function UpdateTattoo() {
       // Set styles if present
       if (data.styles && Array.isArray(data.styles)) {
         // Handle both array of style objects and array of style IDs
-        const styleIds = data.styles.map((style: any) => 
+        const styleIds = data.styles.map((style: any) =>
           typeof style === 'object' ? style.id : style
         );
         setSelectedStyles(styleIds);
+      }
+
+      // Set tags if present
+      if (data.tags && Array.isArray(data.tags)) {
+        // Handle both array of tag objects and array of tag IDs
+        const tagIds = data.tags.map((tag: any) =>
+          typeof tag === 'object' ? tag.id : tag
+        );
+        setSelectedTags(tagIds);
       }
       
       // Get image URLs
@@ -144,6 +158,11 @@ export default function UpdateTattoo() {
   // Handle style selection
   const handleApplyStyles = (updatedStyles: number[]) => {
     setSelectedStyles(updatedStyles);
+  };
+
+  // Handle tag selection
+  const handleApplyTags = (updatedTags: number[]) => {
+    setSelectedTags(updatedTags);
   };
 
   // Handle form submission
@@ -187,6 +206,7 @@ export default function UpdateTattoo() {
         title: title || 'Untitled Tattoo',
         about,
         styles: selectedStyles,
+        tag_ids: selectedTags,
         user_id: user?.id
       };
       
@@ -223,21 +243,39 @@ export default function UpdateTattoo() {
         <meta name="description" content="Complete your tattoo upload by adding details" />
       </Head>
 
-      <Box 
-        sx={{ 
-          maxWidth: '800px', 
-          margin: '0 auto', 
-          p: { xs: 2, sm: 4 }, 
-          my: 4 
+      <Box
+        sx={{
+          maxWidth: '800px',
+          margin: '0 auto',
+          p: { xs: 2, sm: 4 },
+          my: 4
         }}
       >
-        <Paper elevation={2} sx={{ p: { xs: 2, sm: 4 } }}>
-          <Typography variant="h4" component="h1" sx={{ mb: 3, textAlign: 'center' }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, sm: 4 },
+            bgcolor: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: '12px'
+          }}
+        >
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              mb: 3,
+              textAlign: 'center',
+              color: colors.textPrimary,
+              fontFamily: '"Cormorant Garamond", Georgia, serif',
+              fontWeight: 500
+            }}
+          >
             Add Tattoo Details
           </Typography>
 
           {error && (
-            <Box sx={{ mb: 3, p: 2, bgcolor: 'error.light', color: 'error.dark', borderRadius: 1 }}>
+            <Box sx={{ mb: 3, p: 2, bgcolor: `${colors.error}1A`, color: colors.error, borderRadius: '8px', border: `1px solid ${colors.error}40` }}>
               {error}
             </Box>
           )}
@@ -245,15 +283,15 @@ export default function UpdateTattoo() {
           {/* Loading state */}
           {isLoading ? (
             <Box sx={{ mb: 4, textAlign: 'center', p: 4 }}>
-              <CircularProgress />
-              <Typography sx={{ mt: 2 }}>Loading tattoo data...</Typography>
+              <CircularProgress sx={{ color: colors.accent }} />
+              <Typography sx={{ mt: 2, color: colors.textSecondary }}>Loading tattoo data...</Typography>
             </Box>
           ) : (
             <>
               {/* Image Previews */}
               {imagePreviewUrls.length > 0 ? (
                 <Box sx={{ mb: 4 }}>
-                  <Typography variant="h6" sx={{ mb: 2 }}>
+                  <Typography sx={{ mb: 2, fontWeight: 600, color: colors.textPrimary }}>
                     Your Uploaded Images
                   </Typography>
                   <Grid container spacing={2}>
@@ -319,19 +357,24 @@ export default function UpdateTattoo() {
               
               {/* Style selection */}
               <Box sx={{ mt: 3, mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                <Typography sx={{ mb: 1, fontWeight: 600, color: colors.textPrimary }}>
                   Tattoo Styles
                 </Typography>
-                
-                <Button 
-                  variant="outlined" 
+
+                <Button
+                  variant="outlined"
                   onClick={() => setStyleModalOpen(true)}
-                  sx={{ mb: 1 }}
+                  sx={{
+                    mb: 1,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                    '&:hover': { borderColor: colors.accent, color: colors.accent }
+                  }}
                   disabled={isSubmitting}
                 >
                   Select Styles
                 </Button>
-                
+
                 {selectedStyles.length > 0 && (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
                     {selectedStyles.map(styleId => {
@@ -341,14 +384,65 @@ export default function UpdateTattoo() {
                           key={styleId}
                           sx={{
                             bgcolor: colors.accent,
-                            color: 'white',
-                            px: 1,
+                            color: colors.background,
+                            px: 1.5,
                             py: 0.5,
-                            borderRadius: '12px',
-                            fontSize: 12
+                            borderRadius: '100px',
+                            fontSize: '0.8rem',
+                            fontWeight: 500
                           }}
                         >
                           {style?.name || 'Unknown Style'}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
+              </Box>
+
+              {/* Tag selection */}
+              <Box sx={{ mt: 3, mb: 3 }}>
+                <Typography sx={{ mb: 1, fontWeight: 600, color: colors.textPrimary }}>
+                  Subject Tags
+                </Typography>
+                <Typography sx={{ mb: 1.5, fontSize: '0.85rem', color: colors.textSecondary }}>
+                  Add tags to help people find your work (e.g., skull, rose, dragon)
+                </Typography>
+
+                <Button
+                  variant="outlined"
+                  onClick={() => setTagModalOpen(true)}
+                  sx={{
+                    mb: 1,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                    '&:hover': { borderColor: colors.accent, color: colors.accent }
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Select Tags {selectedTags.length > 0 && `(${selectedTags.length})`}
+                </Button>
+
+                {selectedTags.length > 0 && (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                    {selectedTags.map(tagId => {
+                      const tag = tags.find(t => t.id === tagId);
+                      return (
+                        <Box
+                          key={tagId}
+                          sx={{
+                            bgcolor: colors.surface,
+                            border: `1px solid ${colors.accent}`,
+                            color: colors.accent,
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: '100px',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {tag?.name || 'Unknown Tag'}
                         </Box>
                       );
                     })}
@@ -391,6 +485,15 @@ export default function UpdateTattoo() {
         onClose={() => setStyleModalOpen(false)}
         onApply={handleApplyStyles}
         selectedStyles={selectedStyles}
+      />
+
+      {/* Tag selection modal */}
+      <TagModal
+        isOpen={tagModalOpen}
+        onClose={() => setTagModalOpen(false)}
+        onApply={handleApplyTags}
+        selectedTags={selectedTags}
+        maxTags={10}
       />
     </Layout>
   );

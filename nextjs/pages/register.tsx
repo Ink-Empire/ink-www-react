@@ -133,11 +133,16 @@ const RegisterPage: React.FC = () => {
       let ownerId: number | undefined;
 
       // Step 1: Create or identify the owner account
-      if (studioOwner?.hasExistingAccount && studioOwner.existingAccountId) {
-        // User has an existing account - they'll need to login
-        // For now, we'll use their existing account ID
+      if (studioOwner?.isAuthenticated && studioOwner.existingAccountId) {
+        // User is already logged in from the StudioOwnerCheck step
+        // No need to create an account or log them in again
         ownerId = studioOwner.existingAccountId;
-        console.log('Using existing account as owner:', ownerId);
+        console.log('User already authenticated, using existing account as owner:', ownerId);
+      } else if (studioOwner?.hasExistingAccount && studioOwner.existingAccountId) {
+        // Legacy flow - user has existing account but not authenticated
+        // This shouldn't happen with the new flow, but keeping for safety
+        ownerId = studioOwner.existingAccountId;
+        console.log('Using existing account as owner (legacy):', ownerId);
       } else {
         // Create a new user account for the owner using their personal profile info
         const ownerType = studioOwner?.ownerType || 'user';

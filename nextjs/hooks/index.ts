@@ -8,3 +8,5 @@ export { useWorkingHours } from './useWorkingHours';
 export { useArtistAppointments } from './useArtistAppointments';
 export { useInbox, useHistory, useArtistInbox, useArtistHistory } from './useInbox';
 export { useInboxCount } from './useInboxCount';
+export { useClientDashboard, useWishlist, useSuggestedArtists } from './useClientDashboard';
+export { useConversations, useConversation, useUnreadConversationCount, createConversation } from './useConversations';
