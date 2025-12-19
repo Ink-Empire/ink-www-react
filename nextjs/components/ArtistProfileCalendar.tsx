@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Box, Typography, IconButton, Modal, Button } from '@mui/material';
+import { Box, Typography, IconButton, Modal, Button, CircularProgress } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/utils/api';
 import { useArtistAppointments } from '@/hooks';
@@ -11,6 +13,7 @@ import { colors } from '@/styles/colors';
 
 interface ArtistProfileCalendarProps {
   artistIdOrSlug: string | number;
+  artistId?: number;
   artistName?: string;
   onDateSelected?: (date: Date, workingHours: any, bookingType: 'consultation' | 'appointment') => void;
 }
@@ -50,6 +53,7 @@ const viewConfig = {
 
 const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
   artistIdOrSlug,
+  artistId: propArtistId,
   artistName = 'Artist',
   onDateSelected
 }) => {
@@ -65,6 +69,12 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
   const [workingHoursLoading, setWorkingHoursLoading] = useState(true);
   const [booksOpen, setBooksOpen] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Wishlist state for notification signup
+  const [onWishlist, setOnWishlist] = useState<boolean>(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [notifySignupLoading, setNotifySignupLoading] = useState(false);
+  const [resolvedArtistId, setResolvedArtistId] = useState<number | null>(propArtistId || null);
 
   // Fetch appointments
   const {
@@ -120,10 +130,17 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
         });
 
         const artistInfo = artistData?.data || artistData;
-        const hasSettingsData = artistInfo && artistInfo?.artist?.settings && Object.keys(artistInfo?.artist?.settings).length > 0;
+        const artistRecord = artistInfo?.artist || artistInfo;
+
+        // Capture the artist ID for wishlist operations
+        if (artistRecord?.id && !resolvedArtistId) {
+          setResolvedArtistId(artistRecord.id);
+        }
+
+        const hasSettingsData = artistRecord?.settings && Object.keys(artistRecord.settings).length > 0;
         const booksAreOpen = hasSettingsData && (
-          artistInfo?.artist?.settings?.books_open === true ||
-          artistInfo?.artist?.settings?.books_open === 1
+          artistRecord?.settings?.books_open === true ||
+          artistRecord?.settings?.books_open === 1
         );
 
         setBooksOpen(booksAreOpen);
@@ -153,6 +170,62 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
 
     fetchArtistAndWorkingHours();
   }, [artist?.id]);
+
+  // Check if artist is on user's wishlist (only when books are closed)
+  useEffect(() => {
+    const checkWishlistStatus = async () => {
+      if (!isAuthenticated || !resolvedArtistId || booksOpen !== false) return;
+
+      setWishlistLoading(true);
+      try {
+        const response = await api.get<{ wishlist: Array<{ id: number }> }>('/client/wishlist', {
+          requiresAuth: true,
+          useCache: false
+        });
+
+        const isOnWishlist = response.wishlist?.some(artist => artist.id === resolvedArtistId) || false;
+        setOnWishlist(isOnWishlist);
+      } catch (error) {
+        console.error('Error checking wishlist status:', error);
+      } finally {
+        setWishlistLoading(false);
+      }
+    };
+
+    checkWishlistStatus();
+  }, [isAuthenticated, resolvedArtistId, booksOpen]);
+
+  // Handle notification signup (add to wishlist)
+  const handleNotifySignup = async () => {
+    if (!isAuthenticated) {
+      setLoginModalOpen(true);
+      return;
+    }
+
+    if (!resolvedArtistId) {
+      console.error('No artist ID available for wishlist');
+      return;
+    }
+
+    setNotifySignupLoading(true);
+    try {
+      await api.post('/client/wishlist', {
+        artist_id: resolvedArtistId,
+        notify_booking_open: true
+      }, { requiresAuth: true });
+
+      setOnWishlist(true);
+    } catch (error: any) {
+      // If already on wishlist (409), just mark as on wishlist
+      if (error?.message?.includes('409') || error?.message?.includes('already')) {
+        setOnWishlist(true);
+      } else {
+        console.error('Error adding to wishlist:', error);
+      }
+    } finally {
+      setNotifySignupLoading(false);
+    }
+  };
 
   // Generate availability data
   const availabilityData = useMemo(() => {
@@ -302,22 +375,138 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
     closeModal();
   };
 
-  // Render books closed warning
+  // Render books closed warning with notification signup
   if (!workingHoursLoading && booksOpen === false) {
     return (
       <Box sx={{
-        bgcolor: `${colors.warning}22`,
-        border: `1px solid ${colors.warning}`,
+        bgcolor: colors.surface,
+        border: `1px solid ${colors.border}`,
         borderRadius: '12px',
-        p: 3,
-        textAlign: 'center'
+        p: 4,
+        textAlign: 'center',
+        maxWidth: 480,
+        mx: 'auto'
       }}>
-        <Typography variant="h6" sx={{ color: colors.warning, mb: 1 }}>
-          Books Currently Closed
+        {/* Status Badge */}
+        <Box sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.75,
+          bgcolor: `${colors.warning}22`,
+          color: colors.warning,
+          px: 2,
+          py: 0.75,
+          borderRadius: '100px',
+          fontSize: '0.8rem',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.03em',
+          mb: 2
+        }}>
+          <Box sx={{ width: 8, height: 8, bgcolor: colors.warning, borderRadius: '50%' }} />
+          Books Closed
+        </Box>
+
+        <Typography sx={{
+          fontFamily: '"Cormorant Garamond", Georgia, serif',
+          fontSize: '1.75rem',
+          fontWeight: 500,
+          color: colors.textPrimary,
+          mb: 1
+        }}>
+          {artistName} isn't booking right now
         </Typography>
-        <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
-          This artist is not accepting new appointments at this time.
+
+        <Typography sx={{ color: colors.textSecondary, fontSize: '0.95rem', mb: 3, lineHeight: 1.6 }}>
+          This artist is not accepting new appointments at the moment.
+          Sign up to be notified when their books open back up.
         </Typography>
+
+        {/* Notification Signup Section */}
+        {wishlistLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+            <CircularProgress size={24} sx={{ color: colors.accent }} />
+          </Box>
+        ) : onWishlist ? (
+          // Already signed up
+          <Box sx={{
+            bgcolor: `${colors.success}15`,
+            border: `1px solid ${colors.success}4D`,
+            borderRadius: '10px',
+            p: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1
+          }}>
+            <CheckCircleIcon sx={{ color: colors.success, fontSize: '1.25rem' }} />
+            <Typography sx={{ color: colors.success, fontWeight: 500 }}>
+              You'll be notified when books open
+            </Typography>
+          </Box>
+        ) : isAuthenticated ? (
+          // Authenticated - show signup button
+          <Button
+            onClick={handleNotifySignup}
+            disabled={notifySignupLoading}
+            startIcon={notifySignupLoading ? <CircularProgress size={18} sx={{ color: 'inherit' }} /> : <NotificationsActiveIcon />}
+            sx={{
+              bgcolor: colors.accent,
+              color: colors.background,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              px: 4,
+              py: 1.5,
+              borderRadius: '8px',
+              '&:hover': { bgcolor: colors.accentHover },
+              '&:disabled': { bgcolor: `${colors.accent}80` }
+            }}
+          >
+            {notifySignupLoading ? 'Signing up...' : 'Notify Me When Books Open'}
+          </Button>
+        ) : (
+          // Not authenticated - show login prompt
+          <Box>
+            <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem', mb: 2 }}>
+              Create an account to get notified when this artist opens their books.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center' }}>
+              <Button
+                component={Link}
+                href="/login"
+                sx={{
+                  color: colors.textPrimary,
+                  border: `1px solid ${colors.border}`,
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  px: 3,
+                  py: 1,
+                  borderRadius: '8px',
+                  '&:hover': { borderColor: colors.accent, color: colors.accent }
+                }}
+              >
+                Log In
+              </Button>
+              <Button
+                component={Link}
+                href="/register"
+                sx={{
+                  bgcolor: colors.accent,
+                  color: colors.background,
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  px: 3,
+                  py: 1,
+                  borderRadius: '8px',
+                  '&:hover': { bgcolor: colors.accentHover }
+                }}
+              >
+                Sign Up
+              </Button>
+            </Box>
+          </Box>
+        )}
       </Box>
     );
   }

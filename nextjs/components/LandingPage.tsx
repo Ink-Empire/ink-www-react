@@ -26,12 +26,14 @@ import LogoText from './LogoText';
 import { colors } from '@/styles/colors';
 import { useArtists } from '@/hooks/useArtists';
 import { useStyles } from '@/contexts/StyleContext';
+import { useTags } from '@/contexts/TagContext';
 
 const LandingPage: React.FC = () => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState('');
   const { artists, loading } = useArtists({ limit: 4 });
   const { styles } = useStyles();
+  const { tags } = useTags();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +44,7 @@ const LandingPage: React.FC = () => {
     }
   };
 
-  // Featured styles for the tags section
+  // Featured styles for the styles section
   const featuredStyles = styles?.slice(0, 12) || [
     { id: 1, name: 'Traditional' },
     { id: 2, name: 'Neo-Traditional' },
@@ -56,6 +58,25 @@ const LandingPage: React.FC = () => {
     { id: 10, name: 'Dotwork' },
     { id: 11, name: 'Minimalist' },
     { id: 12, name: 'Illustrative' },
+  ];
+
+  // Featured tags for the tags section
+  const featuredTags = tags?.slice(0, 15) || [
+    { id: 1, name: 'skull', slug: 'skull' },
+    { id: 2, name: 'rose', slug: 'rose' },
+    { id: 3, name: 'dragon', slug: 'dragon' },
+    { id: 4, name: 'snake', slug: 'snake' },
+    { id: 5, name: 'butterfly', slug: 'butterfly' },
+    { id: 6, name: 'lion', slug: 'lion' },
+    { id: 7, name: 'wolf', slug: 'wolf' },
+    { id: 8, name: 'eagle', slug: 'eagle' },
+    { id: 9, name: 'tiger', slug: 'tiger' },
+    { id: 10, name: 'phoenix', slug: 'phoenix' },
+    { id: 11, name: 'lotus', slug: 'lotus' },
+    { id: 12, name: 'mandala', slug: 'mandala' },
+    { id: 13, name: 'koi', slug: 'koi' },
+    { id: 14, name: 'anchor', slug: 'anchor' },
+    { id: 15, name: 'compass', slug: 'compass' },
   ];
 
   return (
@@ -276,7 +297,7 @@ const LandingPage: React.FC = () => {
           {featuredStyles.map((style: any) => (
             <Link
               key={style.id}
-              href={`/tattoos?style=${style.name}`}
+              href={`/tattoos?styleSearch=${encodeURIComponent(style.name)}`}
               style={{ textDecoration: 'none' }}
             >
               <Box
@@ -297,6 +318,74 @@ const LandingPage: React.FC = () => {
                 }}
               >
                 {style.name}
+              </Box>
+            </Link>
+          ))}
+        </Box>
+      </Box>
+
+      {/* Browse by Tags Section */}
+      <Box sx={{ py: { xs: 4, md: 6 }, px: { xs: 1.5, md: 2 }, maxWidth: 1200, mx: 'auto' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            gap: 1,
+            mb: { xs: 2, md: 3 },
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: { xs: '1.5rem', md: '2rem' },
+              fontWeight: 500,
+              color: colors.textPrimary,
+              fontFamily: '"Cormorant Garamond", Georgia, serif',
+            }}
+          >
+            Browse by Subject
+          </Typography>
+          <Link href="/tattoos" style={{ textDecoration: 'none' }}>
+            <Typography
+              sx={{
+                color: colors.accent,
+                fontSize: '0.9rem',
+                fontWeight: 500,
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              View all subjects →
+            </Typography>
+          </Link>
+        </Box>
+
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 0.75, md: 1 } }}>
+          {featuredTags.map((tag: any) => (
+            <Link
+              key={tag.id}
+              href={`/tattoos?tag=${encodeURIComponent(tag.slug || tag.name)}`}
+              style={{ textDecoration: 'none' }}
+            >
+              <Box
+                sx={{
+                  px: { xs: 1.25, md: 1.5 },
+                  py: { xs: 0.75, md: 1 },
+                  bgcolor: colors.surface,
+                  border: `1px solid ${colors.borderLight}`,
+                  borderRadius: '100px',
+                  color: colors.textSecondary,
+                  fontSize: { xs: '0.85rem', md: '0.9rem' },
+                  textTransform: 'capitalize',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: colors.accent,
+                    color: colors.accent,
+                    bgcolor: `${colors.accent}1A`,
+                  },
+                }}
+              >
+                {tag.name}
               </Box>
             </Link>
           ))}

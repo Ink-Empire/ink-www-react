@@ -25,6 +25,7 @@ import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
 import EditStudioModal from '../components/EditStudioModal';
 import AddArtistModal from '../components/AddArtistModal';
+import ClientDashboardContent from '../components/ClientDashboardContent';
 
 // Types for dashboard data
 interface DashboardStats {
@@ -164,6 +165,7 @@ export default function Dashboard() {
     ? ownedStudio.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'ST';
   const hasStudio = user?.is_studio_admin && ownedStudio;
+  const isClient = user?.type_id === 1;
 
   // Load studio data when tab switches to studio
   useEffect(() => {
@@ -342,6 +344,20 @@ export default function Dashboard() {
     }
   };
 
+  // Render client dashboard for clients (type_id = 1)
+  if (isClient) {
+    return (
+      <Layout>
+        <Head>
+          <title>Dashboard | InkedIn</title>
+          <meta name="description" content="Your personal tattoo journey dashboard" />
+        </Head>
+        <ClientDashboardContent userName={userName} userId={user?.id || 0} />
+      </Layout>
+    );
+  }
+
+  // Render artist dashboard for artists (type_id = 2)
   return (
     <Layout>
       <Head>

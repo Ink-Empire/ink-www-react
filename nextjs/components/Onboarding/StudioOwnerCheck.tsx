@@ -10,15 +10,22 @@ import {
   TextField,
   Alert,
   CircularProgress,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
 import {
   Person as PersonIcon,
   Brush as BrushIcon,
   Email as EmailIcon,
   CheckCircle as CheckCircleIcon,
+  Visibility,
+  VisibilityOff,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { api, fetchCsrfToken, getCsrfToken } from '@/utils/api';
+import { setToken } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface StudioOwnerCheckProps {
   onStepComplete: (ownerData: {
@@ -26,63 +33,102 @@ interface StudioOwnerCheckProps {
     existingAccountEmail?: string;
     existingAccountId?: number;
     ownerType: 'artist' | 'user';
+    isAuthenticated?: boolean;
   }) => void;
   onBack: () => void;
 }
 
 const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onBack }) => {
-  const [step, setStep] = useState<'initial' | 'email-check' | 'select-type'>('initial');
+  const { refreshUser } = useAuth();
+  const [step, setStep] = useState<'initial' | 'login' | 'select-type'>('initial');
   const [email, setEmail] = useState('');
-  const [isChecking, setIsChecking] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [existingUser, setExistingUser] = useState<{ id: number; name: string; email: string; type: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleHasAccount = () => {
-    setStep('email-check');
+    setStep('login');
   };
 
   const handleNoAccount = () => {
     setStep('select-type');
   };
 
-  const handleCheckEmail = async () => {
+  const handleLogin = async () => {
     if (!email.trim()) {
       setError('Please enter your email address');
       return;
     }
+    if (!password) {
+      setError('Please enter your password');
+      return;
+    }
 
-    setIsChecking(true);
+    setIsLoggingIn(true);
     setError(null);
 
     try {
-      const response = await api.post<{ exists: boolean; user?: { id: number; name: string; email: string; type: string } }>('/users/check-email', { email: email.trim() });
+      // Get CSRF token first
+      await fetchCsrfToken();
+      const csrfToken = getCsrfToken();
 
-      if (response.exists && response.user) {
-        setExistingUser(response.user);
-        // If they already have an account, they'll use that as the owner
-        // Ask what type they want to be (if not already set)
-        if (response.user.type === 'artist') {
-          // Already an artist, proceed directly
-          onStepComplete({
-            hasExistingAccount: true,
-            existingAccountEmail: email.trim(),
-            existingAccountId: response.user.id,
-            ownerType: 'artist',
-          });
-        } else {
-          // Show option to become artist or stay as user
-          setStep('select-type');
-        }
-      } else {
-        setError('No account found with this email. Please create a new account.');
-        setStep('select-type');
+      // Attempt to login
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': csrfToken || '',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Invalid email or password');
       }
+
+      const result = await response.json();
+      console.log('Login successful:', result);
+
+      // Set the authentication token
+      if (result.token) {
+        setToken(result.token);
+        api.clearUserCache();
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Refresh auth context to load user data
+        try {
+          await refreshUser();
+        } catch (authError) {
+          console.error('Failed to refresh user after login:', authError);
+        }
+      }
+
+      const user = result.user;
+      setExistingUser(user);
+
+      // Proceed with the logged-in user's info
+      // The user is now authenticated, so we can skip profile/account steps
+      onStepComplete({
+        hasExistingAccount: true,
+        existingAccountEmail: user.email,
+        existingAccountId: user.id,
+        ownerType: user.type === 'artist' ? 'artist' : 'user',
+        isAuthenticated: true,
+      });
+
     } catch (err: any) {
-      console.error('Error checking email:', err);
-      // If endpoint doesn't exist yet, just proceed to type selection
-      setStep('select-type');
+      console.error('Error logging in:', err);
+      setError(err.message || 'Failed to log in. Please check your credentials.');
     } finally {
-      setIsChecking(false);
+      setIsLoggingIn(false);
     }
   };
 
@@ -236,8 +282,8 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
     );
   }
 
-  // Email check step
-  if (step === 'email-check') {
+  // Login step
+  if (step === 'login') {
     return (
       <Box sx={{ width: '100%', textAlign: 'center' }}>
         <Typography
@@ -250,7 +296,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
             fontSize: { xs: '1.5rem', md: '2rem' },
           }}
         >
-          Find Your Account
+          Log In to Your Account
         </Typography>
 
         <Typography
@@ -262,7 +308,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
             mx: 'auto',
           }}
         >
-          Enter the email address associated with your InkedIn account.
+          Sign in with your existing InkedIn account to link it to your new studio.
         </Typography>
 
         <Stack spacing={3} sx={{ maxWidth: 400, mx: 'auto' }}>
@@ -274,7 +320,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
             onChange={(e) => setEmail(e.target.value)}
             placeholder="your.email@example.com"
             fullWidth
-            disabled={isChecking}
+            disabled={isLoggingIn}
             autoComplete="email"
             InputProps={{
               startAdornment: <EmailIcon sx={{ color: colors.textMuted, mr: 1 }} />,
@@ -292,8 +338,45 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
             }}
           />
 
+          <TextField
+            label="Password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            fullWidth
+            disabled={isLoggingIn}
+            autoComplete="current-password"
+            InputProps={{
+              startAdornment: <LockIcon sx={{ color: colors.textMuted, mr: 1 }} />,
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                    sx={{ color: colors.textMuted }}
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': { borderColor: 'rgba(232, 219, 197, 0.5)' },
+                '&:hover fieldset': { borderColor: colors.textSecondary },
+                '&.Mui-focused fieldset': { borderColor: colors.accent },
+              },
+              '& .MuiInputLabel-root': {
+                color: colors.textSecondary,
+                '&.Mui-focused': { color: colors.accent },
+              },
+            }}
+          />
+
           {error && (
-            <Alert severity="info" sx={{ textAlign: 'left' }}>
+            <Alert severity="error" sx={{ textAlign: 'left' }}>
               {error}
             </Alert>
           )}
@@ -301,8 +384,12 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
           <Stack direction="row" spacing={2} justifyContent="space-between">
             <Button
               variant="outlined"
-              onClick={() => setStep('initial')}
-              disabled={isChecking}
+              onClick={() => {
+                setStep('initial');
+                setError(null);
+                setPassword('');
+              }}
+              disabled={isLoggingIn}
               sx={{
                 color: colors.textSecondary,
                 borderColor: colors.textSecondary,
@@ -317,9 +404,9 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
 
             <Button
               variant="contained"
-              onClick={handleCheckEmail}
-              disabled={isChecking || !email.trim()}
-              startIcon={isChecking ? <CircularProgress size={20} /> : null}
+              onClick={handleLogin}
+              disabled={isLoggingIn || !email.trim() || !password}
+              startIcon={isLoggingIn ? <CircularProgress size={20} color="inherit" /> : null}
               sx={{
                 backgroundColor: colors.accent,
                 color: '#000',
@@ -331,7 +418,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
                 },
               }}
             >
-              {isChecking ? 'Checking...' : 'Continue'}
+              {isLoggingIn ? 'Logging in...' : 'Log In & Continue'}
             </Button>
           </Stack>
         </Stack>
@@ -463,7 +550,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
       <Box sx={{ mt: 4 }}>
         <Button
           variant="outlined"
-          onClick={() => existingUser ? setStep('email-check') : setStep('initial')}
+          onClick={() => existingUser ? setStep('login') : setStep('initial')}
           sx={{
             color: colors.textSecondary,
             borderColor: colors.textSecondary,

@@ -55,6 +55,7 @@ export interface OnboardingData {
     existingAccountEmail?: string;
     existingAccountId?: number;
     ownerType: 'artist' | 'user'; // Is the owner also a tattoo artist?
+    isAuthenticated?: boolean; // Is the owner already logged in?
     // Artist-specific fields (when ownerType === 'artist')
     artistStyles?: number[]; // Owner's personal specialty styles
   };
@@ -93,7 +94,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       // Studios: Owner check -> (Artist styles if owner is artist) -> Your Profile -> Account -> Studio Profile
       // Note: Studio styles are derived from artists who work there, not set during signup
       const isOwnerArtist = onboardingData.studioOwner?.ownerType === 'artist';
-      if (isOwnerArtist) {
+      const isAuthenticated = onboardingData.studioOwner?.isAuthenticated;
+
+      if (isAuthenticated) {
+        // Already authenticated: Owner -> Studio Profile (skip personal profile/account steps)
+        steps = [...steps, 'Owner', 'Studio Profile'];
+      } else if (isOwnerArtist) {
         // Artist owner: Owner -> Your Styles -> Your Profile -> Account -> Studio Profile
         steps = [...steps, 'Owner', 'Your Styles', 'Your Profile', 'Account', 'Studio Profile'];
       } else {
@@ -314,8 +320,28 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       }
     } else if (isStudio) {
       const isOwnerArtist = onboardingData.studioOwner?.ownerType === 'artist';
+      const isAuthenticated = onboardingData.studioOwner?.isAuthenticated;
 
-      if (isOwnerArtist) {
+      if (isAuthenticated) {
+        // Already authenticated flow: Owner -> Studio Profile (skip personal profile/account)
+        switch (effectiveStep) {
+          case 1:
+            return (
+              <StudioOwnerCheck
+                onStepComplete={handleStudioOwnerComplete}
+                onBack={handleBack}
+              />
+            );
+          case 2:
+            // Studio profile - final step (skip directly to this)
+            return (
+              <StudioDetails
+                onStepComplete={handleStudioDetailsComplete}
+                onBack={handleBack}
+              />
+            );
+        }
+      } else if (isOwnerArtist) {
         // Artist owner flow: Owner -> Your Styles -> Your Profile -> Account -> Studio Profile
         switch (effectiveStep) {
           case 1:

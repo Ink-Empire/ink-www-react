@@ -14,6 +14,7 @@ import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useArtist } from '../../hooks';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooCreateWizard from '@/components/TattooCreateWizard';
@@ -25,7 +26,8 @@ import { colors } from '@/styles/colors';
 export default function ArtistDetail() {
     const router = useRouter();
     const { slug } = router.query;
-    const { artist, loading: artistLoading, error: artistError } = useArtist(slug as string);
+    const slugString = typeof slug === 'string' ? slug : null;
+    const { artist, loading: artistLoading, error: artistError } = useArtist(slugString);
     const { user, isAuthenticated } = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
@@ -177,6 +179,25 @@ export default function ArtistDetail() {
             </Head>
 
             <Box sx={{ maxWidth: 1200, mx: 'auto', py: 3 }}>
+                {/* Back Button */}
+                <Box
+                    onClick={() => router.back()}
+                    sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        color: colors.textSecondary,
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        mb: 2,
+                        transition: 'color 0.2s',
+                        '&:hover': { color: colors.accent }
+                    }}
+                >
+                    <ArrowBackIcon sx={{ fontSize: '1rem' }} />
+                    Back to results
+                </Box>
+
                 {/* Artist Header */}
                 <Box sx={{
                     display: 'flex',
@@ -737,6 +758,7 @@ export default function ArtistDetail() {
                     /* Calendar Tab */
                     <ArtistProfileCalendar
                         artistIdOrSlug={slug as string}
+                        artistId={artist.id}
                         artistName={artist.name}
                         onDateSelected={handleDateSelected}
                     />

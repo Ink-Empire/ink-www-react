@@ -107,8 +107,13 @@ export default function TattoosPage() {
     };
   }, [me?.location_lat_long, studio_id, router.query.searchString]);
 
-  const [searchParams, setSearchParams] = useState<Record<string, any>>(initialSearchParams);
+  // Check if there's a style in the URL to pass to SearchFilters
+  const urlStyleParam = (router.query.styleSearch || router.query.style) as string | undefined;
+
+  const [searchParams, setSearchParams] = useState<Record<string, any>>(() => initialSearchParams);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+
+  // Fetch tattoos based on search params
   const { tattoos, loading, error } = useTattoos(searchParams);
 
   // When we get tattoo data back, try to find the studio name based on the studio_id
@@ -140,23 +145,6 @@ export default function TattoosPage() {
       }));
     }
   }, [router.query.searchString]);
-
-  // Update searchParams when styleSearch query parameter changes
-  useEffect(() => {
-    if (router.query.styleSearch && styles.length > 0) {
-      const styleSearchName = router.query.styleSearch as string;
-      const matchingStyle = styles.find(style =>
-        style.name.toLowerCase() === styleSearchName.toLowerCase()
-      );
-      if (matchingStyle) {
-        setSearchParams((prev) => ({
-          ...prev,
-          styles: [matchingStyle.id],
-          searchString: ""
-        }));
-      }
-    }
-  }, [router.query.styleSearch, styles]);
 
   // Handle filter changes from SearchFilters component
   const handleFilterChange = (filters: {
@@ -299,15 +287,15 @@ export default function TattoosPage() {
         type="tattoos"
         onFilterChange={handleFilterChange}
         initialFilters={{
-          searchString: initialSearchParams.searchString,
-          styles: initialSearchParams.styles,
-          distance: initialSearchParams.distance,
-          distanceUnit: initialSearchParams.distanceUnit,
-          useMyLocation: initialSearchParams.useMyLocation,
-          useAnyLocation: initialSearchParams.useAnyLocation,
-          applySavedStyles: initialSearchParams.applySavedStyles,
-          booksOpen: initialSearchParams.booksOpen,
-          location: initialSearchParams.location,
+          searchString: initialSearchParams.searchString as string,
+          styles: initialSearchParams.styles as number[],
+          distance: initialSearchParams.distance as number,
+          distanceUnit: initialSearchParams.distanceUnit as 'mi' | 'km',
+          useMyLocation: initialSearchParams.useMyLocation as boolean,
+          useAnyLocation: initialSearchParams.useAnyLocation as boolean,
+          applySavedStyles: initialSearchParams.applySavedStyles as boolean,
+          booksOpen: initialSearchParams.booksOpen as boolean,
+          location: initialSearchParams.location as string,
         }}
         currentFilters={{
           searchString: searchParams.searchString,
@@ -321,6 +309,7 @@ export default function TattoosPage() {
           location: searchParams.location,
           locationCoords: searchParams.locationCoords,
         }}
+        urlStyleName={urlStyleParam}
         onSidebarToggle={setSidebarExpanded}
         initialExpanded={sidebarExpanded}
         isLoading={loading}
