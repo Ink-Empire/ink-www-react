@@ -93,14 +93,29 @@ export default function TattoosPage() {
     }
   };
 
+  // Parse URL query params for styles and tags
+  const getStylesFromQuery = () => {
+    const stylesParam = router.query.styles;
+    if (!stylesParam) return [];
+    if (Array.isArray(stylesParam)) return stylesParam.map(Number).filter(n => !isNaN(n));
+    return [Number(stylesParam)].filter(n => !isNaN(n));
+  };
+
+  const getTagsFromQuery = () => {
+    const tagsParam = router.query.tags;
+    if (!tagsParam) return [];
+    if (Array.isArray(tagsParam)) return tagsParam.map(Number).filter(n => !isNaN(n));
+    return [Number(tagsParam)].filter(n => !isNaN(n));
+  };
+
   // Initialize with user preferences
   const initialSearchParams = useMemo(() => {
     const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
 
     return {
-      searchString: router.query.searchString || "",
-      styles: [],
-      tags: [],
+      searchString: (router.query.search || router.query.searchString || "") as string,
+      styles: getStylesFromQuery(),
+      tags: getTagsFromQuery(),
       applySavedStyles: false,
       booksOpen: false,
       ...locationSettings,
@@ -108,7 +123,7 @@ export default function TattoosPage() {
       subject: "tattoos",
       studio_id: studio_id || undefined,
     };
-  }, [me?.location_lat_long, studio_id, router.query.searchString]);
+  }, [me?.location_lat_long, studio_id, router.query.searchString, router.query.search, router.query.styles, router.query.tags]);
 
   // Check if there's a style in the URL to pass to SearchFilters
   const urlStyleParam = (router.query.styleSearch || router.query.style) as string | undefined;
@@ -139,15 +154,21 @@ export default function TattoosPage() {
     }
   }, [studio_id]);
 
-  // Update searchParams when searchString query parameter changes
+  // Update searchParams when URL query parameters change
   useEffect(() => {
-    if (router.query.searchString) {
+    const searchString = (router.query.search || router.query.searchString) as string;
+    const stylesFromUrl = getStylesFromQuery();
+    const tagsFromUrl = getTagsFromQuery();
+
+    if (searchString || stylesFromUrl.length > 0 || tagsFromUrl.length > 0) {
       setSearchParams((prev) => ({
         ...prev,
-        searchString: router.query.searchString as string
+        ...(searchString && { searchString }),
+        ...(stylesFromUrl.length > 0 && { styles: stylesFromUrl }),
+        ...(tagsFromUrl.length > 0 && { tags: tagsFromUrl }),
       }));
     }
-  }, [router.query.searchString]);
+  }, [router.query.search, router.query.searchString, router.query.styles, router.query.tags]);
 
   // Handle filter changes from SearchFilters component
   const handleFilterChange = (filters: {
