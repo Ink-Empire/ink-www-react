@@ -1,5 +1,6 @@
 import React from 'react';
 import { AppProps } from 'next/app';
+import Head from 'next/head';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AuthProvider } from '../contexts/AuthContext';
 import { StyleProvider } from '../contexts/StyleContext';
@@ -10,8 +11,12 @@ import '../styles/globals.css';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+      </Head>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
       <AuthProvider>
         <StyleProvider>
           <TagProvider>
@@ -22,6 +27,7 @@ function MyApp({ Component, pageProps }: AppProps) {
         </StyleProvider>
       </AuthProvider>
     </ThemeProvider>
+    </>
   );
 }
 

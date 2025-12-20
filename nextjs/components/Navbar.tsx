@@ -117,7 +117,9 @@ const Navbar: React.FC = () => {
               filter: 'brightness(1.2) contrast(1.1)'
             }}
           />
-          <LogoText fontSize={isMobile ? "1.5rem" : "2.5rem"} />
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <LogoText fontSize={isMobile ? "1.25rem" : "2.5rem"} />
+          </Box>
         </Box>
 
         {/* Spacer */}

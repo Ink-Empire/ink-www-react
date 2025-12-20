@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { api } from '../utils/api';
+import { setToken, removeToken } from '../utils/auth';
 
 // User interface - complete user data
 interface User {
@@ -119,6 +120,7 @@ const clearStorage = (): void => {
     localStorage.removeItem('user_data');
     localStorage.removeItem('user_id');
     localStorage.removeItem('csrf_token');
+    localStorage.removeItem('auth_token');
 
     // Clear API caches
     const keysToRemove: string[] = [];
@@ -240,11 +242,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       await csrf();
-      await api.post<any>('/login', credentials);
+      const loginResponse = await api.post<any>('/login', credentials);
 
-      // Fetch user data after login
-      const userResponse = await api.get<any>('/users/me', { useCache: false });
-      const userData = userResponse.data || userResponse;
+      // Store the token from the login response
+      if (loginResponse.token) {
+        setToken(loginResponse.token);
+        console.log('Auth token stored');
+      }
+
+      // Get user data from the login response or fetch separately
+      let userData = loginResponse.user;
+
+      if (!userData || !userData.id) {
+        // Fallback: fetch user data if not included in login response
+        const userResponse = await api.get<any>('/users/me', { useCache: false });
+        userData = userResponse.data || userResponse;
+      }
 
       if (userData && userData.id) {
         setUser(userData);
@@ -278,6 +291,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       console.error('Logout API error:', err);
     }
+
+    // Remove the auth token
+    removeToken();
 
     setUser(null);
     clearStorage();

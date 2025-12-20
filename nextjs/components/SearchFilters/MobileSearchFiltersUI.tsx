@@ -9,7 +9,7 @@ import {
 import {
   Menu as MenuIcon,
   Close as CloseIcon,
-  ArrowForward as ArrowForwardIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { SearchFiltersContent } from './SearchFiltersContent';
 import { SearchFiltersUIProps } from './types';
@@ -73,7 +73,7 @@ export const MobileSearchFiltersUI: React.FC<MobileSearchFiltersUIProps> = ({
             boxShadow: 2,
           }}
         >
-          <ArrowForwardIcon />
+          <ArrowBackIcon />
         </IconButton>
 
         <Box sx={{
