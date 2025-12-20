@@ -14,6 +14,7 @@ import { useArtists } from '@/hooks';
 import { useUserData } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStyles } from '@/contexts/StyleContext';
+import { useTags } from '@/contexts/TagContext';
 import { distancePreferences } from '@/utils/distancePreferences';
 import { colors } from '@/styles/colors';
 
@@ -21,6 +22,7 @@ export default function ArtistList() {
     const user = useUserData();
     const { isAuthenticated } = useAuth();
     const { styles } = useStyles();
+    const { tags } = useTags();
     const theme = useTheme();
     const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
@@ -29,6 +31,7 @@ export default function ArtistList() {
     const initialFilters = {
         searchString: '',
         styles: [],
+        tags: [],
         applySavedStyles: false,
         booksOpen: false,
         ...locationSettings,
@@ -53,6 +56,7 @@ export default function ArtistList() {
     const handleFilterChange = (filters: {
         searchString: string;
         styles: number[];
+        tags: number[];
         distance: number;
         distanceUnit?: 'mi' | 'km';
         location?: string;
@@ -71,6 +75,7 @@ export default function ArtistList() {
         const newParams: Record<string, any> = {
             searchString: filters.searchString,
             styles: finalStyles,
+            tags: filters.tags || [],
             distance: filters.distance,
             distanceUnit: filters.distanceUnit,
             location: filters.location,
@@ -81,18 +86,36 @@ export default function ArtistList() {
             subject: 'artists'
         };
 
+        // Store locationCoords as object for passing back to SearchFilters
+        // Also create string version for API calls
         if (filters.locationCoords && filters.locationCoords.lat && filters.locationCoords.lng) {
-            newParams.locationCoords = `${filters.locationCoords.lat},${filters.locationCoords.lng}`;
+            newParams.locationCoords = filters.locationCoords; // Keep as object
+            newParams.locationCoordsString = `${filters.locationCoords.lat},${filters.locationCoords.lng}`; // String for API
         }
 
         if (filters.useMyLocation) {
-            newParams.studio_near_me = user?.location_lat_long;
-            newParams.artist_near_me = user?.location_lat_long;
+            // Use browser geolocation coords if available, otherwise fall back to user profile location
+            if (filters.locationCoords && filters.locationCoords.lat && filters.locationCoords.lng) {
+                // Browser geolocation was successful - use those coordinates
+                newParams.studio_near_me = {
+                    latitude: filters.locationCoords.lat,
+                    longitude: filters.locationCoords.lng
+                };
+                newParams.artist_near_me = {
+                    latitude: filters.locationCoords.lat,
+                    longitude: filters.locationCoords.lng
+                };
+            } else if (user?.location_lat_long) {
+                // Fallback to user's saved profile location
+                newParams.studio_near_me = user.location_lat_long;
+                newParams.artist_near_me = user.location_lat_long;
+            }
             newParams.studios = user?.studios;
         } else if (filters.useAnyLocation) {
             delete newParams.studio_near_me;
             delete newParams.artist_near_me;
             delete newParams.locationCoords;
+            delete newParams.locationCoordsString;
         } else {
             delete newParams.studio_near_me;
             delete newParams.artist_near_me;
@@ -114,6 +137,15 @@ export default function ArtistList() {
                 const style = styles.find(s => s.id === styleId);
                 if (style) {
                     filters.push({ label: style.name, key: 'style', value: styleId });
+                }
+            });
+        }
+
+        if (searchParams.tags && searchParams.tags.length > 0) {
+            searchParams.tags.forEach((tagId: number) => {
+                const tag = tags.find(t => t.id === tagId);
+                if (tag) {
+                    filters.push({ label: tag.name, key: 'tag', value: tagId });
                 }
             });
         }
@@ -147,6 +179,9 @@ export default function ArtistList() {
                 break;
             case 'style':
                 newParams.styles = newParams.styles.filter((id: number) => id !== value);
+                break;
+            case 'tag':
+                newParams.tags = newParams.tags.filter((id: number) => id !== value);
                 break;
             case 'location':
                 newParams.useAnyLocation = true;
@@ -191,6 +226,7 @@ export default function ArtistList() {
                 initialFilters={{
                     searchString: initialFilters.searchString,
                     styles: initialFilters.styles,
+                    tags: initialFilters.tags,
                     distance: initialFilters.distance,
                     distanceUnit: initialFilters.distanceUnit,
                     useMyLocation: initialFilters.useMyLocation,
@@ -202,6 +238,7 @@ export default function ArtistList() {
                 currentFilters={{
                     searchString: searchParams.searchString,
                     styles: searchParams.styles,
+                    tags: searchParams.tags,
                     distance: searchParams.distance,
                     distanceUnit: searchParams.distanceUnit,
                     useMyLocation: searchParams.useMyLocation,
@@ -396,15 +433,43 @@ export default function ArtistList() {
                 ) : artistCount === 0 && !loading ? (
                     <Box sx={{ textAlign: 'center', py: 6 }}>
                         <Typography sx={{
-                            color: colors.textSecondary,
-                            fontSize: '1.1rem',
+                            color: colors.textPrimary,
+                            fontSize: '1.25rem',
+                            fontWeight: 500,
                             mb: 1
                         }}>
-                            No artists found for your search
+                            Nothing matches that search
                         </Typography>
-                        <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
-                            Try adjusting your filters or search terms
+                        <Typography sx={{
+                            color: colors.textSecondary,
+                            fontSize: '0.95rem',
+                            mb: 3
+                        }}>
+                            Try removing some filters to see more results
                         </Typography>
+                        {activeFilters.length > 0 && (
+                            <Button
+                                onClick={() => {
+                                    setSearchParams({
+                                        ...initialFilters,
+                                        subject: 'artists'
+                                    });
+                                }}
+                                sx={{
+                                    color: colors.accent,
+                                    borderColor: colors.accent,
+                                    border: '1px solid',
+                                    textTransform: 'none',
+                                    px: 3,
+                                    '&:hover': {
+                                        bgcolor: `${colors.accent}1A`,
+                                        borderColor: colors.accent
+                                    }
+                                }}
+                            >
+                                Clear all filters
+                            </Button>
+                        )}
                     </Box>
                 ) : (
                     <Box sx={{

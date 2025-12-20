@@ -145,10 +145,10 @@ export default function HowItWorksPage() {
   return (
     <Layout>
       <Head>
-        <title>InkedIn | Find Your Perfect Tattoo Artist</title>
+        <title>How It Works | InkedIn</title>
         <meta
           name="description"
-          content="Connect with world-class tattoo artists. Browse portfolios, book consultations, and collaborate on custom designs—all in one place."
+          content="Discover how InkedIn connects tattoo enthusiasts with artists. Browse styles, save favorites, book consultations, and find your perfect artist."
         />
       </Head>
 

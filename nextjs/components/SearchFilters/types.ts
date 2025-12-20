@@ -2,6 +2,7 @@ export interface SearchFiltersUIProps {
   type: 'artists' | 'tattoos';
   searchString: string;
   selectedStyles: number[];
+  selectedTags: number[];
   distance: number;
   distanceUnit: 'mi' | 'km';
   useMyLocation: boolean;
@@ -16,10 +17,12 @@ export interface SearchFiltersUIProps {
   onApplySavedStylesChange: () => void;
   onBooksOpenChange: () => void;
   onStyleChange: (styleId: number) => void;
+  onTagChange: (tagId: number) => void;
   onDistanceChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onDistanceUnitChange: (unit: 'mi' | 'km') => void;
   onLocationOptionChange: (locationType: 'my' | 'custom' | 'any') => Promise<void>;
   onLocationChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onLocationSelect: (location: string, coords: { lat: number; lng: number } | undefined) => void;
   onApplyFilters: () => void;
   onClearFilters: () => Promise<void>;
   onCreateTattoo?: () => void;

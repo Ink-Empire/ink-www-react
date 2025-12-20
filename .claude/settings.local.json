@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker inspect:*)",
+      "Bash(python3:*)",
+      "Bash(npm run build:*)",
+      "Bash(lsof:*)",
+      "Bash(pgrep:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker restart:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(php -l:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)",
+      "Bash(git checkout:*)"
+    ]
+  }
+}

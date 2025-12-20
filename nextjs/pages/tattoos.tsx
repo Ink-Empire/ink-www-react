@@ -14,6 +14,7 @@ import TattooCreateWizard from "../components/TattooCreateWizard";
 import { useTattoos } from "../hooks";
 import { useUserData, useAuth } from "@/contexts/AuthContext";
 import { useStyles } from "@/contexts/StyleContext";
+import { useTags } from "@/contexts/TagContext";
 import { distancePreferences } from "@/utils/distancePreferences";
 import { colors } from "@/styles/colors";
 
@@ -21,6 +22,7 @@ export default function TattoosPage() {
   const me = useUserData();
   const { isAuthenticated } = useAuth();
   const { styles } = useStyles();
+  const { tags } = useTags();
   const router = useRouter();
   const { studio_id } = router.query;
   const theme = useTheme();
@@ -98,6 +100,7 @@ export default function TattoosPage() {
     return {
       searchString: router.query.searchString || "",
       styles: [],
+      tags: [],
       applySavedStyles: false,
       booksOpen: false,
       ...locationSettings,
@@ -150,6 +153,7 @@ export default function TattoosPage() {
   const handleFilterChange = (filters: {
     searchString: string;
     styles: number[];
+    tags: number[];
     distance: number;
     distanceUnit?: "mi" | "km";
     location?: string;
@@ -169,6 +173,7 @@ export default function TattoosPage() {
     const newParams: Record<string, any> = {
       searchString: filters.searchString,
       styles: finalStyles,
+      tags: filters.tags || [],
       distance: filters.distance,
       distanceUnit: filters.distanceUnit,
       location: filters.location,
@@ -183,14 +188,20 @@ export default function TattoosPage() {
       newParams.studio_id = studio_id;
     }
 
+    // Store locationCoords as object for passing back to SearchFilters
+    // Also create string version for API calls
     if (filters.locationCoords && filters.locationCoords.lat && filters.locationCoords.lng) {
-      newParams.locationCoords = `${filters.locationCoords.lat},${filters.locationCoords.lng}`;
+      newParams.locationCoords = filters.locationCoords; // Keep as object
+      newParams.locationCoordsString = `${filters.locationCoords.lat},${filters.locationCoords.lng}`; // String for API
     }
 
     if (filters.useMyLocation) {
-      delete newParams.locationCoords;
+      // Keep locationCoords from browser geolocation for "Near me"
+      // The coords are passed from SearchFilters after getting browser position
     } else if (filters.useAnyLocation) {
+      // "Anywhere" - remove location filtering
       delete newParams.locationCoords;
+      delete newParams.locationCoordsString;
     }
 
     setSearchParams(newParams);
@@ -209,6 +220,15 @@ export default function TattoosPage() {
         const style = styles.find(s => s.id === styleId);
         if (style) {
           filters.push({ label: style.name, key: 'style', value: styleId });
+        }
+      });
+    }
+
+    if (searchParams.tags && searchParams.tags.length > 0) {
+      searchParams.tags.forEach((tagId: number) => {
+        const tag = tags.find(t => t.id === tagId);
+        if (tag) {
+          filters.push({ label: tag.name, key: 'tag', value: tagId });
         }
       });
     }
@@ -247,6 +267,9 @@ export default function TattoosPage() {
       case 'style':
         setDismissedStyles(prev => [...prev, value]);
         newParams.styles = newParams.styles.filter((id: number) => id !== value);
+        break;
+      case 'tag':
+        newParams.tags = newParams.tags.filter((id: number) => id !== value);
         break;
       case 'location':
         newParams.useAnyLocation = true;
@@ -289,6 +312,7 @@ export default function TattoosPage() {
         initialFilters={{
           searchString: initialSearchParams.searchString as string,
           styles: initialSearchParams.styles as number[],
+          tags: initialSearchParams.tags as number[],
           distance: initialSearchParams.distance as number,
           distanceUnit: initialSearchParams.distanceUnit as 'mi' | 'km',
           useMyLocation: initialSearchParams.useMyLocation as boolean,
@@ -300,6 +324,7 @@ export default function TattoosPage() {
         currentFilters={{
           searchString: searchParams.searchString,
           styles: searchParams.styles,
+          tags: searchParams.tags,
           distance: searchParams.distance,
           distanceUnit: searchParams.distanceUnit,
           useMyLocation: searchParams.useMyLocation,
@@ -496,15 +521,44 @@ export default function TattoosPage() {
         ) : tattooCount === 0 && !loading ? (
           <Box sx={{ textAlign: 'center', py: 6 }}>
             <Typography sx={{
-              color: colors.textSecondary,
-              fontSize: '1.1rem',
+              color: colors.textPrimary,
+              fontSize: '1.25rem',
+              fontWeight: 500,
               mb: 1
             }}>
-              No tattoos found for your search
+              Nothing matches that search
             </Typography>
-            <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
-              Try adjusting your filters or search terms
+            <Typography sx={{
+              color: colors.textSecondary,
+              fontSize: '0.95rem',
+              mb: 3
+            }}>
+              Try removing some filters to see more results
             </Typography>
+            {activeFilters.length > 0 && (
+              <Button
+                onClick={() => {
+                  setSearchParams({
+                    ...initialSearchParams,
+                    subject: 'tattoos'
+                  });
+                  setDismissedStyles([]);
+                }}
+                sx={{
+                  color: colors.accent,
+                  borderColor: colors.accent,
+                  border: '1px solid',
+                  textTransform: 'none',
+                  px: 3,
+                  '&:hover': {
+                    bgcolor: `${colors.accent}1A`,
+                    borderColor: colors.accent
+                  }
+                }}
+              >
+                Clear all filters
+              </Button>
+            )}
           </Box>
         ) : (
           <Box sx={{

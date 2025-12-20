@@ -18,6 +18,13 @@ const nextConfig = {
       test: /\.svg$/,
       use: ['@svgr/webpack']
     });
+
+    // Enable polling for hot reload in Docker on macOS
+    config.watchOptions = {
+      poll: 1000,
+      aggregateTimeout: 300,
+    };
+
     return config;
   },
   async rewrites() {

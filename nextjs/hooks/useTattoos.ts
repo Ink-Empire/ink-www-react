@@ -65,11 +65,19 @@ export function useTattoos(searchParams?: Record<string, any>) {
       if (!loadedFromCache) {
         setLoading(true);
       }
-      
+
       try {
         // Construct the request body from searchParams if provided
-        const requestBody = searchParams || {};
-        
+        // Convert locationCoords object to string format for API
+        const requestBody = { ...searchParams };
+        if (requestBody.locationCoordsString) {
+          requestBody.locationCoords = requestBody.locationCoordsString;
+          delete requestBody.locationCoordsString;
+        } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
+          // Fallback: convert object to string if locationCoordsString wasn't set
+          requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
+        }
+
         console.log('Fetching tattoos with search params:', requestBody);
         
         // Check if user is logged in by looking for auth token

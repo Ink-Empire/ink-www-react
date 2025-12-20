@@ -18,6 +18,7 @@ interface SearchFiltersProps {
   initialFilters?: {
     searchString?: string;
     styles?: number[];
+    tags?: number[];
     distance?: number;
     distanceUnit?: 'mi' | 'km';
     location?: string;
@@ -33,10 +34,12 @@ interface SearchFiltersProps {
   currentFilters?: {
     searchString?: string;
     styles?: number[];
+    tags?: number[];
     distance?: number;
     distanceUnit?: 'mi' | 'km';
     location?: string;
     useMyLocation?: boolean;
+    useAnyLocation?: boolean;
     applySavedStyles?: boolean;
     booksOpen?: boolean;
     locationCoords?: {
@@ -47,6 +50,7 @@ interface SearchFiltersProps {
   onFilterChange: (filters: {
     searchString: string;
     styles: number[];
+    tags: number[];
     distance: number;
     distanceUnit?: 'mi' | 'km';
     location?: string;
@@ -106,6 +110,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   // Filter states
   const [searchString, setSearchString] = useState(initialFilters.searchString || '');
   const [selectedStyles, setSelectedStyles] = useState<number[]>(initialStylesWithUrl);
+  const [selectedTags, setSelectedTags] = useState<number[]>(initialFilters.tags || []);
   const [distance, setDistance] = useState<number>(initialFilters.distance || 50);
   const [distanceUnit, setDistanceUnit] = useState<'mi' | 'km'>(initialFilters.distanceUnit || 'mi');
   const [useMyLocation, setUseMyLocation] = useState<boolean>(initialFilters.useMyLocation !== undefined ? initialFilters.useMyLocation : true);
@@ -135,6 +140,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       onFilterChange({
         searchString,
         styles: newStyles,
+        tags: selectedTags,
         distance,
         distanceUnit,
         location,
@@ -165,6 +171,18 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 
         if (isDifferent) {
           setSelectedStyles(currentFilters.styles || []);
+        }
+      }
+
+      if (currentFilters.tags !== undefined) {
+        // Check if arrays are different
+        const currentTagsArray = currentFilters.tags || [];
+        const isDifferent =
+          currentTagsArray.length !== selectedTags.length ||
+          currentTagsArray.some(id => !selectedTags.includes(id));
+
+        if (isDifferent) {
+          setSelectedTags(currentFilters.tags || []);
         }
       }
 
@@ -242,6 +260,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       onFilterChange({
         searchString: newSearchString,
         styles: selectedStyles,
+        tags: selectedTags,
         distance,
         distanceUnit,
         location,
@@ -272,6 +291,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     onFilterChange({
       searchString,
       styles: newStyles,
+      tags: selectedTags,
       distance,
       distanceUnit,
       location,
@@ -292,13 +312,13 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     onFilterChange({
       searchString,
       styles: selectedStyles,
+      tags: selectedTags,
       distance,
       distanceUnit,
       location,
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
-          booksOpen,
       booksOpen: newBooksOpen,
       locationCoords
     });
@@ -318,13 +338,39 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     onFilterChange({
       searchString,
       styles: newStyles,
+      tags: selectedTags,
       distance,
       distanceUnit,
       location,
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
-          booksOpen,
+      booksOpen,
+      locationCoords
+    });
+  };
+
+  // Handle tag checkbox change
+  const handleTagChange = (tagId: number) => {
+    // Create new tags array first
+    const newTags = selectedTags.includes(tagId)
+      ? selectedTags.filter(id => id !== tagId)
+      : [...selectedTags, tagId];
+
+    // Update state
+    setSelectedTags(newTags);
+
+    // Immediately trigger search with updated tags
+    onFilterChange({
+      searchString,
+      styles: selectedStyles,
+      tags: newTags,
+      distance,
+      distanceUnit,
+      location,
+      useMyLocation,
+      useAnyLocation,
+      applySavedStyles,
       booksOpen,
       locationCoords
     });
@@ -339,13 +385,13 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     onFilterChange({
       searchString,
       styles: selectedStyles,
+      tags: selectedTags,
       distance: newDistance,
       distanceUnit,
       location,
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
-          booksOpen,
       booksOpen,
       locationCoords
     });
@@ -359,13 +405,13 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     onFilterChange({
       searchString,
       styles: selectedStyles,
+      tags: selectedTags,
       distance,
       distanceUnit: unit,
       location,
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
-          booksOpen,
       booksOpen,
       locationCoords
     });
@@ -395,13 +441,14 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         onFilterChange({
           searchString,
           styles: selectedStyles,
+          tags: selectedTags,
           distance,
           distanceUnit,
           location: '',
           useMyLocation: true,
           useAnyLocation: false,
           applySavedStyles,
-        booksOpen,
+          booksOpen,
           locationCoords: myCoords
         });
       } catch (error) {
@@ -412,13 +459,14 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         onFilterChange({
           searchString,
           styles: selectedStyles,
+          tags: selectedTags,
           distance,
           distanceUnit,
           location: '',
           useMyLocation: true,
           useAnyLocation: false,
           applySavedStyles,
-        booksOpen,
+          booksOpen,
           locationCoords
         });
       } finally {
@@ -429,6 +477,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       onFilterChange({
         searchString,
         styles: selectedStyles,
+        tags: selectedTags,
         distance,
         distanceUnit,
         location,
@@ -452,6 +501,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       onFilterChange({
         searchString,
         styles: selectedStyles,
+        tags: selectedTags,
         distance,
         distanceUnit,
         location: '',
@@ -487,13 +537,14 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         onFilterChange({
           searchString,
           styles: selectedStyles,
+          tags: selectedTags,
           distance,
           distanceUnit,
           location: locationString,
           useMyLocation: false,
           useAnyLocation: false,
           applySavedStyles,
-        booksOpen,
+          booksOpen,
           locationCoords: coords
         });
 
@@ -509,7 +560,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     }
   };
 
-  // Handle location input change
+  // Handle location input change (legacy, kept for compatibility)
   const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newLocation = e.target.value;
     setLocation(newLocation);
@@ -520,6 +571,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       onFilterChange({
         searchString,
         styles: selectedStyles,
+        tags: selectedTags,
         distance,
         distanceUnit,
         location: newLocation,
@@ -547,18 +599,41 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     }
   };
 
+  // Handle location selection from autocomplete
+  const handleLocationSelect = (newLocation: string, coords: { lat: number; lng: number } | undefined) => {
+    setLocation(newLocation);
+    setLocationCoords(coords);
+    setGeoError(null);
+
+    // Immediately trigger search with new location and coordinates
+    onFilterChange({
+      searchString,
+      styles: selectedStyles,
+      tags: selectedTags,
+      distance,
+      distanceUnit,
+      location: newLocation,
+      useMyLocation: false,
+      useAnyLocation: false,
+      applySavedStyles,
+      booksOpen,
+      locationCoords: coords
+    });
+  };
+
   // Apply all filters
   const handleApplyFilters = () => {
     onFilterChange({
       searchString,
       styles: selectedStyles,
+      tags: selectedTags,
       distance,
       distanceUnit,
       location,
       useMyLocation,
       useAnyLocation,
       applySavedStyles,
-          booksOpen,
+      booksOpen,
       locationCoords
     });
   };
@@ -569,6 +644,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 
     setSearchString('');
     setSelectedStyles([]);
+    setSelectedTags([]);
     setDistance(locationSettings.distance);
     setDistanceUnit('mi');
     setUseMyLocation(locationSettings.useMyLocation);
@@ -593,6 +669,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         onFilterChange({
           searchString: '',
           styles: [],
+          tags: [],
           ...locationSettings,
           distanceUnit: 'mi',
           applySavedStyles: false,
@@ -605,6 +682,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         onFilterChange({
           searchString: '',
           styles: [],
+          tags: [],
           ...locationSettings,
           distanceUnit: 'mi',
           applySavedStyles: false,
@@ -618,6 +696,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       onFilterChange({
         searchString: '',
         styles: [],
+        tags: [],
         ...locationSettings,
         distanceUnit: 'mi',
         applySavedStyles: false,
@@ -642,6 +721,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     type,
     searchString,
     selectedStyles,
+    selectedTags,
     distance,
     distanceUnit,
     useMyLocation,
@@ -656,10 +736,12 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     onApplySavedStylesChange: handleApplySavedStylesChange,
     onBooksOpenChange: handleBooksOpenChange,
     onStyleChange: handleStyleChange,
+    onTagChange: handleTagChange,
     onDistanceChange: handleDistanceChange,
     onDistanceUnitChange: handleDistanceUnitChange,
     onLocationOptionChange: handleLocationOptionChange,
     onLocationChange: handleLocationChange,
+    onLocationSelect: handleLocationSelect,
     onApplyFilters: handleApplyFilters,
     onClearFilters: handleClearFilters,
     onCreateTattoo
