@@ -61,8 +61,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
 
   // Initialize like count from tattoo data
   useEffect(() => {
-    if (tattoo?.tattoo?.likes_count) {
-      setLikeCount(tattoo.tattoo.likes_count);
+    if (tattoo?.likes_count) {
+      setLikeCount(tattoo.likes_count);
     }
   }, [tattoo]);
 
@@ -106,13 +106,13 @@ const TattooModal: React.FC<TattooModalProps> = ({
   };
 
   const handleFollowArtist = async () => {
-    if (!tattoo?.tattoo?.artist?.id) return;
+    if (!tattoo?.artist?.id) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
     try {
-      await userData?.toggleFavorite('artist', tattoo.tattoo.artist.id);
+      await userData?.toggleFavorite('artist', tattoo.artist.id);
       setIsArtistFollowed(!isArtistFollowed);
     } catch (error) {
       console.error('Error following artist:', error);
@@ -135,7 +135,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
       return;
     }
     // Navigate to artist page with message intent
-    const artistSlug = tattoo?.tattoo?.artist?.slug || tattoo?.tattoo?.artist?.id;
+    const artistSlug = tattoo?.artist?.slug || tattoo?.artist?.id;
     if (artistSlug) {
       onClose();
       router.push(`/artists/${artistSlug}?action=message`);
@@ -143,15 +143,15 @@ const TattooModal: React.FC<TattooModalProps> = ({
   };
 
   const getPrimaryImageUri = () => {
-    return tattoo?.tattoo?.primary_image?.uri || tattoo?.tattoo?.image?.uri || null;
+    return tattoo?.primary_image?.uri || tattoo?.image?.uri || null;
   };
 
   const getArtistAvatarUri = () => {
-    return tattoo?.tattoo?.artist?.primary_image?.uri || tattoo?.tattoo?.artist?.image?.uri || null;
+    return tattoo?.artist?.primary_image?.uri || tattoo?.artist?.image?.uri || null;
   };
 
   const getArtistInitials = () => {
-    const name = tattoo?.tattoo?.artist?.name || '';
+    const name = tattoo?.artist?.name || '';
     return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
@@ -166,8 +166,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
   };
 
   const getArtistLocation = () => {
-    const studio = tattoo?.tattoo?.studio?.name;
-    const location = tattoo?.tattoo?.studio?.location || tattoo?.tattoo?.artist?.location;
+    const studio = tattoo?.studio?.name;
+    const location = tattoo?.studio?.location || tattoo?.artist?.location;
     if (studio && location) return `${studio} · ${location}`;
     return studio || location || '';
   };
@@ -303,7 +303,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: { xs: '300px', md: '500px' } }}>
                 <Image
                   src={getPrimaryImageUri()!}
-                  alt={tattoo?.tattoo?.title || 'Tattoo'}
+                  alt={tattoo?.title || 'Tattoo'}
                   fill
                   style={{ objectFit: 'contain' }}
                 />
@@ -363,7 +363,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 <Box sx={{ flex: 1 }}>
                   <Typography
                     component={Link}
-                    href={`/artists/${tattoo?.tattoo?.artist?.slug || tattoo?.tattoo?.artist?.id}`}
+                    href={`/artists/${tattoo?.artist?.slug || tattoo?.artist?.id}`}
                     sx={{
                       fontWeight: 600,
                       fontSize: '0.95rem',
@@ -372,7 +372,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       '&:hover': { color: colors.accent },
                     }}
                   >
-                    {artistName || tattoo?.tattoo?.artist?.name || 'Unknown Artist'}
+                    {artistName || tattoo?.artist?.name || 'Unknown Artist'}
                   </Typography>
                   {getArtistLocation() && (
                     <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
@@ -425,10 +425,10 @@ const TattooModal: React.FC<TattooModalProps> = ({
               {/* Tags */}
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', mb: '0.75rem' }}>
                 {/* Style Tags (Gold) */}
-                {tattoo?.tattoo?.primary_style && (
+                {tattoo?.primary_style && (
                   <Box
                     component="span"
-                    onClick={() => handleStyleClick(tattoo.tattoo.primary_style)}
+                    onClick={() => handleStyleClick(tattoo.primary_style)}
                     sx={{
                       px: '0.75rem',
                       py: '0.3rem',
@@ -441,12 +441,12 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       '&:hover': { borderColor: colors.accent },
                     }}
                   >
-                    {tattoo.tattoo.primary_style}
+                    {tattoo.primary_style}
                   </Box>
                 )}
-                {tattoo?.tattoo?.styles?.map((style: any, index: number) => {
+                {tattoo?.styles?.map((style: any, index: number) => {
                   const styleName = typeof style === 'string' ? style : style?.name;
-                  if (!styleName || styleName === tattoo?.tattoo?.primary_style) return null;
+                  if (!styleName || styleName === tattoo?.primary_style) return null;
                   return (
                     <Box
                       key={index}
@@ -470,7 +470,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 })}
 
                 {/* Subject Tags (Gray) */}
-                {tattoo?.tattoo?.tags?.map((tag: any, index: number) => {
+                {tattoo?.tags?.map((tag: any, index: number) => {
                   const tagName = typeof tag === 'string' ? tag : tag?.tag || tag?.name;
                   if (!tagName) return null;
                   return (
@@ -497,7 +497,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               </Box>
 
               {/* Title */}
-              {tattoo?.tattoo?.title && (
+              {tattoo?.title && (
                 <Typography
                   sx={{
                     fontFamily: "'Cormorant Garamond', Georgia, serif",
@@ -508,12 +508,12 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     color: colors.textPrimary,
                   }}
                 >
-                  {tattoo.tattoo.title}
+                  {tattoo.title}
                 </Typography>
               )}
 
               {/* Description */}
-              {tattoo?.tattoo?.description && (
+              {tattoo?.description && (
                 <Typography
                   sx={{
                     color: colors.textSecondary,
@@ -522,7 +522,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     mb: '1.25rem',
                   }}
                 >
-                  {tattoo.tattoo.description}
+                  {tattoo.description}
                 </Typography>
               )}
 
@@ -608,7 +608,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   onClick={() => {
                     if (navigator.share) {
                       navigator.share({
-                        title: tattoo?.tattoo?.title || 'Tattoo',
+                        title: tattoo?.title || 'Tattoo',
                         url: window.location.href,
                       });
                     }
@@ -666,7 +666,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               </Box>
 
               {/* Details Section */}
-              {(tattoo?.tattoo?.placement || tattoo?.tattoo?.size || tattoo?.tattoo?.sessions || tattoo?.tattoo?.created_at) && (
+              {(tattoo?.placement || tattoo?.size || tattoo?.sessions || tattoo?.created_at) && (
                 <Box sx={{ mb: '1.5rem' }}>
                   <Typography
                     sx={{
@@ -688,46 +688,46 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       gap: '0.75rem',
                     }}
                   >
-                    {tattoo?.tattoo?.placement && (
+                    {tattoo?.placement && (
                       <Box sx={{ bgcolor: colors.background, p: '0.75rem', borderRadius: '6px' }}>
                         <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mb: '0.2rem' }}>
                           Placement
                         </Typography>
                         <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                          {tattoo.tattoo.placement}
+                          {tattoo.placement}
                         </Typography>
                       </Box>
                     )}
 
-                    {tattoo?.tattoo?.size && (
+                    {tattoo?.size && (
                       <Box sx={{ bgcolor: colors.background, p: '0.75rem', borderRadius: '6px' }}>
                         <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mb: '0.2rem' }}>
                           Size
                         </Typography>
                         <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                          {tattoo.tattoo.size}
+                          {tattoo.size}
                         </Typography>
                       </Box>
                     )}
 
-                    {tattoo?.tattoo?.sessions && (
+                    {tattoo?.sessions && (
                       <Box sx={{ bgcolor: colors.background, p: '0.75rem', borderRadius: '6px' }}>
                         <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mb: '0.2rem' }}>
                           Sessions
                         </Typography>
                         <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                          {tattoo.tattoo.sessions} {tattoo.tattoo.sessions === 1 ? 'session' : 'sessions'}
+                          {tattoo.sessions} {tattoo.sessions === 1 ? 'session' : 'sessions'}
                         </Typography>
                       </Box>
                     )}
 
-                    {tattoo?.tattoo?.created_at && (
+                    {tattoo?.created_at && (
                       <Box sx={{ bgcolor: colors.background, p: '0.75rem', borderRadius: '6px' }}>
                         <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mb: '0.2rem' }}>
                           Completed
                         </Typography>
                         <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                          {formatDate(tattoo.tattoo.created_at)}
+                          {formatDate(tattoo.created_at)}
                         </Typography>
                       </Box>
                     )}
@@ -776,7 +776,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '1rem' }}>
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                    {tattoo?.tattoo?.comments_count || 0} Comments
+                    {tattoo?.comments_count || 0} Comments
                   </Typography>
                 </Box>
 

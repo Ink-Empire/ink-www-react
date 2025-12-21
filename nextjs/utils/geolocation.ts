@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGeolocation, useBrowserGeolocation } from '@/hooks/useGeolocation';
+
+// Normalized position type used across all environments
+export interface NormalizedPosition {
+  latitude: number;
+  longitude: number;
+}
 
 // Helper function to determine if running in Capacitor environment
 const isCapacitorEnvironment = (): boolean => {
-  return typeof window !== 'undefined' && 
-    window.hasOwnProperty('Capacitor') && 
-    window.Capacitor?.isPluginAvailable('Geolocation');
+  return typeof window !== 'undefined' &&
+    'Capacitor' in window &&
+    (window as any).Capacitor?.isPluginAvailable?.('Geolocation');
 };
 
 // Helper function to determine if running in React Native environment
@@ -125,45 +131,68 @@ const getGeolocationErrorMessage = (code: number): string => {
   }
 };
 
+// Helper function to normalize position to { latitude, longitude }
+const normalizePosition = (position: any): NormalizedPosition | null => {
+  if (!position) return null;
+  // Browser Position type has coords
+  if (position.coords) {
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude
+    };
+  }
+  // Already normalized format
+  if (typeof position.latitude === 'number' && typeof position.longitude === 'number') {
+    return {
+      latitude: position.latitude,
+      longitude: position.longitude
+    };
+  }
+  return null;
+};
+
 // Export appropriate hook based on environment
 export const useAppGeolocation = () => {
   // Check if we're running on the server
   if (typeof window === 'undefined') {
     // Return a mock implementation for server-side rendering
     return {
-      position: null,
+      position: null as NormalizedPosition | null,
       loading: false,
-      error: null,
-      getCurrentPosition: async () => { 
+      error: null as string | null,
+      getCurrentPosition: async (): Promise<NormalizedPosition> => {
         throw new Error('Geolocation not available during server-side rendering');
       },
       getLocation: async () => ({ items: [] }),
       getLatLong: async () => ({ items: [] })
     };
   }
-  
-  // Client-side code
-  if (isCapacitorEnvironment()) {
-    return useGeolocation();
-  }
-  
-  // React Native environment
-  if (isReactNativeEnvironment()) {
-    return useReactNativeGeolocation();
-  }
-  
-  // Use browser fallback with geocoding service mock
+
+  // Client-side code - always use browser geolocation in Next.js
+  // Use browser fallback with geocoding service
   const browserGeo = useBrowserGeolocation();
-  
-  
+
+  // Wrap getCurrentPosition to return normalized position
+  const getCurrentPosition = async (): Promise<NormalizedPosition> => {
+    const pos = await browserGeo.getCurrentPosition();
+    const normalized = normalizePosition(pos);
+    if (!normalized) {
+      throw new Error('Failed to get position');
+    }
+    return normalized;
+  };
+
   return {
-    ...browserGeo,
+    position: normalizePosition(browserGeo.position),
+    loading: browserGeo.loading,
+    error: browserGeo.error,
+    getCurrentPosition,
     getLocation: async (latitude: number, longitude: number) => {
       console.log('Running in browser environment, using real geocoding service');
       console.log(`Looking for city near coordinates: ${latitude}, ${longitude}`);
-      
+
       const locationData = await reverseGeocode(latitude, longitude);
-      
+
       return {
         items: [{
           position: {
@@ -182,9 +211,9 @@ export const useAppGeolocation = () => {
     },
     getLatLong: async (location: string) => {
       console.log('Running in browser environment, using real geocoding service');
-      
+
       const locationData = await forwardGeocode(location);
-      
+
       return {
         items: [{
           position: {

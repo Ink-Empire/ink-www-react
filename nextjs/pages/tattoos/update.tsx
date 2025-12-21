@@ -296,7 +296,7 @@ export default function UpdateTattoo() {
                   </Typography>
                   <Grid container spacing={2}>
                     {imagePreviewUrls.map((url, index) => (
-                      <Grid item xs={6} sm={4} md={3} key={index}>
+                      <Grid size={{ xs: 6, sm: 4, md: 3 }} key={index}>
                         <Box 
                           sx={{
                             aspectRatio: '1/1',

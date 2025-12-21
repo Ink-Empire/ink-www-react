@@ -68,28 +68,28 @@ export default function TattoosPage() {
   };
 
   const getCurrentTattoo = () => {
-    if (!selectedTattooId || !tattoos?.response) return null;
-    return tattoos.response.find((t: any) => t.id.toString() === selectedTattooId);
+    if (!selectedTattooId || !tattoos) return null;
+    return tattoos.find((t: any) => t.id.toString() === selectedTattooId);
   };
 
   // Get current tattoo index for navigation
   const getCurrentTattooIndex = () => {
-    if (!selectedTattooId || !tattoos?.response) return -1;
-    return tattoos.response.findIndex((t: any) => t.id.toString() === selectedTattooId);
+    if (!selectedTattooId || !tattoos) return -1;
+    return tattoos.findIndex((t: any) => t.id.toString() === selectedTattooId);
   };
 
   // Navigation handlers
   const handlePreviousTattoo = () => {
     const currentIndex = getCurrentTattooIndex();
     if (currentIndex > 0) {
-      setSelectedTattooId(tattoos.response[currentIndex - 1].id.toString());
+      setSelectedTattooId(tattoos[currentIndex - 1].id.toString());
     }
   };
 
   const handleNextTattoo = () => {
     const currentIndex = getCurrentTattooIndex();
-    if (currentIndex < tattoos.response.length - 1) {
-      setSelectedTattooId(tattoos.response[currentIndex + 1].id.toString());
+    if (currentIndex < tattoos.length - 1) {
+      setSelectedTattooId(tattoos[currentIndex + 1].id.toString());
     }
   };
 
@@ -136,9 +136,9 @@ export default function TattoosPage() {
 
   // When we get tattoo data back, try to find the studio name based on the studio_id
   useEffect(() => {
-    if (tattoos?.response && Array.isArray(tattoos.response) && studio_id) {
+    if (tattoos && Array.isArray(tattoos) && studio_id) {
       const studioIdStr = String(studio_id);
-      const tattooWithStudio = tattoos.response.find(
+      const tattooWithStudio = tattoos.find(
         (tattoo) => tattoo.studio && String(tattoo.studio.id) === studioIdStr
       );
       if (tattooWithStudio?.studio?.name) {
@@ -316,7 +316,7 @@ export default function TattoosPage() {
   };
 
   const activeFilters = getActiveFilters();
-  const tattooCount = tattoos?.response?.length || 0;
+  const tattooCount = tattoos?.length || 0;
 
   return (
     <Layout>
@@ -590,9 +590,9 @@ export default function TattoosPage() {
             },
             gap: '1.25rem'
           }}>
-            {tattoos?.response &&
-              Array.isArray(tattoos.response) &&
-              tattoos.response.map((tattoo: any) => (
+            {tattoos &&
+              Array.isArray(tattoos) &&
+              tattoos.map((tattoo: any) => (
                 <TattooCard
                   key={tattoo.id}
                   tattoo={tattoo}
@@ -617,12 +617,13 @@ export default function TattoosPage() {
 
       <TattooModal
         tattooId={selectedTattooId}
+        artistName={getCurrentTattoo()?.artist?.name || null}
         open={isTattooModalOpen}
         onClose={handleCloseTattooModal}
         onPrevious={handlePreviousTattoo}
         onNext={handleNextTattoo}
         hasPrevious={getCurrentTattooIndex() > 0}
-        hasNext={tattoos?.response ? getCurrentTattooIndex() < tattoos.response.length - 1 : false}
+        hasNext={tattoos ? getCurrentTattooIndex() < tattoos.length - 1 : false}
         tattooFavorite={selectedTattooId ? getTattooFavoriteStatus(selectedTattooId) : false}
         artistFavorite={getCurrentTattoo()?.artist?.id ? getArtistFollowStatus(getCurrentTattoo().artist.id) : false}
       />

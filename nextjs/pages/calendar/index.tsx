@@ -13,7 +13,7 @@ import { colors } from '@/styles/colors';
 
 const MyCalendarPage: React.FC = () => {
   const router = useRouter();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [booksOpen, setBooksOpen] = useState<boolean | null>(null);
   const [isTogglingBooks, setIsTogglingBooks] = useState(false);
   const hasFetchedSettings = useRef(false);

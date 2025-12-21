@@ -62,7 +62,9 @@ export function useTattoos(searchParams?: Record<string, any>) {
       // If we successfully loaded from cache, don't show loading state
       // but still fetch fresh data in the background
       const loadedFromCache = tryLoadFromCache();
-      if (!loadedFromCache) {
+      if (loadedFromCache) {
+        setLoading(false); // Dismiss loading immediately when using cached data
+      } else {
         setLoading(true);
       }
 
@@ -86,22 +88,29 @@ export function useTattoos(searchParams?: Record<string, any>) {
         
         // Explicitly use POST method, passing searchParams in the request body
         // Enable caching for search results
-        const response = await api.post<{ data: TattooType[] }>('/tattoos', requestBody, {
+        // Response could be array directly or wrapped in { data: [...] }
+        type TattoosResponse = TattooType[] | { data: TattooType[] };
+        const response = await api.post<TattoosResponse>('/tattoos', requestBody, {
           headers: { 'X-Account-Type': 'user' },
           useCache: true, // Enable caching for this POST request as it's idempotent
           cacheTTL: 5 * 60 * 1000, // 5 minute cache for tattoo searches
           requiresAuth: false // Don't require auth, but token will be sent if available
         });
-        
+
         if (!isMounted) return;
-        
-        // Process the response
+
+        // Process the response - handle array, { data: [...] }, and { response: [...] } formats
         let tattoosData: TattooType[] = [];
-        
+
         if (response) {
-          console.log('Tattoos fetched successfully via POST:', response.length);
-           console.log('Tattoos fetched successfully via POST:', response.length);
-          tattoosData = response;
+          if (Array.isArray(response)) {
+            tattoosData = response;
+          } else if ('response' in response && Array.isArray((response as any).response)) {
+            tattoosData = (response as any).response;
+          } else if ('data' in response && Array.isArray((response as any).data)) {
+            tattoosData = (response as any).data;
+          }
+          console.log('Tattoos fetched successfully via POST:', tattoosData.length);
         }
         setTattoos(tattoosData);
         saveToCache(tattoosData);
@@ -115,7 +124,7 @@ export function useTattoos(searchParams?: Record<string, any>) {
           setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
         }
       } finally {
-        if (isMounted && !loadedFromCache) {
+        if (isMounted) {
           setLoading(false);
         }
       }
@@ -185,34 +194,37 @@ export function useTattoo(id: string | null) {
 
     const fetchTattoo = async () => {
       const loadedFromCache = tryLoadFromCache();
-      if (!loadedFromCache) {
+      if (loadedFromCache) {
+        setLoading(false);
+      } else {
         setLoading(true);
       }
-      
+
       try {
         // Check if user is logged in
         const hasAuthToken = !!getToken();
-        
-        // Get tattoo by ID using the service, which will now be updated to conditionally include auth
-        const data = await api.get<TattooType>(`/tattoos/${id}`, {
+
+        // Get tattoo by ID - API returns { tattoo: {...} }
+        const response = await api.get<{ tattoo: TattooType }>(`/tattoos/${id}`, {
           headers: { 'X-Account-Type': 'user' },
           requiresAuth: hasAuthToken, // Only include auth token if user is logged in
           useCache: true
         });
-        
+
         if (!isMounted) return;
-        
+
+        const data = response.tattoo;
         setTattoo(data);
         saveToCache(data);
         setError(null);
       } catch (err) {
         if (!isMounted) return;
-        
+
         if (!loadedFromCache) {
           setError(err instanceof Error ? err : new Error(`Failed to fetch tattoo with ID ${id}`));
         }
       } finally {
-        if (isMounted && !loadedFromCache) {
+        if (isMounted) {
           setLoading(false);
         }
       }
@@ -282,10 +294,12 @@ export function useTattoosByArtist(artistId: string | null) {
 
     const fetchArtistTattoos = async () => {
       const loadedFromCache = tryLoadFromCache();
-      if (!loadedFromCache) {
+      if (loadedFromCache) {
+        setLoading(false);
+      } else {
         setLoading(true);
       }
-      
+
       try {
         // Check if user is logged in
         const hasAuthToken = !!getToken();
@@ -307,12 +321,12 @@ export function useTattoosByArtist(artistId: string | null) {
         setError(null);
       } catch (err) {
         if (!isMounted) return;
-        
+
         if (!loadedFromCache) {
           setError(err instanceof Error ? err : new Error(`Failed to fetch tattoos for artist ${artistId}`));
         }
       } finally {
-        if (isMounted && !loadedFromCache) {
+        if (isMounted) {
           setLoading(false);
         }
       }

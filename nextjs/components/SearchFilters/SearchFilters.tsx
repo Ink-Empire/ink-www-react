@@ -281,9 +281,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     // If applying saved styles, merge user's saved styles with current selection
     let newStyles = selectedStyles;
     if (newApplySavedStyles && me?.styles) {
-      const userStyleIds = me.styles.map(style => style.id || style);
+      // styles is already an array of numbers
+      const userStyleIds = me.styles as number[];
       // Merge without duplicates
-      newStyles = [...new Set([...selectedStyles, ...userStyleIds])];
+      newStyles = Array.from(new Set([...selectedStyles, ...userStyleIds]));
       setSelectedStyles(newStyles);
     }
 
@@ -431,8 +432,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         // Get the user's current position
         const position = await geoService.getCurrentPosition();
         const myCoords = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
+          lat: position.latitude,
+          lng: position.longitude
         };
 
         setLocationCoords(myCoords);
@@ -660,8 +661,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         setGeoLoading(true);
         const position = await geoService.getCurrentPosition();
         const myCoords = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
+          lat: position.latitude,
+          lng: position.longitude
         };
 
         setLocationCoords(myCoords);

@@ -102,8 +102,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     
     try {
       const position = await getCurrentPosition();
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
+      const lat = position.latitude;
+      const lng = position.longitude;
       setLocationLatLong(`${lat},${lng}`);
       
       // Use reverse geocoding to get address

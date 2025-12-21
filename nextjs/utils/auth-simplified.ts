@@ -63,7 +63,7 @@ export const register = async (data: RegisterData): Promise<AuthResponse> => {
 
 export const logout = async (): Promise<void> => {
   try {
-    await api.post('/logout');
+    await api.post('/logout', {});
   } catch (error) {
     console.error('Logout error:', error);
   } finally {

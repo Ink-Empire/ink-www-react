@@ -11,7 +11,8 @@ export const artistService = {
 
   // Get artist by ID or slug (public access)
   getById: async (idOrSlug: number | string): Promise<IArtist> => {
-    return api.get<IArtist>(`/artists/${idOrSlug}`);
+    const response = await api.get<{ artist: IArtist }>(`/artists/${idOrSlug}`);
+    return response.artist;
   },
 
   // Search artists (public access)

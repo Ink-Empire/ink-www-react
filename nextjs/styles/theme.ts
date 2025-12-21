@@ -2,6 +2,16 @@ import { createTheme } from '@mui/material/styles';
 import { Theme, ThemeOptions } from '@mui/material/styles';
 import { colors } from './colors';
 
+// Extend MUI theme typography to include custom fontFamilyTattoo
+declare module '@mui/material/styles' {
+  interface TypographyVariants {
+    fontFamilyTattoo: string;
+  }
+  interface TypographyVariantsOptions {
+    fontFamilyTattoo?: string;
+  }
+}
+
 // Create a theme instance
 const theme = createTheme({
   palette: {

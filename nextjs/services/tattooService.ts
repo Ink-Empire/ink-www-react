@@ -15,10 +15,11 @@ export const tattooService = {
   // Get tattoo by ID
   getById: async (id: number | string): Promise<TattooType> => {
     const hasAuthToken = !!getToken();
-    return api.get<TattooType>(`/tattoos/${id}`, {
+    const response = await api.get<{ tattoo: TattooType }>(`/tattoos/${id}`, {
       headers: { 'X-Account-Type': 'user' },
       requiresAuth: hasAuthToken // Only include token if user is logged in
     });
+    return response.tattoo;
   },
 
   // Search tattoos

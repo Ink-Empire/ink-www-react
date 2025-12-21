@@ -23,6 +23,7 @@ import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
+import { StudioType } from '@/models/studio.interface';
 import EditStudioModal from '../components/EditStudioModal';
 import AddArtistModal from '../components/AddArtistModal';
 import ClientDashboardContent from '../components/ClientDashboardContent';
@@ -188,26 +189,36 @@ export default function Dashboard() {
 
       setIsLoadingStats(true);
       try {
+        // Define types for dashboard API responses
+        interface DashboardStatsResponse {
+          upcoming_appointments?: number;
+          appointments_trend?: string;
+          profile_views?: number;
+          views_trend?: string;
+          saves_this_week?: number;
+          saves_trend?: string;
+        }
+
         // Fetch stats and schedule in parallel
         const [statsRes, scheduleRes] = await Promise.all([
-          api.get(`/artists/${user.id}/dashboard-stats`, { requiresAuth: true }).catch(() => null),
-          api.get(`/artists/${user.id}/upcoming-schedule`, { requiresAuth: true }).catch(() => null)
+          api.get<DashboardStatsResponse>(`/artists/${user.id}/dashboard-stats`, { requiresAuth: true }).catch(() => null),
+          api.get<any[]>(`/artists/${user.id}/upcoming-schedule`, { requiresAuth: true }).catch(() => null)
         ]);
 
-        if (statsRes?.data) {
+        if (statsRes) {
           setDashboardStats({
-            upcomingAppointments: statsRes.data.upcoming_appointments || 0,
-            appointmentsTrend: statsRes.data.appointments_trend || '+0',
-            profileViews: statsRes.data.profile_views || 0,
-            viewsTrend: statsRes.data.views_trend || '+0%',
-            savesThisWeek: statsRes.data.saves_this_week || 0,
-            savesTrend: statsRes.data.saves_trend || '+0',
+            upcomingAppointments: statsRes.upcoming_appointments || 0,
+            appointmentsTrend: statsRes.appointments_trend || '+0',
+            profileViews: statsRes.profile_views || 0,
+            viewsTrend: statsRes.views_trend || '+0%',
+            savesThisWeek: statsRes.saves_this_week || 0,
+            savesTrend: statsRes.saves_trend || '+0',
             unreadMessages: 0 // TODO: Add unread messages API
           });
         }
 
-        if (scheduleRes?.data) {
-          setSchedule(scheduleRes.data);
+        if (scheduleRes) {
+          setSchedule(scheduleRes);
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
@@ -238,14 +249,14 @@ export default function Dashboard() {
     if (!ownedStudio?.id) return;
     try {
       const [studioRes, artistsRes, announcementsRes] = await Promise.all([
-        api.get(`/studios/${ownedStudio.id}`),
-        api.get(`/studios/${ownedStudio.id}/artists`),
-        api.get(`/studios/${ownedStudio.id}/announcements`),
+        api.get<StudioType | { studio: StudioType }>(`/studios/${ownedStudio.id}`),
+        api.get<any[] | { artists: any[] }>(`/studios/${ownedStudio.id}/artists`),
+        api.get<any[] | { announcements: any[] }>(`/studios/${ownedStudio.id}/announcements`),
       ]);
-      const studio = studioRes.studio || studioRes;
+      const studio = (studioRes as any).studio || studioRes;
       setStudioData(studio);
-      setStudioArtists(artistsRes.artists || []);
-      setAnnouncements(announcementsRes.announcements || []);
+      setStudioArtists((artistsRes as any).artists || artistsRes || []);
+      setAnnouncements((announcementsRes as any).announcements || announcementsRes || []);
       setSeekingGuests(studio?.seeking_guest_artists || false);
       setGuestSpotDetails(studio?.guest_spot_details || '');
     } catch (err) {
@@ -291,8 +302,8 @@ export default function Dashboard() {
     if (!ownedStudio?.id || !newAnnouncement.title || !newAnnouncement.content) return;
     setIsAddingAnnouncement(true);
     try {
-      const res = await api.post(`/studios/${ownedStudio.id}/announcements`, newAnnouncement);
-      setAnnouncements(prev => [res.announcement || res, ...prev]);
+      const res = await api.post<any>(`/studios/${ownedStudio.id}/announcements`, newAnnouncement);
+      setAnnouncements(prev => [(res as any).announcement || res, ...prev]);
       setNewAnnouncement({ title: '', content: '' });
     } catch (err) {
       console.error('Failed to add announcement:', err);
@@ -334,7 +345,7 @@ export default function Dashboard() {
       t.id === tattooId ? { ...t, is_featured: !t.is_featured } : t
     ));
     try {
-      await api.put(`/tattoos/${tattooId}/featured`);
+      await api.put(`/tattoos/${tattooId}/featured`, {});
     } catch (err) {
       // Revert on error
       setArtistTattoos(prev => prev.map(t =>

@@ -1,3 +1,9 @@
+export interface StudioImage {
+  id?: number;
+  uri?: string;
+  url?: string;
+}
+
 export interface StudioType {
   id?: number;
   slug?: string;
@@ -6,6 +12,7 @@ export interface StudioType {
   initials?: string;
   logo?: string;
   cover_image?: string;
+  primary_image?: StudioImage;
   about?: string;
   phone?: string;
   email?: string;
@@ -27,7 +34,15 @@ export interface StudioType {
   established?: number;
   is_hiring?: boolean;
   seeking_guests?: boolean;
+  seeking_guest_artists?: boolean;
   is_verified?: boolean;
+  verified?: boolean;
+
+  // Guest spots
+  guest_spot_details?: string;
+
+  // Announcements
+  announcements?: any[];
 
   // Features
   features?: StudioFeature[];
@@ -37,6 +52,13 @@ export interface StudioType {
 
   // Social
   social?: StudioSocial;
+  instagram?: string;
+  facebook?: string;
+  twitter?: string;
+  tiktok?: string;
+
+  // Image
+  image?: StudioImage;
 
   // Relations
   artists?: any[];

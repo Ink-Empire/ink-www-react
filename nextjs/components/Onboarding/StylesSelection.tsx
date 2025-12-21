@@ -148,7 +148,7 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
         <Grid container spacing={2} sx={{ maxWidth: 600, justifyContent: 'center' }}>
         {styles.map((style) => (
-          <Grid item xs={6} sm={4} md={3} key={style.id}>
+          <Grid size={{ xs: 6, sm: 4, md: 3 }} key={style.id}>
             <Chip
               label={style.name}
               onClick={() => handleStyleToggle(style.id)}

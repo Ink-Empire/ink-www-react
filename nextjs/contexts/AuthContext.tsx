@@ -394,8 +394,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
 export const useAuth = () => useContext(AuthContext);
 
+// Define the return type for useUser
+type UseUserReturn = {
+  userData: Partial<User>;
+  loading: boolean;
+  error: string | null;
+  updateUser: (data: Partial<User>) => Promise<void>;
+  updateStyles: (styles: number[]) => Promise<void>;
+  toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number) => Promise<void>;
+  logout: () => Promise<void>;
+};
+
 // Alias for backwards compatibility with UserContext usage
-export const useUser = () => {
+export const useUser = (): UseUserReturn => {
   const auth = useContext(AuthContext);
   return {
     userData: auth.user || {},
@@ -408,8 +419,18 @@ export const useUser = () => {
   };
 };
 
+// Define the return type for useUserData
+type UserDataReturn = Partial<User> & {
+  updateUser: (data: Partial<User>) => Promise<void>;
+  updateStyles: (styles: number[]) => Promise<void>;
+  toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number) => Promise<void>;
+  logout: () => Promise<void>;
+  loading: boolean;
+  error: string | null;
+};
+
 // Returns user data directly with methods attached (for legacy useUserData compatibility)
-export const useUserData = () => {
+export const useUserData = (): UserDataReturn => {
   const auth = useContext(AuthContext);
   const userData = auth.user || {};
 

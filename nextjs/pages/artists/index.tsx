@@ -26,7 +26,22 @@ export default function ArtistList() {
     const theme = useTheme();
     const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
-    const locationSettings = distancePreferences.getDefaultLocationSettings(!!user?.location_lat_long);
+    // Helper to safely get lat/lng from user location
+    const getUserLat = () => {
+        const loc = user?.location_lat_long;
+        if (!loc) return undefined;
+        return loc.latitude ?? loc.lat;
+    };
+    const getUserLng = () => {
+        const loc = user?.location_lat_long;
+        if (!loc) return undefined;
+        return loc.longitude ?? loc.lng;
+    };
+    const userLat = getUserLat();
+    const userLng = getUserLng();
+    const hasValidUserCoords = userLat !== undefined && userLng !== undefined;
+
+    const locationSettings = distancePreferences.getDefaultLocationSettings(hasValidUserCoords);
 
     const initialFilters = {
         searchString: '',
@@ -35,12 +50,10 @@ export default function ArtistList() {
         applySavedStyles: false,
         booksOpen: false,
         ...locationSettings,
-        distanceUnit: 'mi',
-        locationCoords: user?.location_lat_long ?
-            `${user.location_lat_long.latitude || user.location_lat_long.lat},${user.location_lat_long.longitude || user.location_lat_long.lng}`
-            : undefined,
-        studio_near_me: user?.location_lat_long,
-        artist_near_me: user?.location_lat_long,
+        distanceUnit: 'mi' as const,
+        locationCoords: hasValidUserCoords ? `${userLat},${userLng}` : undefined,
+        studio_near_me: hasValidUserCoords ? user?.location_lat_long : undefined,
+        artist_near_me: hasValidUserCoords ? user?.location_lat_long : undefined,
         studios: user?.studios,
         subject: 'artists'
     };
@@ -68,8 +81,9 @@ export default function ArtistList() {
     }) => {
         let finalStyles = filters.styles && filters?.styles.length > 0 ? filters.styles : [];
         if (filters.applySavedStyles && user?.styles) {
-            const userStyleIds = user.styles.map(style => style.id || style);
-            finalStyles = [...new Set([...finalStyles, ...userStyleIds])];
+            // styles is already an array of number IDs
+            const userStyleIds = user.styles as number[];
+            finalStyles = Array.from(new Set([...finalStyles, ...userStyleIds]));
         }
 
         const newParams: Record<string, any> = {
@@ -209,7 +223,7 @@ export default function ArtistList() {
     };
 
     const activeFilters = getActiveFilters();
-    const artistCount = artists?.response?.length || 0;
+    const artistCount = artists?.length || 0;
 
     return (
         <Layout>
@@ -480,9 +494,7 @@ export default function ArtistList() {
                         },
                         gap: '1.25rem'
                     }}>
-                        {artists?.response &&
-                            Array.isArray(artists.response) &&
-                            artists.response.map((artist: any) => (
+                        {artists && artists.map((artist) => (
                                 <ArtistCard
                                     key={artist.id}
                                     artist={artist}

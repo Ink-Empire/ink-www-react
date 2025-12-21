@@ -61,7 +61,9 @@ export function useArtists(searchParams?: Record<string, any>) {
       // If we successfully loaded from cache, don't show loading state
       // but still fetch fresh data in the background
       const loadedFromCache = tryLoadFromCache();
-      if (!loadedFromCache) {
+      if (loadedFromCache) {
+        setLoading(false); // Dismiss loading immediately when using cached data
+      } else {
         setLoading(true);
       }
 
@@ -81,20 +83,28 @@ export function useArtists(searchParams?: Record<string, any>) {
         
         // Explicitly use POST method, passing searchParams in the request body
         // Enable caching for search results
-        const response = await api.post<{ data: ArtistType[] }>('/artists', requestBody, {
+        // Response could be array directly or wrapped in { data: [...] }
+        type ArtistsResponse = ArtistType[] | { data: ArtistType[] };
+        const response = await api.post<ArtistsResponse>('/artists', requestBody, {
           headers: { 'X-Account-Type': 'artist' },
           useCache: true, // Enable caching for this POST request as it's idempotent
           cacheTTL: 5 * 60 * 1000 // 5 minute cache for artist searches
         });
-        
+
         if (!isMounted) return;
-        
-        // Process the response
+
+        // Process the response - handle array, { data: [...] }, and { response: [...] } formats
         let artistsData: ArtistType[] = [];
-        
+
         if (response) {
-          console.log('Artists fetched successfully via POST:', response.length);
-          artistsData = response;
+          if (Array.isArray(response)) {
+            artistsData = response;
+          } else if ('response' in response && Array.isArray((response as any).response)) {
+            artistsData = (response as any).response;
+          } else if ('data' in response && Array.isArray((response as any).data)) {
+            artistsData = (response as any).data;
+          }
+          console.log('Artists fetched successfully via POST:', artistsData.length);
         }
         setArtists(artistsData);
         saveToCache(artistsData);
@@ -108,7 +118,7 @@ export function useArtists(searchParams?: Record<string, any>) {
           setError(err instanceof Error ? err : new Error('Failed to fetch artists'));
         }
       } finally {
-        if (isMounted && !loadedFromCache) {
+        if (isMounted) {
           setLoading(false);
         }
       }
@@ -140,7 +150,7 @@ export function useArtist(idOrSlug: string | null) {
       try {
         setLoading(true);
         const data = await artistService.getById(idOrSlug);
-        setArtist(data.artist);
+        setArtist(data);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error(`Failed to fetch artist with ID/slug ${idOrSlug}`));

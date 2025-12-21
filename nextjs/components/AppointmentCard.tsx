@@ -95,7 +95,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     
     setLoadingMessages(true);
     try {
-      const response = await api.get(`/messages/appointment/${appointment.id}`);
+      const response = await api.get<{ messages?: Message[] }>(`/messages/appointment/${appointment.id}`);
       setMessages(response.messages || []);
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -113,12 +113,12 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
       // Default to replying to the last message if no specific message is selected
       const defaultParentId = replyingTo?.id || (messages.length > 0 ? messages[messages.length - 1].id : null);
       
-      const response = await api.post('/messages/send', {
+      const response = await api.post<{ message?: Message }>('/messages/send', {
         appointment_id: appointment.id,
         content: newMessage.trim(),
         parent_message_id: defaultParentId
       });
-      
+
       if (response?.message) {
         setMessages(prev => [...prev, response.message]);
         setNewMessage('');
@@ -143,7 +143,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
   const markMessageAsRead = async (messageId: number) => {
     try {
-      await api.put(`/messages/${messageId}/read`);
+      await api.put(`/messages/${messageId}/read`, {});
       
       // Update the local state to mark message as read
       setMessages(prev => 
@@ -360,7 +360,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                     {messages.map((message) => (
                       <Box 
                         key={message.id}
-                        ref={(el) => messageRefs.current[message.id] = el}
+                        ref={(el: HTMLDivElement | null) => { messageRefs.current[message.id] = el; }}
                         data-message-id={message.id}
                         sx={{ 
                           mb: 2,

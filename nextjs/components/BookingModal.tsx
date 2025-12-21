@@ -171,10 +171,10 @@ export default function BookingModal({
   };
 
   // Helper functions to determine what artist accepts
-  const acceptsConsultations = settings?.accepts_consultations === true;
-  const acceptsAppointments = settings?.accepts_appointments === true;
+  const acceptsConsultations = Boolean(settings?.accepts_consultations);
+  const acceptsAppointments = Boolean(settings?.accepts_appointments);
   const acceptsBoth = acceptsConsultations && acceptsAppointments;
-  const booksOpen = settings?.books_open === true || settings?.books_open === true;
+  const booksOpen = Boolean(settings?.books_open);
 
   return (
     <Modal

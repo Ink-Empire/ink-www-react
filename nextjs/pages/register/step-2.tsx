@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import Layout from '../../components/Layout';
 import Link from 'next/link';
-import { useUser, UserProvider } from '@/contexts/AuthContext';
+import { useUser } from '@/contexts/AuthContext';
 import { api, getCsrfToken, fetchCsrfToken } from '@/utils/api';
 import { getToken, setToken } from '@/utils/auth';
 import StyleModal from '@/components/StyleModal';
@@ -110,15 +110,21 @@ const RegisterStepTwo: React.FC = () => {
         if (token) {
           try {
             console.log('Fetching user data from API with auth token');
-            const response = await api.get('/users/me', { 
+            // Response could be user directly or wrapped
+            interface UserResponse {
+              id?: number;
+              user?: { id: number };
+              data?: { id: number };
+            }
+            const response = await api.get<UserResponse>('/users/me', {
               requiresAuth: true,
               headers: {
                 'Authorization': `Bearer ${token}`
               }
             });
-            
+
             console.log('API response from /users/me:', response);
-            
+
             // The API might return response.id directly or it could be in response.user.id
             if (response && response.id) {
               setUserId(response.id);

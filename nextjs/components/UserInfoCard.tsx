@@ -121,7 +121,7 @@ const UserInfoCard: React.FC = () => {
         
         <Box sx={{ mt: 4 }}>
           <Grid container spacing={2}>
-            <Grid item xs={6}>
+            <Grid size={6}>
               <Button
                 variant="contained"
                 color="secondary"
@@ -132,7 +132,7 @@ const UserInfoCard: React.FC = () => {
                 Update Name
               </Button>
             </Grid>
-            <Grid item xs={6}>
+            <Grid size={6}>
               <Button
                 variant="outlined"
                 color="inherit"

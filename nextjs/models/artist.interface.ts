@@ -1,5 +1,23 @@
+export interface ArtistSettings {
+    id?: number;
+    artist_id?: number;
+    books_open?: boolean | number;
+    accepts_walk_ins?: boolean | number;
+    accepts_deposits?: boolean | number;
+    accepts_consultations?: boolean | number;
+    accepts_appointments?: boolean | number;
+    consultation_required?: boolean;
+    deposit_required?: boolean;
+    deposit_amount?: number;
+    min_price?: number;
+    hourly_rate?: number;
+    created_at?: string;
+    updated_at?: string;
+    [key: string]: any;
+}
+
 export interface ArtistType {
-    settings: ArtistSettings | undefined;
+    settings?: ArtistSettings;
     type: string;
     id?: number;
     slug?: string;

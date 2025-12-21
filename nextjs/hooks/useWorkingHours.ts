@@ -19,11 +19,19 @@ export const useWorkingHours = (artistId?: number | string | null) => {
     
     try {
       const artistIdNum = typeof id === 'string' ? parseInt(id) : id;
-      const data = await api.get<WorkingHour[]>(`/artists/${artistIdNum}/working-hours`, {
+      // Response could be array or wrapped object
+      type WorkingHoursResponse = WorkingHour[] | {
+        workingHours?: WorkingHour[];
+        hours?: WorkingHour[];
+        data?: WorkingHour[];
+        availability?: WorkingHour[];
+      };
+
+      const data = await api.get<WorkingHoursResponse>(`/artists/${artistIdNum}/working-hours`, {
         requiresAuth: true,
         useCache: false,
       });
-      
+
       console.log(`Working Hours API Response for artist ${artistIdNum}:`, {
         data,
         dataType: typeof data,
@@ -31,7 +39,7 @@ export const useWorkingHours = (artistId?: number | string | null) => {
         length: Array.isArray(data) ? data.length : 'not an array',
         rawData: JSON.stringify(data)
       });
-      
+
       // Make sure data is an array before setting it
       if (Array.isArray(data)) {
         setWorkingHours(data);

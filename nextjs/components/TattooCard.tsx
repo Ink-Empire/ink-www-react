@@ -21,8 +21,8 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
     const artistImageUri = tattoo.artist?.primary_image?.uri || tattoo.artist?.image?.uri;
 
     React.useEffect(() => {
-        if (user?.tattoos && tattoo.id) {
-            setIsFavorite(user.tattoos.includes(tattoo.id));
+        if (user?.favorites?.tattoos && tattoo.id) {
+            setIsFavorite(user.favorites.tattoos.includes(tattoo.id));
         }
     }, [user, tattoo.id]);
 

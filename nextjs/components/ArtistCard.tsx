@@ -23,8 +23,8 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
 
     // Update saved status when user data changes
     React.useEffect(() => {
-        if (user?.favorites?.artist && artist.id) {
-            setIsSaved(user.favorites.artist.includes(artist.id));
+        if (user?.favorites?.artists && artist.id) {
+            setIsSaved(user.favorites.artists.includes(artist.id));
         }
     }, [user, artist.id]);
 
