@@ -179,24 +179,28 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
 
   // Check for bearer token (if using token-based auth)
   const token = getToken(`api-${method}-${endpoint}`);
-  
+
+  // Determine credentials mode:
+  // - If we have a Bearer token, DON'T send cookies (forces Sanctum to use token)
+  // - If no token, include cookies for session-based auth
+  let credentialsMode: RequestCredentials = 'include';
+
   if (token) {
     requestHeaders['Authorization'] = `Bearer ${token}`;
-    console.log(`Including auth token in ${method} ${endpoint} request`);
+    // Don't send cookies when using Bearer token - prevents session cookie from overriding token auth
+    credentialsMode = 'omit';
+    console.log(`Using Bearer token for ${method} ${endpoint} (not sending cookies)`);
   } else if (requiresAuth) {
-    // For session-based auth, we rely on cookies - no explicit token needed
-    console.log(`Using session-based auth for ${method} ${endpoint} request`);
+    // No token found but auth required - warn about this
+    console.warn(`No auth token found for ${method} ${endpoint} - falling back to session auth`);
   }
-
-  // For session-based auth, user identification is handled server-side via session
-  // No need to manually include user_id in request body
 
   const requestOptions: RequestInit = {
     method,
     headers: requestHeaders,
     body: body ? (body instanceof FormData ? body : JSON.stringify(body)) : undefined,
-    credentials: 'include', // Include cookies for cross-origin requests
-    mode: 'cors', // Explicitly set CORS mode
+    credentials: credentialsMode,
+    mode: 'cors',
   };
 
   try {

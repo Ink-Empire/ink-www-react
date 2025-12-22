@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Box, Typography, Button, Avatar, Skeleton } from '@mui/material';
+import LockIcon from '@mui/icons-material/Lock';
+import ChangePasswordModal from './ChangePasswordModal';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -19,6 +21,8 @@ interface ClientDashboardContentProps {
 }
 
 export default function ClientDashboardContent({ userName, userId }: ClientDashboardContentProps) {
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+
   const {
     appointments,
     conversations,
@@ -269,6 +273,49 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           )}
         </Card>
       </Box>
+
+      {/* Security Settings */}
+      <Card title="Security Settings" sx={{ mt: 3 }}>
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          p: 2,
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <LockIcon sx={{ color: colors.textMuted }} />
+            <Box>
+              <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
+                Password
+              </Typography>
+              <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+                Keep your account secure
+              </Typography>
+            </Box>
+          </Box>
+          <Button
+            onClick={() => setChangePasswordOpen(true)}
+            sx={{
+              px: 2,
+              py: 0.75,
+              color: colors.textPrimary,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '6px',
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.85rem',
+              '&:hover': { borderColor: colors.accent, color: colors.accent }
+            }}
+          >
+            Change Password
+          </Button>
+        </Box>
+      </Card>
+
+      <ChangePasswordModal
+        isOpen={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </Box>
   );
 }

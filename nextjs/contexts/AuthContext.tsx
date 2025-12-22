@@ -61,6 +61,7 @@ interface AuthContextType {
   updateStyles: (styles: number[]) => Promise<void>;
   toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number) => Promise<void>;
   refreshUser: () => Promise<User | null>;
+  setUserDirectly: (userData: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -74,6 +75,7 @@ const AuthContext = createContext<AuthContextType>({
   updateStyles: async () => {},
   toggleFavorite: async () => {},
   refreshUser: async () => null,
+  setUserDirectly: () => {},
 });
 
 // Single localStorage key for user data
@@ -110,11 +112,11 @@ const saveUser = (user: User | null): void => {
   }
 };
 
-// Clear all auth storage
+// Clear auth-related storage
 const clearStorage = (): void => {
   if (typeof window === 'undefined') return;
   try {
-    // Clear known keys
+    // Clear auth-specific keys only
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem('auth_user');
     localStorage.removeItem('user_data');
@@ -131,6 +133,8 @@ const clearStorage = (): void => {
       }
     }
     keysToRemove.forEach(key => localStorage.removeItem(key));
+
+    console.log('Auth storage cleared');
   } catch (e) {
     console.error('Error clearing storage:', e);
   }
@@ -286,6 +290,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout
   const logout = useCallback(async () => {
+    // First call the logout API to clear server session
     try {
       await api.post('/logout', {});
     } catch (err) {
@@ -295,12 +300,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Remove the auth token
     removeToken();
 
+    // Clear React state
     setUser(null);
-    clearStorage();
-    api.clearCache?.();
 
-    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-      router.push('/login');
+    // Clear auth storage
+    clearStorage();
+
+    // Clear API cache
+    api.clearCache?.();
+    api.clearUserCache?.();
+
+    // Don't redirect if already on login or register pages
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && currentPath !== '/register') {
+        router.push('/login');
+      }
     }
   }, [router]);
 
@@ -372,6 +387,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return fetchUser();
   }, [fetchUser]);
 
+  // Set user directly without API call (used after registration)
+  const setUserDirectly = useCallback((userData: User): void => {
+    if (userData && userData.id) {
+      setUser(userData);
+      saveUser(userData);
+      setError(null);
+      console.log('User set directly:', userData.email);
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -385,6 +410,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         updateStyles,
         toggleFavorite,
         refreshUser,
+        setUserDirectly,
       }}
     >
       {children}

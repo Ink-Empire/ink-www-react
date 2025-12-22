@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -15,9 +15,13 @@ import {
   Person as PersonIcon,
   LocationOn as LocationOnIcon,
   MyLocation as MyLocationIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
+import { api } from '@/utils/api';
+import LocationAutocomplete from '../LocationAutocomplete';
 
 interface UserDetailsProps {
   onStepComplete: (userDetails: {
@@ -48,9 +52,66 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
+  // Username availability state
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameCheckDebounce, setUsernameCheckDebounce] = useState<NodeJS.Timeout | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { getCurrentPosition, getLocation } = useAppGeolocation();
+
+  // Check username availability
+  const checkUsernameAvailability = useCallback(async (usernameToCheck: string) => {
+    if (!usernameToCheck || usernameToCheck.length < 3 || !/^[a-zA-Z0-9_]+$/.test(usernameToCheck)) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    setIsCheckingUsername(true);
+    try {
+      const response = await api.post<{ available: boolean }>('/check-availability', {
+        username: usernameToCheck,
+      });
+      setUsernameAvailable(response.available);
+      if (!response.available) {
+        setErrors(prev => ({ ...prev, username: 'This username is already taken' }));
+      } else {
+        setErrors(prev => {
+          const { username, ...rest } = prev;
+          return rest;
+        });
+      }
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      // Don't block registration if check fails
+      setUsernameAvailable(null);
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  }, []);
+
+  // Debounce username availability check
+  useEffect(() => {
+    if (usernameCheckDebounce) {
+      clearTimeout(usernameCheckDebounce);
+    }
+
+    if (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) {
+      const timeout = setTimeout(() => {
+        checkUsernameAvailability(username);
+      }, 500);
+      setUsernameCheckDebounce(timeout);
+    } else {
+      setUsernameAvailable(null);
+    }
+
+    return () => {
+      if (usernameCheckDebounce) {
+        clearTimeout(usernameCheckDebounce);
+      }
+    };
+  }, [username]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -137,19 +198,21 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!name.trim()) {
       newErrors.name = 'Name is required';
     }
-    
+
     if (!username.trim()) {
       newErrors.username = 'Username is required';
     } else if (username.length < 3) {
       newErrors.username = 'Username must be at least 3 characters';
     } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       newErrors.username = 'Username can only contain letters, numbers, and underscores';
+    } else if (usernameAvailable === false) {
+      newErrors.username = 'This username is already taken';
     }
-    
+
     if (!bio.trim()) {
       newErrors.bio = 'Bio is required';
     } else if (bio.length < 10) {
@@ -157,11 +220,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     } else if (bio.length > 500) {
       newErrors.bio = 'Bio must be less than 500 characters';
     }
-    
+
     if (!location.trim()) {
       newErrors.location = 'Location is required';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -363,37 +426,72 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           />
 
           {/* Username Field */}
-          <TextField
-            label="Username"
-            name="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase())}
-            placeholder="Choose a unique username"
-            error={!!errors.username}
-            helperText={errors.username || 'This will be your unique identifier on the platform'}
-            fullWidth
-            required
-            autoComplete="username"
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'rgba(232, 219, 197, 0.5)',
+          <Box>
+            <TextField
+              label="Username"
+              name="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase())}
+              placeholder="Choose a unique username"
+              error={!!errors.username || usernameAvailable === false}
+              fullWidth
+              required
+              autoComplete="username"
+              InputProps={{
+                endAdornment: (
+                  <>
+                    {isCheckingUsername && (
+                      <CircularProgress size={20} sx={{ color: colors.accent }} />
+                    )}
+                    {!isCheckingUsername && usernameAvailable === true && (
+                      <CheckCircleIcon sx={{ color: '#4caf50' }} />
+                    )}
+                    {!isCheckingUsername && usernameAvailable === false && (
+                      <CancelIcon sx={{ color: '#f44336' }} />
+                    )}
+                  </>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: usernameAvailable === false ? '#f44336' :
+                                 usernameAvailable === true ? '#4caf50' :
+                                 'rgba(232, 219, 197, 0.5)',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: usernameAvailable === false ? '#f44336' :
+                                 usernameAvailable === true ? '#4caf50' :
+                                 colors.textSecondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: usernameAvailable === false ? '#f44336' :
+                                 usernameAvailable === true ? '#4caf50' :
+                                 colors.accent,
+                  },
                 },
-                '&:hover fieldset': {
-                  borderColor: colors.textSecondary,
+                '& .MuiInputLabel-root': {
+                  color: colors.textSecondary,
+                  '&.Mui-focused': {
+                    color: colors.accent,
+                  },
                 },
-                '&.Mui-focused fieldset': {
-                  borderColor: colors.accent,
-                },
-              },
-              '& .MuiInputLabel-root': {
-                color: colors.textSecondary,
-                '&.Mui-focused': {
-                  color: colors.accent,
-                },
-              },
-            }}
-          />
+              }}
+            />
+            {errors.username ? (
+              <Typography variant="caption" sx={{ color: '#f44336', mt: 0.5, display: 'block' }}>
+                {errors.username}
+              </Typography>
+            ) : usernameAvailable === true ? (
+              <Typography variant="caption" sx={{ color: '#4caf50', mt: 0.5, display: 'block' }}>
+                ✓ Username is available
+              </Typography>
+            ) : (
+              <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5, display: 'block' }}>
+                This will be your unique identifier on the platform
+              </Typography>
+            )}
+          </Box>
 
           {/* Bio Field */}
           <TextField
@@ -502,36 +600,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 )}
               </Box>
             ) : (
-              <TextField
-                label="Your Location"
-                name="location"
+              <LocationAutocomplete
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="City, State/Province, Country"
+                onChange={(newLocation, newLatLong) => {
+                  setLocation(newLocation);
+                  setLocationLatLong(newLatLong);
+                }}
+                label="Your Location"
+                placeholder="Start typing a city name..."
                 error={!!errors.location}
                 helperText={errors.location}
-                fullWidth
                 required
-                autoComplete="address-level2"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': {
-                      borderColor: 'rgba(232, 219, 197, 0.5)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: '#e8dbc5',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#339989',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: '#e8dbc5',
-                    '&.Mui-focused': {
-                      color: '#339989',
-                    },
-                  },
-                }}
               />
             )}
 
@@ -554,7 +633,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             <Button
               type="submit"
               variant="contained"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isCheckingUsername || usernameAvailable === false}
               startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
               sx={{
                 backgroundColor: colors.accent,

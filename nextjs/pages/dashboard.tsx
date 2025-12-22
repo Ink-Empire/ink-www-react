@@ -27,6 +27,8 @@ import { StudioType } from '@/models/studio.interface';
 import EditStudioModal from '../components/EditStudioModal';
 import AddArtistModal from '../components/AddArtistModal';
 import ClientDashboardContent from '../components/ClientDashboardContent';
+import ChangePasswordModal from '../components/ChangePasswordModal';
+import LockIcon from '@mui/icons-material/Lock';
 
 // Types for dashboard data
 interface DashboardStats {
@@ -130,6 +132,7 @@ export default function Dashboard() {
   // Modal states
   const [editStudioOpen, setEditStudioOpen] = useState(false);
   const [addArtistOpen, setAddArtistOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   // Studio data states
   const [studioData, setStudioData] = useState<any>(null);
@@ -627,6 +630,44 @@ export default function Dashboard() {
                         Click avatar to update photo
                       </Typography>
                     </Box>
+                  </Box>
+                </Card>
+
+                {/* Security Settings */}
+                <Card title="Security Settings">
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 2,
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <LockIcon sx={{ color: colors.textMuted }} />
+                      <Box>
+                        <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
+                          Password
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+                          Keep your account secure
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Button
+                      onClick={() => setChangePasswordOpen(true)}
+                      sx={{
+                        px: 2,
+                        py: 0.75,
+                        color: colors.textPrimary,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: '6px',
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        fontSize: '0.85rem',
+                        '&:hover': { borderColor: colors.accent, color: colors.accent }
+                      }}
+                    >
+                      Change Password
+                    </Button>
                   </Box>
                 </Card>
 
@@ -1135,6 +1176,44 @@ export default function Dashboard() {
                     )}
                   </Box>
                 </Card>
+
+                {/* Security Settings */}
+                <Card title="Security Settings">
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 2,
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <LockIcon sx={{ color: colors.textMuted }} />
+                      <Box>
+                        <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
+                          Password
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+                          Keep your account secure
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Button
+                      onClick={() => setChangePasswordOpen(true)}
+                      sx={{
+                        px: 2,
+                        py: 0.75,
+                        color: colors.textPrimary,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: '6px',
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        fontSize: '0.85rem',
+                        '&:hover': { borderColor: colors.accent, color: colors.accent }
+                      }}
+                    >
+                      Change Password
+                    </Button>
+                  </Box>
+                </Card>
               </>
             )}
           </Box>
@@ -1226,6 +1305,11 @@ export default function Dashboard() {
           setStudioArtists(prev => [...prev, artist]);
         }}
         currentArtists={studioArtists}
+      />
+
+      <ChangePasswordModal
+        isOpen={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
       />
 
       {/* Hidden file input for avatar upload */}

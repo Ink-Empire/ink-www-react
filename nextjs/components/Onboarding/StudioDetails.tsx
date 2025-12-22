@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -9,15 +9,20 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  InputAdornment,
 } from '@mui/material';
 import {
   PhotoCamera as PhotoCameraIcon,
   Store as StoreIcon,
   LocationOn as LocationOnIcon,
   MyLocation as MyLocationIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
+import LocationAutocomplete from '../LocationAutocomplete';
+import { api } from '@/utils/api';
 
 interface StudioDetailsProps {
   onStepComplete: (studioDetails: {
@@ -51,8 +56,134 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Availability checking state
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const usernameDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const emailDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { getCurrentPosition, getLocation } = useAppGeolocation();
+
+  // Check username availability
+  const checkUsernameAvailability = useCallback(async (usernameToCheck: string) => {
+    if (!usernameToCheck || usernameToCheck.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    // Validate format first
+    if (!/^[a-zA-Z0-9_]+$/.test(usernameToCheck)) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    setCheckingUsername(true);
+    try {
+      const response = await api.post<{ available: boolean }>('/studios/check-availability', {
+        username: usernameToCheck.toLowerCase(),
+      });
+      setUsernameAvailable(response.available);
+      if (!response.available) {
+        setErrors(prev => ({ ...prev, username: 'This username is already taken' }));
+      } else {
+        setErrors(prev => {
+          const { username, ...rest } = prev;
+          if (username === 'This username is already taken') {
+            return rest;
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('Error checking username availability:', err);
+      setUsernameAvailable(null);
+    } finally {
+      setCheckingUsername(false);
+    }
+  }, []);
+
+  // Check email availability (only if email is provided)
+  const checkEmailAvailability = useCallback(async (emailToCheck: string) => {
+    if (!emailToCheck || !emailToCheck.includes('@')) {
+      setEmailAvailable(null);
+      return;
+    }
+
+    // Validate email format first
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToCheck)) {
+      setEmailAvailable(null);
+      return;
+    }
+
+    setCheckingEmail(true);
+    try {
+      const response = await api.post<{ available: boolean }>('/studios/check-availability', {
+        email: emailToCheck.toLowerCase(),
+      });
+      setEmailAvailable(response.available);
+      if (!response.available) {
+        setErrors(prev => ({ ...prev, email: 'This email is already registered to another studio' }));
+      } else {
+        setErrors(prev => {
+          const { email, ...rest } = prev;
+          if (email === 'This email is already registered to another studio') {
+            return rest;
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('Error checking email availability:', err);
+      setEmailAvailable(null);
+    } finally {
+      setCheckingEmail(false);
+    }
+  }, []);
+
+  // Debounced username check
+  useEffect(() => {
+    if (usernameDebounceRef.current) {
+      clearTimeout(usernameDebounceRef.current);
+    }
+
+    if (username && username.length >= 3 && /^[a-zA-Z0-9_]+$/.test(username)) {
+      usernameDebounceRef.current = setTimeout(() => {
+        checkUsernameAvailability(username);
+      }, 500);
+    } else {
+      setUsernameAvailable(null);
+    }
+
+    return () => {
+      if (usernameDebounceRef.current) {
+        clearTimeout(usernameDebounceRef.current);
+      }
+    };
+  }, [username, checkUsernameAvailability]);
+
+  // Debounced email check (only when email is provided)
+  useEffect(() => {
+    if (emailDebounceRef.current) {
+      clearTimeout(emailDebounceRef.current);
+    }
+
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      emailDebounceRef.current = setTimeout(() => {
+        checkEmailAvailability(email);
+      }, 500);
+    } else {
+      setEmailAvailable(null);
+    }
+
+    return () => {
+      if (emailDebounceRef.current) {
+        clearTimeout(emailDebounceRef.current);
+      }
+    };
+  }, [email, checkEmailAvailability]);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -146,6 +277,8 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       newErrors.username = 'Username must be at least 3 characters';
     } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       newErrors.username = 'Username can only contain letters, numbers, and underscores';
+    } else if (usernameAvailable === false) {
+      newErrors.username = 'This username is already taken';
     }
 
     if (!bio.trim()) {
@@ -160,13 +293,46 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       newErrors.location = 'Location is required';
     }
 
-    // Email is optional, but if provided must be valid format
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      newErrors.email = 'Please enter a valid email address';
+    // Email is optional, but if provided must be valid format and available
+    if (email.trim()) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        newErrors.email = 'Please enter a valid email address';
+      } else if (emailAvailable === false) {
+        newErrors.email = 'This email is already registered to another studio';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Helper to get username field adornment
+  const getUsernameAdornment = () => {
+    if (checkingUsername) {
+      return <CircularProgress size={20} sx={{ color: colors.accent }} />;
+    }
+    if (usernameAvailable === true && username.length >= 3) {
+      return <CheckCircleIcon sx={{ color: '#4caf50' }} />;
+    }
+    if (usernameAvailable === false) {
+      return <CancelIcon sx={{ color: colors.error }} />;
+    }
+    return null;
+  };
+
+  // Helper to get email field adornment
+  const getEmailAdornment = () => {
+    if (!email) return null;
+    if (checkingEmail) {
+      return <CircularProgress size={20} sx={{ color: colors.accent }} />;
+    }
+    if (emailAvailable === true) {
+      return <CheckCircleIcon sx={{ color: '#4caf50' }} />;
+    }
+    if (emailAvailable === false) {
+      return <CancelIcon sx={{ color: colors.error }} />;
+    }
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -339,22 +505,40 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             label="Studio Username"
             name="studio_username"
             value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
             placeholder="Choose a unique username for your studio"
-            error={!!errors.username}
-            helperText={errors.username || 'This will be your studio\'s URL: inkedin.com/studios/username'}
+            error={!!errors.username || usernameAvailable === false}
+            helperText={
+              errors.username ||
+              (usernameAvailable === true && username.length >= 3
+                ? `Username available! Your URL: inkedin.com/studios/${username}`
+                : `This will be your studio's URL: inkedin.com/studios/${username || 'username'}`)
+            }
             fullWidth
             required
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  {getUsernameAdornment()}
+                </InputAdornment>
+              ),
+            }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
-                  borderColor: 'rgba(232, 219, 197, 0.5)',
+                  borderColor: usernameAvailable === true ? '#4caf50' :
+                               usernameAvailable === false ? colors.error :
+                               'rgba(232, 219, 197, 0.5)',
                 },
                 '&:hover fieldset': {
-                  borderColor: colors.textSecondary,
+                  borderColor: usernameAvailable === true ? '#4caf50' :
+                               usernameAvailable === false ? colors.error :
+                               colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: colors.accent,
+                  borderColor: usernameAvailable === true ? '#4caf50' :
+                               usernameAvailable === false ? colors.error :
+                               colors.accent,
                 },
               },
               '& .MuiInputLabel-root': {
@@ -362,6 +546,11 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                 '&.Mui-focused': {
                   color: colors.accent,
                 },
+              },
+              '& .MuiFormHelperText-root': {
+                color: usernameAvailable === true ? '#4caf50' :
+                       errors.username ? colors.error :
+                       colors.textSecondary,
               },
             }}
           />
@@ -405,23 +594,39 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             label="Studio Email (Optional)"
             name="studio_email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value.toLowerCase())}
             placeholder="contact@yourstudio.com"
-            error={!!errors.email}
-            helperText={errors.email || 'A public contact email for your studio'}
+            error={!!errors.email || emailAvailable === false}
+            helperText={
+              errors.email ||
+              (emailAvailable === true ? 'Email available!' : 'A public contact email for your studio')
+            }
             fullWidth
             type="email"
             autoComplete="email"
+            InputProps={{
+              endAdornment: getEmailAdornment() ? (
+                <InputAdornment position="end">
+                  {getEmailAdornment()}
+                </InputAdornment>
+              ) : undefined,
+            }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
-                  borderColor: 'rgba(232, 219, 197, 0.5)',
+                  borderColor: emailAvailable === true ? '#4caf50' :
+                               emailAvailable === false ? colors.error :
+                               'rgba(232, 219, 197, 0.5)',
                 },
                 '&:hover fieldset': {
-                  borderColor: colors.textSecondary,
+                  borderColor: emailAvailable === true ? '#4caf50' :
+                               emailAvailable === false ? colors.error :
+                               colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: colors.accent,
+                  borderColor: emailAvailable === true ? '#4caf50' :
+                               emailAvailable === false ? colors.error :
+                               colors.accent,
                 },
               },
               '& .MuiInputLabel-root': {
@@ -429,6 +634,11 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                 '&.Mui-focused': {
                   color: colors.accent,
                 },
+              },
+              '& .MuiFormHelperText-root': {
+                color: emailAvailable === true ? '#4caf50' :
+                       errors.email ? colors.error :
+                       colors.textSecondary,
               },
             }}
           />
@@ -539,36 +749,17 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                 )}
               </Box>
             ) : (
-              <TextField
-                label="Studio Address"
-                name="studio_location"
+              <LocationAutocomplete
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="City, State/Province, Country"
+                onChange={(newLocation, newLatLong) => {
+                  setLocation(newLocation);
+                  setLocationLatLong(newLatLong);
+                }}
+                label="Studio Location"
+                placeholder="Start typing a city name..."
                 error={!!errors.location}
                 helperText={errors.location}
-                fullWidth
                 required
-                autoComplete="street-address"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': {
-                      borderColor: 'rgba(232, 219, 197, 0.5)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: colors.textSecondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: colors.accent,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: colors.textSecondary,
-                    '&.Mui-focused': {
-                      color: colors.accent,
-                    },
-                  },
-                }}
               />
             )}
 
@@ -591,7 +782,13 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             <Button
               type="submit"
               variant="contained"
-              disabled={isSubmitting}
+              disabled={
+                isSubmitting ||
+                checkingUsername ||
+                usernameAvailable === false ||
+                (email && checkingEmail) ||
+                (email && emailAvailable === false)
+              }
               startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
               sx={{
                 backgroundColor: colors.accent,

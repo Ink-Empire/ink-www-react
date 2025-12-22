@@ -13,7 +13,6 @@ import {
 import UserTypeSelection from './UserTypeSelection';
 import ExperienceLevel from './ExperienceLevel';
 import StylesSelection from './StylesSelection';
-import ArtistPreferencesSelection from './ArtistPreferencesSelection';
 import UserDetails from './UserDetails';
 import AccountSetup from './AccountSetup';
 import StudioOwnerCheck from './StudioOwnerCheck';
@@ -89,7 +88,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     if (onboardingData.userType === 'client') {
       steps = [...steps, 'Experience', 'Interests', 'Profile', 'Account'];
     } else if (onboardingData.userType === 'artist') {
-      steps = [...steps, 'Specialties', 'Preferences', 'Profile', 'Account'];
+      steps = [...steps, 'Specialties', 'Profile', 'Account'];
     } else if (onboardingData.userType === 'studio') {
       // Studios: Owner check -> (Artist styles if owner is artist) -> Your Profile -> Account -> Studio Profile
       // Note: Studio styles are derived from artists who work there, not set during signup
@@ -141,11 +140,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     setOnboardingData(prev => ({ ...prev, selectedStyles }));
 
     // Simply advance to next step
-    setCurrentStep(currentStep + 1);
-  };
-
-  const handlePreferencesComplete = (preferredStyles: number[]) => {
-    setOnboardingData(prev => ({ ...prev, preferredStyles }));
     setCurrentStep(currentStep + 1);
   };
 
@@ -283,7 +277,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           );
       }
     } else if (isArtist) {
-      // Artist flow
+      // Artist flow: Specialties -> Profile -> Account
       switch (effectiveStep) {
         case 1:
           return (
@@ -295,21 +289,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           );
         case 2:
           return (
-            <ArtistPreferencesSelection
-              onStepComplete={handlePreferencesComplete}
-              onBack={handleBack}
-              specialtyStyles={onboardingData.selectedStyles}
-            />
-          );
-        case 3:
-          return (
             <UserDetails
               onStepComplete={handleUserDetailsComplete}
               onBack={handleBack}
               userType="artist"
             />
           );
-        case 4:
+        case 3:
           return (
             <AccountSetup
               onStepComplete={handleAccountSetupComplete}

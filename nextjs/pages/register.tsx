@@ -1,17 +1,139 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { OnboardingWizard, OnboardingData } from '../components/Onboarding';
-import { setToken } from '@/utils/auth';
+import { setToken, removeToken } from '@/utils/auth';
 import { getCsrfToken, fetchCsrfToken, api } from '@/utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
 import { colors } from '@/styles/colors';
 
+// Clear all auth-related storage to ensure fresh state for new registration
+const clearAllAuthStorage = async () => {
+  if (typeof window === 'undefined') return;
+  try {
+    // IMPORTANT: Call logout endpoint to clear server-side session/cookies
+    // This is critical because Laravel Sanctum uses HTTP-only cookies
+    // Try multiple endpoints to ensure we clear the session
+    const logoutEndpoints = [
+      '/api/logout',
+      `${process.env.NEXT_PUBLIC_API_URL || ''}/logout`,
+    ];
+
+    for (const endpoint of logoutEndpoints) {
+      try {
+        await fetch(endpoint, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          },
+        });
+        console.log(`Logout called: ${endpoint}`);
+      } catch (err) {
+        // Ignore errors
+      }
+    }
+
+    // Clear all cookies by setting them to expire
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const cookieName = cookie.split('=')[0].trim();
+      // Clear cookie for current domain and all paths
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`;
+    }
+    console.log('Cookies cleared');
+
+    // Remove auth token
+    removeToken();
+
+    // Clear all user-related localStorage
+    localStorage.removeItem('user');
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('csrf_token');
+    localStorage.removeItem('auth_token');
+
+    // Clear all API caches
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('api_cache:') || key.startsWith('studios_cache:'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+
+    // Clear sessionStorage too
+    sessionStorage.clear();
+
+    console.log('Cleared all auth storage for new registration');
+  } catch (e) {
+    console.error('Error clearing auth storage:', e);
+  }
+};
+
 const RegisterPage: React.FC = () => {
   const router = useRouter();
-  const { refreshUser } = useAuth();
+  const { refreshUser, logout, setUserDirectly } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isClearing, setIsClearing] = useState(true);
+
+  // Clear any existing auth state when visiting the register page
+  // This ensures new registrations start with a clean slate
+  useEffect(() => {
+    let mounted = true;
+
+    const clearAuth = async () => {
+      // Call logout API to clear server session (don't use AuthContext logout which redirects)
+      try {
+        await fetch('/api/logout', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+      } catch (e) {
+        // Ignore - user might not have been logged in
+      }
+
+      // Clear localStorage auth data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('csrf_token');
+        removeToken();
+      }
+
+      // Get a fresh CSRF token for the new session
+      try {
+        await fetch('/sanctum/csrf-cookie', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        console.log('Fresh CSRF token obtained');
+      } catch (e) {
+        console.log('Could not get fresh CSRF token');
+      }
+
+      if (mounted) {
+        setIsClearing(false);
+      }
+    };
+
+    clearAuth();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleRegistrationComplete = async (data: OnboardingData) => {
     try {
@@ -72,6 +194,11 @@ const RegisterPage: React.FC = () => {
         // Set the authentication token if provided
         if (result.token) {
           console.log('Setting token and refreshing auth state');
+
+          // IMPORTANT: Clear ALL previous auth storage before setting new user
+          // This prevents showing stale user data from a previous session
+          await clearAllAuthStorage();
+
           setToken(result.token);
 
           // Clear the API cache to ensure fresh user data
@@ -80,13 +207,18 @@ const RegisterPage: React.FC = () => {
           // Wait a moment for token to be set properly
           await new Promise(resolve => setTimeout(resolve, 200));
 
-          // Refresh the auth context to load the user data
-          try {
-            await refreshUser();
-            console.log('User authenticated and loaded in context');
-          } catch (authError) {
-            console.error('Failed to load user after registration:', authError);
-            // Continue anyway, user is created successfully
+          // Set user directly from registration response (don't call API which might use old session)
+          if (result.user && result.user.id) {
+            setUserDirectly(result.user);
+            console.log('User set directly from registration response');
+          } else {
+            // Fallback to refreshUser if user data not in response
+            try {
+              await refreshUser();
+              console.log('User authenticated and loaded in context');
+            } catch (authError) {
+              console.error('Failed to load user after registration:', authError);
+            }
           }
         }
 
@@ -188,11 +320,20 @@ const RegisterPage: React.FC = () => {
         console.log('Owner account created:', ownerResult);
         ownerId = ownerResult.user?.id;
 
-        // Set the authentication token
+        // Set the authentication token and user
         if (ownerResult.token) {
+          // IMPORTANT: Clear ALL previous auth storage before setting new user
+          await clearAllAuthStorage();
+
           setToken(ownerResult.token);
           api.clearUserCache();
           await new Promise(resolve => setTimeout(resolve, 200));
+
+          // Set user directly from registration response
+          if (ownerResult.user && ownerResult.user.id) {
+            setUserDirectly(ownerResult.user);
+            console.log('Owner user set directly from registration response');
+          }
         }
 
         // Handle owner profile image upload if provided
@@ -232,7 +373,7 @@ const RegisterPage: React.FC = () => {
 
       console.log('Creating studio with payload:', studioPayload);
 
-      const studioResponse = await api.post('/studios', studioPayload);
+      const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
       console.log('Studio created:', studioResponse);
 
       // Handle studio image upload if provided
@@ -249,12 +390,29 @@ const RegisterPage: React.FC = () => {
         }
       }
 
-      // Refresh auth context to get updated user data with is_studio_admin
-      try {
-        await refreshUser();
-        console.log('User authenticated and loaded in context');
-      } catch (authError) {
-        console.error('Failed to load user after studio creation:', authError);
+      // Update the user in context with studio admin info
+      // IMPORTANT: Don't call refreshUser() here as it makes an API call that might
+      // use stale session cookies and return the wrong user
+      // Instead, manually update the user data with studio info
+      const currentUser = localStorage.getItem('user');
+      if (currentUser) {
+        try {
+          const userData = JSON.parse(currentUser);
+          const updatedUser = {
+            ...userData,
+            is_studio_admin: true,
+            studio_id: studioId,
+            owned_studio: {
+              id: studioId,
+              name: data.studioDetails?.name || '',
+              slug: generateSlug(data.studioDetails?.username || data.studioDetails?.name || ''),
+            },
+          };
+          setUserDirectly(updatedUser);
+          console.log('User updated with studio admin info');
+        } catch (e) {
+          console.error('Failed to update user with studio info:', e);
+        }
       }
 
       // Redirect to studio dashboard or profile
@@ -269,6 +427,30 @@ const RegisterPage: React.FC = () => {
   const handleRegistrationCancel = () => {
     router.push('/');
   };
+
+  // Show loading while clearing previous auth state
+  if (isClearing) {
+    return (
+      <>
+        <Head>
+          <title>Join InkedIn | Sign Up</title>
+          <meta name="description" content="Join the InkedIn community and connect with tattoo artists and enthusiasts" />
+          <link rel="icon" href="/assets/img/logo.png" />
+        </Head>
+        <Box
+          sx={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#1a0e11',
+          }}
+        >
+          <CircularProgress sx={{ color: colors.accent }} />
+        </Box>
+      </>
+    );
+  }
 
   return (
     <>
