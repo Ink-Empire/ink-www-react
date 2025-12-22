@@ -17,17 +17,25 @@ import {
   ImageList,
   ImageListItem,
   SelectChangeEvent,
-  OutlinedInput
+  OutlinedInput,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   PhotoCamera,
   Delete as DeleteIcon,
-  Send as SendIcon
+  Send as SendIcon,
+  AutoAwesome as AiIcon,
+  Add as AddIcon,
+  Check as CheckIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/api';
 import { useRouter } from 'next/router';
 import { colors } from '@/styles/colors';
+import TagsAutocomplete, { Tag } from './TagsAutocomplete';
 
 interface Style {
   id: number;
@@ -46,6 +54,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
   const [description, setDescription] = useState('');
   const [primaryStyleId, setPrimaryStyleId] = useState<number | ''>('');
   const [additionalStyleIds, setAdditionalStyleIds] = useState<number[]>([]);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   
@@ -55,6 +64,13 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // AI suggestions modal state
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Tag[]>([]);
+  const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set());
+  const [createdTattooId, setCreatedTattooId] = useState<number | null>(null);
+  const [addingTag, setAddingTag] = useState<number | null>(null);
 
   // Load styles on component mount
   useEffect(() => {
@@ -69,8 +85,10 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
   const loadStyles = async () => {
     try {
       setLoadingStyles(true);
-      const response = await api.get('/styles');
-      setStyles(response.data || []);
+      const response = await api.get<any>('/styles');
+      // API returns { styles: [...] }
+      const stylesData = response.styles || response.data || response || [];
+      setStyles(Array.isArray(stylesData) ? stylesData : []);
     } catch (error) {
       console.error('Failed to load styles:', error);
       setError('Failed to load tattoo styles');
@@ -168,13 +186,20 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
     setSubmitting(true);
     setError(null);
 
+    console.log('Starting tattoo upload...', {
+      filesCount: selectedFiles.length,
+      description: description.substring(0, 50),
+      primaryStyleId,
+      tagsCount: selectedTags.length
+    });
+
     try {
       // Create FormData for the tattoo
       const formData = new FormData();
       
-      // Add images as 'files' array (matching existing API)
+      // Add images as 'files[]' array (Laravel expects bracket notation for arrays)
       selectedFiles.forEach((file) => {
-        formData.append('files', file);
+        formData.append('files[]', file);
       });
       
       // Add form fields
@@ -186,37 +211,83 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
         formData.append('additional_style_ids', JSON.stringify(additionalStyleIds));
       }
 
+      // Add selected tags
+      // Note: AI will also suggest additional tags after upload (see TagsAutocomplete comments)
+      if (selectedTags.length > 0) {
+        formData.append('tag_ids', JSON.stringify(selectedTags.map(t => t.id)));
+      }
+
       // Submit to existing API endpoint
-      const response = await api.post('/tattoos/create', formData, {
-        requiresAuth: true,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+      // Note: Do NOT set Content-Type header - browser must set it automatically with boundary
+      const response = await api.post<{
+        tattoo: any;
+        ai_suggested_tags: Tag[];
+      }>('/tattoos/create', formData, {
+        requiresAuth: true
       });
+
+      console.log('Tattoo upload response:', response);
 
       setSuccess(true);
       setError(null);
-      
+
       // Reset form
       setDescription('');
       setPrimaryStyleId('');
       setAdditionalStyleIds([]);
+      setSelectedTags([]);
       setSelectedFiles([]);
       previewUrls.forEach(url => URL.revokeObjectURL(url));
       setPreviewUrls([]);
 
-      // Call success callback
-      if (onSuccess) {
-        onSuccess();
+      // Check if we have AI suggestions to show
+      const suggestions = response.ai_suggested_tags || [];
+      if (suggestions.length > 0) {
+        setAiSuggestions(suggestions);
+        setCreatedTattooId(response.tattoo?.id || null);
+        setAddedSuggestions(new Set());
+        setShowSuggestionsModal(true);
+      } else {
+        // No suggestions, just call success callback
+        if (onSuccess) {
+          onSuccess();
+        }
       }
-
-      // Success - no redirect needed since we're using modals now
 
     } catch (error) {
       console.error('Failed to create tattoo:', error);
       setError(error instanceof Error ? error.message : 'Failed to create tattoo post');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Add an AI-suggested tag to the tattoo
+  const handleAddSuggestion = async (tag: Tag) => {
+    if (!createdTattooId || addedSuggestions.has(tag.id)) return;
+
+    setAddingTag(tag.id);
+    try {
+      await api.post(`/tattoos/${createdTattooId}/tags/add`, {
+        tag_id: tag.id
+      }, { requiresAuth: true });
+
+      setAddedSuggestions(prev => new Set([...prev, tag.id]));
+    } catch (error) {
+      console.error('Failed to add tag:', error);
+    } finally {
+      setAddingTag(null);
+    }
+  };
+
+  // Close suggestions modal and finish
+  const handleCloseSuggestions = () => {
+    setShowSuggestionsModal(false);
+    setAiSuggestions([]);
+    setCreatedTattooId(null);
+    setAddedSuggestions(new Set());
+    if (onSuccess) {
+      onSuccess();
     }
   };
 
@@ -362,8 +433,8 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
           </FormControl>
 
           {/* Additional Styles */}
-          <FormControl 
-            fullWidth 
+          <FormControl
+            fullWidth
             sx={{ mb: 3 }}
             disabled={submitting || loadingStyles}
           >
@@ -405,6 +476,26 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
             </Select>
           </FormControl>
 
+          {/* Tags */}
+          {/*
+           * IMPLEMENTED: AI-suggested tags shown in post-creation modal
+           *
+           * TODO: Future enhancement for custom tags:
+           * Allow users to type tags that don't exist in our database.
+           * These should be marked as "pending" until approved by an admin.
+           * Add a `status` field to tags table (approved, pending, rejected).
+           */}
+          <Box sx={{ mb: 3 }}>
+            <TagsAutocomplete
+              value={selectedTags}
+              onChange={setSelectedTags}
+              label="Tags (Optional)"
+              placeholder="Search and add tags..."
+              disabled={submitting}
+              maxTags={10}
+            />
+          </Box>
+
           {/* Submit Button */}
           <Button
             type="submit"
@@ -422,6 +513,83 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
           </Button>
         </Box>
       </CardContent>
+
+      {/* AI Tag Suggestions Modal */}
+      <Dialog
+        open={showSuggestionsModal}
+        onClose={handleCloseSuggestions}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            border: '1px solid #444',
+            color: 'white'
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <AiIcon sx={{ color: colors.accent }} />
+          AI Tag Suggestions
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ color: '#aaa', mb: 2 }}>
+            Our AI analyzed your tattoo and found these additional tags that might help people discover your work.
+            Click to add any that apply.
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {aiSuggestions.map((tag) => {
+              const isAdded = addedSuggestions.has(tag.id);
+              const isAdding = addingTag === tag.id;
+              return (
+                <Chip
+                  key={tag.id}
+                  label={tag.name}
+                  onClick={() => !isAdded && handleAddSuggestion(tag)}
+                  icon={
+                    isAdding ? (
+                      <CircularProgress size={16} sx={{ color: 'white' }} />
+                    ) : isAdded ? (
+                      <CheckIcon sx={{ fontSize: 18 }} />
+                    ) : (
+                      <AddIcon sx={{ fontSize: 18 }} />
+                    )
+                  }
+                  sx={{
+                    bgcolor: isAdded ? colors.accent : 'transparent',
+                    color: 'white',
+                    border: `1px solid ${isAdded ? colors.accent : '#666'}`,
+                    cursor: isAdded ? 'default' : 'pointer',
+                    '&:hover': {
+                      bgcolor: isAdded ? colors.accent : 'rgba(51, 153, 137, 0.2)',
+                    },
+                    '& .MuiChip-icon': {
+                      color: 'white',
+                    }
+                  }}
+                />
+              );
+            })}
+          </Box>
+          {aiSuggestions.length === 0 && (
+            <Typography variant="body2" sx={{ color: '#888', textAlign: 'center', py: 2 }}>
+              No additional suggestions at this time.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={handleCloseSuggestions}
+            variant="contained"
+            sx={{
+              bgcolor: colors.accent,
+              '&:hover': { bgcolor: colors.accentDark }
+            }}
+          >
+            {addedSuggestions.size > 0 ? 'Done' : 'Skip'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 };

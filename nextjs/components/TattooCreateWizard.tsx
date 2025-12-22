@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogActions,
   Box,
   Button,
   Typography,
@@ -13,7 +15,8 @@ import {
   Alert,
   CircularProgress,
   IconButton,
-  Switch
+  Switch,
+  Chip
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -21,12 +24,15 @@ import {
   Delete as DeleteIcon,
   ArrowBack,
   ArrowForward,
-  Check as CheckIcon
+  Check as CheckIcon,
+  AutoAwesome as AiIcon,
+  Add as AddIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useStyles } from '../contexts/StyleContext';
 import { api } from '../utils/api';
 import { colors } from '@/styles/colors';
+import TagsAutocomplete, { Tag } from './TagsAutocomplete';
 
 interface TattooCreateWizardProps {
   open: boolean;
@@ -57,12 +63,6 @@ const sizeOptions = [
   'Full Back'
 ];
 
-const subjectOptions = [
-  'Portrait', 'Animal', 'Floral', 'Geometric', 'Abstract',
-  'Skull', 'Mandala', 'Lettering', 'Nature', 'Mythical',
-  'Religious', 'Memorial', 'Cover-up', 'Custom Design'
-];
-
 const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, onSuccess }) => {
   const { user } = useAuth();
   const { styles: tattooStyles, loading: stylesLoading } = useStyles();
@@ -70,19 +70,20 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   // Wizard state
   const [activeStep, setActiveStep] = useState(0);
 
-  // Step 1: Upload
-  const [mainImage, setMainImage] = useState<File | null>(null);
-  const [mainPreview, setMainPreview] = useState<string>('');
+  // Step 1: Upload (supports multiple images)
+  const [images, setImages] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const MAX_IMAGES = 5;
 
   // Step 2: Details
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [placement, setPlacement] = useState('');
   const [size, setSize] = useState('');
-  const [hoursToComplete, setHoursToComplete] = useState<number | ''>('');
+  const [hoursToComplete, setHoursToComplete] = useState<number | ''>();
 
   // Step 3: Review
   const [isPublic, setIsPublic] = useState(true);
@@ -90,6 +91,13 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   // UI state
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // AI suggestions modal state
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Tag[]>([]);
+  const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set());
+  const [createdTattooId, setCreatedTattooId] = useState<number | null>(null);
+  const [addingTag, setAddingTag] = useState<number | null>(null);
 
   // Cleanup on close
   useEffect(() => {
@@ -101,24 +109,27 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   // Cleanup URLs on unmount
   useEffect(() => {
     return () => {
-      if (mainPreview) URL.revokeObjectURL(mainPreview);
+      previews.forEach(url => URL.revokeObjectURL(url));
     };
   }, []);
 
   const resetForm = () => {
     setActiveStep(0);
-    if (mainPreview) URL.revokeObjectURL(mainPreview);
-    setMainImage(null);
-    setMainPreview('');
+    previews.forEach(url => URL.revokeObjectURL(url));
+    setImages([]);
+    setPreviews([]);
     setTitle('');
     setDescription('');
     setSelectedStyles([]);
-    setSelectedSubjects([]);
+    setSelectedTags([]);
     setPlacement('');
     setSize('');
     setHoursToComplete('');
     setIsPublic(true);
     setError(null);
+    setAiSuggestions([]);
+    setAddedSuggestions(new Set());
+    setCreatedTattooId(null);
   };
 
   // Drag and drop handlers
@@ -146,39 +157,62 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      handleFileSelect(files[0]);
+      handleFilesSelect(Array.from(files));
     }
-  }, []);
+  }, [images.length]);
 
-  const handleFileSelect = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setError('Only image files are allowed');
+  const handleFilesSelect = (newFiles: File[]) => {
+    const remainingSlots = MAX_IMAGES - images.length;
+    if (remainingSlots <= 0) {
+      setError(`Maximum ${MAX_IMAGES} images allowed`);
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Images must be smaller than 10MB');
-      return;
+    const filesToAdd: File[] = [];
+    const previewsToAdd: string[] = [];
+
+    for (const file of newFiles) {
+      if (filesToAdd.length >= remainingSlots) {
+        setError(`Only ${remainingSlots} more image${remainingSlots > 1 ? 's' : ''} can be added`);
+        break;
+      }
+
+      if (!file.type.startsWith('image/')) {
+        setError('Only image files are allowed');
+        continue;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Images must be smaller than 10MB');
+        continue;
+      }
+
+      filesToAdd.push(file);
+      previewsToAdd.push(URL.createObjectURL(file));
     }
 
-    const previewUrl = URL.createObjectURL(file);
-    if (mainPreview) URL.revokeObjectURL(mainPreview);
-    setMainImage(file);
-    setMainPreview(previewUrl);
-    setError(null);
+    if (filesToAdd.length > 0) {
+      setImages(prev => [...prev, ...filesToAdd]);
+      setPreviews(prev => [...prev, ...previewsToAdd]);
+      if (!error || error.includes('more image')) {
+        setError(null);
+      }
+    }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      handleFileSelect(files[0]);
+      handleFilesSelect(Array.from(files));
     }
+    // Reset input so same file can be selected again
+    e.target.value = '';
   };
 
-  const removeImage = () => {
-    if (mainPreview) URL.revokeObjectURL(mainPreview);
-    setMainImage(null);
-    setMainPreview('');
+  const removeImage = (index: number) => {
+    URL.revokeObjectURL(previews[index]);
+    setImages(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   // Style toggle
@@ -190,17 +224,8 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     }
   };
 
-  // Subject toggle
-  const toggleSubject = (subject: string) => {
-    if (selectedSubjects.includes(subject)) {
-      setSelectedSubjects(selectedSubjects.filter(s => s !== subject));
-    } else {
-      setSelectedSubjects([...selectedSubjects, subject]);
-    }
-  };
-
   const handleNext = () => {
-    if (activeStep === 0 && !mainImage) {
+    if (activeStep === 0 && images.length === 0) {
       setError('Please upload at least one image');
       return;
     }
@@ -224,19 +249,19 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     try {
       const formData = new FormData();
 
-      // Add main image
-      if (mainImage) {
-        formData.append('files', mainImage);
-      }
+      // Add all images (use files[] for Laravel array syntax)
+      images.forEach(image => {
+        formData.append('files[]', image);
+      });
 
       // Add form fields
       formData.append('title', title.trim());
-      formData.append('description', description.trim());
+      formData.append('description', description.trim() || title.trim());
       formData.append('placement', placement);
       formData.append('size', size);
       formData.append('is_public', isPublic ? '1' : '0');
 
-      if (hoursToComplete !== '') {
+      if (hoursToComplete !== '' && hoursToComplete !== undefined) {
         formData.append('hours_to_complete', hoursToComplete.toString());
       }
 
@@ -246,19 +271,34 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         formData.append('primary_style_id', selectedStyles[0].toString());
       }
 
-      // Add subjects
-      if (selectedSubjects.length > 0) {
-        formData.append('subjects', JSON.stringify(selectedSubjects));
+      // Add tags
+      if (selectedTags.length > 0) {
+        formData.append('tag_ids', JSON.stringify(selectedTags.map(t => t.id)));
       }
 
-      await api.post('/tattoos/create', formData, {
+      const response = await api.post<{
+        tattoo: any;
+        ai_suggested_tags: Tag[];
+      }>('/tattoos/create', formData, {
         requiresAuth: true
       });
 
-      if (onSuccess) {
-        onSuccess();
+      console.log('Tattoo created:', response);
+
+      // Check if we have AI suggestions to show
+      const suggestions = response.ai_suggested_tags || [];
+      if (suggestions.length > 0) {
+        setAiSuggestions(suggestions);
+        setCreatedTattooId(response.tattoo?.id || null);
+        setAddedSuggestions(new Set());
+        setShowSuggestionsModal(true);
+      } else {
+        // No suggestions, finish up
+        if (onSuccess) {
+          onSuccess();
+        }
+        onClose();
       }
-      onClose();
 
     } catch (error) {
       console.error('Failed to create tattoo:', error);
@@ -268,10 +308,37 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     }
   };
 
+  // Add an AI-suggested tag to the tattoo
+  const handleAddSuggestion = async (tag: Tag) => {
+    if (!createdTattooId || addedSuggestions.has(tag.id)) return;
+
+    setAddingTag(tag.id);
+    try {
+      await api.post(`/tattoos/${createdTattooId}/tags/add`, {
+        tag_id: tag.id
+      }, { requiresAuth: true });
+
+      setAddedSuggestions(prev => new Set([...prev, tag.id]));
+    } catch (error) {
+      console.error('Failed to add tag:', error);
+    } finally {
+      setAddingTag(null);
+    }
+  };
+
+  // Close suggestions modal and finish
+  const handleCloseSuggestions = () => {
+    setShowSuggestionsModal(false);
+    if (onSuccess) {
+      onSuccess();
+    }
+    onClose();
+  };
+
   const isStepValid = () => {
     switch (activeStep) {
       case 0:
-        return mainImage !== null;
+        return images.length > 0;
       case 1:
         // Only require title - styles are optional
         return title.trim() !== '';
@@ -289,86 +356,129 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         Upload Your Tattoo
       </Typography>
       <Typography variant="body2" sx={{ mb: 4, color: colors.textSecondary }}>
-        Share your best work with the community
+        Share your best work with the community (up to {MAX_IMAGES} images)
       </Typography>
 
-      {/* Main Image Upload */}
-      <Box
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        sx={{
-          border: `2px dashed ${isDragging ? colors.accent : colors.border}`,
-          borderRadius: 2,
-          p: 4,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          bgcolor: isDragging ? 'rgba(201, 169, 98, 0.1)' : 'transparent',
-          transition: 'all 0.2s ease',
-          cursor: 'pointer',
-          minHeight: mainPreview ? 'auto' : 250,
-          position: 'relative',
-          '&:hover': {
-            borderColor: colors.accent,
-            bgcolor: 'rgba(201, 169, 98, 0.05)'
-          }
-        }}
-        component="label"
-      >
-        {mainPreview ? (
-          <Box sx={{ position: 'relative', display: 'inline-block' }}>
-            <img
-              src={mainPreview}
-              alt="Preview"
-              style={{
-                maxWidth: '100%',
-                maxHeight: 300,
-                borderRadius: 8,
-                objectFit: 'contain'
-              }}
-            />
-            <IconButton
-              onClick={(e) => {
-                e.preventDefault();
-                removeImage();
-              }}
-              sx={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                bgcolor: 'rgba(0, 0, 0, 0.7)',
-                color: 'white',
-                '&:hover': { bgcolor: colors.error }
-              }}
-            >
-              <DeleteIcon />
-            </IconButton>
+      {/* Image Thumbnails Grid */}
+      {previews.length > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+            gap: 2
+          }}>
+            {previews.map((preview, index) => (
+              <Box
+                key={index}
+                sx={{
+                  position: 'relative',
+                  aspectRatio: '1',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  border: index === 0 ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`,
+                }}
+              >
+                <img
+                  src={preview}
+                  alt={`Preview ${index + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                />
+                {index === 0 && (
+                  <Box sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    textAlign: 'center',
+                    py: 0.25,
+                    fontSize: 10,
+                    fontWeight: 600
+                  }}>
+                    PRIMARY
+                  </Box>
+                )}
+                <IconButton
+                  onClick={(e) => {
+                    e.preventDefault();
+                    removeImage(index);
+                  }}
+                  size="small"
+                  sx={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    bgcolor: 'rgba(0, 0, 0, 0.7)',
+                    color: 'white',
+                    p: 0.5,
+                    '&:hover': { bgcolor: colors.error }
+                  }}
+                >
+                  <DeleteIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Box>
+            ))}
           </Box>
-        ) : (
-          <>
-            <CloudUploadIcon sx={{ fontSize: 48, color: colors.textSecondary, mb: 2 }} />
-            <Typography variant="h6" sx={{ color: colors.textPrimary, mb: 0.5 }}>
-              Drag & drop your image here
-            </Typography>
-            <Typography variant="body2" sx={{ color: colors.textSecondary, mb: 1 }}>
-              or click to browse
-            </Typography>
+          <Typography variant="caption" sx={{ color: colors.textMuted, mt: 1, display: 'block' }}>
+            {images.length} of {MAX_IMAGES} images • First image is the primary image
+          </Typography>
+        </Box>
+      )}
+
+      {/* Drag & Drop Zone - always show if under max */}
+      {images.length < MAX_IMAGES && (
+        <Box
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          sx={{
+            border: `2px dashed ${isDragging ? colors.accent : colors.border}`,
+            borderRadius: 2,
+            p: previews.length > 0 ? 3 : 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            bgcolor: isDragging ? 'rgba(201, 169, 98, 0.1)' : 'transparent',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
+            minHeight: previews.length > 0 ? 120 : 250,
+            position: 'relative',
+            '&:hover': {
+              borderColor: colors.accent,
+              bgcolor: 'rgba(201, 169, 98, 0.05)'
+            }
+          }}
+          component="label"
+        >
+          <CloudUploadIcon sx={{ fontSize: previews.length > 0 ? 32 : 48, color: colors.textSecondary, mb: 1 }} />
+          <Typography variant={previews.length > 0 ? "body2" : "h6"} sx={{ color: colors.textPrimary, mb: 0.5 }}>
+            {previews.length > 0 ? 'Add more images' : 'Drag & drop your images here'}
+          </Typography>
+          <Typography variant="body2" sx={{ color: colors.textSecondary, mb: 1 }}>
+            or click to browse
+          </Typography>
+          {previews.length === 0 && (
             <Typography variant="caption" sx={{ color: colors.textMuted }}>
-              Supports JPG, PNG, WebP (Max 10MB)
+              Supports JPG, PNG, WebP (Max 10MB each)
             </Typography>
-          </>
-        )}
-        <input
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={handleFileInputChange}
-        />
-      </Box>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={handleFileInputChange}
+          />
+        </Box>
+      )}
     </Box>
   );
 
@@ -459,36 +569,21 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         )}
       </Box>
 
-      {/* Subject Tags */}
+      {/* Tags */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="subtitle2" sx={{ color: colors.textPrimary, mb: 2, fontWeight: 600 }}>
-          Subject Tags
+          Tags
         </Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          {subjectOptions.map((subject) => (
-            <Box
-              key={subject}
-              onClick={() => toggleSubject(subject)}
-              sx={{
-                px: 2,
-                py: 1,
-                borderRadius: 3,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                bgcolor: selectedSubjects.includes(subject) ? colors.textSecondary : 'transparent',
-                border: `1px solid ${selectedSubjects.includes(subject) ? colors.textSecondary : colors.border}`,
-                color: selectedSubjects.includes(subject) ? colors.background : colors.textSecondary,
-                '&:hover': {
-                  borderColor: colors.textSecondary
-                }
-              }}
-            >
-              <Typography variant="body2">
-                {subject}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
+        <TagsAutocomplete
+          value={selectedTags}
+          onChange={setSelectedTags}
+          label=""
+          placeholder="Search and add tags..."
+          maxTags={10}
+        />
+        <Typography variant="caption" sx={{ color: colors.textMuted, mt: 1, display: 'block' }}>
+          AI will suggest additional tags after upload
+        </Typography>
       </Box>
 
       {/* Placement, Size, Hours Row */}
@@ -591,17 +686,48 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
         {/* Preview */}
         <Box>
-          {mainPreview && (
-            <img
-              src={mainPreview}
-              alt="Preview"
-              style={{
-                width: '100%',
-                maxHeight: 400,
-                borderRadius: 8,
-                objectFit: 'contain'
-              }}
-            />
+          {previews.length > 0 && (
+            <>
+              {/* Primary image large */}
+              <img
+                src={previews[0]}
+                alt="Primary"
+                style={{
+                  width: '100%',
+                  maxHeight: 300,
+                  borderRadius: 8,
+                  objectFit: 'contain'
+                }}
+              />
+              {/* Additional images as thumbnails */}
+              {previews.length > 1 && (
+                <Box sx={{
+                  display: 'flex',
+                  gap: 1,
+                  mt: 2,
+                  overflowX: 'auto',
+                  pb: 1
+                }}>
+                  {previews.slice(1).map((preview, index) => (
+                    <img
+                      key={index}
+                      src={preview}
+                      alt={`Image ${index + 2}`}
+                      style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: 4,
+                        objectFit: 'cover',
+                        flexShrink: 0
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
+              <Typography variant="caption" sx={{ color: colors.textMuted, mt: 1, display: 'block' }}>
+                {images.length} image{images.length > 1 ? 's' : ''}
+              </Typography>
+            </>
           )}
         </Box>
 
@@ -648,15 +774,15 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
           )}
 
           {/* Subjects */}
-          {selectedSubjects.length > 0 && (
+          {selectedTags.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" sx={{ color: colors.textMuted, mb: 1, display: 'block' }}>
-                SUBJECTS
+                TAGS
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {selectedSubjects.map((subject) => (
+                {selectedTags.map((tag) => (
                   <Box
-                    key={subject}
+                    key={tag.id}
                     sx={{
                       px: 1.5,
                       py: 0.5,
@@ -666,7 +792,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
                     }}
                   >
                     <Typography variant="caption">
-                      {subject}
+                      {tag.name}
                     </Typography>
                   </Box>
                 ))}
@@ -768,6 +894,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   };
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={onClose}
@@ -918,6 +1045,85 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         </Box>
       </DialogContent>
     </Dialog>
+
+    {/* AI Tag Suggestions Modal */}
+    <Dialog
+      open={showSuggestionsModal}
+      onClose={handleCloseSuggestions}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          bgcolor: colors.background,
+          border: `1px solid ${colors.border}`,
+          color: colors.textPrimary
+        }
+      }}
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <AiIcon sx={{ color: colors.accent }} />
+        AI Tag Suggestions
+      </DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" sx={{ color: colors.textSecondary, mb: 3 }}>
+          Our AI analyzed your tattoo and found these additional tags that might help people discover your work.
+          Click to add any that apply.
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {aiSuggestions.map((tag) => {
+            const isAdded = addedSuggestions.has(tag.id);
+            const isAdding = addingTag === tag.id;
+            return (
+              <Chip
+                key={tag.id}
+                label={tag.name}
+                onClick={() => !isAdded && handleAddSuggestion(tag)}
+                icon={
+                  isAdding ? (
+                    <CircularProgress size={16} sx={{ color: 'white' }} />
+                  ) : isAdded ? (
+                    <CheckIcon sx={{ fontSize: 18 }} />
+                  ) : (
+                    <AddIcon sx={{ fontSize: 18 }} />
+                  )
+                }
+                sx={{
+                  bgcolor: isAdded ? colors.accent : 'transparent',
+                  color: isAdded ? colors.background : colors.textPrimary,
+                  border: `1px solid ${isAdded ? colors.accent : colors.border}`,
+                  cursor: isAdded ? 'default' : 'pointer',
+                  '&:hover': {
+                    bgcolor: isAdded ? colors.accent : 'rgba(201, 169, 98, 0.1)',
+                  },
+                  '& .MuiChip-icon': {
+                    color: isAdded ? colors.background : colors.textSecondary,
+                  }
+                }}
+              />
+            );
+          })}
+        </Box>
+        {aiSuggestions.length === 0 && (
+          <Typography variant="body2" sx={{ color: colors.textMuted, textAlign: 'center', py: 2 }}>
+            No additional suggestions at this time.
+          </Typography>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button
+          onClick={handleCloseSuggestions}
+          variant="contained"
+          sx={{
+            bgcolor: colors.accent,
+            color: colors.background,
+            '&:hover': { bgcolor: colors.accentHover }
+          }}
+        >
+          {addedSuggestions.size > 0 ? 'Done' : 'Skip'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 };
 

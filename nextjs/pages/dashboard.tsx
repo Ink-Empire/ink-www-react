@@ -28,6 +28,7 @@ import EditStudioModal from '../components/EditStudioModal';
 import AddArtistModal from '../components/AddArtistModal';
 import ClientDashboardContent from '../components/ClientDashboardContent';
 import ChangePasswordModal from '../components/ChangePasswordModal';
+import TattooCreateWizard from '../components/TattooCreateWizard';
 import LockIcon from '@mui/icons-material/Lock';
 
 // Types for dashboard data
@@ -133,6 +134,7 @@ export default function Dashboard() {
   const [editStudioOpen, setEditStudioOpen] = useState(false);
   const [addArtistOpen, setAddArtistOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [uploadTattooOpen, setUploadTattooOpen] = useState(false);
 
   // Studio data states
   const [studioData, setStudioData] = useState<any>(null);
@@ -426,6 +428,10 @@ export default function Dashboard() {
               View Public Profile
             </Button>
             <Button
+              onClick={() => {
+                console.log('Upload Tattoo clicked!');
+                setUploadTattooOpen(true);
+              }}
               sx={{
                 flex: { xs: 1, md: 'none' },
                 px: 2,
@@ -813,6 +819,7 @@ export default function Dashboard() {
                           No tattoos uploaded yet
                         </Typography>
                         <Button
+                          onClick={() => setUploadTattooOpen(true)}
                           sx={{
                             px: 2,
                             py: 0.75,
@@ -1310,6 +1317,20 @@ export default function Dashboard() {
       <ChangePasswordModal
         isOpen={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
+      />
+
+      {/* Upload Tattoo Wizard */}
+      <TattooCreateWizard
+        open={uploadTattooOpen}
+        onClose={() => setUploadTattooOpen(false)}
+        onSuccess={() => {
+          // Refresh tattoos list
+          if (user?.id) {
+            api.get(`/artists/${user.id}/portfolio`).then((response: any) => {
+              setArtistTattoos(response.tattoos || []);
+            }).catch(console.error);
+          }
+        }}
       />
 
       {/* Hidden file input for avatar upload */}

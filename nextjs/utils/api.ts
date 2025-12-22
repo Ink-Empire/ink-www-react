@@ -181,15 +181,20 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   const token = getToken(`api-${method}-${endpoint}`);
 
   // Determine credentials mode:
-  // - If we have a Bearer token, DON'T send cookies (forces Sanctum to use token)
-  // - If no token, include cookies for session-based auth
+  // - For authenticated non-GET requests with token: omit cookies (forces Sanctum to use token)
+  // - For GET requests or requests without token: include cookies
   let credentialsMode: RequestCredentials = 'include';
 
   if (token) {
     requestHeaders['Authorization'] = `Bearer ${token}`;
-    // Don't send cookies when using Bearer token - prevents session cookie from overriding token auth
-    credentialsMode = 'omit';
-    console.log(`Using Bearer token for ${method} ${endpoint} (not sending cookies)`);
+    // Only omit cookies for non-GET requests to prevent session cookie from overriding token auth
+    // GET requests are usually safe and may need cookies for CORS
+    if (method !== 'GET') {
+      credentialsMode = 'omit';
+      console.log(`Using Bearer token for ${method} ${endpoint} (not sending cookies)`);
+    } else {
+      console.log(`Using Bearer token for ${method} ${endpoint} (with cookies for CORS)`);
+    }
   } else if (requiresAuth) {
     // No token found but auth required - warn about this
     console.warn(`No auth token found for ${method} ${endpoint} - falling back to session auth`);
