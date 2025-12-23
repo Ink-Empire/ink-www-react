@@ -232,14 +232,14 @@ const RegisterStepTwo: React.FC = () => {
           const csrfToken = getCsrfToken();
           
           // First upload the profile image
+          // Use credentials: 'omit' when using Bearer token to avoid CSRF issues
           const imageResponse = await fetch(`/api/users/profile-photo`, {
             method: 'POST',
             body: formData,
-            credentials: 'include',
+            credentials: authToken ? 'omit' : 'include',
             headers: {
               'Authorization': `Bearer ${authToken}`,
-              'X-XSRF-TOKEN': csrfToken || '',
-              'X-Requested-With': 'XMLHttpRequest' // This is important for Laravel to recognize the request as AJAX
+              'X-Requested-With': 'XMLHttpRequest'
             }
           });
           
@@ -284,23 +284,22 @@ const RegisterStepTwo: React.FC = () => {
         } catch (contextErr) {
           console.error('Context updateUser failed, trying direct API call:', contextErr);
           
-          // Make a direct PUT request with explicit auth and CSRF headers
-          const csrfToken = getCsrfToken();
-          const headers = {
+          // Make a direct PUT request with explicit auth headers
+          // Use credentials: 'omit' when using Bearer token to avoid CSRF issues
+          const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`,
-            'X-XSRF-TOKEN': csrfToken || '',
-            'X-Requested-With': 'XMLHttpRequest' // This is important for Laravel to recognize the request as AJAX
+            'X-Requested-With': 'XMLHttpRequest'
           };
-          
+
           console.log('Sending update with headers for user ID:', userId);
-          
+
           // Use the explicit user ID from URL or localStorage, never rely on context
           const response = await fetch(`/api/users/${userId}`, {
             method: 'PUT',
             headers: headers,
             body: JSON.stringify(payload),
-            credentials: 'include'
+            credentials: authToken ? 'omit' : 'include'
           });
           
           if (!response.ok) {
@@ -375,7 +374,7 @@ const RegisterStepTwo: React.FC = () => {
           const response = await fetch(`/api/users/${currentUserId}`, {
             method: 'GET',
             headers: headers,
-            credentials: 'include'
+            credentials: token ? 'omit' : 'include'
           });
           
           if (response.ok) {
