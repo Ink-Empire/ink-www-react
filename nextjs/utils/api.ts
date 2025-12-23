@@ -169,16 +169,17 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     requestHeaders['Content-Type'] = 'application/json';
   }
 
-  // Add CSRF token header for non-GET requests
-  if (method !== 'GET' && typeof document !== 'undefined') {
+  // Check for bearer token (if using token-based auth)
+  const token = getToken(`api-${method}-${endpoint}`);
+
+  // Only add CSRF token header for non-GET requests when NOT using Bearer token
+  // Bearer token auth doesn't need CSRF protection
+  if (method !== 'GET' && typeof document !== 'undefined' && !token) {
     const csrfToken = getCsrfToken();
     if (csrfToken) {
       requestHeaders['X-XSRF-TOKEN'] = csrfToken;
     }
   }
-
-  // Check for bearer token (if using token-based auth)
-  const token = getToken(`api-${method}-${endpoint}`);
 
   // Determine credentials mode:
   // - For authenticated non-GET requests with token: omit cookies (forces Sanctum to use token)
