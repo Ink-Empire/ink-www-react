@@ -846,12 +846,12 @@ export default function StudioDetail() {
                             }}>
                               {tattoo.title || 'Untitled'}
                             </Typography>
-                            {tattoo.artist?.name && (
+                            {tattoo.artist_name && (
                               <Typography sx={{
                                 fontSize: '0.8rem',
                                 color: colors.textSecondary
                               }}>
-                                by {tattoo.artist.name}
+                                by {tattoo.artist_name}
                               </Typography>
                             )}
                           </Box>

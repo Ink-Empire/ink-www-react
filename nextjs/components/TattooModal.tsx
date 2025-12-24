@@ -109,13 +109,13 @@ const TattooModal: React.FC<TattooModalProps> = ({
   };
 
   const handleFollowArtist = async () => {
-    if (!tattoo?.artist?.id) return;
+    if (!tattoo?.artist_id) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
     try {
-      await userData?.toggleFavorite('artist', tattoo.artist.id);
+      await userData?.toggleFavorite('artist', tattoo.artist_id);
       setIsArtistFollowed(!isArtistFollowed);
     } catch (error) {
       console.error('Error following artist:', error);
@@ -165,13 +165,11 @@ const TattooModal: React.FC<TattooModalProps> = ({
   const currentImageUri = allImages[selectedImageIndex]?.uri || getPrimaryImageUri();
 
   const getArtistAvatarUri = () => {
-    const img = tattoo?.artist?.image;
-    if (typeof img === 'string') return img;
-    return tattoo?.artist?.primary_image?.uri || img?.uri || null;
+    return tattoo?.artist_image_uri || null;
   };
 
   const getArtistInitials = () => {
-    const name = tattoo?.artist?.name || '';
+    const name = tattoo?.artist_name || '';
     return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
@@ -187,7 +185,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
 
   const getArtistLocation = () => {
     const studio = tattoo?.studio?.name;
-    const location = tattoo?.studio?.location || tattoo?.artist?.location;
+    const location = tattoo?.studio?.location;
     if (studio && location) return `${studio} · ${location}`;
     return studio || location || '';
   };
@@ -461,7 +459,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 <Box sx={{ flex: 1 }}>
                   <Typography
                     component={Link}
-                    href={`/artists/${tattoo?.artist?.slug || tattoo?.artist?.id}`}
+                    href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
                     sx={{
                       fontWeight: 600,
                       fontSize: '0.95rem',
@@ -470,7 +468,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       '&:hover': { color: colors.accent },
                     }}
                   >
-                    {artistName || tattoo?.artist?.name || 'Unknown Artist'}
+                    {artistName || tattoo?.artist_name || 'Unknown Artist'}
                   </Typography>
                   {getArtistLocation() && (
                     <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>

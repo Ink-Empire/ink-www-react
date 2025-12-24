@@ -19,7 +19,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
     const user = useUserData();
 
     const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
-    const artistImageUri = tattoo.artist?.primary_image?.uri || tattoo.artist?.image?.uri;
+    const artistImageUri = tattoo.artist_image_uri;
 
     React.useEffect(() => {
         if (user?.favorites?.tattoos && tattoo.id) {
@@ -62,7 +62,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
 
     // Get artist initials for avatar fallback
     const getArtistInitials = () => {
-        const name = tattoo.artist?.name;
+        const name = tattoo.artist_name;
         if (!name) return 'A';
         const parts = name.split(' ');
         if (parts.length >= 2) {
@@ -106,7 +106,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
             }}>
                 {/* Artist Avatar */}
                 <Link
-                    href={`/artists/${tattoo.artist?.slug || tattoo.artist?.id}`}
+                    href={`/artists/${tattoo.artist_slug || tattoo.artist_id}`}
                     onClick={(e) => e.stopPropagation()}
                     style={{ textDecoration: 'none' }}
                 >
@@ -123,7 +123,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         }}>
                             <Image
                                 src={artistImageUri}
-                                alt={tattoo.artist?.name || 'Artist'}
+                                alt={tattoo.artist_name || 'Artist'}
                                 fill
                                 style={{ objectFit: 'cover' }}
                             />
@@ -148,7 +148,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                 {/* Info */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Link
-                        href={`/artists/${tattoo.artist?.slug || tattoo.artist?.id}`}
+                        href={`/artists/${tattoo.artist_slug || tattoo.artist_id}`}
                         onClick={(e) => e.stopPropagation()}
                         style={{ textDecoration: 'none' }}
                     >
@@ -163,7 +163,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                             transition: 'color 0.15s ease',
                             '&:hover': { color: colors.accent }
                         }}>
-                            {tattoo.artist?.name || 'Unknown Artist'}
+                            {tattoo.artist_name || 'Unknown Artist'}
                         </Typography>
                     </Link>
                     {tattoo.studio?.name && (

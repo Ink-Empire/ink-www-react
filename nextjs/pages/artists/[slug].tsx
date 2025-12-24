@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -103,7 +103,9 @@ export default function ArtistDetail() {
     };
 
     const handleUploadSuccess = (tattooId: number) => {
-        router.replace(router.asPath);
+        // Refetch portfolio from tattoos index to get the new tattoo
+        fetchPortfolio();
+        setUploadModalOpen(false);
     };
 
     const handleDateSelected = (date: Date, workingHoursData: any, bookingType: 'consultation' | 'appointment') => {
