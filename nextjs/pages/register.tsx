@@ -166,7 +166,7 @@ const RegisterPage: React.FC = () => {
         email: data.credentials?.email || '',
         password: data.credentials?.password || '',
         password_confirmation: data.credentials?.password_confirmation || '',
-        bio: data.userDetails?.bio || '',
+        about: data.userDetails?.bio || '',
         location: data.userDetails?.location || '',
         location_lat_long: data.userDetails?.locationLatLong || '',
         type: data.userType === 'client' ? 'user' : data.userType,

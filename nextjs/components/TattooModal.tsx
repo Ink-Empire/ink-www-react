@@ -783,7 +783,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 {/* Comment Input */}
                 <Box sx={{ display: 'flex', gap: '0.75rem', mb: '1rem' }}>
                   <Avatar
-                    src={user?.image || undefined}
+                    src={user?.image?.uri || undefined}
                     sx={{
                       width: 32,
                       height: 32,
@@ -792,7 +792,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       color: colors.accent,
                     }}
                   >
-                    {!user?.image && getUserInitials()}
+                    {!user?.image?.uri && getUserInitials()}
                   </Avatar>
                   <Box
                     component="input"

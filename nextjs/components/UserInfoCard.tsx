@@ -62,7 +62,7 @@ const UserInfoCard: React.FC = () => {
       <CardContent sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
           <Avatar
-            src={user.image || undefined}
+            src={user.image?.uri || undefined}
             alt={user.name || 'User profile'}
             sx={{ 
               width: 64, 

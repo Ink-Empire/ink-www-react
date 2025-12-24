@@ -53,21 +53,46 @@ const searchLocations = async (query: string): Promise<LocationOption[]> => {
 
     const data = await response.json();
 
-    // Filter to only include cities/towns/villages, exclude counties and other admin boundaries
+    // Filter to exclude non-place results like counties, but be lenient to include cities
     const filteredResults = data.filter((result: any) => {
       const type = result.type?.toLowerCase() || '';
       const classType = result.class?.toLowerCase() || '';
+      const displayName = result.display_name?.toLowerCase() || '';
 
-      // Exclude counties and administrative boundaries
-      if (type === 'county' || type === 'administrative' || type === 'state') {
+      // Strictly exclude these types
+      const excludeTypes = ['county', 'state', 'country', 'continent'];
+      if (excludeTypes.includes(type)) {
         return false;
       }
 
-      // Include cities, towns, villages, and places
-      const validTypes = ['city', 'town', 'village', 'hamlet', 'municipality', 'suburb', 'neighbourhood'];
-      const validClasses = ['place', 'boundary'];
+      // Exclude administrative boundaries unless they have city/town in the name
+      if (type === 'administrative' && !displayName.includes('city')) {
+        return false;
+      }
 
-      return validTypes.includes(type) || (validClasses.includes(classType) && type !== 'county');
+      // Include anything with these types
+      const validTypes = ['city', 'town', 'village', 'hamlet', 'municipality', 'suburb', 'neighbourhood', 'residential'];
+      if (validTypes.includes(type)) {
+        return true;
+      }
+
+      // Include results from 'place' class (most cities)
+      if (classType === 'place') {
+        return true;
+      }
+
+      // Include boundary class if it's not a county/state
+      if (classType === 'boundary' && !excludeTypes.includes(type)) {
+        return true;
+      }
+
+      // Include if it has address details with a city
+      const address = result.address || {};
+      if (address.city || address.town || address.village) {
+        return true;
+      }
+
+      return false;
     });
 
     return filteredResults.slice(0, 5).map((result: any) => {
