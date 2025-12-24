@@ -43,13 +43,40 @@ export default function ArtistDetail() {
     const isOwner = isAuthenticated && user && (user.slug === slug || user.id === artist?.id);
     const portfolio = artist?.tattoos || [];
 
-    // Get unique styles from artist
+    // Get unique styles from artist or their tattoos
     const artistStyles = useMemo(() => {
-        if (!artist?.styles) return [];
-        return artist.styles.map((style: any) =>
-            typeof style === 'string' ? style : style.name
-        );
-    }, [artist?.styles]);
+        const styles = new Set<string>();
+
+        // First try artist's declared styles
+        if (artist?.styles && artist.styles.length > 0) {
+            artist.styles.forEach((style: any) => {
+                const name = typeof style === 'string' ? style : style.name;
+                if (name) styles.add(name);
+            });
+        }
+
+        // Also collect styles from their tattoos
+        if (portfolio && portfolio.length > 0) {
+            portfolio.forEach((tattoo: any) => {
+                // Check primary_style
+                if (tattoo.primary_style) {
+                    const name = typeof tattoo.primary_style === 'string'
+                        ? tattoo.primary_style
+                        : tattoo.primary_style.name;
+                    if (name) styles.add(name);
+                }
+                // Check styles array
+                if (tattoo.styles && Array.isArray(tattoo.styles)) {
+                    tattoo.styles.forEach((style: any) => {
+                        const name = typeof style === 'string' ? style : style.name;
+                        if (name) styles.add(name);
+                    });
+                }
+            });
+        }
+
+        return Array.from(styles);
+    }, [artist?.styles, portfolio]);
 
     // Filter portfolio by selected style
     const filteredPortfolio = useMemo(() => {

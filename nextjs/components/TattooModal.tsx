@@ -52,6 +52,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
   const [isTattooSaved, setIsTattooSaved] = useState(tattooFavorite);
   const [isArtistFollowed, setIsArtistFollowed] = useState(artistFavorite);
   const [likeCount, setLikeCount] = useState(0);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Sync state with props
   useEffect(() => {
@@ -59,11 +60,13 @@ const TattooModal: React.FC<TattooModalProps> = ({
     setIsArtistFollowed(artistFavorite);
   }, [tattooFavorite, artistFavorite]);
 
-  // Initialize like count from tattoo data
+  // Initialize like count from tattoo data and reset selected image
   useEffect(() => {
     if (tattoo?.likes_count) {
       setLikeCount(tattoo.likes_count);
     }
+    // Reset to first image when tattoo changes
+    setSelectedImageIndex(0);
   }, [tattoo]);
 
   // Handle keyboard navigation
@@ -119,9 +122,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
     }
   };
 
-  const handleTagClick = (tagId: number, tagName: string) => {
+  const handleTagClick = (tagName: string) => {
     onClose();
-    router.push({ pathname: '/tattoos', query: { tags: tagId } });
+    router.push({ pathname: '/tattoos', query: { tag: tagName } });
   };
 
   const handleStyleClick = (styleName: string) => {
@@ -132,6 +135,34 @@ const TattooModal: React.FC<TattooModalProps> = ({
   const getPrimaryImageUri = () => {
     return tattoo?.primary_image?.uri || tattoo?.image?.uri || null;
   };
+
+  // Get all images for the tattoo (images array, falling back to primary_image)
+  const getAllImages = () => {
+    const images: { uri: string }[] = [];
+
+    // Add images from the images array
+    if (tattoo?.images && Array.isArray(tattoo.images)) {
+      tattoo.images.forEach((img: any) => {
+        const uri = typeof img === 'string' ? img : img?.uri;
+        if (uri) {
+          images.push({ uri });
+        }
+      });
+    }
+
+    // If no images found, try primary_image
+    if (images.length === 0) {
+      const primaryUri = getPrimaryImageUri();
+      if (primaryUri) {
+        images.push({ uri: primaryUri });
+      }
+    }
+
+    return images;
+  };
+
+  const allImages = tattoo ? getAllImages() : [];
+  const currentImageUri = allImages[selectedImageIndex]?.uri || getPrimaryImageUri();
 
   const getArtistAvatarUri = () => {
     const img = tattoo?.artist?.image;
@@ -288,15 +319,93 @@ const TattooModal: React.FC<TattooModalProps> = ({
           >
             {loading ? (
               <Box sx={{ color: colors.textSecondary }}>Loading...</Box>
-            ) : getPrimaryImageUri() ? (
-              <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: { xs: '300px', md: '500px' } }}>
-                <Image
-                  src={getPrimaryImageUri()!}
-                  alt={tattoo?.title || 'Tattoo'}
-                  fill
-                  style={{ objectFit: 'contain' }}
-                />
-              </Box>
+            ) : currentImageUri ? (
+              <>
+                {/* Main Image */}
+                <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: { xs: '300px', md: '500px' } }}>
+                  <Image
+                    src={currentImageUri}
+                    alt={tattoo?.title || 'Tattoo'}
+                    fill
+                    style={{ objectFit: 'contain' }}
+                  />
+                </Box>
+
+                {/* Carousel Navigation - only show if more than 1 image */}
+                {allImages.length > 1 && (
+                  <>
+                    {/* Previous Arrow */}
+                    <IconButton
+                      onClick={() => setSelectedImageIndex(prev => prev > 0 ? prev - 1 : allImages.length - 1)}
+                      sx={{
+                        position: 'absolute',
+                        left: '0.75rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 40,
+                        height: 40,
+                        bgcolor: 'rgba(0, 0, 0, 0.5)',
+                        color: colors.textPrimary,
+                        '&:hover': {
+                          bgcolor: 'rgba(0, 0, 0, 0.7)',
+                        },
+                      }}
+                    >
+                      <ChevronLeftIcon />
+                    </IconButton>
+
+                    {/* Next Arrow */}
+                    <IconButton
+                      onClick={() => setSelectedImageIndex(prev => prev < allImages.length - 1 ? prev + 1 : 0)}
+                      sx={{
+                        position: 'absolute',
+                        right: '0.75rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 40,
+                        height: 40,
+                        bgcolor: 'rgba(0, 0, 0, 0.5)',
+                        color: colors.textPrimary,
+                        '&:hover': {
+                          bgcolor: 'rgba(0, 0, 0, 0.7)',
+                        },
+                      }}
+                    >
+                      <ChevronRightIcon />
+                    </IconButton>
+
+                    {/* Dot Indicators */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: '1rem',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        display: 'flex',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      {allImages.map((_, index) => (
+                        <Box
+                          key={index}
+                          onClick={() => setSelectedImageIndex(index)}
+                          sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: index === selectedImageIndex ? colors.accent : 'rgba(255, 255, 255, 0.5)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              bgcolor: index === selectedImageIndex ? colors.accent : 'rgba(255, 255, 255, 0.8)',
+                            },
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  </>
+                )}
+              </>
             ) : (
               <Box
                 sx={{
@@ -460,14 +569,13 @@ const TattooModal: React.FC<TattooModalProps> = ({
 
                 {/* Subject Tags (Red/Coral) */}
                 {tattoo?.tags?.map((tag: any, index: number) => {
-                  const tagId = typeof tag === 'object' ? tag?.id : null;
                   const tagName = typeof tag === 'string' ? tag : tag?.tag || tag?.name;
-                  if (!tagName || !tagId) return null;
+                  if (!tagName) return null;
                   return (
                     <Box
                       key={`tag-${index}`}
                       component="span"
-                      onClick={() => handleTagClick(tagId, tagName)}
+                      onClick={() => handleTagClick(tagName)}
                       sx={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -660,7 +768,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               </Box>
 
               {/* Details Section */}
-              {(tattoo?.placement || tattoo?.size || tattoo?.sessions || tattoo?.created_at) && (
+              {(tattoo?.placement || tattoo?.duration) && (
                 <Box sx={{ mb: '1.5rem' }}>
                   <Typography
                     sx={{
@@ -675,55 +783,19 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     Details
                   </Typography>
 
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-                      gap: '0.75rem',
-                    }}
-                  >
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {tattoo?.placement && (
-                      <Box sx={{ bgcolor: colors.background, p: '0.75rem', borderRadius: '6px' }}>
-                        <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mb: '0.2rem' }}>
-                          Placement
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                          {tattoo.placement}
-                        </Typography>
-                      </Box>
+                      <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary }}>
+                        <Box component="span" sx={{ color: colors.textSecondary }}>Placement:</Box>{' '}
+                        <Box component="span" sx={{ textTransform: 'capitalize' }}>{tattoo.placement}</Box>
+                      </Typography>
                     )}
 
-                    {tattoo?.size && (
-                      <Box sx={{ bgcolor: colors.background, p: '0.75rem', borderRadius: '6px' }}>
-                        <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mb: '0.2rem' }}>
-                          Size
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                          {tattoo.size}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {tattoo?.sessions && (
-                      <Box sx={{ bgcolor: colors.background, p: '0.75rem', borderRadius: '6px' }}>
-                        <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mb: '0.2rem' }}>
-                          Sessions
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                          {tattoo.sessions} {tattoo.sessions === 1 ? 'session' : 'sessions'}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {tattoo?.created_at && (
-                      <Box sx={{ bgcolor: colors.background, p: '0.75rem', borderRadius: '6px' }}>
-                        <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, mb: '0.2rem' }}>
-                          Completed
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                          {formatDate(tattoo.created_at)}
-                        </Typography>
-                      </Box>
+                    {tattoo?.duration && (
+                      <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary }}>
+                        <Box component="span" sx={{ color: colors.textSecondary }}>Duration:</Box>{' '}
+                        {tattoo.duration} {tattoo.duration === 1 ? 'hour' : 'hours'}
+                      </Typography>
                     )}
                   </Box>
                 </Box>

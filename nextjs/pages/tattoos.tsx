@@ -108,6 +108,14 @@ export default function TattoosPage() {
     return [Number(tagsParam)].filter(n => !isNaN(n));
   };
 
+  // Get tag names from query (for direct tag name filtering)
+  const getTagNamesFromQuery = (): string[] => {
+    const tagParam = router.query.tag;
+    if (!tagParam) return [];
+    if (Array.isArray(tagParam)) return tagParam.filter(Boolean);
+    return [tagParam].filter(Boolean);
+  };
+
   // Initialize with user preferences
   const initialSearchParams = useMemo(() => {
     const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
@@ -116,6 +124,7 @@ export default function TattoosPage() {
       searchString: (router.query.search || router.query.searchString || "") as string,
       styles: getStylesFromQuery(),
       tags: getTagsFromQuery(),
+      tagNames: getTagNamesFromQuery(),
       applySavedStyles: false,
       booksOpen: false,
       ...locationSettings,
@@ -123,7 +132,7 @@ export default function TattoosPage() {
       subject: "tattoos",
       studio_id: studio_id || undefined,
     };
-  }, [me?.location_lat_long, studio_id, router.query.searchString, router.query.search, router.query.styles, router.query.tags]);
+  }, [me?.location_lat_long, studio_id, router.query.searchString, router.query.search, router.query.styles, router.query.tags, router.query.tag]);
 
   // Check if there's a style in the URL to pass to SearchFilters
   const urlStyleParam = (router.query.styleSearch || router.query.style) as string | undefined;
@@ -159,16 +168,18 @@ export default function TattoosPage() {
     const searchString = (router.query.search || router.query.searchString) as string;
     const stylesFromUrl = getStylesFromQuery();
     const tagsFromUrl = getTagsFromQuery();
+    const tagNamesFromUrl = getTagNamesFromQuery();
 
-    if (searchString || stylesFromUrl.length > 0 || tagsFromUrl.length > 0) {
+    if (searchString || stylesFromUrl.length > 0 || tagsFromUrl.length > 0 || tagNamesFromUrl.length > 0) {
       setSearchParams((prev) => ({
         ...prev,
         ...(searchString && { searchString }),
         ...(stylesFromUrl.length > 0 && { styles: stylesFromUrl }),
         ...(tagsFromUrl.length > 0 && { tags: tagsFromUrl }),
+        ...(tagNamesFromUrl.length > 0 && { tagNames: tagNamesFromUrl }),
       }));
     }
-  }, [router.query.search, router.query.searchString, router.query.styles, router.query.tags]);
+  }, [router.query.search, router.query.searchString, router.query.styles, router.query.tags, router.query.tag]);
 
   // Handle filter changes from SearchFilters component
   const handleFilterChange = (filters: {
@@ -254,6 +265,13 @@ export default function TattoosPage() {
       });
     }
 
+    // Also show tagNames (when filtering by tag name directly, e.g., from TattooModal)
+    if (searchParams.tagNames && searchParams.tagNames.length > 0) {
+      searchParams.tagNames.forEach((tagName: string) => {
+        filters.push({ label: tagName, key: 'tagName', value: tagName });
+      });
+    }
+
     if (searchParams.useMyLocation) {
       filters.push({ label: 'Near me', key: 'location' });
     } else if (searchParams.useAnyLocation) {
@@ -291,6 +309,13 @@ export default function TattoosPage() {
         break;
       case 'tag':
         newParams.tags = newParams.tags.filter((id: number) => id !== value);
+        break;
+      case 'tagName':
+        newParams.tagNames = (newParams.tagNames || []).filter((name: string) => name !== value);
+        // Also clear URL query param
+        if (newParams.tagNames.length === 0) {
+          router.push('/tattoos', undefined, { shallow: true });
+        }
         break;
       case 'location':
         newParams.useAnyLocation = true;
