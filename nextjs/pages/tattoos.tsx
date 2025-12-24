@@ -41,6 +41,9 @@ export default function TattoosPage() {
   // State to track dismissed styles (to prevent them from returning)
   const [dismissedStyles, setDismissedStyles] = useState<number[]>([]);
 
+  // State for new user fallback (remove location filter if no results)
+  const [hasAttemptedFallback, setHasAttemptedFallback] = useState(false);
+
   // UI state
   const [sortBy, setSortBy] = useState('relevant');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -98,8 +101,30 @@ export default function TattoosPage() {
     const stylesParam = router.query.styles;
     if (!stylesParam) return [];
     if (Array.isArray(stylesParam)) return stylesParam.map(Number).filter(n => !isNaN(n));
+    // Handle comma-separated string (e.g., "1,2,3")
+    if (typeof stylesParam === 'string' && stylesParam.includes(',')) {
+      return stylesParam.split(',').map(Number).filter(n => !isNaN(n));
+    }
     return [Number(stylesParam)].filter(n => !isNaN(n));
   };
+
+  // Parse location coordinates from URL (format: "lat,lng")
+  const getLocationCoordsFromQuery = () => {
+    const coordsParam = router.query.locationCoords as string;
+    if (!coordsParam) return null;
+    const parts = coordsParam.split(',');
+    if (parts.length === 2) {
+      const lat = parseFloat(parts[0]);
+      const lng = parseFloat(parts[1]);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng };
+      }
+    }
+    return null;
+  };
+
+  // Check if this is a new user redirect that should try location fallback
+  const isNewUserRedirect = router.query.newUser === 'true';
 
   const getTagsFromQuery = () => {
     const tagsParam = router.query.tags;
@@ -119,6 +144,22 @@ export default function TattoosPage() {
   // Initialize with user preferences
   const initialSearchParams = useMemo(() => {
     const locationSettings = distancePreferences.getDefaultLocationSettings(!!me?.location_lat_long);
+    const urlLocationCoords = getLocationCoordsFromQuery();
+    const urlDistance = router.query.distance ? parseInt(router.query.distance as string, 10) : null;
+
+    // If URL has location coords, use those instead of default settings
+    const locationOverrides: Record<string, any> = {};
+    if (urlLocationCoords && urlDistance) {
+      locationOverrides.locationCoords = urlLocationCoords;
+      locationOverrides.distance = urlDistance;
+      locationOverrides.useAnyLocation = false;
+      locationOverrides.useMyLocation = false;
+      // Set location for API query
+      locationOverrides.artist_near_me = {
+        latitude: urlLocationCoords.lat,
+        longitude: urlLocationCoords.lng
+      };
+    }
 
     return {
       searchString: (router.query.search || router.query.searchString || "") as string,
@@ -128,11 +169,12 @@ export default function TattoosPage() {
       applySavedStyles: false,
       booksOpen: false,
       ...locationSettings,
+      ...locationOverrides,
       distanceUnit: "mi",
       subject: "tattoos",
       studio_id: studio_id || undefined,
     };
-  }, [me?.location_lat_long, studio_id, router.query.searchString, router.query.search, router.query.styles, router.query.tags, router.query.tag]);
+  }, [me?.location_lat_long, studio_id, router.query.searchString, router.query.search, router.query.styles, router.query.tags, router.query.tag, router.query.locationCoords, router.query.distance]);
 
   // Check if there's a style in the URL to pass to SearchFilters
   const urlStyleParam = (router.query.styleSearch || router.query.style) as string | undefined;
@@ -142,6 +184,35 @@ export default function TattoosPage() {
 
   // Fetch tattoos based on search params
   const { tattoos, loading, error } = useTattoos(searchParams);
+
+  // New user fallback: if no results with location filter, try without location
+  useEffect(() => {
+    if (
+      isNewUserRedirect &&
+      !loading &&
+      !hasAttemptedFallback &&
+      tattoos &&
+      tattoos.length === 0 &&
+      (searchParams.artist_near_me || searchParams.locationCoords)
+    ) {
+      console.log('New user search returned 0 results with location - removing location filter');
+      setHasAttemptedFallback(true);
+      setSearchParams((prev) => {
+        const newParams = { ...prev };
+        delete newParams.artist_near_me;
+        delete newParams.locationCoords;
+        delete newParams.distance;
+        newParams.useAnyLocation = true;
+        return newParams;
+      });
+      // Also update URL to remove location params
+      const newQuery = { ...router.query };
+      delete newQuery.locationCoords;
+      delete newQuery.distance;
+      delete newQuery.newUser;
+      router.replace({ pathname: router.pathname, query: newQuery }, undefined, { shallow: true });
+    }
+  }, [isNewUserRedirect, loading, tattoos, searchParams, hasAttemptedFallback, router]);
 
   // When we get tattoo data back, try to find the studio name based on the studio_id
   useEffect(() => {
@@ -169,17 +240,31 @@ export default function TattoosPage() {
     const stylesFromUrl = getStylesFromQuery();
     const tagsFromUrl = getTagsFromQuery();
     const tagNamesFromUrl = getTagNamesFromQuery();
+    const urlLocationCoords = getLocationCoordsFromQuery();
+    const urlDistance = router.query.distance ? parseInt(router.query.distance as string, 10) : null;
 
-    if (searchString || stylesFromUrl.length > 0 || tagsFromUrl.length > 0 || tagNamesFromUrl.length > 0) {
-      setSearchParams((prev) => ({
-        ...prev,
-        ...(searchString && { searchString }),
-        ...(stylesFromUrl.length > 0 && { styles: stylesFromUrl }),
-        ...(tagsFromUrl.length > 0 && { tags: tagsFromUrl }),
-        ...(tagNamesFromUrl.length > 0 && { tagNames: tagNamesFromUrl }),
-      }));
+    const updates: Record<string, any> = {};
+
+    if (searchString) updates.searchString = searchString;
+    if (stylesFromUrl.length > 0) updates.styles = stylesFromUrl;
+    if (tagsFromUrl.length > 0) updates.tags = tagsFromUrl;
+    if (tagNamesFromUrl.length > 0) updates.tagNames = tagNamesFromUrl;
+
+    // Handle location from URL (for new user redirect)
+    if (urlLocationCoords && urlDistance) {
+      updates.locationCoords = urlLocationCoords;
+      updates.distance = urlDistance;
+      updates.useAnyLocation = false;
+      updates.artist_near_me = {
+        latitude: urlLocationCoords.lat,
+        longitude: urlLocationCoords.lng
+      };
     }
-  }, [router.query.search, router.query.searchString, router.query.styles, router.query.tags, router.query.tag]);
+
+    if (Object.keys(updates).length > 0) {
+      setSearchParams((prev) => ({ ...prev, ...updates }));
+    }
+  }, [router.query.search, router.query.searchString, router.query.styles, router.query.tags, router.query.tag, router.query.locationCoords, router.query.distance]);
 
   // Handle filter changes from SearchFilters component
   const handleFilterChange = (filters: {

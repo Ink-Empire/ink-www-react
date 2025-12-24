@@ -418,6 +418,34 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     });
   };
 
+  // Helper to get lat/lng from user's profile location
+  // Handles both string format ("lat,lng") and object format ({lat, lng} or {latitude, longitude})
+  const getUserProfileCoords = (): { lat: number; lng: number } | null => {
+    const loc = me?.location_lat_long;
+    if (!loc) return null;
+
+    // Handle string format: "34.0549076,-118.242643"
+    if (typeof loc === 'string') {
+      const parts = loc.split(',');
+      if (parts.length === 2) {
+        const lat = parseFloat(parts[0]);
+        const lng = parseFloat(parts[1]);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          return { lat, lng };
+        }
+      }
+      return null;
+    }
+
+    // Handle object format: {lat, lng} or {latitude, longitude}
+    const lat = loc.latitude ?? loc.lat;
+    const lng = loc.longitude ?? loc.lng;
+    if (lat !== undefined && lng !== undefined) {
+      return { lat: Number(lat), lng: Number(lng) };
+    }
+    return null;
+  };
+
   // Handle location option change
   const handleLocationOptionChange = async (locationType: 'my' | 'custom' | 'any') => {
     // Reset state
@@ -425,20 +453,14 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     setUseAnyLocation(locationType === 'any');
 
     if (locationType === 'my') {
-      // If switching to "my location", get the user's coordinates
-      try {
-        setGeoLoading(true);
+      // First try to use user's profile location
+      const profileCoords = getUserProfileCoords();
 
-        // Get the user's current position
-        const position = await geoService.getCurrentPosition();
-        const myCoords = {
-          lat: position.latitude,
-          lng: position.longitude
-        };
+      if (profileCoords) {
+        // User has a saved profile location - use it
+        setLocationCoords(profileCoords);
+        setGeoError(null);
 
-        setLocationCoords(myCoords);
-
-        // Apply filter with user's coordinates
         onFilterChange({
           searchString,
           styles: selectedStyles,
@@ -450,28 +472,54 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           useAnyLocation: false,
           applySavedStyles,
           booksOpen,
-          locationCoords: myCoords
+          locationCoords: profileCoords
         });
-      } catch (error) {
-        console.error('Error getting user location:', error);
-        setGeoError(error instanceof Error ? error.message : 'Error getting your location');
+      } else {
+        // No profile location - fall back to browser geolocation
+        try {
+          setGeoLoading(true);
 
-        // Still update the UI state even if we can't get coordinates
-        onFilterChange({
-          searchString,
-          styles: selectedStyles,
-          tags: selectedTags,
-          distance,
-          distanceUnit,
-          location: '',
-          useMyLocation: true,
-          useAnyLocation: false,
-          applySavedStyles,
-          booksOpen,
-          locationCoords
-        });
-      } finally {
-        setGeoLoading(false);
+          const position = await geoService.getCurrentPosition();
+          const myCoords = {
+            lat: position.latitude,
+            lng: position.longitude
+          };
+
+          setLocationCoords(myCoords);
+
+          onFilterChange({
+            searchString,
+            styles: selectedStyles,
+            tags: selectedTags,
+            distance,
+            distanceUnit,
+            location: '',
+            useMyLocation: true,
+            useAnyLocation: false,
+            applySavedStyles,
+            booksOpen,
+            locationCoords: myCoords
+          });
+        } catch (error) {
+          console.error('Error getting user location:', error);
+          setGeoError(error instanceof Error ? error.message : 'Error getting your location');
+
+          onFilterChange({
+            searchString,
+            styles: selectedStyles,
+            tags: selectedTags,
+            distance,
+            distanceUnit,
+            location: '',
+            useMyLocation: true,
+            useAnyLocation: false,
+            applySavedStyles,
+            booksOpen,
+            locationCoords
+          });
+        } finally {
+          setGeoLoading(false);
+        }
       }
     } else if (locationType === 'custom') {
       // If switching to custom location, use any existing location text/coords
@@ -657,15 +705,11 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 
     // Only try to get location if not dismissed and user has location preference
     if (!distancePreferences.hasUserDismissedDistance() && locationSettings.useMyLocation) {
-      try {
-        setGeoLoading(true);
-        const position = await geoService.getCurrentPosition();
-        const myCoords = {
-          lat: position.latitude,
-          lng: position.longitude
-        };
+      // First try user's profile location
+      const profileCoords = getUserProfileCoords();
 
-        setLocationCoords(myCoords);
+      if (profileCoords) {
+        setLocationCoords(profileCoords);
 
         onFilterChange({
           searchString: '',
@@ -675,22 +719,45 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
           distanceUnit: 'mi',
           applySavedStyles: false,
           booksOpen: false,
-          locationCoords: myCoords
+          locationCoords: profileCoords
         });
-      } catch (error) {
-        console.error('Error getting user location:', error);
+      } else {
+        // Fall back to browser geolocation
+        try {
+          setGeoLoading(true);
+          const position = await geoService.getCurrentPosition();
+          const myCoords = {
+            lat: position.latitude,
+            lng: position.longitude
+          };
 
-        onFilterChange({
-          searchString: '',
-          styles: [],
-          tags: [],
-          ...locationSettings,
-          distanceUnit: 'mi',
-          applySavedStyles: false,
-          booksOpen: false
-        });
-      } finally {
-        setGeoLoading(false);
+          setLocationCoords(myCoords);
+
+          onFilterChange({
+            searchString: '',
+            styles: [],
+            tags: [],
+            ...locationSettings,
+            distanceUnit: 'mi',
+            applySavedStyles: false,
+            booksOpen: false,
+            locationCoords: myCoords
+          });
+        } catch (error) {
+          console.error('Error getting user location:', error);
+
+          onFilterChange({
+            searchString: '',
+            styles: [],
+            tags: [],
+            ...locationSettings,
+            distanceUnit: 'mi',
+            applySavedStyles: false,
+            booksOpen: false
+          });
+        } finally {
+          setGeoLoading(false);
+        }
       }
     } else {
       // Don't try to get location - use the default settings

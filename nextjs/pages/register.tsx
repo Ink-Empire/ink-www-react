@@ -167,8 +167,24 @@ const RegisterPage: React.FC = () => {
         }
 
         // Redirect to appropriate page based on user type
-        const redirectPath = data.userType === 'artist' ? '/profile' : '/';
-        router.push(redirectPath);
+        if (data.userType === 'artist') {
+          router.push('/dashboard');
+        } else if (data.userType === 'client' && data.selectedStyles && data.selectedStyles.length > 0) {
+          // For clients with selected styles, redirect to tattoos page with filters
+          const params = new URLSearchParams();
+          params.set('styles', data.selectedStyles.join(','));
+
+          // If they have a location, add location filter with 50 mile radius
+          if (data.userDetails?.locationLatLong) {
+            params.set('locationCoords', data.userDetails.locationLatLong);
+            params.set('distance', '50');
+            params.set('newUser', 'true'); // Flag to enable fallback if no results
+          }
+
+          router.push(`/tattoos?${params.toString()}`);
+        } else {
+          router.push('/');
+        }
 
       } else {
         const errorData = await response.json();
