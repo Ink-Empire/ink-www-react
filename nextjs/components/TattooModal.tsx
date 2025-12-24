@@ -119,9 +119,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
     }
   };
 
-  const handleTagClick = (tagName: string) => {
+  const handleTagClick = (tagId: number, tagName: string) => {
     onClose();
-    router.push({ pathname: '/tattoos', query: { search: tagName } });
+    router.push({ pathname: '/tattoos', query: { tags: tagId } });
   };
 
   const handleStyleClick = (styleName: string) => {
@@ -460,13 +460,14 @@ const TattooModal: React.FC<TattooModalProps> = ({
 
                 {/* Subject Tags (Red/Coral) */}
                 {tattoo?.tags?.map((tag: any, index: number) => {
+                  const tagId = typeof tag === 'object' ? tag?.id : null;
                   const tagName = typeof tag === 'string' ? tag : tag?.tag || tag?.name;
-                  if (!tagName) return null;
+                  if (!tagName || !tagId) return null;
                   return (
                     <Box
                       key={`tag-${index}`}
                       component="span"
-                      onClick={() => handleTagClick(tagName)}
+                      onClick={() => handleTagClick(tagId, tagName)}
                       sx={{
                         display: 'inline-flex',
                         alignItems: 'center',

@@ -5,6 +5,7 @@ import { Box, Typography, IconButton, Avatar } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { useUserData } from '@/contexts/AuthContext';
 import { colors } from '@/styles/colors';
 
@@ -36,17 +37,28 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
         }
     };
 
-    // Get style tags (limit to first 3 for card)
+    // Get style tags (limit to first 2 for card)
     const getStyleTags = () => {
         if (!tattoo.styles || tattoo.styles.length === 0) return [];
-        return tattoo.styles.slice(0, 3).map((style: any) => {
+        return tattoo.styles.slice(0, 2).map((style: any) => {
             if (typeof style === 'string') return style;
             if (style && typeof style === 'object' && 'name' in style) return style.name;
             return '';
         }).filter(Boolean);
     };
 
+    // Get subject tags (limit to first 2 for card)
+    const getSubjectTags = () => {
+        if (!tattoo.tags || tattoo.tags.length === 0) return [];
+        return tattoo.tags.slice(0, 2).map((tag: any) => {
+            if (typeof tag === 'string') return tag;
+            if (tag && typeof tag === 'object') return tag.tag || tag.name || '';
+            return '';
+        }).filter(Boolean);
+    };
+
     const styleTags = getStyleTags();
+    const subjectTags = getSubjectTags();
 
     // Get artist initials for avatar fallback
     const getArtistInitials = () => {
@@ -250,8 +262,8 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                     </Box>
                 )}
 
-                {/* Style Badges */}
-                {styleTags.length > 0 && (
+                {/* Style & Tag Badges */}
+                {(styleTags.length > 0 || subjectTags.length > 0) && (
                     <Box sx={{
                         position: 'absolute',
                         bottom: '0.75rem',
@@ -261,9 +273,10 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         flexWrap: 'wrap',
                         gap: '0.35rem'
                     }}>
+                        {/* Style badges (gold) */}
                         {styleTags.map((style: string, index: number) => (
                             <Box
-                                key={index}
+                                key={`style-${index}`}
                                 sx={{
                                     px: '0.6rem',
                                     py: '0.25rem',
@@ -271,11 +284,35 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                                     backdropFilter: 'blur(4px)',
                                     borderRadius: '100px',
                                     fontSize: '0.7rem',
-                                    color: colors.textPrimary,
-                                    fontWeight: 500
+                                    color: colors.accent,
+                                    fontWeight: 500,
+                                    border: `1px solid ${colors.accent}4D`
                                 }}
                             >
                                 {style}
+                            </Box>
+                        ))}
+                        {/* Subject tag badges (coral) */}
+                        {subjectTags.map((tag: string, index: number) => (
+                            <Box
+                                key={`tag-${index}`}
+                                sx={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    px: '0.6rem',
+                                    py: '0.25rem',
+                                    bgcolor: 'rgba(15, 15, 15, 0.85)',
+                                    backdropFilter: 'blur(4px)',
+                                    borderRadius: '100px',
+                                    fontSize: '0.7rem',
+                                    color: colors.tag,
+                                    fontWeight: 500,
+                                    border: `1px solid ${colors.tag}4D`
+                                }}
+                            >
+                                <LocalOfferIcon sx={{ fontSize: 10 }} />
+                                {tag}
                             </Box>
                         ))}
                     </Box>
