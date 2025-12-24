@@ -331,7 +331,7 @@ const ProfilePage: React.FC = () => {
         firstName: nameParts[0] || '',
         lastName: nameParts.slice(1).join(' ') || '',
         displayName: userData.name || '',
-        bio: (userData as any).bio || '',
+        bio: (userData as any).about || '',
         studioName: (userData as any).studio?.name || '',
         address: (userData as any).studio?.address || '',
         city: (userData as any).studio?.city || '',
@@ -499,7 +499,7 @@ const ProfilePage: React.FC = () => {
         firstName: nameParts[0] || '',
         lastName: nameParts.slice(1).join(' ') || '',
         displayName: userData.name || '',
-        bio: (userData as any).bio || '',
+        bio: (userData as any).about || '',
         studioName: (userData as any).studio?.name || '',
         address: (userData as any).studio?.address || '',
         city: (userData as any).studio?.city || '',
@@ -597,7 +597,10 @@ const ProfilePage: React.FC = () => {
     }
   }, [showToast]);
 
-  const imageUri = userData?.image?.uri || profilePhoto?.webviewPath;
+  // Support both object format (image.uri) and string format for backwards compatibility
+  const imageUri = typeof userData?.image === 'string'
+    ? userData.image
+    : (userData?.image?.uri || profilePhoto?.webviewPath);
 
   return (
     <Layout>

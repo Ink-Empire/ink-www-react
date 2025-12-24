@@ -43,8 +43,12 @@ const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if ((user as any)?.image) {
-      setAvatarUrl((user as any).image);
+    // Support both object format (image.uri) and string format for backwards compatibility
+    const img = (user as any)?.image;
+    if (typeof img === 'string') {
+      setAvatarUrl(img);
+    } else if (img?.uri) {
+      setAvatarUrl(img.uri);
     } else {
       setAvatarUrl(null);
     }

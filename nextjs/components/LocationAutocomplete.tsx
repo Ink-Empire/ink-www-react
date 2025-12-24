@@ -31,6 +31,9 @@ interface LocationAutocompleteProps {
   disabled?: boolean;
 }
 
+// Priority countries for sorting results (most relevant first)
+const PRIORITY_COUNTRIES = ['us', 'nz', 'ca', 'gb', 'au', 'de', 'fr', 'es', 'it', 'mx', 'br'];
+
 // Search for locations using Nominatim - worldwide cities
 const searchLocations = async (query: string): Promise<LocationOption[]> => {
   if (!query || query.length < 2) {
@@ -38,8 +41,8 @@ const searchLocations = async (query: string): Promise<LocationOption[]> => {
   }
 
   try {
-    // Search for cities worldwide
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8&addressdetails=1`;
+    // Search for cities worldwide - request more results so we can filter and sort
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=15&addressdetails=1&featuretype=city`;
 
     const response = await fetch(url, {
       headers: {
@@ -95,7 +98,26 @@ const searchLocations = async (query: string): Promise<LocationOption[]> => {
       return false;
     });
 
-    return filteredResults.slice(0, 5).map((result: any) => {
+    // Sort results to prioritize popular countries (US, CA, GB, etc.)
+    const sortedResults = filteredResults.sort((a: any, b: any) => {
+      const countryA = a.address?.country_code?.toLowerCase() || '';
+      const countryB = b.address?.country_code?.toLowerCase() || '';
+
+      const priorityA = PRIORITY_COUNTRIES.indexOf(countryA);
+      const priorityB = PRIORITY_COUNTRIES.indexOf(countryB);
+
+      // If both are priority countries, sort by priority order
+      if (priorityA !== -1 && priorityB !== -1) {
+        return priorityA - priorityB;
+      }
+      // Priority countries come first
+      if (priorityA !== -1) return -1;
+      if (priorityB !== -1) return 1;
+      // Otherwise maintain original order (by relevance from API)
+      return 0;
+    });
+
+    return sortedResults.slice(0, 5).map((result: any) => {
       const address = result.address || {};
       const city = address.city || address.town || address.village || address.hamlet || address.municipality || result.name || '';
       const state = address.state || address.province || address.region || '';

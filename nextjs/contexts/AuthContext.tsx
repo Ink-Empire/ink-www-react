@@ -244,6 +244,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoginLoading?.(true);
     setErrors?.([]);
 
+    // Clear any existing token before login to prevent stale token from wrong user
+    removeToken();
+
     try {
       await csrf();
       const loginResponse = await api.post<any>('/login', credentials);
