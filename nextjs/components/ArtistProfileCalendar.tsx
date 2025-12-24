@@ -375,6 +375,9 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
     closeModal();
   };
 
+  // Check if viewing own profile
+  const isOwnProfile = isAuthenticated && user?.id === resolvedArtistId;
+
   // Render books closed warning with notification signup
   if (!workingHoursLoading && booksOpen === false) {
     return (
@@ -414,16 +417,35 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
           color: colors.textPrimary,
           mb: 1
         }}>
-          {artistName} isn't booking right now
+          {isOwnProfile ? "Your books are closed" : `${artistName} isn't booking right now`}
         </Typography>
 
         <Typography sx={{ color: colors.textSecondary, fontSize: '0.95rem', mb: 3, lineHeight: 1.6 }}>
-          This artist is not accepting new appointments at the moment.
-          Sign up to be notified when their books open back up.
+          {isOwnProfile
+            ? "You're not currently accepting new appointments. Open your books in the dashboard to start receiving booking requests."
+            : "This artist is not accepting new appointments at the moment. Sign up to be notified when their books open back up."}
         </Typography>
 
-        {/* Notification Signup Section */}
-        {wishlistLoading ? (
+        {/* Own profile - show dashboard link */}
+        {isOwnProfile ? (
+          <Button
+            component={Link}
+            href="/dashboard"
+            sx={{
+              bgcolor: colors.accent,
+              color: colors.background,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              px: 4,
+              py: 1.5,
+              borderRadius: '8px',
+              '&:hover': { bgcolor: colors.accentHover }
+            }}
+          >
+            Open Books in Dashboard
+          </Button>
+        ) : wishlistLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
             <CircularProgress size={24} sx={{ color: colors.accent }} />
           </Box>

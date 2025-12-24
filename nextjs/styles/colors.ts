@@ -36,6 +36,10 @@ export const colors = {
   info: '#6B8EAE',
   infoDim: 'rgba(107, 142, 174, 0.15)',
 
+  // Tag Color (for subject tags - distinct from styles)
+  tag: '#C75D5D',
+  tagDim: 'rgba(199, 93, 93, 0.15)',
+
   // Borders
   border: '#2A2A2A',
   borderLight: '#3A3A3A',

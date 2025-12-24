@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { artistService } from '@/services/artistService';
 import { ArtistType } from '@/models/artist.interface';
 import { api } from '@/utils/api';
@@ -139,30 +139,35 @@ export function useArtist(idOrSlug: string | null) {
   const [artist, setArtist] = useState<ArtistType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
-  useEffect(() => {
+  const fetchArtist = useCallback(async () => {
     if (!idOrSlug) {
       setLoading(false);
       return;
     }
 
-    const fetchArtist = async () => {
-      try {
-        setLoading(true);
-        const data = await artistService.getById(idOrSlug);
-        setArtist(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(`Failed to fetch artist with ID/slug ${idOrSlug}`));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchArtist();
+    try {
+      setLoading(true);
+      const data = await artistService.getById(idOrSlug, { useCache: false });
+      setArtist(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(`Failed to fetch artist with ID/slug ${idOrSlug}`));
+    } finally {
+      setLoading(false);
+    }
   }, [idOrSlug]);
 
-  return { artist, loading, error };
+  useEffect(() => {
+    fetchArtist();
+  }, [fetchArtist, refreshCounter]);
+
+  const refetch = useCallback(() => {
+    setRefreshCounter(c => c + 1);
+  }, []);
+
+  return { artist, loading, error, refetch };
 }
 
 // Hook for fetching artist portfolio (tattoos by artist)

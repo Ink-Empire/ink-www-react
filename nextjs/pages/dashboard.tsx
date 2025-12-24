@@ -463,7 +463,7 @@ export default function Dashboard() {
             <DashboardTab
               label="My Artist Profile"
               initials={userInitials}
-              imageUrl={user?.image?.uri}
+              imageUrl={typeof user?.image === 'string' ? user.image : user?.image?.uri}
               isActive={activeTab === 'artist'}
               onClick={() => setActiveTab('artist')}
               accentAvatar
@@ -471,7 +471,7 @@ export default function Dashboard() {
             <DashboardTab
               label={ownedStudio?.name || 'My Studio'}
               initials={studioInitials}
-              imageUrl={ownedStudio?.image?.uri || studioData?.image?.uri}
+              imageUrl={typeof (ownedStudio?.image || studioData?.image) === 'string' ? (ownedStudio?.image || studioData?.image) : (ownedStudio?.image?.uri || studioData?.image?.uri)}
               isActive={activeTab === 'studio'}
               onClick={() => setActiveTab('studio')}
             />
@@ -1326,12 +1326,13 @@ export default function Dashboard() {
         open={uploadTattooOpen}
         onClose={() => setUploadTattooOpen(false)}
         onSuccess={() => {
-          // Refresh tattoos list
+          // Refresh tattoos list (bypass cache)
           if (user?.id) {
-            api.get(`/artists/${user.id}/portfolio`).then((response: any) => {
+            api.get(`/artists/${user.id}/portfolio`, { useCache: false }).then((response: any) => {
               setArtistTattoos(response.tattoos || []);
             }).catch(console.error);
           }
+          setUploadTattooOpen(false);
         }}
       />
 

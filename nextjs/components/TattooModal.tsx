@@ -9,7 +9,7 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -129,25 +129,14 @@ const TattooModal: React.FC<TattooModalProps> = ({
     router.push({ pathname: '/tattoos', query: { style: styleName } });
   };
 
-  const handleRequestDesign = () => {
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-    // Navigate to artist page with message intent
-    const artistSlug = tattoo?.artist?.slug || tattoo?.artist?.id;
-    if (artistSlug) {
-      onClose();
-      router.push(`/artists/${artistSlug}?action=message`);
-    }
-  };
-
   const getPrimaryImageUri = () => {
     return tattoo?.primary_image?.uri || tattoo?.image?.uri || null;
   };
 
   const getArtistAvatarUri = () => {
-    return tattoo?.artist?.primary_image?.uri || tattoo?.artist?.image?.uri || null;
+    const img = tattoo?.artist?.image;
+    if (typeof img === 'string') return img;
+    return tattoo?.artist?.primary_image?.uri || img?.uri || null;
   };
 
   const getArtistInitials = () => {
@@ -469,7 +458,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   );
                 })}
 
-                {/* Subject Tags (Gray) */}
+                {/* Subject Tags (Red/Coral) */}
                 {tattoo?.tags?.map((tag: any, index: number) => {
                   const tagName = typeof tag === 'string' ? tag : tag?.tag || tag?.name;
                   if (!tagName) return null;
@@ -479,17 +468,21 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       component="span"
                       onClick={() => handleTagClick(tagName)}
                       sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
                         px: '0.75rem',
                         py: '0.3rem',
-                        bgcolor: surfaceElevated,
-                        border: `1px solid ${borderLight}`,
+                        bgcolor: colors.tagDim,
+                        border: `1px solid rgba(199, 93, 93, 0.3)`,
                         borderRadius: '100px',
                         fontSize: '0.75rem',
-                        color: colors.textSecondary,
+                        color: colors.tag,
                         cursor: 'pointer',
-                        '&:hover': { borderColor: colors.accent, color: colors.accent },
+                        '&:hover': { borderColor: colors.tag },
                       }}
                     >
+                      <LocalOfferIcon sx={{ fontSize: 12 }} />
                       {tagName}
                     </Box>
                   );
@@ -735,39 +728,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 </Box>
               )}
 
-              {/* CTA Button */}
-              <Box sx={{ mb: '1.5rem' }}>
-                <Box
-                  component="button"
-                  onClick={handleRequestDesign}
-                  sx={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    px: '1.5rem',
-                    py: '0.875rem',
-                    bgcolor: colors.accent,
-                    border: 'none',
-                    borderRadius: '6px',
-                    color: colors.background,
-                    fontFamily: 'inherit',
-                    fontSize: '0.95rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: colors.accentHover,
-                    },
-                  }}
-                >
-                  <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
-                  Request Similar Design
-                </Box>
-              </Box>
-
-              {/* Comments Section Placeholder */}
+              {/* Comments Section */}
               <Box
                 sx={{
                   borderTop: `1px solid ${borderSubtle}`,
@@ -783,7 +744,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 {/* Comment Input */}
                 <Box sx={{ display: 'flex', gap: '0.75rem', mb: '1rem' }}>
                   <Avatar
-                    src={user?.image?.uri || undefined}
+                    src={typeof user?.image === 'string' ? user.image : user?.image?.uri || undefined}
                     sx={{
                       width: 32,
                       height: 32,
@@ -792,7 +753,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       color: colors.accent,
                     }}
                   >
-                    {!user?.image?.uri && getUserInitials()}
+                    {!(typeof user?.image === 'string' ? user.image : user?.image?.uri) && getUserInitials()}
                   </Avatar>
                   <Box
                     component="input"

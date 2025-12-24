@@ -27,7 +27,7 @@ export default function ArtistDetail() {
     const router = useRouter();
     const { slug } = router.query;
     const slugString = typeof slug === 'string' ? slug : null;
-    const { artist, loading: artistLoading, error: artistError } = useArtist(slugString);
+    const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString);
     const { user, isAuthenticated } = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
@@ -783,7 +783,7 @@ export default function ArtistDetail() {
                 onClose={handleCloseUploadModal}
                 onSuccess={() => {
                     handleCloseUploadModal();
-                    router.replace(router.asPath);
+                    refetch();
                 }}
             />
 

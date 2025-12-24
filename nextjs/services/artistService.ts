@@ -10,8 +10,10 @@ export const artistService = {
   },
 
   // Get artist by ID or slug (public access)
-  getById: async (idOrSlug: number | string): Promise<IArtist> => {
-    const response = await api.get<{ artist: IArtist }>(`/artists/${idOrSlug}`);
+  getById: async (idOrSlug: number | string, options?: { useCache?: boolean }): Promise<IArtist> => {
+    const response = await api.get<{ artist: IArtist }>(`/artists/${idOrSlug}`, {
+      useCache: options?.useCache ?? true
+    });
     return response.artist;
   },
 
