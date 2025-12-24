@@ -67,8 +67,8 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
         return artist.name.substring(0, 2).toUpperCase();
     };
 
-    // Get featured image (first tattoo or primary image)
-    const featuredImage = artist.tattoos?.[0]?.primary_image?.uri || artist.primary_image?.uri;
+    // Get featured image (first tattoo or primary/regular image)
+    const featuredImage = artist.tattoos?.[0]?.primary_image?.uri || artist.image?.uri || artist.primary_image?.uri;
 
     // Determine availability status
     const getAvailability = () => {
@@ -108,7 +108,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                     gap: '0.75rem'
                 }}>
                     {/* Avatar */}
-                    {artist.primary_image?.uri ? (
+                    {(artist.image?.uri || artist.primary_image?.uri) ? (
                         <Box sx={{
                             width: 44,
                             height: 44,
@@ -118,7 +118,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                             position: 'relative'
                         }}>
                             <Image
-                                src={artist.primary_image.uri}
+                                src={artist.image?.uri || artist.primary_image?.uri}
                                 alt={artist.name || 'Artist'}
                                 fill
                                 style={{ objectFit: 'cover' }}

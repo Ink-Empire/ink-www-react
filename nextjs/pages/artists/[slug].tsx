@@ -208,7 +208,7 @@ export default function ArtistDetail() {
                     flexWrap: { xs: 'wrap', md: 'nowrap' }
                 }}>
                     {/* Avatar */}
-                    {artist.primary_image?.uri ? (
+                    {(artist.image?.uri || artist.primary_image?.uri) ? (
                         <Box sx={{
                             width: 120,
                             height: 120,
@@ -219,7 +219,7 @@ export default function ArtistDetail() {
                             border: `2px solid ${colors.accent}4D`
                         }}>
                             <Image
-                                src={artist.primary_image.uri}
+                                src={artist.image?.uri || artist.primary_image?.uri}
                                 alt={artist.name || 'Artist'}
                                 fill
                                 style={{ objectFit: 'cover' }}

@@ -463,6 +463,7 @@ export default function Dashboard() {
             <DashboardTab
               label="My Artist Profile"
               initials={userInitials}
+              imageUrl={user?.image?.uri}
               isActive={activeTab === 'artist'}
               onClick={() => setActiveTab('artist')}
               accentAvatar
@@ -470,6 +471,7 @@ export default function Dashboard() {
             <DashboardTab
               label={ownedStudio?.name || 'My Studio'}
               initials={studioInitials}
+              imageUrl={ownedStudio?.image?.uri || studioData?.image?.uri}
               isActive={activeTab === 'studio'}
               onClick={() => setActiveTab('studio')}
             />
@@ -1346,9 +1348,10 @@ export default function Dashboard() {
 }
 
 // Dashboard Tab Component
-function DashboardTab({ label, initials, isActive, onClick, accentAvatar }: {
+function DashboardTab({ label, initials, imageUrl, isActive, onClick, accentAvatar }: {
   label: string;
   initials: string;
+  imageUrl?: string;
   isActive: boolean;
   onClick: () => void;
   accentAvatar?: boolean;
@@ -1371,14 +1374,17 @@ function DashboardTab({ label, initials, isActive, onClick, accentAvatar }: {
         }
       }}
     >
-      <Avatar sx={{
-        width: 32,
-        height: 32,
-        bgcolor: accentAvatar ? colors.accent : colors.surface,
-        color: accentAvatar ? colors.background : colors.textSecondary,
-        fontSize: '0.75rem',
-        fontWeight: 600
-      }}>
+      <Avatar
+        src={imageUrl}
+        sx={{
+          width: 32,
+          height: 32,
+          bgcolor: accentAvatar ? colors.accent : colors.surface,
+          color: accentAvatar ? colors.background : colors.textSecondary,
+          fontSize: '0.75rem',
+          fontWeight: 600
+        }}
+      >
         {initials}
       </Avatar>
       <Typography sx={{

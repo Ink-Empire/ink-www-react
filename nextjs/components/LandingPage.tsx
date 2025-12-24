@@ -474,9 +474,9 @@ const LandingPage: React.FC = () => {
                         overflow: 'hidden',
                       }}
                     >
-                      {artist.primary_image?.uri ? (
+                      {(artist.image?.uri || artist.primary_image?.uri) ? (
                         <Image
-                          src={artist.primary_image.uri}
+                          src={artist.image?.uri || artist.primary_image?.uri}
                           alt={artist.name || 'Artist'}
                           fill
                           style={{ objectFit: 'cover', transition: 'transform 0.3s ease' }}

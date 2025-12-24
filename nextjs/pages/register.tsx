@@ -231,6 +231,11 @@ const RegisterPage: React.FC = () => {
             // Use the api utility which handles CSRF tokens properly for FormData
             await api.post('/users/profile-photo', imageFormData);
             console.log('Profile image uploaded successfully');
+
+            // Refresh user data to include the newly uploaded image
+            // This prevents race condition where redirect happens before image is associated
+            await refreshUser();
+            console.log('User refreshed with new image');
           } catch (imgErr) {
             console.error('Failed to upload profile image:', imgErr);
             // Continue with registration even if image upload fails
@@ -390,28 +395,33 @@ const RegisterPage: React.FC = () => {
         }
       }
 
-      // Update the user in context with studio admin info
-      // IMPORTANT: Don't call refreshUser() here as it makes an API call that might
-      // use stale session cookies and return the wrong user
-      // Instead, manually update the user data with studio info
-      const currentUser = localStorage.getItem('user');
-      if (currentUser) {
-        try {
-          const userData = JSON.parse(currentUser);
-          const updatedUser = {
-            ...userData,
-            is_studio_admin: true,
-            studio_id: studioId,
-            owned_studio: {
-              id: studioId,
-              name: data.studioDetails?.name || '',
-              slug: generateSlug(data.studioDetails?.username || data.studioDetails?.name || ''),
-            },
-          };
-          setUserDirectly(updatedUser);
-          console.log('User updated with studio admin info');
-        } catch (e) {
-          console.error('Failed to update user with studio info:', e);
+      // Refresh user data to get complete user info including any uploaded images
+      // and the newly created studio relationship
+      try {
+        await refreshUser();
+        console.log('User refreshed with complete data including images');
+      } catch (e) {
+        console.error('Failed to refresh user:', e);
+        // Fallback: manually update the user data with studio info
+        const currentUser = localStorage.getItem('user');
+        if (currentUser) {
+          try {
+            const userData = JSON.parse(currentUser);
+            const updatedUser = {
+              ...userData,
+              is_studio_admin: true,
+              studio_id: studioId,
+              owned_studio: {
+                id: studioId,
+                name: data.studioDetails?.name || '',
+                slug: generateSlug(data.studioDetails?.username || data.studioDetails?.name || ''),
+              },
+            };
+            setUserDirectly(updatedUser);
+            console.log('User updated with studio admin info (fallback)');
+          } catch (parseErr) {
+            console.error('Failed to update user with studio info:', parseErr);
+          }
         }
       }
 

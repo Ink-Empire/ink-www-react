@@ -192,7 +192,7 @@ export default function StudioDetail() {
             flexWrap: { xs: 'wrap', md: 'nowrap' }
           }}>
             {/* Avatar */}
-            {studio.primary_image?.uri ? (
+            {(studio.image?.uri || studio.primary_image?.uri) ? (
               <Box sx={{
                 width: 120,
                 height: 120,
@@ -203,7 +203,7 @@ export default function StudioDetail() {
                 border: `2px solid ${colors.border}`
               }}>
                 <Image
-                  src={studio.primary_image.uri}
+                  src={studio.image?.uri || studio.primary_image?.uri}
                   alt={studio.name || 'Studio'}
                   fill
                   style={{ objectFit: 'cover' }}
@@ -491,7 +491,7 @@ export default function StudioDetail() {
           flexWrap: { xs: 'wrap', md: 'nowrap' }
         }}>
           {/* Avatar */}
-          {studio.primary_image?.uri ? (
+          {(studio.image?.uri || studio.primary_image?.uri) ? (
             <Box sx={{
               width: 120,
               height: 120,
@@ -502,7 +502,7 @@ export default function StudioDetail() {
               border: `2px solid ${colors.accent}4D`
             }}>
               <Image
-                src={studio.primary_image.uri}
+                src={studio.image?.uri || studio.primary_image?.uri}
                 alt={studio.name || 'Studio'}
                 fill
                 style={{ objectFit: 'cover' }}
@@ -990,7 +990,7 @@ export default function StudioDetail() {
                           transition: 'all 0.2s',
                           '&:hover': { bgcolor: colors.background }
                         }}>
-                          {artist.primary_image?.uri ? (
+                          {(artist.image?.uri || artist.primary_image?.uri) ? (
                             <Box sx={{
                               width: 40,
                               height: 40,
@@ -999,7 +999,7 @@ export default function StudioDetail() {
                               overflow: 'hidden'
                             }}>
                               <Image
-                                src={artist.primary_image.uri}
+                                src={artist.image?.uri || artist.primary_image?.uri}
                                 alt={artist.name}
                                 fill
                                 style={{ objectFit: 'cover' }}
