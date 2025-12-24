@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStyles } from '@/contexts/StyleContext';
+import { useImageCache } from '@/contexts/ImageCacheContext';
 import { fetchCsrfToken, getCsrfToken } from '@/utils/api';
 import { getToken } from '@/utils/auth';
 import {
@@ -341,6 +342,7 @@ export default function UpdateTattoo() {
 
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { styles: availableStyles } = useStyles();
+  const { invalidateEntity } = useImageCache();
 
   // Combine existing and new images for display
   const allImages = [
@@ -487,6 +489,9 @@ export default function UpdateTattoo() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to update tattoo');
       }
+
+      // Invalidate image cache for this tattoo so fresh images are fetched
+      invalidateEntity('tattoo', tattooId as string);
 
       router.back();
     } catch (error) {

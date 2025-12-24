@@ -39,6 +39,11 @@ export interface TattooType {
     about?: string;
     description?: string;
     artist?: TattooArtist;
+    // Flattened artist fields (from ES index)
+    artist_id?: number;
+    artist_name?: string;
+    artist_slug?: string;
+    artist_image_uri?: string;
     studio?: TattooStudio;
     primary_style?: string;
     primary_subject?: string;
@@ -53,5 +58,6 @@ export interface TattooType {
     placement?: string;
     size?: string;
     sessions?: number;
+    duration?: number;
     created_at?: string;
 }

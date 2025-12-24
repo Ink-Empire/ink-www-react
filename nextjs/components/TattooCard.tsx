@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Box, Typography, IconButton, Avatar } from '@mui/material';
@@ -7,6 +7,7 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { useUserData } from '@/contexts/AuthContext';
+import { useTattooImagePreload } from '@/contexts/ImageCacheContext';
 import { colors } from '@/styles/colors';
 
 interface TattooCardProps {
@@ -17,9 +18,15 @@ interface TattooCardProps {
 const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
     const [isFavorite, setIsFavorite] = React.useState(false);
     const user = useUserData();
+    const { preloadTattooImages } = useTattooImagePreload();
 
     const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
     const artistImageUri = tattoo.artist_image_uri;
+
+    // Preload all tattoo images on hover for instant modal display
+    const handleMouseEnter = useCallback(() => {
+        preloadTattooImages(tattoo);
+    }, [tattoo, preloadTattooImages]);
 
     React.useEffect(() => {
         if (user?.favorites?.tattoos && tattoo.id) {
@@ -80,6 +87,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
     return (
         <Box
             onClick={handleTattooClick}
+            onMouseEnter={handleMouseEnter}
             sx={{
                 bgcolor: colors.surface,
                 borderRadius: '12px',

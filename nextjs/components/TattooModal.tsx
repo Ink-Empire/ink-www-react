@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Box, Typography, IconButton, Avatar } from '@mui/material';
+import { Modal, Box, Typography, IconButton, Avatar, Skeleton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -16,6 +16,7 @@ import { useRouter } from 'next/router';
 import { useTattoo } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserData } from '../contexts/AuthContext';
+import { useImageCache } from '../contexts/ImageCacheContext';
 import { colors } from '@/styles/colors';
 
 interface TattooModalProps {
@@ -47,12 +48,14 @@ const TattooModal: React.FC<TattooModalProps> = ({
   const router = useRouter();
   const { isAuthenticated, user } = useAuth();
   const userData = useUserData();
+  const { isImageCached, preloadImage } = useImageCache();
 
   const [isTattooLiked, setIsTattooLiked] = useState(false);
   const [isTattooSaved, setIsTattooSaved] = useState(tattooFavorite);
   const [isArtistFollowed, setIsArtistFollowed] = useState(artistFavorite);
   const [likeCount, setLikeCount] = useState(0);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   // Sync state with props
   useEffect(() => {
@@ -67,7 +70,34 @@ const TattooModal: React.FC<TattooModalProps> = ({
     }
     // Reset to first image when tattoo changes
     setSelectedImageIndex(0);
+    setImageLoaded(false);
   }, [tattoo]);
+
+  // Check if current image is cached and set loaded state accordingly
+  useEffect(() => {
+    // Get current image from allImages based on selectedImageIndex
+    // This needs to run after allImages is computed
+    const checkCurrentImageCache = () => {
+      const primaryUri = tattoo?.primary_image?.uri || tattoo?.image?.uri;
+      let currentUri = primaryUri;
+
+      // Check images array if available
+      if (tattoo?.images && Array.isArray(tattoo.images) && tattoo.images.length > 0) {
+        const img = tattoo.images[selectedImageIndex];
+        if (img) {
+          currentUri = typeof img === 'string' ? img : img?.uri;
+        }
+      }
+
+      if (currentUri && isImageCached(currentUri)) {
+        setImageLoaded(true);
+      } else {
+        setImageLoaded(false);
+      }
+    };
+
+    checkCurrentImageCache();
+  }, [tattoo, selectedImageIndex, isImageCached]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -316,16 +346,49 @@ const TattooModal: React.FC<TattooModalProps> = ({
             }}
           >
             {loading ? (
-              <Box sx={{ color: colors.textSecondary }}>Loading...</Box>
+              <Skeleton
+                variant="rectangular"
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  minHeight: { xs: '300px', md: '500px' },
+                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                }}
+              />
             ) : currentImageUri ? (
               <>
                 {/* Main Image */}
                 <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: { xs: '300px', md: '500px' } }}>
+                  {/* Show skeleton while image loads (unless already cached) */}
+                  {!imageLoaded && (
+                    <Skeleton
+                      variant="rectangular"
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        bgcolor: 'rgba(255, 255, 255, 0.05)',
+                        zIndex: 1,
+                      }}
+                    />
+                  )}
                   <Image
                     src={currentImageUri}
                     alt={tattoo?.title || 'Tattoo'}
                     fill
-                    style={{ objectFit: 'contain' }}
+                    priority
+                    style={{
+                      objectFit: 'contain',
+                      opacity: imageLoaded ? 1 : 0,
+                      transition: 'opacity 0.2s ease-in-out',
+                    }}
+                    onLoad={() => {
+                      setImageLoaded(true);
+                      // Also register in cache for future reference
+                      preloadImage(currentImageUri);
+                    }}
                   />
                 </Box>
 

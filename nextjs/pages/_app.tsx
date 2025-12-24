@@ -6,6 +6,7 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { StyleProvider } from '../contexts/StyleContext';
 import { TagProvider } from '../contexts/TagContext';
 import { DialogProvider } from '../contexts/DialogContext';
+import { ImageCacheProvider } from '../contexts/ImageCacheContext';
 import theme from '../styles/theme';
 import '../styles/globals.css';
 
@@ -18,13 +19,15 @@ function MyApp({ Component, pageProps }: AppProps) {
       <ThemeProvider theme={theme}>
         <CssBaseline />
       <AuthProvider>
-        <StyleProvider>
-          <TagProvider>
-            <DialogProvider>
-              <Component {...pageProps} />
-            </DialogProvider>
-          </TagProvider>
-        </StyleProvider>
+        <ImageCacheProvider>
+          <StyleProvider>
+            <TagProvider>
+              <DialogProvider>
+                <Component {...pageProps} />
+              </DialogProvider>
+            </TagProvider>
+          </StyleProvider>
+        </ImageCacheProvider>
       </AuthProvider>
     </ThemeProvider>
     </>
