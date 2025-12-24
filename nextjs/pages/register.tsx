@@ -8,76 +8,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
 import { colors } from '@/styles/colors';
 
-// Clear all auth-related storage to ensure fresh state for new registration
-const clearAllAuthStorage = async () => {
-  if (typeof window === 'undefined') return;
-  try {
-    // IMPORTANT: Call logout endpoint to clear server-side session/cookies
-    // This is critical because Laravel Sanctum uses HTTP-only cookies
-    // Try multiple endpoints to ensure we clear the session
-    const logoutEndpoints = [
-      '/api/logout',
-      `${process.env.NEXT_PUBLIC_API_URL || ''}/logout`,
-    ];
-
-    for (const endpoint of logoutEndpoints) {
-      try {
-        await fetch(endpoint, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json',
-          },
-        });
-        console.log(`Logout called: ${endpoint}`);
-      } catch (err) {
-        // Ignore errors
-      }
-    }
-
-    // Clear all cookies by setting them to expire
-    const cookies = document.cookie.split(';');
-    for (const cookie of cookies) {
-      const cookieName = cookie.split('=')[0].trim();
-      // Clear cookie for current domain and all paths
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`;
-    }
-    console.log('Cookies cleared');
-
-    // Remove auth token
-    removeToken();
-
-    // Clear all user-related localStorage
-    localStorage.removeItem('user');
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('user_data');
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('csrf_token');
-    localStorage.removeItem('auth_token');
-
-    // Clear all API caches
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('api_cache:') || key.startsWith('studios_cache:'))) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-
-    // Clear sessionStorage too
-    sessionStorage.clear();
-
-    console.log('Cleared all auth storage for new registration');
-  } catch (e) {
-    console.error('Error clearing auth storage:', e);
-  }
-};
-
 const RegisterPage: React.FC = () => {
   const router = useRouter();
   const { refreshUser, logout, setUserDirectly } = useAuth();
@@ -195,19 +125,13 @@ const RegisterPage: React.FC = () => {
         if (result.token) {
           console.log('Setting token and refreshing auth state');
 
-          // IMPORTANT: Clear ALL previous auth storage before setting new user
-          // This prevents showing stale user data from a previous session
-          await clearAllAuthStorage();
-
+          // Set the new auth token
           setToken(result.token);
 
           // Clear the API cache to ensure fresh user data
           api.clearUserCache();
 
-          // Wait a moment for token to be set properly
-          await new Promise(resolve => setTimeout(resolve, 200));
-
-          // Set user directly from registration response (don't call API which might use old session)
+          // Set user directly from registration response
           if (result.user && result.user.id) {
             setUserDirectly(result.user);
             console.log('User set directly from registration response');
@@ -327,12 +251,8 @@ const RegisterPage: React.FC = () => {
 
         // Set the authentication token and user
         if (ownerResult.token) {
-          // IMPORTANT: Clear ALL previous auth storage before setting new user
-          await clearAllAuthStorage();
-
           setToken(ownerResult.token);
           api.clearUserCache();
-          await new Promise(resolve => setTimeout(resolve, 200));
 
           // Set user directly from registration response
           if (ownerResult.user && ownerResult.user.id) {

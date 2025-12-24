@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { colors } from '@/styles/colors';
+import { searchPlaces, getPlaceDetails, PlacePrediction } from '@/services/googlePlacesService';
 
 export interface LocationOption {
   label: string;
@@ -31,125 +32,6 @@ interface LocationAutocompleteProps {
   disabled?: boolean;
 }
 
-// Priority countries for sorting results (most relevant first)
-const PRIORITY_COUNTRIES = ['us', 'nz', 'ca', 'gb', 'au', 'de', 'fr', 'es', 'it', 'mx', 'br'];
-
-// Search for locations using Nominatim - worldwide cities
-const searchLocations = async (query: string): Promise<LocationOption[]> => {
-  if (!query || query.length < 2) {
-    return [];
-  }
-
-  try {
-    // Search for cities worldwide - request more results so we can filter and sort
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=15&addressdetails=1&featuretype=city`;
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'InkedIn-App/1.0',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Geocoding failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Filter to exclude non-place results like counties, but be lenient to include cities
-    const filteredResults = data.filter((result: any) => {
-      const type = result.type?.toLowerCase() || '';
-      const classType = result.class?.toLowerCase() || '';
-      const displayName = result.display_name?.toLowerCase() || '';
-
-      // Strictly exclude these types
-      const excludeTypes = ['county', 'state', 'country', 'continent'];
-      if (excludeTypes.includes(type)) {
-        return false;
-      }
-
-      // Exclude administrative boundaries unless they have city/town in the name
-      if (type === 'administrative' && !displayName.includes('city')) {
-        return false;
-      }
-
-      // Include anything with these types
-      const validTypes = ['city', 'town', 'village', 'hamlet', 'municipality', 'suburb', 'neighbourhood', 'residential'];
-      if (validTypes.includes(type)) {
-        return true;
-      }
-
-      // Include results from 'place' class (most cities)
-      if (classType === 'place') {
-        return true;
-      }
-
-      // Include boundary class if it's not a county/state
-      if (classType === 'boundary' && !excludeTypes.includes(type)) {
-        return true;
-      }
-
-      // Include if it has address details with a city
-      const address = result.address || {};
-      if (address.city || address.town || address.village) {
-        return true;
-      }
-
-      return false;
-    });
-
-    // Sort results to prioritize popular countries (US, CA, GB, etc.)
-    const sortedResults = filteredResults.sort((a: any, b: any) => {
-      const countryA = a.address?.country_code?.toLowerCase() || '';
-      const countryB = b.address?.country_code?.toLowerCase() || '';
-
-      const priorityA = PRIORITY_COUNTRIES.indexOf(countryA);
-      const priorityB = PRIORITY_COUNTRIES.indexOf(countryB);
-
-      // If both are priority countries, sort by priority order
-      if (priorityA !== -1 && priorityB !== -1) {
-        return priorityA - priorityB;
-      }
-      // Priority countries come first
-      if (priorityA !== -1) return -1;
-      if (priorityB !== -1) return 1;
-      // Otherwise maintain original order (by relevance from API)
-      return 0;
-    });
-
-    return sortedResults.slice(0, 5).map((result: any) => {
-      const address = result.address || {};
-      const city = address.city || address.town || address.village || address.hamlet || address.municipality || result.name || '';
-      const state = address.state || address.province || address.region || '';
-      const country = address.country || '';
-      const countryCode = address.country_code?.toUpperCase() || '';
-
-      // Create a clean label: City, State/Province, Country
-      let label = city;
-      if (state && state !== city) {
-        label += `, ${state}`;
-      }
-      if (country && country !== state) {
-        label += `, ${country}`;
-      }
-
-      return {
-        label,
-        city,
-        state,
-        country,
-        countryCode,
-        lat: parseFloat(result.lat),
-        lng: parseFloat(result.lon),
-        placeId: result.place_id?.toString(),
-      };
-    });
-  } catch (error) {
-    console.error('Location search failed:', error);
-    return [];
-  }
-};
-
 const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   value,
   onChange,
@@ -161,7 +43,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   disabled = false,
 }) => {
   const [inputValue, setInputValue] = useState(value);
-  const [options, setOptions] = useState<LocationOption[]>([]);
+  const [options, setOptions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -188,7 +70,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     setLoading(true);
 
     debounceRef.current = setTimeout(async () => {
-      const results = await searchLocations(newInputValue);
+      const results = await searchPlaces(newInputValue);
       setOptions(results);
       setLoading(false);
     }, 300);
@@ -203,11 +85,30 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     };
   }, []);
 
-  const handleOptionSelect = (option: LocationOption | null) => {
-    if (option) {
-      const latLong = `${option.lat},${option.lng}`;
-      onChange(option.label, latLong, option);
-      setInputValue(option.label);
+  const handleOptionSelect = async (prediction: PlacePrediction | null) => {
+    if (prediction) {
+      // Fetch full place details to get coordinates
+      const details = await getPlaceDetails(prediction.placeId);
+
+      if (details) {
+        const option: LocationOption = {
+          label: prediction.description,
+          city: details.city,
+          state: details.state,
+          country: details.country,
+          countryCode: details.countryCode,
+          lat: details.lat,
+          lng: details.lng,
+          placeId: prediction.placeId,
+        };
+        const latLong = `${details.lat},${details.lng}`;
+        onChange(prediction.description, latLong, option);
+        setInputValue(prediction.description);
+      } else {
+        // Fallback if details fetch fails
+        onChange(prediction.description, '', undefined);
+        setInputValue(prediction.description);
+      }
     } else {
       onChange('', '', undefined);
       setInputValue('');
@@ -224,9 +125,12 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       disabled={disabled}
       inputValue={inputValue}
       onInputChange={(_, newValue) => handleInputChange(newValue)}
-      onChange={(_, newValue) => handleOptionSelect(newValue)}
-      getOptionLabel={(option) => (typeof option === 'string' ? option : option.label)}
-      isOptionEqualToValue={(option, val) => option.label === val.label}
+      onChange={(_, newValue) => handleOptionSelect(newValue as PlacePrediction | null)}
+      getOptionLabel={(option) => {
+        if (typeof option === 'string') return option;
+        return option.description || '';
+      }}
+      isOptionEqualToValue={(option, val) => option.placeId === val.placeId}
       filterOptions={(x) => x} // Disable built-in filtering since we're using API search
       freeSolo
       renderInput={(params) => (
@@ -271,6 +175,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
         <Box
           component="li"
           {...props}
+          key={option.placeId}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -285,11 +190,11 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
           <LocationOnIcon sx={{ color: colors.accent, fontSize: 20 }} />
           <Box>
             <Typography variant="body1" sx={{ color: colors.textPrimary }}>
-              {option.city}{option.state ? `, ${option.state}` : ''}
+              {option.mainText}
             </Typography>
-            {option.country && (
+            {option.secondaryText && (
               <Typography variant="caption" sx={{ color: colors.textSecondary }}>
-                {option.country}
+                {option.secondaryText}
               </Typography>
             )}
           </Box>
