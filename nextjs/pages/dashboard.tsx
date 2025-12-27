@@ -1326,13 +1326,11 @@ export default function Dashboard() {
         open={uploadTattooOpen}
         onClose={() => setUploadTattooOpen(false)}
         onSuccess={() => {
-          // Refresh tattoos list (bypass cache)
-          if (user?.id) {
-            api.get(`/artists/${user.id}/portfolio`, { useCache: false }).then((response: any) => {
-              setArtistTattoos(response.tattoos || []);
-            }).catch(console.error);
-          }
           setUploadTattooOpen(false);
+          // Navigate to portfolio page to show the new tattoo
+          if (user?.slug) {
+            router.push(`/artists/${user.slug}`);
+          }
         }}
       />
 

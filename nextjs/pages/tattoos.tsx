@@ -720,7 +720,10 @@ export default function TattoosPage() {
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={() => {
             setIsCreateModalOpen(false);
-            window.location.reload();
+            // Navigate to artist's portfolio to show the new tattoo
+            if (me?.slug) {
+              router.push(`/artists/${me.slug}`);
+            }
           }}
         />
       )}
