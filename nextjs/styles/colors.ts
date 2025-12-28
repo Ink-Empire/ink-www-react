@@ -40,6 +40,10 @@ export const colors = {
   tag: '#C75D5D',
   tagDim: 'rgba(199, 93, 93, 0.15)',
 
+  // AI Suggestion Color (blue, distinct from user-selected tags)
+  aiSuggestion: '#5B8FB9',
+  aiSuggestionDim: 'rgba(91, 143, 185, 0.15)',
+
   // Borders
   border: '#2A2A2A',
   borderLight: '#3A3A3A',
@@ -81,6 +85,10 @@ export const cssVars = {
   warningDim: 'var(--warning-dim)',
   info: 'var(--info)',
   infoDim: 'var(--info-dim)',
+  tag: 'var(--tag)',
+  tagDim: 'var(--tag-dim)',
+  aiSuggestion: 'var(--ai-suggestion)',
+  aiSuggestionDim: 'var(--ai-suggestion-dim)',
   border: 'var(--border)',
   borderLight: 'var(--border-light)',
   borderSubtle: 'var(--border-subtle)',

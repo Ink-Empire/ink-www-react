@@ -4,6 +4,8 @@ import PeopleIcon from '@mui/icons-material/People';
 import StoreIcon from '@mui/icons-material/Store';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import StorageIcon from '@mui/icons-material/Storage';
+import PlaceIcon from '@mui/icons-material/Place';
+import BlockIcon from '@mui/icons-material/Block';
 
 import authProvider from './authProvider';
 import dataProvider from './dataProvider';
@@ -11,6 +13,8 @@ import dataProvider from './dataProvider';
 import { UserList, UserEdit, UserCreate } from './resources/users';
 import { StudioList, StudioEdit, StudioCreate } from './resources/studios';
 import { TagList, TagEdit, TagCreate } from './resources/tags';
+import { PlacementList, PlacementEdit, PlacementCreate } from './resources/placements';
+import { BlockedTermList, BlockedTermEdit, BlockedTermCreate } from './resources/blockedTerms';
 import ElasticPanel from './pages/ElasticPanel';
 
 const CustomMenu = () => (
@@ -19,6 +23,8 @@ const CustomMenu = () => (
     <Menu.ResourceItem name="users" />
     <Menu.ResourceItem name="studios" />
     <Menu.ResourceItem name="tags" />
+    <Menu.ResourceItem name="placements" />
+    <Menu.ResourceItem name="blocked-terms" />
     <Menu.Item to="/elastic" primaryText="Elasticsearch" leftIcon={<StorageIcon />} />
   </Menu>
 );
@@ -72,6 +78,20 @@ const AdminApp = () => (
       edit={TagEdit}
       create={TagCreate}
       icon={LocalOfferIcon}
+    />
+    <Resource
+      name="placements"
+      list={PlacementList}
+      edit={PlacementEdit}
+      create={PlacementCreate}
+      icon={PlaceIcon}
+    />
+    <Resource
+      name="blocked-terms"
+      list={BlockedTermList}
+      edit={BlockedTermEdit}
+      create={BlockedTermCreate}
+      icon={BlockIcon}
     />
   </Admin>
 );

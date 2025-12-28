@@ -628,10 +628,11 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   );
                 })}
 
-                {/* Subject Tags (Red/Coral) */}
+                {/* Subject Tags (Red/Coral for approved, dotted for pending) */}
                 {tattoo?.tags?.map((tag: any, index: number) => {
                   const tagName = typeof tag === 'string' ? tag : tag?.tag || tag?.name;
                   if (!tagName) return null;
+                  const isPending = typeof tag === 'object' && tag?.is_pending === true;
                   return (
                     <Box
                       key={`tag-${index}`}
@@ -643,13 +644,15 @@ const TattooModal: React.FC<TattooModalProps> = ({
                         gap: '0.3rem',
                         px: '0.75rem',
                         py: '0.3rem',
-                        bgcolor: colors.tagDim,
-                        border: `1px solid rgba(199, 93, 93, 0.3)`,
+                        bgcolor: isPending ? 'transparent' : colors.tagDim,
+                        border: isPending
+                          ? `1px dashed ${colors.accent}`
+                          : `1px solid rgba(199, 93, 93, 0.3)`,
                         borderRadius: '100px',
                         fontSize: '0.75rem',
-                        color: colors.tag,
+                        color: isPending ? colors.accent : colors.tag,
                         cursor: 'pointer',
-                        '&:hover': { borderColor: colors.tag },
+                        '&:hover': { borderColor: isPending ? colors.accentHover : colors.tag },
                       }}
                     >
                       <LocalOfferIcon sx={{ fontSize: 12 }} />

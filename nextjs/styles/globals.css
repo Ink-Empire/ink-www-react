@@ -31,6 +31,12 @@
   --warning: #D4A24C;
   --info: #5B8FB9;
 
+  /* Tag Colors */
+  --tag: #C75D5D;
+  --tag-dim: rgba(199, 93, 93, 0.15);
+  --ai-suggestion: #5B8FB9;
+  --ai-suggestion-dim: rgba(91, 143, 185, 0.15);
+
   /* Borders */
   --border: #2A2A2A;
   --border-light: #3A3A3A;

@@ -26,13 +26,21 @@ import {
   ArrowForward,
   Check as CheckIcon,
   AutoAwesome as AiIcon,
-  Add as AddIcon
+  Add as AddIcon,
+  LocalOffer as TagIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useStyles } from '../contexts/StyleContext';
 import { api } from '../utils/api';
+import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
 import { colors } from '@/styles/colors';
 import TagsAutocomplete, { Tag } from './TagsAutocomplete';
+
+interface Placement {
+  id: number;
+  name: string;
+  slug: string;
+}
 
 interface TattooCreateWizardProps {
   open: boolean;
@@ -41,16 +49,6 @@ interface TattooCreateWizardProps {
 }
 
 const steps = ['Upload', 'Details', 'Review'];
-
-const placementOptions = [
-  'Arm', 'Forearm', 'Upper Arm', 'Wrist', 'Hand', 'Finger',
-  'Leg', 'Thigh', 'Calf', 'Ankle', 'Foot',
-  'Back', 'Upper Back', 'Lower Back', 'Spine',
-  'Chest', 'Ribs', 'Stomach', 'Side',
-  'Shoulder', 'Neck', 'Behind Ear',
-  'Full Sleeve', 'Half Sleeve', 'Full Back',
-  'Other'
-];
 
 const sizeOptions = [
   'Tiny (< 2 inches)',
@@ -66,6 +64,10 @@ const sizeOptions = [
 const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, onSuccess }) => {
   const { user } = useAuth();
   const { styles: tattooStyles, loading: stylesLoading } = useStyles();
+
+  // Placements from API
+  const [placements, setPlacements] = useState<Placement[]>([]);
+  const [placementsLoading, setPlacementsLoading] = useState(true);
 
   // Wizard state
   const [activeStep, setActiveStep] = useState(0);
@@ -91,8 +93,15 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   // UI state
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
-  // AI suggestions modal state
+  // AI suggestions during upload flow (shown in Details step)
+  const [aiSuggestedTags, setAiSuggestedTags] = useState<(Tag & { is_new_suggestion?: boolean })[]>([]);
+  const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
+  const [creatingTag, setCreatingTag] = useState<string | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<{ id: number; url: string }[]>([]);
+
+  // AI suggestions modal state (after tattoo creation)
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<Tag[]>([]);
   const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set());
@@ -113,6 +122,23 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     };
   }, []);
 
+  // Fetch placements from API on mount
+  useEffect(() => {
+    const fetchPlacements = async () => {
+      try {
+        const response = await api.get<{ success: boolean; data: Placement[] }>('/placements');
+        if (response.success && response.data) {
+          setPlacements(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch placements:', err);
+      } finally {
+        setPlacementsLoading(false);
+      }
+    };
+    fetchPlacements();
+  }, []);
+
   const resetForm = () => {
     setActiveStep(0);
     previews.forEach(url => URL.revokeObjectURL(url));
@@ -127,6 +153,10 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     setHoursToComplete('');
     setIsPublic(true);
     setError(null);
+    setAiSuggestedTags([]);
+    setLoadingAiSuggestions(false);
+    setCreatingTag(null);
+    setUploadedImages([]);
     setAiSuggestions([]);
     setAddedSuggestions(new Set());
     setCreatedTattooId(null);
@@ -224,7 +254,90 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     }
   };
 
-  const handleNext = () => {
+  // Upload images to S3 and fetch AI suggestions
+  const uploadImagesAndGetSuggestions = async () => {
+    console.log('[AI Tags] Starting uploadImagesAndGetSuggestions, images:', images.length);
+    setLoadingAiSuggestions(true);
+    setError(null);
+
+    try {
+      // Upload images to S3
+      console.log('[AI Tags] Starting S3 upload...');
+      const uploaded = await uploadImagesToS3(
+        images,
+        'tattoo',
+        (progress) => setUploadProgress(progress)
+      );
+
+      console.log('[AI Tags] S3 upload complete, got', uploaded.length, 'images');
+
+      // Store both IDs and URIs for later use
+      setUploadedImages(uploaded.map(img => ({ id: img.id, url: img.uri })));
+      const imageUrls = uploaded.map(img => img.uri);
+      console.log('[AI Tags] Image URLs:', imageUrls);
+
+      // Fetch AI suggestions based on uploaded images
+      console.log('[AI Tags] Fetching AI tag suggestions...');
+      const response = await api.post<{ success: boolean; data: (Tag & { is_new_suggestion?: boolean })[] }>('/tags/suggest', {
+        image_urls: imageUrls
+      }, { requiresAuth: true });
+
+      console.log('[AI Tags] API response:', response);
+
+      if (response.success && response.data) {
+        // Filter out tags that are already selected
+        const suggestions = response.data.filter(
+          (tag) => !selectedTags.some(selected => selected.id === tag.id)
+        );
+        console.log('[AI Tags] Setting suggestions:', suggestions);
+        setAiSuggestedTags(suggestions);
+      } else {
+        console.log('[AI Tags] No suggestions in response');
+      }
+    } catch (error) {
+      console.error('[AI Tags] Error:', error);
+      // Don't block the flow if AI suggestions fail
+    } finally {
+      setLoadingAiSuggestions(false);
+      setUploadProgress(null);
+    }
+  };
+
+  // Add an AI-suggested tag to selected tags
+  const handleAddAiSuggestion = async (tag: Tag & { is_new_suggestion?: boolean }) => {
+    let tagToAdd = tag;
+
+    // If this is a new suggestion (id is null), create it first
+    if (tag.id === null || tag.is_new_suggestion) {
+      setCreatingTag(tag.name);
+      try {
+        const response = await api.post<{ success: boolean; data: Tag }>('/tags/create-from-ai', {
+          name: tag.name
+        }, { requiresAuth: true });
+
+        if (response.success && response.data) {
+          tagToAdd = response.data;
+        } else {
+          console.error('Failed to create AI tag');
+          setCreatingTag(null);
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to create AI tag:', error);
+        setCreatingTag(null);
+        return;
+      }
+      setCreatingTag(null);
+    }
+
+    // Add to selected tags with is_ai_suggested flag
+    const tagWithFlag = { ...tagToAdd, is_ai_suggested: true };
+    setSelectedTags(prev => [...prev, tagWithFlag]);
+    // Remove from suggestions (match by name since new tags had null id)
+    setAiSuggestedTags(prev => prev.filter(t => t.name !== tag.name));
+  };
+
+  const handleNext = async () => {
     if (activeStep === 0 && images.length === 0) {
       setError('Please upload at least one image');
       return;
@@ -235,6 +348,16 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     }
 
     setError(null);
+
+    // When moving from Upload to Details, upload images and get AI suggestions
+    if (activeStep === 0 && uploadedImages.length === 0) {
+      console.log('[AI Tags] Triggering uploadImagesAndGetSuggestions from handleNext');
+      // Start the upload and AI suggestion process (runs in background)
+      uploadImagesAndGetSuggestions();
+    } else {
+      console.log('[AI Tags] Skipping upload, activeStep:', activeStep, 'uploadedImages:', uploadedImages.length);
+    }
+
     setActiveStep(prev => prev + 1);
   };
 
@@ -245,55 +368,72 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
+    setUploadProgress(null);
 
     try {
-      const formData = new FormData();
+      // Images should already be uploaded during the Details step
+      // If not, upload them now (fallback)
+      let imageIds: number[];
 
-      // Add all images (use files[] for Laravel array syntax)
-      images.forEach(image => {
-        formData.append('files[]', image);
-      });
-
-      // Add form fields
-      formData.append('title', title.trim());
-      formData.append('description', description.trim() || title.trim());
-      formData.append('placement', placement);
-      formData.append('size', size);
-      formData.append('is_public', isPublic ? '1' : '0');
-
-      if (hoursToComplete !== '' && hoursToComplete !== undefined) {
-        formData.append('hours_to_complete', hoursToComplete.toString());
+      if (uploadedImages.length > 0) {
+        console.log('Using already-uploaded images:', uploadedImages.map(i => i.id));
+        imageIds = uploadedImages.map(img => img.id);
+      } else {
+        // Fallback: upload now if somehow not already uploaded
+        console.log('Starting S3 direct upload for', images.length, 'images');
+        const uploaded = await uploadImagesToS3(
+          images,
+          'tattoo',
+          (progress) => setUploadProgress(progress)
+        );
+        console.log('S3 upload complete, got image IDs:', uploaded.map(i => i.id));
+        imageIds = uploaded.map(img => img.id);
       }
 
-      // Add styles
-      if (selectedStyles.length > 0) {
-        formData.append('style_ids', JSON.stringify(selectedStyles));
-        formData.append('primary_style_id', selectedStyles[0].toString());
-      }
+      // Create the tattoo with the uploaded image IDs
+      const tattooData = {
+        image_ids: imageIds,
+        title: title.trim(),
+        description: description.trim() || title.trim(),
+        placement,
+        size,
+        is_public: isPublic ? '1' : '0',
+        hours_to_complete: hoursToComplete !== '' && hoursToComplete !== undefined
+          ? hoursToComplete.toString()
+          : undefined,
+        style_ids: selectedStyles.length > 0 ? JSON.stringify(selectedStyles) : undefined,
+        primary_style_id: selectedStyles.length > 0 ? selectedStyles[0].toString() : undefined,
+        tag_ids: selectedTags.length > 0 ? JSON.stringify(selectedTags.map(t => t.id)) : undefined,
+      };
 
-      // Add tags
-      if (selectedTags.length > 0) {
-        formData.append('tag_ids', JSON.stringify(selectedTags.map(t => t.id)));
-      }
+      // Remove undefined values
+      const cleanData = Object.fromEntries(
+        Object.entries(tattooData).filter(([_, v]) => v !== undefined)
+      );
 
       const response = await api.post<{
         tattoo: any;
         ai_suggested_tags: Tag[];
-      }>('/tattoos/create', formData, {
+        ai_tags_pending?: boolean;
+      }>('/tattoos/create', cleanData, {
         requiresAuth: true
       });
 
       console.log('Tattoo created:', response);
 
-      // Check if we have AI suggestions to show
+      // AI tags are now generated in the background
+      // The response includes ai_tags_pending: true to indicate this
+      setCreatedTattooId(response.tattoo?.id || null);
+
+      // Check if we have any AI suggestions already (usually empty now)
       const suggestions = response.ai_suggested_tags || [];
       if (suggestions.length > 0) {
         setAiSuggestions(suggestions);
-        setCreatedTattooId(response.tattoo?.id || null);
         setAddedSuggestions(new Set());
         setShowSuggestionsModal(true);
       } else {
-        // No suggestions, finish up
+        // No immediate suggestions - AI is processing in background
+        // Just close and show success
         if (onSuccess) {
           onSuccess();
         }
@@ -305,6 +445,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       setError(error instanceof Error ? error.message : 'Failed to create tattoo post');
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -581,9 +722,76 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
           placeholder="Search and add tags..."
           maxTags={10}
         />
-        <Typography variant="caption" sx={{ color: colors.textMuted, mt: 1, display: 'block' }}>
-          AI will suggest additional tags after upload
-        </Typography>
+
+        {/* AI Tag Suggestions */}
+        {(loadingAiSuggestions || aiSuggestedTags.length > 0) && (
+          <Box sx={{ mt: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <AiIcon sx={{ fontSize: 18, color: colors.aiSuggestion }} />
+              <Typography variant="caption" sx={{ color: colors.aiSuggestion, fontWeight: 600 }}>
+                AI SUGGESTIONS
+              </Typography>
+              {loadingAiSuggestions && (
+                <CircularProgress size={14} sx={{ color: colors.aiSuggestion, ml: 1 }} />
+              )}
+            </Box>
+            {aiSuggestedTags.length > 0 ? (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {aiSuggestedTags.map((tag) => {
+                  const isNew = tag.id === null || tag.is_new_suggestion;
+                  const isCreating = creatingTag === tag.name;
+                  return (
+                    <Box
+                      key={tag.name}
+                      onClick={() => !isCreating && handleAddAiSuggestion(tag)}
+                      sx={{
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 2,
+                        cursor: isCreating ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        bgcolor: 'transparent',
+                        border: `1px ${isNew ? 'dashed' : 'solid'} ${colors.aiSuggestion}`,
+                        color: colors.aiSuggestion,
+                        opacity: isCreating ? 0.7 : 1,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: isCreating ? 'transparent' : `${colors.aiSuggestion}20`,
+                        }
+                      }}
+                    >
+                      {isCreating ? (
+                        <CircularProgress size={14} sx={{ color: colors.aiSuggestion }} />
+                      ) : (
+                        <AddIcon sx={{ fontSize: 14 }} />
+                      )}
+                      <Typography variant="caption">
+                        {tag.name}
+                      </Typography>
+                      {isNew && !isCreating && (
+                        <Typography variant="caption" sx={{ fontSize: '0.6rem', opacity: 0.7 }}>
+                          NEW
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Box>
+            ) : loadingAiSuggestions ? (
+              <Typography variant="caption" sx={{ color: colors.textMuted, fontStyle: 'italic' }}>
+                Analyzing your images...
+              </Typography>
+            ) : null}
+          </Box>
+        )}
+
+        {!loadingAiSuggestions && aiSuggestedTags.length === 0 && uploadedImages.length === 0 && (
+          <Typography variant="caption" sx={{ color: colors.textMuted, mt: 1, display: 'block' }}>
+            AI will suggest tags based on your images
+          </Typography>
+        )}
       </Box>
 
       {/* Placement, Size, Hours Row */}
@@ -611,12 +819,17 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
                 }
               }
             }}
+            disabled={placementsLoading}
           >
-            {placementOptions.map((option) => (
-              <MenuItem key={option} value={option.toLowerCase()}>
-                {option}
-              </MenuItem>
-            ))}
+            {placementsLoading ? (
+              <MenuItem disabled>Loading...</MenuItem>
+            ) : (
+              placements.map((p) => (
+                <MenuItem key={p.id} value={p.name}>
+                  {p.name}
+                </MenuItem>
+              ))
+            )}
           </Select>
         </FormControl>
 
@@ -773,30 +986,49 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
             </Box>
           )}
 
-          {/* Subjects */}
+          {/* Tags */}
           {selectedTags.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" sx={{ color: colors.textMuted, mb: 1, display: 'block' }}>
                 TAGS
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {selectedTags.map((tag) => (
-                  <Box
-                    key={tag.id}
-                    sx={{
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: 2,
-                      bgcolor: colors.textSecondary,
-                      color: colors.background
-                    }}
-                  >
-                    <Typography variant="caption">
-                      {tag.name}
-                    </Typography>
-                  </Box>
-                ))}
+                {selectedTags.map((tag) => {
+                  const isPending = tag.is_pending === true;
+                  const isAiSuggested = (tag as Tag & { is_ai_suggested?: boolean }).is_ai_suggested === true;
+                  return (
+                    <Box
+                      key={tag.id}
+                      sx={{
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        bgcolor: isPending ? 'transparent' : isAiSuggested ? 'transparent' : colors.textSecondary,
+                        color: isPending ? colors.accent : isAiSuggested ? colors.aiSuggestion : colors.background,
+                        border: isPending
+                          ? `1px dashed ${colors.accent}`
+                          : isAiSuggested
+                            ? `1px solid ${colors.aiSuggestion}`
+                            : 'none',
+                      }}
+                    >
+                      {isAiSuggested ? <AiIcon sx={{ fontSize: 14 }} /> : <TagIcon sx={{ fontSize: 14 }} />}
+                      <Typography variant="caption">
+                        {tag.name}
+                      </Typography>
+                    </Box>
+                  );
+                })}
               </Box>
+              {(selectedTags.some(t => t.is_pending) || selectedTags.some(t => (t as Tag & { is_ai_suggested?: boolean }).is_ai_suggested)) && (
+                <Typography sx={{ mt: 1, fontSize: '0.7rem', color: colors.textMuted, fontStyle: 'italic' }}>
+                  {selectedTags.some(t => t.is_pending) && 'Tags with dotted borders are pending approval. '}
+                  {selectedTags.some(t => (t as Tag & { is_ai_suggested?: boolean }).is_ai_suggested) && 'Blue tags were suggested by AI.'}
+                </Typography>
+              )}
             </Box>
           )}
 
@@ -1039,7 +1271,13 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
                 '&:disabled': { bgcolor: colors.border, color: colors.textMuted }
               }}
             >
-              {submitting ? 'Publishing...' : 'Publish'}
+              {submitting
+                ? (uploadProgress?.status === 'uploading'
+                    ? `Uploading ${uploadProgress.completed}/${uploadProgress.total}...`
+                    : uploadProgress?.status === 'confirming'
+                      ? 'Saving...'
+                      : 'Publishing...')
+                : 'Publish'}
             </Button>
           )}
         </Box>

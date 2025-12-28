@@ -23,11 +23,13 @@ import {
 } from 'react-admin';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { api } from '@/utils/api';
 
 const tagFilters = [
   <SearchInput source="q" alwaysOn key="search" />,
   <BooleanInput source="is_pending" label="Pending Only" key="pending" />,
+  <BooleanInput source="is_ai_generated" label="AI Generated" key="ai" />,
 ];
 
 const ListActions = () => (
@@ -98,30 +100,49 @@ const RejectButton = () => {
   );
 };
 
-const PendingChip = () => {
+const StatusChip = () => {
   const record = useRecordContext();
   if (!record) return null;
 
-  return record.is_pending ? (
-    <span style={{
-      backgroundColor: '#ff9800',
-      color: 'white',
-      padding: '2px 8px',
-      borderRadius: '4px',
-      fontSize: '12px'
-    }}>
-      Pending
-    </span>
-  ) : (
-    <span style={{
-      backgroundColor: '#4caf50',
-      color: 'white',
-      padding: '2px 8px',
-      borderRadius: '4px',
-      fontSize: '12px'
-    }}>
-      Approved
-    </span>
+  return (
+    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+      {record.is_pending ? (
+        <span style={{
+          backgroundColor: '#ff9800',
+          color: 'white',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          fontSize: '12px'
+        }}>
+          Pending
+        </span>
+      ) : (
+        <span style={{
+          backgroundColor: '#4caf50',
+          color: 'white',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          fontSize: '12px'
+        }}>
+          Approved
+        </span>
+      )}
+      {record.is_ai_generated && (
+        <span style={{
+          backgroundColor: '#5B8FB9',
+          color: 'white',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '2px'
+        }}>
+          <AutoAwesomeIcon style={{ fontSize: '12px' }} />
+          AI
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -136,7 +157,7 @@ export const TagList = () => (
       <TextField source="id" />
       <TextField source="name" />
       <TextField source="slug" />
-      <PendingChip label="Status" />
+      <StatusChip label="Status" />
       <NumberField source="tattoos_count" label="Tattoos" />
       <DateField source="created_at" label="Created" />
       <ApproveButton />

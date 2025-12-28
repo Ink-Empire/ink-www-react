@@ -54,14 +54,17 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
         }).filter(Boolean);
     };
 
-    // Get subject tags (limit to first 2 for card)
-    const getSubjectTags = () => {
+    // Get subject tags (limit to first 2 for card) - return objects to preserve is_pending
+    const getSubjectTags = (): Array<{ name: string; is_pending?: boolean }> => {
         if (!tattoo.tags || tattoo.tags.length === 0) return [];
         return tattoo.tags.slice(0, 2).map((tag: any) => {
-            if (typeof tag === 'string') return tag;
-            if (tag && typeof tag === 'object') return tag.tag || tag.name || '';
-            return '';
-        }).filter(Boolean);
+            if (typeof tag === 'string') return { name: tag, is_pending: false };
+            if (tag && typeof tag === 'object') {
+                const name = tag.tag || tag.name || '';
+                return name ? { name, is_pending: tag.is_pending === true } : null;
+            }
+            return null;
+        }).filter(Boolean) as Array<{ name: string; is_pending?: boolean }>;
     };
 
     const styleTags = getStyleTags();
@@ -300,8 +303,8 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                                 {style}
                             </Box>
                         ))}
-                        {/* Subject tag badges (coral) */}
-                        {subjectTags.map((tag: string, index: number) => (
+                        {/* Subject tag badges (coral for approved, dotted gold for pending) */}
+                        {subjectTags.map((tag, index) => (
                             <Box
                                 key={`tag-${index}`}
                                 sx={{
@@ -314,13 +317,15 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                                     backdropFilter: 'blur(4px)',
                                     borderRadius: '100px',
                                     fontSize: '0.7rem',
-                                    color: colors.tag,
+                                    color: tag.is_pending ? colors.accent : colors.tag,
                                     fontWeight: 500,
-                                    border: `1px solid ${colors.tag}4D`
+                                    border: tag.is_pending
+                                        ? `1px dashed ${colors.accent}`
+                                        : `1px solid ${colors.tag}4D`
                                 }}
                             >
                                 <LocalOfferIcon sx={{ fontSize: 10 }} />
-                                {tag}
+                                {tag.name}
                             </Box>
                         ))}
                     </Box>
