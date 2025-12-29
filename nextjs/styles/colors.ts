@@ -53,6 +53,10 @@ export const colors = {
   available: '#4A9B7F',
   todayHighlight: '#C9A962',
 
+  // Text on Light Backgrounds (for accent/white buttons)
+  textOnLight: '#000000',
+  backgroundLight: '#ffffff',
+
   // Aliases for common usage
   primary: '#C9A962',
   primaryLight: '#E4C675',

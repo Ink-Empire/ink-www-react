@@ -226,12 +226,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
-  // Common styles
-  const surfaceElevated = '#242424';
-  const borderSubtle = 'rgba(245, 244, 240, 0.06)';
-  const borderLight = 'rgba(245, 244, 240, 0.1)';
-  const accentDim = 'rgba(201, 169, 98, 0.15)';
-
   return (
     <Modal
       open={open}
@@ -278,7 +272,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               width: 48,
               height: 48,
               bgcolor: colors.surface,
-              border: `1px solid ${borderLight}`,
+              border: `1px solid ${colors.borderLight}`,
               color: colors.textPrimary,
               zIndex: 1010,
               display: { xs: 'none', md: 'flex' },
@@ -303,7 +297,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               width: 48,
               height: 48,
               bgcolor: colors.surface,
-              border: `1px solid ${borderLight}`,
+              border: `1px solid ${colors.borderLight}`,
               color: colors.textPrimary,
               zIndex: 1010,
               display: { xs: 'none', md: 'flex' },
@@ -322,7 +316,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
           sx={{
             bgcolor: colors.surface,
             borderRadius: '12px',
-            border: `1px solid ${borderSubtle}`,
+            border: `1px solid ${colors.borderSubtle}`,
             width: '100%',
             maxHeight: '90vh',
             display: 'flex',
@@ -472,7 +466,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 sx={{
                   width: '100%',
                   aspectRatio: '3/4',
-                  background: `linear-gradient(135deg, ${surfaceElevated} 0%, ${colors.surface} 100%)`,
+                  background: `linear-gradient(135deg, ${colors.surfaceElevated} 0%, ${colors.surface} 100%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -499,7 +493,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
             <Box
               sx={{
                 p: '1.5rem',
-                borderBottom: `1px solid ${borderSubtle}`,
+                borderBottom: `1px solid ${colors.borderSubtle}`,
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -509,7 +503,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   sx={{
                     width: 40,
                     height: 40,
-                    bgcolor: surfaceElevated,
+                    bgcolor: colors.surfaceElevated,
                     fontSize: '0.9rem',
                     fontWeight: 600,
                     color: colors.accent,
@@ -547,7 +541,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   sx={{
                     px: '1rem',
                     py: '0.4rem',
-                    bgcolor: isArtistFollowed ? accentDim : 'transparent',
+                    bgcolor: isArtistFollowed ? colors.accentDim : 'transparent',
                     border: `1px solid ${colors.accent}`,
                     borderRadius: '100px',
                     color: colors.accent,
@@ -576,7 +570,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 '&::-webkit-scrollbar': { width: 6 },
                 '&::-webkit-scrollbar-track': { background: 'transparent' },
                 '&::-webkit-scrollbar-thumb': {
-                  background: surfaceElevated,
+                  background: colors.surfaceElevated,
                   borderRadius: 3,
                 },
               }}
@@ -591,7 +585,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     sx={{
                       px: '0.75rem',
                       py: '0.3rem',
-                      bgcolor: accentDim,
+                      bgcolor: colors.accentDim,
                       border: '1px solid rgba(201, 169, 98, 0.3)',
                       borderRadius: '100px',
                       fontSize: '0.75rem',
@@ -614,7 +608,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       sx={{
                         px: '0.75rem',
                         py: '0.3rem',
-                        bgcolor: accentDim,
+                        bgcolor: colors.accentDim,
                         border: '1px solid rgba(201, 169, 98, 0.3)',
                         borderRadius: '100px',
                         fontSize: '0.75rem',
@@ -699,7 +693,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   alignItems: 'center',
                   gap: '0.5rem',
                   pb: '1.25rem',
-                  borderBottom: `1px solid ${borderSubtle}`,
+                  borderBottom: `1px solid ${colors.borderSubtle}`,
                   mb: '1.25rem',
                   flexWrap: 'wrap',
                 }}
@@ -714,8 +708,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     gap: '0.4rem',
                     px: '0.875rem',
                     py: '0.5rem',
-                    bgcolor: isTattooLiked ? accentDim : surfaceElevated,
-                    border: `1px solid ${isTattooLiked ? colors.accent : borderLight}`,
+                    bgcolor: isTattooLiked ? colors.accentDim : colors.surfaceElevated,
+                    border: `1px solid ${isTattooLiked ? colors.accent : colors.borderLight}`,
                     borderRadius: '6px',
                     color: isTattooLiked ? colors.accent : colors.textSecondary,
                     fontFamily: 'inherit',
@@ -746,8 +740,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     gap: '0.4rem',
                     px: '0.875rem',
                     py: '0.5rem',
-                    bgcolor: isTattooSaved ? accentDim : surfaceElevated,
-                    border: `1px solid ${isTattooSaved ? colors.accent : borderLight}`,
+                    bgcolor: isTattooSaved ? colors.accentDim : colors.surfaceElevated,
+                    border: `1px solid ${isTattooSaved ? colors.accent : colors.borderLight}`,
                     borderRadius: '6px',
                     color: isTattooSaved ? colors.accent : colors.textSecondary,
                     fontFamily: 'inherit',
@@ -785,8 +779,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     gap: '0.4rem',
                     px: '0.875rem',
                     py: '0.5rem',
-                    bgcolor: surfaceElevated,
-                    border: `1px solid ${borderLight}`,
+                    bgcolor: colors.surfaceElevated,
+                    border: `1px solid ${colors.borderLight}`,
                     borderRadius: '6px',
                     color: colors.textSecondary,
                     fontFamily: 'inherit',
@@ -814,8 +808,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     justifyContent: 'center',
                     px: '0.5rem',
                     py: '0.5rem',
-                    bgcolor: surfaceElevated,
-                    border: `1px solid ${borderLight}`,
+                    bgcolor: colors.surfaceElevated,
+                    border: `1px solid ${colors.borderLight}`,
                     borderRadius: '6px',
                     color: colors.textSecondary,
                     fontFamily: 'inherit',
@@ -868,7 +862,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               {/* Comments Section */}
               <Box
                 sx={{
-                  borderTop: `1px solid ${borderSubtle}`,
+                  borderTop: `1px solid ${colors.borderSubtle}`,
                   pt: '1.25rem',
                 }}
               >
@@ -885,7 +879,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     sx={{
                       width: 32,
                       height: 32,
-                      bgcolor: surfaceElevated,
+                      bgcolor: colors.surfaceElevated,
                       fontSize: '0.75rem',
                       color: colors.accent,
                     }}
@@ -900,7 +894,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       px: '0.875rem',
                       py: '0.6rem',
                       bgcolor: colors.background,
-                      border: `1px solid ${borderLight}`,
+                      border: `1px solid ${colors.borderLight}`,
                       borderRadius: '8px',
                       color: colors.textPrimary,
                       fontFamily: 'inherit',

@@ -23,24 +23,33 @@ import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
 import LocationAutocomplete from '../LocationAutocomplete';
 import { api } from '@/utils/api';
+import type { StudioCreationPayload } from './OnboardingWizard';
+
+interface StudioDetailsData {
+  name: string;
+  username: string;
+  bio: string;
+  profileImage?: File | null;
+  location: string;
+  locationLatLong: string;
+  email?: string;
+  phone?: string;
+}
 
 interface StudioDetailsProps {
-  onStepComplete: (studioDetails: {
-    name: string;
-    username: string;
-    bio: string;
-    profileImage?: File | null;
-    location: string;
-    locationLatLong: string;
-    email?: string;
-    phone?: string;
-  }) => void;
+  onStepComplete: (studioDetails: StudioDetailsData) => void;
   onBack: () => void;
+  // Optional callback to create studio immediately (for optimized flow)
+  onCreateStudio?: (payload: StudioCreationPayload) => Promise<{ studioId: number }>;
+  // Owner ID if user was already registered
+  ownerId?: number;
 }
 
 const StudioDetails: React.FC<StudioDetailsProps> = ({
   onStepComplete,
   onBack,
+  onCreateStudio,
+  ownerId,
 }) => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -312,7 +321,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       return <CircularProgress size={20} sx={{ color: colors.accent }} />;
     }
     if (usernameAvailable === true && username.length >= 3) {
-      return <CheckCircleIcon sx={{ color: '#4caf50' }} />;
+      return <CheckCircleIcon sx={{ color: colors.success }} />;
     }
     if (usernameAvailable === false) {
       return <CancelIcon sx={{ color: colors.error }} />;
@@ -327,7 +336,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       return <CircularProgress size={20} sx={{ color: colors.accent }} />;
     }
     if (emailAvailable === true) {
-      return <CheckCircleIcon sx={{ color: '#4caf50' }} />;
+      return <CheckCircleIcon sx={{ color: colors.success }} />;
     }
     if (emailAvailable === false) {
       return <CancelIcon sx={{ color: colors.error }} />;
@@ -344,20 +353,32 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
     setIsSubmitting(true);
 
+    const studioDetails: StudioDetailsData = {
+      name: name.trim(),
+      username: username.trim(),
+      bio: bio.trim(),
+      profileImage,
+      location: location.trim(),
+      locationLatLong: locationLatLong,
+      email: email.trim() || undefined,
+      phone: phone.trim() || undefined,
+    };
+
     try {
-      await onStepComplete({
-        name: name.trim(),
-        username: username.trim(),
-        bio: bio.trim(),
-        profileImage,
-        location: location.trim(),
-        locationLatLong: locationLatLong,
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-      });
-    } catch (error) {
+      // If onCreateStudio callback is provided and we have an ownerId,
+      // create the studio directly via API for faster response
+      if (onCreateStudio && ownerId) {
+        await onCreateStudio({
+          studioDetails,
+          ownerId,
+        });
+      }
+
+      // Always call onStepComplete to notify parent and trigger redirect
+      await onStepComplete(studioDetails);
+    } catch (error: any) {
       console.error('Error submitting studio details:', error);
-      setErrors({ submit: 'Failed to save details. Please try again.' });
+      setErrors({ submit: error.message || 'Failed to create studio. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -408,8 +429,8 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                 sx={{
                   width: 120,
                   height: 120,
-                  backgroundColor: '#ffffff',
-                  color: '#000',
+                  backgroundColor: colors.backgroundLight,
+                  color: colors.textOnLight,
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
                   '&:hover': {
@@ -428,7 +449,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                   bottom: -5,
                   right: -5,
                   backgroundColor: colors.accent,
-                  color: '#000',
+                  color: colors.textOnLight,
                   width: 40,
                   height: 40,
                   '&:hover': {
@@ -526,17 +547,17 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
-                  borderColor: usernameAvailable === true ? '#4caf50' :
+                  borderColor: usernameAvailable === true ? colors.success :
                                usernameAvailable === false ? colors.error :
-                               'rgba(232, 219, 197, 0.5)',
+                               colors.border,
                 },
                 '&:hover fieldset': {
-                  borderColor: usernameAvailable === true ? '#4caf50' :
+                  borderColor: usernameAvailable === true ? colors.success :
                                usernameAvailable === false ? colors.error :
                                colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: usernameAvailable === true ? '#4caf50' :
+                  borderColor: usernameAvailable === true ? colors.success :
                                usernameAvailable === false ? colors.error :
                                colors.accent,
                 },
@@ -548,7 +569,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                 },
               },
               '& .MuiFormHelperText-root': {
-                color: usernameAvailable === true ? '#4caf50' :
+                color: usernameAvailable === true ? colors.success :
                        errors.username ? colors.error :
                        colors.textSecondary,
               },
@@ -614,17 +635,17 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
-                  borderColor: emailAvailable === true ? '#4caf50' :
+                  borderColor: emailAvailable === true ? colors.success :
                                emailAvailable === false ? colors.error :
-                               'rgba(232, 219, 197, 0.5)',
+                               colors.border,
                 },
                 '&:hover fieldset': {
-                  borderColor: emailAvailable === true ? '#4caf50' :
+                  borderColor: emailAvailable === true ? colors.success :
                                emailAvailable === false ? colors.error :
                                colors.textSecondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: emailAvailable === true ? '#4caf50' :
+                  borderColor: emailAvailable === true ? colors.success :
                                emailAvailable === false ? colors.error :
                                colors.accent,
                 },
@@ -636,7 +657,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                 },
               },
               '& .MuiFormHelperText-root': {
-                color: emailAvailable === true ? '#4caf50' :
+                color: emailAvailable === true ? colors.success :
                        errors.email ? colors.error :
                        colors.textSecondary,
               },
@@ -792,15 +813,15 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
               startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
               sx={{
                 backgroundColor: colors.accent,
-                color: '#000',
+                color: colors.textOnLight,
                 fontWeight: 'bold',
                 minWidth: '150px',
                 '&:hover': {
                   backgroundColor: colors.accentDark,
                 },
                 '&:disabled': {
-                  backgroundColor: 'rgba(232, 219, 197, 0.3)',
-                  color: 'rgba(0, 0, 0, 0.5)',
+                  backgroundColor: colors.border,
+                  color: colors.textMuted,
                 },
               }}
             >

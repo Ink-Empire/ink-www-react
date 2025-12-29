@@ -553,7 +553,7 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
             textTransform: 'none',
             fontWeight: 500,
             fontSize: '0.75rem',
-            '&:hover': { bgcolor: '#34c759' }
+            '&:hover': { bgcolor: colors.success }
           }}
         >
           Book Now
@@ -649,7 +649,7 @@ function WishlistRow({ artist, onRemove, isLast }: {
             textTransform: 'none',
             fontWeight: 500,
             fontSize: '0.75rem',
-            '&:hover': { bgcolor: '#34c759' }
+            '&:hover': { bgcolor: colors.success }
           }}
         >
           Now Booking!

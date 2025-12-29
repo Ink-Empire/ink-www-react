@@ -4,6 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/utils/api';
 import { useArtistAppointments } from '@/hooks';
+import { colors } from '@/styles/colors';
 
 interface ArtistCalendarProps {
   artistIdOrSlug: string | number;
@@ -497,9 +498,9 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
         eventContent={() => {
           // Make all events visible as green blocks
           return (
-            <div style={{ 
-              backgroundColor: '#00A896', 
-              width: '100%', 
+            <div style={{
+              backgroundColor: colors.available,
+              width: '100%',
               height: '100%',
               opacity: 1
             }}></div>
@@ -517,18 +518,18 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
             
             // Apply styles to all event elements
             eventEls.forEach(el => {
-              (el as HTMLElement).style.backgroundColor = '#00A896';
+              (el as HTMLElement).style.backgroundColor = colors.available;
               (el as HTMLElement).style.opacity = '1';
             });
 
             events.forEach(event => {
-              const dateStr = typeof event.start === 'string' 
-                ? event.start.split('T')[0] 
+              const dateStr = typeof event.start === 'string'
+                ? event.start.split('T')[0]
                 : String(event.start).split('T')[0];
-                
+
               const dayEl = document.querySelector(`.fc-day[data-date="${dateStr}"]`);
               if (dayEl) {
-                (dayEl as HTMLElement).style.backgroundColor = '#00A896';
+                (dayEl as HTMLElement).style.backgroundColor = colors.available;
               } else {
                 console.log(`No day element found for ${dateStr}`);
               }
@@ -540,15 +541,15 @@ const ArtistCalendar: React.FC<ArtistCalendarProps> = ({ artistIdOrSlug, onDateS
       {/* Legend */}
       <div className="mt-4 flex flex-wrap items-center justify-start gap-4 text-sm">
         <div className="flex items-center">
-          <span className="block w-4 h-4 mr-1 bg-[#00A896] rounded-sm"></span>
+          <span className="block w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: colors.available }}></span>
           <span>Available</span>
         </div>
         <div className="flex items-center">
-          <span className="block w-4 h-4 mr-1 bg-[#1A1A1D] rounded-sm"></span>
+          <span className="block w-4 h-4 mr-1 rounded-sm" style={{ backgroundColor: colors.surface }}></span>
           <span>Unavailable</span>
         </div>
-        
-        <div className="ml-2 text-xs text-[#E8DBC5] italic">
+
+        <div className="ml-2 text-xs italic" style={{ color: colors.textSecondary }}>
           Note: Only days in green are available for booking.
         </div>
       </div>

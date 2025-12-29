@@ -333,8 +333,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 sx={{
                   width: 120,
                   height: 120,
-                  backgroundColor: '#ffffff',
-                  color: '#000',
+                  backgroundColor: colors.backgroundLight,
+                  color: colors.textOnLight,
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
                   '&:hover': {
@@ -353,7 +353,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                   bottom: -5,
                   right: -5,
                   backgroundColor: colors.accent,
-                  color: '#000',
+                  color: colors.textOnLight,
                   width: 40,
                   height: 40,
                   '&:hover': {
@@ -444,10 +444,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                       <CircularProgress size={20} sx={{ color: colors.accent }} />
                     )}
                     {!isCheckingUsername && usernameAvailable === true && (
-                      <CheckCircleIcon sx={{ color: '#4caf50' }} />
+                      <CheckCircleIcon sx={{ color: colors.success }} />
                     )}
                     {!isCheckingUsername && usernameAvailable === false && (
-                      <CancelIcon sx={{ color: '#f44336' }} />
+                      <CancelIcon sx={{ color: colors.error }} />
                     )}
                   </>
                 ),
@@ -455,18 +455,18 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               sx={{
                 '& .MuiOutlinedInput-root': {
                   '& fieldset': {
-                    borderColor: usernameAvailable === false ? '#f44336' :
-                                 usernameAvailable === true ? '#4caf50' :
-                                 'rgba(232, 219, 197, 0.5)',
+                    borderColor: usernameAvailable === false ? colors.error :
+                                 usernameAvailable === true ? colors.success :
+                                 colors.border,
                   },
                   '&:hover fieldset': {
-                    borderColor: usernameAvailable === false ? '#f44336' :
-                                 usernameAvailable === true ? '#4caf50' :
+                    borderColor: usernameAvailable === false ? colors.error :
+                                 usernameAvailable === true ? colors.success :
                                  colors.textSecondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: usernameAvailable === false ? '#f44336' :
-                                 usernameAvailable === true ? '#4caf50' :
+                    borderColor: usernameAvailable === false ? colors.error :
+                                 usernameAvailable === true ? colors.success :
                                  colors.accent,
                   },
                 },
@@ -479,11 +479,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               }}
             />
             {errors.username ? (
-              <Typography variant="caption" sx={{ color: '#f44336', mt: 0.5, display: 'block' }}>
+              <Typography variant="caption" sx={{ color: colors.error, mt: 0.5, display: 'block' }}>
                 {errors.username}
               </Typography>
             ) : usernameAvailable === true ? (
-              <Typography variant="caption" sx={{ color: '#4caf50', mt: 0.5, display: 'block' }}>
+              <Typography variant="caption" sx={{ color: colors.success, mt: 0.5, display: 'block' }}>
                 ✓ Username is available
               </Typography>
             ) : (
@@ -637,15 +637,15 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
               sx={{
                 backgroundColor: colors.accent,
-                color: '#000',
+                color: colors.textOnLight,
                 fontWeight: 'bold',
                 minWidth: '150px',
                 '&:hover': {
                   backgroundColor: colors.accentDark,
                 },
                 '&:disabled': {
-                  backgroundColor: 'rgba(232, 219, 197, 0.3)',
-                  color: 'rgba(0, 0, 0, 0.5)',
+                  backgroundColor: colors.border,
+                  color: colors.textMuted,
                 },
               }}
             >

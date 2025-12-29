@@ -97,11 +97,11 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
   if (threads.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 6 }}>
-        <ChatBubbleIcon sx={{ fontSize: 64, color: '#666', mb: 2 }} />
-        <Typography variant="h6" sx={{ color: '#888', mb: 1 }}>
+        <ChatBubbleIcon sx={{ fontSize: 64, color: colors.textMuted, mb: 2 }} />
+        <Typography variant="h6" sx={{ color: colors.textSecondary, mb: 1 }}>
           No message threads
         </Typography>
-        <Typography variant="body2" sx={{ color: '#666' }}>
+        <Typography variant="body2" sx={{ color: colors.textMuted }}>
           Conversations about appointments will appear here.
         </Typography>
       </Box>
@@ -116,13 +116,13 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
             sx={{
               p: 2,
               mb: 1,
-              bgcolor: selectedThreadId === thread.id ? '#333' : '#2a2a2a',
+              bgcolor: selectedThreadId === thread.id ? colors.borderLight : colors.surfaceHover,
               border: selectedThreadId === thread.id ? `1px solid ${colors.accent}` : '1px solid transparent',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               '&:hover': {
-                bgcolor: '#333',
-                borderColor: '#444'
+                bgcolor: colors.borderLight,
+                borderColor: colors.border
               }
             }}
             onClick={() => onSelectThread(thread.id)}
@@ -165,7 +165,7 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
                     {thread.client.name}
                   </Typography>
                   {thread.latest_message && (
-                    <Typography variant="caption" sx={{ color: '#888', ml: 1 }}>
+                    <Typography variant="caption" sx={{ color: colors.textSecondary, ml: 1 }}>
                       {formatDistanceToNow(new Date(thread.latest_message.created_at), { addSuffix: true })}
                     </Typography>
                   )}
@@ -175,7 +175,7 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
                 <Typography 
                   variant="body2" 
                   sx={{ 
-                    color: '#888',
+                    color: colors.textSecondary,
                     mb: 0.5,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -190,7 +190,7 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
                   <Typography 
                     variant="body2" 
                     sx={{ 
-                      color: thread.unread_count > 0 ? 'white' : '#ccc',
+                      color: thread.unread_count > 0 ? 'white' : colors.textSecondary,
                       fontWeight: thread.unread_count > 0 ? 'medium' : 'normal',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -205,7 +205,7 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
           </Paper>
           
           {index < threads.length - 1 && (
-            <Divider sx={{ borderColor: '#444', my: 1 }} />
+            <Divider sx={{ borderColor: colors.border, my: 1 }} />
           )}
         </Box>
       ))}

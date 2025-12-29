@@ -106,7 +106,7 @@ const UserTypeSelection: React.FC<UserTypeSelectionProps> = ({ onStepComplete, o
                       width: 48,
                       height: 48,
                       backgroundColor: userType.color,
-                      color: '#000',
+                      color: colors.textOnLight,
                       flexShrink: 0,
                     }}
                   >

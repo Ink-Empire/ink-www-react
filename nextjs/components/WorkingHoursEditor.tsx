@@ -304,7 +304,7 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
             sx={{
               px: '1rem',
               py: '0.5rem',
-              bgcolor: '#242424',
+              bgcolor: colors.surfaceElevated,
               border: `1px solid ${colors.borderLight}`,
               borderRadius: '100px',
               fontSize: '0.8rem',
@@ -364,7 +364,7 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
                 sx={{
                   width: 44,
                   height: 24,
-                  bgcolor: isActive ? colors.accent : '#242424',
+                  bgcolor: isActive ? colors.accent : colors.surfaceElevated,
                   borderRadius: '12px',
                   position: 'relative',
                   cursor: 'pointer',

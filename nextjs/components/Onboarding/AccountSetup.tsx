@@ -228,10 +228,10 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
                       <CircularProgress size={20} sx={{ color: colors.accent }} />
                     )}
                     {!isCheckingEmail && emailAvailable === true && (
-                      <CheckCircleIcon sx={{ color: '#4caf50' }} />
+                      <CheckCircleIcon sx={{ color: colors.success }} />
                     )}
                     {!isCheckingEmail && emailAvailable === false && (
-                      <CancelIcon sx={{ color: '#f44336' }} />
+                      <CancelIcon sx={{ color: colors.error }} />
                     )}
                   </>
                 ),
@@ -239,18 +239,18 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
               sx={{
                 '& .MuiOutlinedInput-root': {
                   '& fieldset': {
-                    borderColor: emailAvailable === false ? '#f44336' :
-                                 emailAvailable === true ? '#4caf50' :
-                                 'rgba(232, 219, 197, 0.5)',
+                    borderColor: emailAvailable === false ? colors.error :
+                                 emailAvailable === true ? colors.success :
+                                 colors.border,
                   },
                   '&:hover fieldset': {
-                    borderColor: emailAvailable === false ? '#f44336' :
-                                 emailAvailable === true ? '#4caf50' :
+                    borderColor: emailAvailable === false ? colors.error :
+                                 emailAvailable === true ? colors.success :
                                  colors.textSecondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: emailAvailable === false ? '#f44336' :
-                                 emailAvailable === true ? '#4caf50' :
+                    borderColor: emailAvailable === false ? colors.error :
+                                 emailAvailable === true ? colors.success :
                                  colors.accent,
                   },
                 },
@@ -285,13 +285,13 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
               sx={{
                 '& .MuiOutlinedInput-root': {
                   '& fieldset': {
-                    borderColor: password && allPasswordRequirementsMet() ? '#4caf50' : 'rgba(232, 219, 197, 0.5)',
+                    borderColor: password && allPasswordRequirementsMet() ? colors.success : colors.border,
                   },
                   '&:hover fieldset': {
-                    borderColor: password && allPasswordRequirementsMet() ? '#4caf50' : colors.textSecondary,
+                    borderColor: password && allPasswordRequirementsMet() ? colors.success : colors.textSecondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: password && allPasswordRequirementsMet() ? '#4caf50' : colors.accent,
+                    borderColor: password && allPasswordRequirementsMet() ? colors.success : colors.accent,
                   },
                 },
                 '& .MuiInputLabel-root': {
@@ -312,14 +312,14 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
                 {passwordRequirements.map((req) => (
                   <Box key={req.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     {req.met ? (
-                      <CheckCircleIcon sx={{ fontSize: 16, color: '#4caf50' }} />
+                      <CheckCircleIcon sx={{ fontSize: 16, color: colors.success }} />
                     ) : (
-                      <CancelIcon sx={{ fontSize: 16, color: password ? '#f44336' : 'rgba(255,255,255,0.3)' }} />
+                      <CancelIcon sx={{ fontSize: 16, color: password ? colors.error : colors.textMuted }} />
                     )}
                     <Typography
                       variant="caption"
                       sx={{
-                        color: req.met ? '#4caf50' : password ? '#f44336' : 'rgba(255,255,255,0.5)',
+                        color: req.met ? colors.success : password ? colors.error : colors.textMuted,
                         fontSize: '0.7rem',
                       }}
                     >
@@ -330,7 +330,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
               </Box>
             </Box>
             {errors.password && (
-              <Typography variant="caption" sx={{ color: '#f44336', mt: 0.5, display: 'block' }}>
+              <Typography variant="caption" sx={{ color: colors.error, mt: 0.5, display: 'block' }}>
                 {errors.password}
               </Typography>
             )}
@@ -352,9 +352,9 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
               InputProps={{
                 endAdornment: passwordConfirmation && (
                   passwordsMatch ? (
-                    <CheckCircleIcon sx={{ color: '#4caf50' }} />
+                    <CheckCircleIcon sx={{ color: colors.success }} />
                   ) : (
-                    <CancelIcon sx={{ color: '#f44336' }} />
+                    <CancelIcon sx={{ color: colors.error }} />
                   )
                 ),
               }}
@@ -362,17 +362,17 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
                 '& .MuiOutlinedInput-root': {
                   '& fieldset': {
                     borderColor: passwordConfirmation
-                      ? (passwordsMatch ? '#4caf50' : '#f44336')
-                      : 'rgba(232, 219, 197, 0.5)',
+                      ? (passwordsMatch ? colors.success : colors.error)
+                      : colors.border,
                   },
                   '&:hover fieldset': {
                     borderColor: passwordConfirmation
-                      ? (passwordsMatch ? '#4caf50' : '#f44336')
+                      ? (passwordsMatch ? colors.success : colors.error)
                       : colors.textSecondary,
                   },
                   '&.Mui-focused fieldset': {
                     borderColor: passwordConfirmation
-                      ? (passwordsMatch ? '#4caf50' : '#f44336')
+                      ? (passwordsMatch ? colors.success : colors.error)
                       : colors.accent,
                   },
                 },
@@ -385,12 +385,12 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
               }}
             />
             {passwordConfirmation && !passwordsMatch && (
-              <Typography variant="caption" sx={{ color: '#f44336', mt: 0.5, display: 'block' }}>
+              <Typography variant="caption" sx={{ color: colors.error, mt: 0.5, display: 'block' }}>
                 Passwords do not match
               </Typography>
             )}
             {passwordsMatch && (
-              <Typography variant="caption" sx={{ color: '#4caf50', mt: 0.5, display: 'block' }}>
+              <Typography variant="caption" sx={{ color: colors.success, mt: 0.5, display: 'block' }}>
                 ✓ Passwords match
               </Typography>
             )}
@@ -437,7 +437,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
               startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
               sx={{
                 backgroundColor: colors.accent,
-                color: '#000',
+                color: colors.textOnLight,
                 fontWeight: 'bold',
                 px: 4,
                 width: { xs: '100%', sm: 'auto' },
@@ -445,8 +445,8 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
                   backgroundColor: colors.accentDark,
                 },
                 '&:disabled': {
-                  backgroundColor: 'rgba(232, 219, 197, 0.3)',
-                  color: 'rgba(0, 0, 0, 0.5)',
+                  backgroundColor: colors.border,
+                  color: colors.textMuted,
                 },
               }}
             >

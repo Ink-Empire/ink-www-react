@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { OnboardingWizard, OnboardingData } from '../components/Onboarding';
+import { OnboardingWizard, OnboardingData, UserRegistrationPayload, StudioCreationPayload } from '../components/Onboarding';
 import { setToken, removeToken } from '@/utils/auth';
 import { getCsrfToken, fetchCsrfToken, api } from '@/utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,8 @@ const RegisterPage: React.FC = () => {
   const { refreshUser, logout, setUserDirectly } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [isClearing, setIsClearing] = useState(true);
+  // Track if user was already registered via early registration flow
+  const [earlyRegisteredUserId, setEarlyRegisteredUserId] = useState<number | null>(null);
 
   // Clear any existing auth state when visiting the register page
   // This ensures new registrations start with a clean slate
@@ -65,25 +67,168 @@ const RegisterPage: React.FC = () => {
     };
   }, []);
 
+  // Generate slug from username
+  const generateSlug = useCallback((username: string) => {
+    return username.toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }, []);
+
+  // Early registration callback - called after AccountSetup for studios
+  // This registers the user immediately so the final step is just creating the studio
+  const handleRegisterUser = useCallback(async (payload: UserRegistrationPayload): Promise<{ userId: number; token: string }> => {
+    console.log('Early registration: Creating user account...', payload);
+
+    // Get CSRF token for the request
+    await fetchCsrfToken();
+    const csrfToken = getCsrfToken();
+
+    const ownerType = payload.studioOwner?.ownerType || 'user';
+    const isArtistOwner = ownerType === 'artist';
+
+    const registrationPayload = {
+      name: payload.userDetails?.name || '',
+      username: payload.userDetails?.username || '',
+      slug: generateSlug(payload.userDetails?.username || ''),
+      email: payload.credentials?.email || '',
+      password: payload.credentials?.password || '',
+      password_confirmation: payload.credentials?.password_confirmation || '',
+      about: payload.userDetails?.bio || '',
+      location: payload.userDetails?.location || '',
+      location_lat_long: payload.userDetails?.locationLatLong || '',
+      type: ownerType,
+      selected_styles: isArtistOwner ? (payload.studioOwner?.artistStyles || []) : [],
+      preferred_styles: [],
+      is_studio_owner: true,
+    };
+
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': csrfToken || '',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'include',
+      body: JSON.stringify(registrationPayload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create account');
+    }
+
+    const result = await response.json();
+    console.log('Early registration: User created successfully', result);
+
+    // Set the authentication token and user
+    if (result.token) {
+      setToken(result.token);
+      api.clearUserCache();
+
+      if (result.user && result.user.id) {
+        setUserDirectly(result.user);
+        console.log('Early registration: User set in context');
+      }
+    }
+
+    // Handle owner profile image upload if provided
+    if (payload.userDetails?.profileImage && result.user?.id) {
+      try {
+        const imageFormData = new FormData();
+        imageFormData.append('profile_photo', payload.userDetails.profileImage);
+        await api.post('/users/profile-photo', imageFormData);
+        console.log('Early registration: Profile image uploaded');
+      } catch (imgErr) {
+        console.error('Early registration: Failed to upload profile image:', imgErr);
+      }
+    }
+
+    setEarlyRegisteredUserId(result.user?.id);
+
+    return {
+      userId: result.user?.id,
+      token: result.token,
+    };
+  }, [generateSlug, setUserDirectly]);
+
+  // Studio creation callback - called from StudioDetails
+  const handleCreateStudio = useCallback(async (payload: StudioCreationPayload): Promise<{ studioId: number }> => {
+    console.log('Creating studio...', payload);
+
+    const studioPayload: Record<string, unknown> = {
+      name: payload.studioDetails?.name || '',
+      slug: generateSlug(payload.studioDetails?.username || payload.studioDetails?.name || ''),
+      about: payload.studioDetails?.bio || '',
+      location: payload.studioDetails?.location || '',
+      location_lat_long: payload.studioDetails?.locationLatLong || '',
+      owner_id: payload.ownerId,
+    };
+
+    if (payload.studioDetails?.email) {
+      studioPayload.email = payload.studioDetails.email;
+    }
+
+    if (payload.studioDetails?.phone) {
+      studioPayload.phone = payload.studioDetails.phone;
+    }
+
+    const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
+    console.log('Studio created:', studioResponse);
+
+    const studioId = studioResponse?.studio?.id;
+
+    // Handle studio image upload if provided
+    if (payload.studioDetails?.profileImage && studioId) {
+      try {
+        const imageFormData = new FormData();
+        imageFormData.append('image', payload.studioDetails.profileImage);
+        await api.post(`/studios/${studioId}/image`, imageFormData);
+        console.log('Studio image uploaded');
+      } catch (imgErr) {
+        console.error('Failed to upload studio image:', imgErr);
+      }
+    }
+
+    // Refresh user to get studio relationship
+    try {
+      await refreshUser();
+      console.log('User refreshed with studio data');
+    } catch (e) {
+      console.error('Failed to refresh user:', e);
+    }
+
+    return { studioId: studioId || 0 };
+  }, [generateSlug, refreshUser]);
+
   const handleRegistrationComplete = async (data: OnboardingData) => {
     try {
       setIsRegistering(true);
       console.log('Registration/Onboarding completed with data:', data);
 
-      // Generate slug from username (same logic as original registration form)
-      const generateSlug = (username: string) => {
-        return username.toLowerCase()
-          .replace(/[^a-z0-9]/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '');
-      };
-
       // Get CSRF token for the request
       await fetchCsrfToken();
       const csrfToken = getCsrfToken();
 
-      // Handle studio registration differently
+      // Handle studio registration
       if (data.userType === 'studio') {
+        // If user was already registered via early registration AND studio was created,
+        // just redirect - everything is done
+        if (earlyRegisteredUserId) {
+          console.log('Studio flow complete - user and studio already created, redirecting...');
+          router.push('/dashboard');
+          return;
+        }
+
+        // If user logged in with existing account AND studio was created, redirect
+        if (data.studioOwner?.isAuthenticated && data.studioOwner?.existingAccountId) {
+          console.log('Studio flow complete - existing user, studio created, redirecting...');
+          router.push('/dashboard');
+          return;
+        }
+
+        // Fallback to legacy flow (shouldn't happen with new callbacks)
         await handleStudioRegistration(data, generateSlug, csrfToken);
         return;
       }
@@ -389,7 +534,7 @@ const RegisterPage: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#1a0e11',
+            backgroundColor: colors.background,
           }}
         >
           <CircularProgress sx={{ color: colors.accent }} />
@@ -409,6 +554,8 @@ const RegisterPage: React.FC = () => {
       <OnboardingWizard
         onComplete={handleRegistrationComplete}
         onCancel={handleRegistrationCancel}
+        onRegisterUser={handleRegisterUser}
+        onCreateStudio={handleCreateStudio}
       />
 
       {/* Loading Backdrop */}

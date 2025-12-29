@@ -193,7 +193,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
                     width: 48,
                     height: 48,
                     backgroundColor: colors.accent,
-                    color: '#000',
+                    color: colors.textOnLight,
                   }}
                 >
                   <CheckCircleIcon sx={{ fontSize: 24 }} />
@@ -237,7 +237,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
                     width: 48,
                     height: 48,
                     backgroundColor: colors.textSecondary,
-                    color: '#000',
+                    color: colors.textOnLight,
                   }}
                 >
                   <PersonIcon sx={{ fontSize: 24 }} />
@@ -409,12 +409,12 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
               startIcon={isLoggingIn ? <CircularProgress size={20} color="inherit" /> : null}
               sx={{
                 backgroundColor: colors.accent,
-                color: '#000',
+                color: colors.textOnLight,
                 fontWeight: 'bold',
                 '&:hover': { backgroundColor: colors.accentDark },
                 '&:disabled': {
-                  backgroundColor: 'rgba(232, 219, 197, 0.3)',
-                  color: 'rgba(0, 0, 0, 0.5)',
+                  backgroundColor: colors.border,
+                  color: colors.textMuted,
                 },
               }}
             >
@@ -478,7 +478,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
                   width: 48,
                   height: 48,
                   backgroundColor: colors.accent,
-                  color: '#000',
+                  color: colors.textOnLight,
                 }}
               >
                 <BrushIcon sx={{ fontSize: 24 }} />
@@ -522,7 +522,7 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
                   width: 48,
                   height: 48,
                   backgroundColor: colors.textSecondary,
-                  color: '#000',
+                  color: colors.textOnLight,
                 }}
               >
                 <PersonIcon sx={{ fontSize: 24 }} />

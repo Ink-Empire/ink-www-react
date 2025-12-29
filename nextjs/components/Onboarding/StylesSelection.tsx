@@ -160,7 +160,7 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
                 fontWeight: 'bold',
                 transition: 'all 0.3s ease',
                 backgroundColor: selectedStyles.includes(style.id) ? colors.accent : 'transparent',
-                color: selectedStyles.includes(style.id) ? '#000' : colors.textSecondary,
+                color: selectedStyles.includes(style.id) ? colors.textOnLight : colors.textSecondary,
                 borderColor: selectedStyles.includes(style.id) ? colors.accent : 'rgba(232, 219, 197, 0.5)',
                 '&:hover': {
                   backgroundColor: selectedStyles.includes(style.id)
@@ -226,15 +226,15 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
             disabled={selectedStyles.length === 0}
             sx={{
               backgroundColor: colors.accent,
-              color: '#000',
+              color: colors.textOnLight,
               fontWeight: 'bold',
               minWidth: { xs: '120px', sm: '100px' },
               '&:hover': {
                 backgroundColor: colors.accentDark,
               },
               '&:disabled': {
-                backgroundColor: 'rgba(232, 219, 197, 0.3)',
-                color: 'rgba(0, 0, 0, 0.5)',
+                backgroundColor: colors.border,
+                color: colors.textMuted,
               },
             }}
           >

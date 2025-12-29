@@ -97,7 +97,7 @@ const ExperienceLevel: React.FC<ExperienceLevelProps> = ({ onStepComplete, onBac
                         width: { xs: 50, sm: 60 },
                         height: { xs: 50, sm: 60 },
                         backgroundColor: level.color,
-                        color: '#000',
+                        color: colors.textOnLight,
                       }}
                     >
                       <IconComponent sx={{ fontSize: { xs: 25, sm: 30 } }} />

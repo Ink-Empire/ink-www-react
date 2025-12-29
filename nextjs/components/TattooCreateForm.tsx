@@ -297,7 +297,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
   }
 
   return (
-    <Card sx={{ mt: 3, bgcolor: colors.surface, border: '1px solid #444' }}>
+    <Card sx={{ mt: 3, bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
       <CardContent>
         <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
           Create New Tattoo Post
@@ -310,7 +310,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2, bgcolor: colors.surface, border: '1px solid #4caf50' }}>
+          <Alert severity="success" sx={{ mb: 2, bgcolor: colors.surface, border: `1px solid ${colors.success}` }}>
             Tattoo post created successfully! Redirecting...
           </Alert>
         )}
@@ -398,11 +398,11 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
               mb: 3,
               '& .MuiOutlinedInput-root': {
                 color: 'white',
-                '& fieldset': { borderColor: '#444' },
+                '& fieldset': { borderColor: colors.border },
                 '&:hover fieldset': { borderColor: colors.accent },
                 '&.Mui-focused fieldset': { borderColor: colors.accent }
               },
-              '& .MuiInputLabel-root': { color: '#888' }
+              '& .MuiInputLabel-root': { color: colors.textSecondary }
             }}
           />
 
@@ -412,14 +412,14 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
             sx={{ mb: 3 }}
             disabled={submitting || loadingStyles}
           >
-            <InputLabel sx={{ color: '#888' }}>Primary Style</InputLabel>
+            <InputLabel sx={{ color: colors.textSecondary }}>Primary Style</InputLabel>
             <Select
               value={primaryStyleId}
               onChange={handlePrimaryStyleChange}
               label="Primary Style"
               sx={{
                 color: 'white',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
                 '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent }
               }}
@@ -438,7 +438,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
             sx={{ mb: 3 }}
             disabled={submitting || loadingStyles}
           >
-            <InputLabel sx={{ color: '#888' }}>Additional Styles (Optional)</InputLabel>
+            <InputLabel sx={{ color: colors.textSecondary }}>Additional Styles (Optional)</InputLabel>
             <Select
               multiple
               value={additionalStyleIds}
@@ -461,7 +461,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
               )}
               sx={{
                 color: 'white',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
                 '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent }
               }}
@@ -506,7 +506,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
             sx={{
               bgcolor: colors.accent,
               '&:hover': { bgcolor: colors.accentDark },
-              '&:disabled': { bgcolor: '#555', color: '#888' }
+              '&:disabled': { bgcolor: colors.border, color: colors.textSecondary }
             }}
           >
             {submitting ? 'Creating Post...' : 'Create Tattoo Post'}
@@ -523,7 +523,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
         PaperProps={{
           sx: {
             bgcolor: colors.surface,
-            border: '1px solid #444',
+            border: `1px solid ${colors.border}`,
             color: 'white'
           }
         }}
@@ -533,7 +533,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
           AI Tag Suggestions
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ color: '#aaa', mb: 2 }}>
+          <Typography variant="body2" sx={{ color: colors.textSecondary, mb: 2 }}>
             Our AI analyzed your tattoo and found these additional tags that might help people discover your work.
             Click to add any that apply.
           </Typography>
@@ -558,7 +558,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
                   sx={{
                     bgcolor: isAdded ? colors.accent : 'transparent',
                     color: 'white',
-                    border: `1px solid ${isAdded ? colors.accent : '#666'}`,
+                    border: `1px solid ${isAdded ? colors.accent : colors.textMuted}`,
                     cursor: isAdded ? 'default' : 'pointer',
                     '&:hover': {
                       bgcolor: isAdded ? colors.accent : 'rgba(51, 153, 137, 0.2)',
@@ -572,7 +572,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
             })}
           </Box>
           {aiSuggestions.length === 0 && (
-            <Typography variant="body2" sx={{ color: '#888', textAlign: 'center', py: 2 }}>
+            <Typography variant="body2" sx={{ color: colors.textSecondary, textAlign: 'center', py: 2 }}>
               No additional suggestions at this time.
             </Typography>
           )}

@@ -60,25 +60,51 @@ export interface OnboardingData {
   };
 }
 
+// User registration payload for early registration
+export interface UserRegistrationPayload {
+  userType: 'client' | 'artist' | 'studio';
+  userDetails: OnboardingData['userDetails'];
+  credentials: OnboardingData['credentials'];
+  selectedStyles: number[];
+  experienceLevel?: string;
+  studioOwner?: OnboardingData['studioOwner'];
+}
+
+// Studio creation payload
+export interface StudioCreationPayload {
+  studioDetails: OnboardingData['studioDetails'];
+  ownerId: number;
+}
+
 interface OnboardingWizardProps {
   onComplete: (data: OnboardingData) => void;
   onCancel?: () => void;
   initialUserType?: 'client' | 'artist' | 'studio' | null;
+  // Early registration callback - called after AccountSetup to register the user immediately
+  onRegisterUser?: (payload: UserRegistrationPayload) => Promise<{ userId: number; token: string }>;
+  // Studio creation callback - called from StudioDetails to create the studio
+  onCreateStudio?: (payload: StudioCreationPayload) => Promise<{ studioId: number }>;
 }
 
-const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ 
-  onComplete, 
+const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
+  onComplete,
   onCancel,
-  initialUserType 
+  initialUserType,
+  onRegisterUser,
+  onCreateStudio,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
+
   const [currentStep, setCurrentStep] = useState(initialUserType ? 1 : 0);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     selectedStyles: [],
     userType: initialUserType || undefined,
   });
+  // Track if user has been registered (for studio flow where registration happens before studio creation)
+  const [registeredUserId, setRegisteredUserId] = useState<number | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   const getSteps = () => {
     // If we have initial user type from registration, skip the user type step
@@ -171,19 +197,66 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     setCurrentStep(currentStep + 1);
   };
 
-  const handleStudioDetailsComplete = (studioDetails: OnboardingData['studioDetails']) => {
-    // Studio details is the final step - call onComplete with all data
-    const completeData = {
-      ...onboardingData,
-      studioDetails,
-    };
-    onComplete(completeData);
+  const handleStudioDetailsComplete = async (studioDetails: OnboardingData['studioDetails']) => {
+    // If onCreateStudio callback is provided and user is registered, create the studio directly
+    if (onCreateStudio && registeredUserId) {
+      // StudioDetails will handle calling onCreateStudio internally
+      // This path is used when user was registered in the previous step
+      const completeData = {
+        ...onboardingData,
+        studioDetails,
+      };
+      onComplete(completeData);
+    } else if (onCreateStudio && onboardingData.studioOwner?.isAuthenticated && onboardingData.studioOwner?.existingAccountId) {
+      // User was already authenticated (existing account), create studio directly
+      const completeData = {
+        ...onboardingData,
+        studioDetails,
+      };
+      onComplete(completeData);
+    } else {
+      // Fallback: call onComplete with all data (legacy behavior)
+      const completeData = {
+        ...onboardingData,
+        studioDetails,
+      };
+      onComplete(completeData);
+    }
   };
 
-  // For studio flow: save credentials and advance to studio details step
-  const handleStudioAccountSetupComplete = (credentials: OnboardingData['credentials']) => {
-    setOnboardingData(prev => ({ ...prev, credentials }));
-    setCurrentStep(currentStep + 1);
+  // For studio flow: register user immediately, then advance to studio details step
+  const handleStudioAccountSetupComplete = async (credentials: OnboardingData['credentials']) => {
+    // Save credentials to state
+    const updatedData = { ...onboardingData, credentials };
+    setOnboardingData(updatedData);
+
+    // If onRegisterUser callback is provided, register the user immediately
+    if (onRegisterUser) {
+      setIsRegistering(true);
+      setRegistrationError(null);
+
+      try {
+        const payload: UserRegistrationPayload = {
+          userType: 'studio',
+          userDetails: updatedData.userDetails,
+          credentials,
+          selectedStyles: updatedData.studioOwner?.artistStyles || [],
+          studioOwner: updatedData.studioOwner,
+        };
+
+        const result = await onRegisterUser(payload);
+        setRegisteredUserId(result.userId);
+        setCurrentStep(currentStep + 1);
+      } catch (error: any) {
+        console.error('Error registering user:', error);
+        setRegistrationError(error.message || 'Failed to create account. Please try again.');
+      } finally {
+        setIsRegistering(false);
+      }
+    } else {
+      // Fallback: just advance to next step (legacy behavior)
+      setCurrentStep(currentStep + 1);
+    }
   };
 
   const handleAccountSetupComplete = (credentials: OnboardingData['credentials']) => {
@@ -324,6 +397,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <StudioDetails
                 onStepComplete={handleStudioDetailsComplete}
                 onBack={handleBack}
+                onCreateStudio={onCreateStudio}
+                ownerId={onboardingData.studioOwner?.existingAccountId}
               />
             );
         }
@@ -372,6 +447,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <StudioDetails
                 onStepComplete={handleStudioDetailsComplete}
                 onBack={handleBack}
+                onCreateStudio={onCreateStudio}
+                ownerId={registeredUserId || undefined}
               />
             );
         }
@@ -409,6 +486,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <StudioDetails
                 onStepComplete={handleStudioDetailsComplete}
                 onBack={handleBack}
+                onCreateStudio={onCreateStudio}
+                ownerId={registeredUserId || undefined}
               />
             );
         }
@@ -420,12 +499,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   };
 
   return (
-    <Box 
-      sx={{ 
+    <Box
+      sx={{
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#1a0e11',
+        backgroundColor: colors.background,
       }}
     >
       {/* Progress Bar */}

@@ -152,7 +152,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen, onClo
       <DialogContent>
         {success ? (
           <Box sx={{ textAlign: 'center', py: 3 }}>
-            <CheckCircleIcon sx={{ fontSize: 64, color: '#4caf50', mb: 2 }} />
+            <CheckCircleIcon sx={{ fontSize: 64, color: colors.success, mb: 2 }} />
             <Typography variant="h6" sx={{ mb: 1, color: colors.textPrimary }}>
               Password Changed Successfully
             </Typography>
@@ -241,14 +241,14 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen, onClo
                       return (
                         <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           {met ? (
-                            <CheckCircleIcon sx={{ fontSize: 16, color: '#4caf50' }} />
+                            <CheckCircleIcon sx={{ fontSize: 16, color: colors.success }} />
                           ) : (
                             <CancelIcon sx={{ fontSize: 16, color: colors.error }} />
                           )}
                           <Typography
                             variant="caption"
                             sx={{
-                              color: met ? '#4caf50' : colors.textSecondary,
+                              color: met ? colors.success : colors.textSecondary,
                             }}
                           >
                             {label}

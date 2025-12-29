@@ -53,6 +53,10 @@
   --secondary-light: #B8B8AE;
   --secondary-dark: #8A8A82;
 
+  /* Text on Light Backgrounds */
+  --text-on-light: #000000;
+  --background-light: #ffffff;
+
   /* Legacy aliases (for backwards compatibility) */
   --primary-color: var(--primary);
   --secondary-color: var(--secondary);
