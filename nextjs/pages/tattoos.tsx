@@ -183,7 +183,7 @@ export default function TattoosPage() {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   // Fetch tattoos based on search params
-  const { tattoos, loading, error } = useTattoos(searchParams);
+  const { tattoos, total, loading, error } = useTattoos(searchParams);
 
   // New user fallback: if no results with location filter, try without location
   useEffect(() => {
@@ -426,7 +426,7 @@ export default function TattoosPage() {
   };
 
   const activeFilters = getActiveFilters();
-  const tattooCount = tattoos?.length || 0;
+  const tattooCount = total || tattoos?.length || 0;
 
   return (
     <Layout>

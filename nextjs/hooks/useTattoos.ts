@@ -7,6 +7,7 @@ import { getToken } from '@/utils/auth';
 // Hook for fetching tattoos list
 export function useTattoos(searchParams?: Record<string, any>) {
   const [tattoos, setTattoos] = useState<TattooType[]>([]);
+  const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   
@@ -101,18 +102,23 @@ export function useTattoos(searchParams?: Record<string, any>) {
 
         // Process the response - handle array, { data: [...] }, and { response: [...] } formats
         let tattoosData: TattooType[] = [];
+        let totalCount = 0;
 
         if (response) {
           if (Array.isArray(response)) {
             tattoosData = response;
+            totalCount = response.length;
           } else if ('response' in response && Array.isArray((response as any).response)) {
             tattoosData = (response as any).response;
+            totalCount = (response as any).total ?? tattoosData.length;
           } else if ('data' in response && Array.isArray((response as any).data)) {
             tattoosData = (response as any).data;
+            totalCount = (response as any).total ?? tattoosData.length;
           }
-          console.log('Tattoos fetched successfully via POST:', tattoosData.length);
+          console.log('Tattoos fetched successfully via POST:', tattoosData.length, 'of', totalCount, 'total');
         }
         setTattoos(tattoosData);
+        setTotal(totalCount);
         saveToCache(tattoosData);
         setError(null);
       } catch (err) {
@@ -137,7 +143,7 @@ export function useTattoos(searchParams?: Record<string, any>) {
     };
   }, [searchParamsKey]); // Use the stringified version for dependency tracking
 
-  return { tattoos, loading, error };
+  return { tattoos, total, loading, error };
 }
 
 // Hook for fetching a single tattoo by ID
