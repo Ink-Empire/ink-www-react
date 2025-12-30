@@ -4,6 +4,7 @@ import Head from 'next/head';
 import { OnboardingWizard, OnboardingData, UserRegistrationPayload, StudioCreationPayload } from '../components/Onboarding';
 import { setToken, removeToken } from '@/utils/auth';
 import { getCsrfToken, fetchCsrfToken, api } from '@/utils/api';
+import { uploadImageToS3 } from '@/utils/s3Upload';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
 import { colors } from '@/styles/colors';
@@ -133,13 +134,14 @@ const RegisterPage: React.FC = () => {
       }
     }
 
-    // Handle owner profile image upload if provided
+    // Handle owner profile image upload if provided - use presigned URLs for speed
     if (payload.userDetails?.profileImage && result.user?.id) {
       try {
-        const imageFormData = new FormData();
-        imageFormData.append('profile_photo', payload.userDetails.profileImage);
-        await api.post('/users/profile-photo', imageFormData);
-        console.log('Early registration: Profile image uploaded');
+        console.log('Early registration: Uploading profile image via presigned URL...');
+        const uploadedImage = await uploadImageToS3(payload.userDetails.profileImage, 'profile');
+        // Associate the uploaded image with the user
+        await api.post('/users/profile-photo', { image_id: uploadedImage.id });
+        console.log('Early registration: Profile image uploaded via presigned URL');
       } catch (imgErr) {
         console.error('Early registration: Failed to upload profile image:', imgErr);
       }
@@ -179,13 +181,14 @@ const RegisterPage: React.FC = () => {
 
     const studioId = studioResponse?.studio?.id;
 
-    // Handle studio image upload if provided
+    // Handle studio image upload if provided - use presigned URLs for speed
     if (payload.studioDetails?.profileImage && studioId) {
       try {
-        const imageFormData = new FormData();
-        imageFormData.append('image', payload.studioDetails.profileImage);
-        await api.post(`/studios/${studioId}/image`, imageFormData);
-        console.log('Studio image uploaded');
+        console.log('Uploading studio image via presigned URL...');
+        const uploadedImage = await uploadImageToS3(payload.studioDetails.profileImage, 'studio');
+        // Associate the uploaded image with the studio
+        await api.post(`/studios/${studioId}/image`, { image_id: uploadedImage.id });
+        console.log('Studio image uploaded via presigned URL');
       } catch (imgErr) {
         console.error('Failed to upload studio image:', imgErr);
       }
@@ -291,18 +294,16 @@ const RegisterPage: React.FC = () => {
           }
         }
 
-        // Handle profile image upload if provided
+        // Handle profile image upload if provided - use presigned URLs for speed
         if (data.userDetails?.profileImage && result.user?.id) {
           try {
-            const imageFormData = new FormData();
-            imageFormData.append('profile_photo', data.userDetails.profileImage);
-
-            // Use the api utility which handles CSRF tokens properly for FormData
-            await api.post('/users/profile-photo', imageFormData);
-            console.log('Profile image uploaded successfully');
+            console.log('Uploading profile image via presigned URL...');
+            const uploadedImage = await uploadImageToS3(data.userDetails.profileImage, 'profile');
+            // Associate the uploaded image with the user
+            await api.post('/users/profile-photo', { image_id: uploadedImage.id });
+            console.log('Profile image uploaded via presigned URL');
 
             // Refresh user data to include the newly uploaded image
-            // This prevents race condition where redirect happens before image is associated
             await refreshUser();
             console.log('User refreshed with new image');
           } catch (imgErr) {
@@ -422,14 +423,13 @@ const RegisterPage: React.FC = () => {
           }
         }
 
-        // Handle owner profile image upload if provided
+        // Handle owner profile image upload if provided - use presigned URLs for speed
         if (data.userDetails?.profileImage && ownerId) {
           try {
-            const imageFormData = new FormData();
-            imageFormData.append('profile_photo', data.userDetails.profileImage);
-
-            await api.post('/users/profile-photo', imageFormData);
-            console.log('Owner profile image uploaded successfully');
+            console.log('Uploading owner profile image via presigned URL...');
+            const uploadedImage = await uploadImageToS3(data.userDetails.profileImage, 'profile');
+            await api.post('/users/profile-photo', { image_id: uploadedImage.id });
+            console.log('Owner profile image uploaded via presigned URL');
           } catch (imgErr) {
             console.error('Failed to upload owner profile image:', imgErr);
           }
@@ -462,15 +462,14 @@ const RegisterPage: React.FC = () => {
       const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
       console.log('Studio created:', studioResponse);
 
-      // Handle studio image upload if provided
+      // Handle studio image upload if provided - use presigned URLs for speed
       const studioId = studioResponse?.studio?.id;
       if (data.studioDetails?.profileImage && studioId) {
         try {
-          const imageFormData = new FormData();
-          imageFormData.append('image', data.studioDetails.profileImage);
-
-          await api.post(`/studios/${studioId}/image`, imageFormData);
-          console.log('Studio image uploaded successfully');
+          console.log('Uploading studio image via presigned URL...');
+          const uploadedImage = await uploadImageToS3(data.studioDetails.profileImage, 'studio');
+          await api.post(`/studios/${studioId}/image`, { image_id: uploadedImage.id });
+          console.log('Studio image uploaded via presigned URL');
         } catch (imgErr) {
           console.error('Failed to upload studio image:', imgErr);
         }
