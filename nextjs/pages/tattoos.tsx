@@ -426,7 +426,17 @@ export default function TattoosPage() {
   };
 
   const activeFilters = getActiveFilters();
-  const tattooCount = total || tattoos?.length || 0;
+
+  // Determine if there's an active search query (filters applied)
+  const hasActiveSearch = !!(
+    searchParams.searchString ||
+    (searchParams.styles && searchParams.styles.length > 0) ||
+    (searchParams.tags && searchParams.tags.length > 0) ||
+    (searchParams.tagNames && searchParams.tagNames.length > 0)
+  );
+
+  // Only use total when there's an active search, otherwise just use array length for display
+  const tattooCount = hasActiveSearch ? (total || tattoos?.length || 0) : (tattoos?.length || 0);
 
   return (
     <Layout>
@@ -501,12 +511,18 @@ export default function TattoosPage() {
             }}>
               Browse Tattoos
             </Typography>
-            <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
-              <Box component="strong" sx={{ color: colors.accent }}>
-                {tattooCount}
-              </Box>
-              {' '}tattoos available
-            </Typography>
+            {hasActiveSearch ? (
+              <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
+                <Box component="strong" sx={{ color: colors.accent }}>
+                  {total?.toLocaleString() || tattoos?.length || 0}
+                </Box>
+                {' '}results found
+              </Typography>
+            ) : (
+              <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
+                Discover amazing tattoos and artists
+              </Typography>
+            )}
           </Box>
 
           <Box sx={{
