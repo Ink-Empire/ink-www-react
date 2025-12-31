@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Box, Typography, IconButton, Modal, Button, CircularProgress } from '@mui/material';
+import { Box, Typography, IconButton, Modal, Button, CircularProgress, Switch, TextField } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
@@ -8,8 +8,9 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/utils/api';
-import { useArtistAppointments } from '@/hooks';
+import { useArtistAppointments, useWorkingHours } from '@/hooks';
 import { colors } from '@/styles/colors';
+import WorkingHoursModal from './WorkingHoursModal';
 
 interface ArtistProfileCalendarProps {
   artistIdOrSlug: string | number;
@@ -76,11 +77,37 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
   const [notifySignupLoading, setNotifySignupLoading] = useState(false);
   const [resolvedArtistId, setResolvedArtistId] = useState<number | null>(propArtistId || null);
 
+  // Books toggle state for own profile
+  const [isTogglingBooks, setIsTogglingBooks] = useState(false);
+
+  // Working hours modal state
+  const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
+
+  // Booking settings state for owner view
+  const [bookingSettings, setBookingSettings] = useState({
+    hourly_rate: '',
+    deposit_amount: '',
+    consultation_fee: '',
+    minimum_session: ''
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Artist day management modal state
+  const [artistDayModalOpen, setArtistDayModalOpen] = useState(false);
+  const [inviteType, setInviteType] = useState<'consultation' | 'appointment'>('consultation');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [inviteNote, setInviteNote] = useState('');
+  const [sendingInvite, setSendingInvite] = useState(false);
+
   // Fetch appointments
   const {
     appointments: fetchedAppointments,
     loading: appointmentsLoading
   } = useArtistAppointments(artistIdOrSlug);
+
+  // Working hours hook for saving (only used when viewing own profile)
+  const { saveWorkingHours, refetch: refetchWorkingHours } = useWorkingHours(resolvedArtistId);
 
   // Get closed days from working hours
   const closedDays = useMemo(() => {
@@ -137,13 +164,25 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
           setResolvedArtistId(artistRecord.id);
         }
 
-        const hasSettingsData = artistRecord?.settings && Object.keys(artistRecord.settings).length > 0;
+        // Check artist_settings (the correct field name from API)
+        const settings = artistRecord?.settings || artistRecord?.settings;
+        const hasSettingsData = settings && Object.keys(settings).length > 0;
         const booksAreOpen = hasSettingsData && (
-          artistRecord?.settings?.books_open === true ||
-          artistRecord?.settings?.books_open === 1
+          settings?.books_open === true ||
+          settings?.books_open === 1
         );
 
         setBooksOpen(booksAreOpen);
+
+        // Populate booking settings from artist data (don't show 0 as value)
+        if (settings) {
+          setBookingSettings({
+            hourly_rate: settings.hourly_rate && settings.hourly_rate > 0 ? settings.hourly_rate.toString() : '',
+            deposit_amount: settings.deposit_amount && settings.deposit_amount > 0 ? settings.deposit_amount.toString() : '',
+            consultation_fee: settings.consultation_fee && settings.consultation_fee > 0 ? settings.consultation_fee.toString() : '',
+            minimum_session: settings.minimum_session && settings.minimum_session > 0 ? settings.minimum_session.toString() : ''
+          });
+        }
 
         if (booksAreOpen) {
           const data = await api.get<{ data: WorkingHour[] }>(
@@ -224,6 +263,63 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
       }
     } finally {
       setNotifySignupLoading(false);
+    }
+  };
+
+  // Handle toggling books open/closed (for own profile)
+  const handleToggleBooks = async () => {
+    if (!resolvedArtistId) return;
+
+    const newValue = !booksOpen;
+    const previousValue = booksOpen;
+
+    // Optimistic update
+    setBooksOpen(newValue);
+    setIsTogglingBooks(true);
+
+    try {
+      await api.put(`/artists/${resolvedArtistId}/settings`, { books_open: newValue }, { requiresAuth: true });
+    } catch (err) {
+      console.error('Failed to update books status:', err);
+      // Revert on error
+      setBooksOpen(previousValue);
+    } finally {
+      setIsTogglingBooks(false);
+    }
+  };
+
+  // Handle saving working hours from modal
+  const handleSaveWorkingHours = async (hours: any[]) => {
+    try {
+      await saveWorkingHours(hours);
+      // Update local state with new hours
+      setWorkingHours(hours);
+      setWorkingHoursModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save working hours:', err);
+    }
+  };
+
+  // Handle booking settings change
+  const handleSettingChange = (key: keyof typeof bookingSettings, value: string) => {
+    setBookingSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Save booking settings
+  const handleSaveBookingSettings = async () => {
+    if (!resolvedArtistId) return;
+    setSavingSettings(true);
+    try {
+      await api.put(`/artists/${resolvedArtistId}/settings`, {
+        hourly_rate: bookingSettings.hourly_rate ? parseFloat(bookingSettings.hourly_rate) : 0,
+        deposit_amount: bookingSettings.deposit_amount ? parseFloat(bookingSettings.deposit_amount) : 0,
+        consultation_fee: bookingSettings.consultation_fee ? parseFloat(bookingSettings.consultation_fee) : 0,
+        minimum_session: bookingSettings.minimum_session ? parseFloat(bookingSettings.minimum_session) : 0
+      }, { requiresAuth: true });
+    } catch (err) {
+      console.error('Failed to save booking settings:', err);
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -326,7 +422,13 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
   const handleDayClick = (dateStr: string) => {
     setSelectedDay(dateStr);
 
-    // Check if user is authenticated
+    // Check if viewing own profile - show artist management modal
+    if (isAuthenticated && user?.id === resolvedArtistId) {
+      setArtistDayModalOpen(true);
+      return;
+    }
+
+    // Check if user is authenticated (for client booking)
     if (!isAuthenticated) {
       setLoginModalOpen(true);
       return;
@@ -351,6 +453,46 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
   const closeModal = () => {
     setModalOpen(false);
     setSelectedDay(null);
+  };
+
+  const closeArtistDayModal = () => {
+    setArtistDayModalOpen(false);
+    setSelectedDay(null);
+    setGuestEmail('');
+    setGuestName('');
+    setInviteNote('');
+    setInviteType('consultation');
+  };
+
+  // Get appointments for a specific date
+  const getAppointmentsForDate = (dateStr: string) => {
+    return fetchedAppointments.filter(apt => {
+      const aptDate = new Date(apt.start).toISOString().split('T')[0];
+      return aptDate === dateStr;
+    });
+  };
+
+  // Handle sending invite
+  const handleSendInvite = async () => {
+    if (!selectedDay || !guestEmail || !resolvedArtistId) return;
+
+    setSendingInvite(true);
+    try {
+      await api.post('/appointments/invite', {
+        artist_id: resolvedArtistId,
+        date: selectedDay,
+        type: inviteType,
+        guest_email: guestEmail,
+        guest_name: guestName,
+        note: inviteNote
+      }, { requiresAuth: true });
+
+      closeArtistDayModal();
+    } catch (err) {
+      console.error('Failed to send invite:', err);
+    } finally {
+      setSendingInvite(false);
+    }
   };
 
   const formatDateForDisplay = (dateStr: string) => {
@@ -426,25 +568,49 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
             : "This artist is not accepting new appointments at the moment. Sign up to be notified when their books open back up."}
         </Typography>
 
-        {/* Own profile - show dashboard link */}
+        {/* Own profile - show toggle to open books */}
         {isOwnProfile ? (
-          <Button
-            component={Link}
-            href="/dashboard"
-            sx={{
-              bgcolor: colors.accent,
-              color: colors.background,
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '0.95rem',
-              px: 4,
-              py: 1.5,
-              borderRadius: '8px',
-              '&:hover': { bgcolor: colors.accentHover }
-            }}
-          >
-            Open Books in Dashboard
-          </Button>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            mt: 1
+          }}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              p: 2,
+              bgcolor: colors.background,
+              borderRadius: '10px',
+              border: `1px solid ${colors.border}`
+            }}>
+              <Typography sx={{
+                fontSize: '0.9rem',
+                fontWeight: 500,
+                color: booksOpen ? colors.success : colors.textSecondary,
+              }}>
+                {booksOpen ? 'Open' : 'Closed'}
+              </Typography>
+              <Switch
+                checked={booksOpen || false}
+                onChange={handleToggleBooks}
+                disabled={isTogglingBooks}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: colors.success,
+                  },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: colors.success,
+                  },
+                }}
+              />
+            </Box>
+            <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+              Toggle to open your books and start accepting appointments
+            </Typography>
+          </Box>
         ) : wishlistLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
             <CircularProgress size={24} sx={{ color: colors.accent }} />
@@ -636,10 +802,13 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
             const isClosed = closedDays.includes(dayOfWeek);
             const isAvailable = !isClosed && availabilityData[dateStr]?.[bookingType];
 
+            // Allow artist to click any day on their own calendar
+            const canClick = isOwnProfile || isAvailable;
+
             return (
               <Box
                 key={day}
-                onClick={isAvailable ? () => handleDayClick(dateStr) : undefined}
+                onClick={canClick ? () => handleDayClick(dateStr) : undefined}
                 sx={{
                   aspectRatio: '1',
                   display: 'flex',
@@ -650,7 +819,7 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
                   fontSize: '0.95rem',
                   fontWeight: 500,
                   position: 'relative',
-                  cursor: isAvailable ? 'pointer' : 'default',
+                  cursor: canClick ? 'pointer' : 'default',
                   border: '2px solid transparent',
                   transition: 'all 0.25s ease',
                   ...(isClosed ? {
@@ -718,205 +887,511 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
 
       {/* Sidebar */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {/* View Toggle Card */}
-        <Box sx={{
-          bgcolor: colors.surface,
-          borderRadius: '12px',
-          p: 2,
-          border: `1px solid ${colors.border}`
-        }}>
-          <Box sx={{
-            bgcolor: `${colors.accent}1A`,
-            border: `1px solid ${colors.accent}4D`,
-            borderRadius: '8px',
-            p: 1.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            mb: 1.5
-          }}>
-            <Box sx={{ width: 10, height: 10, bgcolor: colors.accent, borderRadius: '50%' }} />
-            <Typography sx={{ fontSize: '0.85rem', color: colors.textPrimary }}>
-              Showing <Box component="strong" sx={{ color: colors.accent }}>{bookingType}</Box> availability
-            </Typography>
-          </Box>
-
-          <Typography sx={{
-            fontSize: '0.8rem',
-            color: colors.textSecondary,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            mb: 1
-          }}>
-            I'm looking to book a...
-          </Typography>
-
-          <Box sx={{
-            display: 'flex',
-            bgcolor: colors.background,
-            borderRadius: '8px',
-            p: 0.5,
-            gap: 0.5
-          }}>
-            <Button
-              onClick={() => setBookingType('consultation')}
-              sx={{
-                flex: 1,
-                py: 1,
-                px: 1.5,
-                borderRadius: '6px',
-                textTransform: 'none',
-                fontSize: '0.85rem',
+        {isOwnProfile ? (
+          <>
+            {/* Books Status Card - Owner View */}
+            <Box sx={{
+              bgcolor: colors.surface,
+              borderRadius: '12px',
+              p: 2,
+              border: `1px solid ${colors.border}`
+            }}>
+              <Typography sx={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: '1.25rem',
                 fontWeight: 500,
-                flexDirection: 'column',
-                ...(bookingType === 'consultation' ? {
-                  bgcolor: colors.accent,
-                  color: colors.background,
-                  '&:hover': { bgcolor: colors.accentHover }
-                } : {
-                  color: colors.textSecondary,
-                  '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
-                })
-              }}
-            >
-              Consultation
-              <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}></Box>
-            </Button>
-            <Button
-              onClick={() => setBookingType('appointment')}
-              sx={{
-                flex: 1,
-                py: 1,
-                px: 1.5,
-                borderRadius: '6px',
-                textTransform: 'none',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                flexDirection: 'column',
-                ...(bookingType === 'appointment' ? {
-                  bgcolor: colors.accent,
-                  color: colors.background,
-                  '&:hover': { bgcolor: colors.accentHover }
-                } : {
-                  color: colors.textSecondary,
-                  '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
-                })
-              }}
-            >
-              Appointment
-              <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}>In-studio session</Box>
-            </Button>
-          </Box>
-        </Box>
-
-        {/* Legend Card */}
-        <Box sx={{
-          bgcolor: colors.surface,
-          borderRadius: '12px',
-          p: 2,
-          border: `1px solid ${colors.border}`
-        }}>
-          <Typography sx={{
-            fontFamily: '"Cormorant Garamond", Georgia, serif',
-            fontSize: '1.25rem',
-            fontWeight: 500,
-            mb: 1.5,
-            color: colors.textPrimary
-          }}>
-            Legend
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {[
-              { type: 'available', label: 'Available', desc: 'Click to book' },
-              { type: 'unavailable', label: 'Unavailable', desc: 'Fully booked' },
-              { type: 'closed', label: 'Closed', desc: "Artist doesn't work this day" }
-            ].map(item => (
-              <Box key={item.type} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '6px',
-                  flexShrink: 0,
-                  ...(item.type === 'available' ? {
-                    bgcolor: `${colors.accent}1A`,
-                    border: `2px solid ${colors.accent}`
-                  } : item.type === 'unavailable' ? {
-                    bgcolor: colors.background,
-                    border: '2px solid transparent'
-                  } : {
-                    background: `repeating-linear-gradient(45deg, ${colors.background}, ${colors.background} 3px, ${colors.surface} 3px, ${colors.surface} 6px)`,
-                    border: '2px solid transparent',
-                    position: 'relative',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      inset: 0,
-                      bgcolor: `${colors.background}80`,
-                      borderRadius: '4px'
-                    }
-                  })
-                }} />
+                mb: 1.5,
+                color: colors.textPrimary
+              }}>
+                Booking Status
+              </Typography>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                p: 1.5,
+                bgcolor: booksOpen ? `${colors.success}15` : colors.background,
+                borderRadius: '8px',
+                border: `1px solid ${booksOpen ? colors.success : colors.border}40`,
+              }}>
                 <Box>
-                  <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.85rem' }}>
-                    {item.label}
+                  <Typography sx={{
+                    fontWeight: 600,
+                    color: colors.textPrimary,
+                    fontSize: '0.9rem',
+                  }}>
+                    {booksOpen ? 'Books Open' : 'Books Closed'}
                   </Typography>
-                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem' }}>
-                    {item.desc}
+                  <Typography sx={{
+                    color: colors.textSecondary,
+                    fontSize: '0.8rem',
+                  }}>
+                    {booksOpen ? 'Accepting bookings' : 'Not accepting bookings'}
                   </Typography>
                 </Box>
+                <Switch
+                  checked={booksOpen || false}
+                  onChange={handleToggleBooks}
+                  disabled={isTogglingBooks}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: colors.success,
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: colors.success,
+                    },
+                  }}
+                />
               </Box>
-            ))}
-          </Box>
-        </Box>
-
-        {/* Info Card */}
-        <Box sx={{
-          bgcolor: colors.surface,
-          borderRadius: '12px',
-          p: 2,
-          border: `1px solid ${colors.border}`
-        }}>
-          <Typography sx={{
-            fontFamily: '"Cormorant Garamond", Georgia, serif',
-            fontSize: '1.25rem',
-            fontWeight: 500,
-            mb: 1,
-            color: colors.textPrimary
-          }}>
-            {config.title}
-          </Typography>
-          <Typography sx={{
-            color: colors.textSecondary,
-            fontSize: '0.9rem',
-            lineHeight: 1.6,
-            mb: 1.5,
-            pb: 1.5,
-            borderBottom: `1px solid ${colors.border}`
-          }}>
-            {config.description}
-          </Typography>
-          {[
-            { label: 'Duration', value: config.duration },
-            { label: 'Cost', value: config.cost, accent: true },
-            { label: 'Response Time', value: '~24 hours' }
-          ].map((item, idx) => (
-            <Box key={item.label} sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              py: 1,
-              borderBottom: idx < 2 ? `1px solid ${colors.border}` : 'none',
-              fontSize: '0.9rem'
-            }}>
-              <Typography sx={{ color: colors.textSecondary }}>{item.label}</Typography>
-              <Typography sx={{
-                color: item.accent ? colors.accent : colors.textPrimary,
-                fontWeight: 500
-              }}>
-                {item.value}
-              </Typography>
             </Box>
-          ))}
-        </Box>
+
+            {/* Working Hours Card - Owner View */}
+            <Box sx={{
+              bgcolor: colors.surface,
+              borderRadius: '12px',
+              p: 2,
+              border: `1px solid ${colors.border}`
+            }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Typography sx={{
+                  fontFamily: '"Cormorant Garamond", Georgia, serif',
+                  fontSize: '1.25rem',
+                  fontWeight: 500,
+                  color: colors.textPrimary
+                }}>
+                  Working Hours
+                </Typography>
+                <Button
+                  onClick={() => setWorkingHoursModalOpen(true)}
+                  sx={{
+                    fontSize: '0.8rem',
+                    color: colors.accent,
+                    textTransform: 'none',
+                    p: 0.5,
+                    minWidth: 'auto',
+                    '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' }
+                  }}
+                >
+                  Edit
+                </Button>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
+                  const dayHours = workingHours.find(wh => wh.day_of_week === index);
+                  const isClosed = !dayHours || dayHours.is_day_off === true || dayHours.is_day_off === 1;
+                  return (
+                    <Box key={day} sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      py: 0.5,
+                      borderBottom: index < 6 ? `1px solid ${colors.border}` : 'none',
+                    }}>
+                      <Typography sx={{ fontSize: '0.85rem', color: colors.textPrimary }}>{day}</Typography>
+                      <Typography sx={{
+                        fontSize: '0.85rem',
+                        color: isClosed ? colors.textSecondary : colors.textPrimary,
+                        fontWeight: isClosed ? 400 : 500
+                      }}>
+                        {isClosed ? 'Closed' : `${dayHours?.start_time?.slice(0, 5)} - ${dayHours?.end_time?.slice(0, 5)}`}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+
+            {/* Booking Settings Card - Owner View */}
+            <Box sx={{
+              bgcolor: colors.surface,
+              borderRadius: '12px',
+              p: 2,
+              border: `1px solid ${colors.border}`
+            }}>
+              <Typography sx={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: '1.25rem',
+                fontWeight: 500,
+                color: colors.textPrimary,
+                mb: 1.5
+              }}>
+                Your Rates
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Hourly Rate
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. 200"
+                    value={bookingSettings.hourly_rate}
+                    onChange={(e) => handleSettingChange('hourly_rate', e.target.value)}
+                    InputProps={{
+                      startAdornment: <Typography sx={{ color: colors.textSecondary, mr: 0.5 }}>$</Typography>
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.85rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Min. Session (hours)
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. 2"
+                    value={bookingSettings.minimum_session}
+                    onChange={(e) => handleSettingChange('minimum_session', e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.85rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Deposit Amount
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. 150"
+                    value={bookingSettings.deposit_amount}
+                    onChange={(e) => handleSettingChange('deposit_amount', e.target.value)}
+                    InputProps={{
+                      startAdornment: <Typography sx={{ color: colors.textSecondary, mr: 0.5 }}>$</Typography>
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.85rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Consultation Fee
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Free or e.g. 50"
+                    value={bookingSettings.consultation_fee}
+                    onChange={(e) => handleSettingChange('consultation_fee', e.target.value)}
+                    InputProps={{
+                      startAdornment: <Typography sx={{ color: colors.textSecondary, mr: 0.5 }}>$</Typography>
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.85rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+              </Box>
+              <Button
+                onClick={handleSaveBookingSettings}
+                disabled={savingSettings}
+                fullWidth
+                sx={{
+                  mt: 2,
+                  py: 1,
+                  borderRadius: '6px',
+                  textTransform: 'none',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  bgcolor: colors.accent,
+                  color: colors.background,
+                  '&:hover': { bgcolor: colors.accentHover },
+                  '&:disabled': { bgcolor: `${colors.accent}80` }
+                }}
+              >
+                {savingSettings ? 'Saving...' : 'Save Rates'}
+              </Button>
+            </Box>
+
+            {/* Legend Card - Owner View */}
+            <Box sx={{
+              bgcolor: colors.surface,
+              borderRadius: '12px',
+              p: 2,
+              border: `1px solid ${colors.border}`
+            }}>
+              <Typography sx={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: '1.25rem',
+                fontWeight: 500,
+                mb: 1.5,
+                color: colors.textPrimary
+              }}>
+                Legend
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {[
+                  { type: 'available', label: 'Available', desc: 'Open for bookings' },
+                  { type: 'unavailable', label: 'Unavailable', desc: 'Already booked' },
+                  { type: 'closed', label: 'Closed', desc: 'Day off' }
+                ].map(item => (
+                  <Box key={item.type} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: '4px',
+                      flexShrink: 0,
+                      ...(item.type === 'available' ? {
+                        bgcolor: `${colors.accent}1A`,
+                        border: `2px solid ${colors.accent}`
+                      } : item.type === 'unavailable' ? {
+                        bgcolor: colors.background,
+                        border: '2px solid transparent'
+                      } : {
+                        background: `repeating-linear-gradient(45deg, ${colors.background}, ${colors.background} 3px, ${colors.surface} 3px, ${colors.surface} 6px)`,
+                        border: '2px solid transparent'
+                      })
+                    }} />
+                    <Box>
+                      <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.8rem' }}>
+                        {item.label}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          </>
+        ) : (
+          <>
+            {/* View Toggle Card - Client View */}
+            <Box sx={{
+              bgcolor: colors.surface,
+              borderRadius: '12px',
+              p: 2,
+              border: `1px solid ${colors.border}`
+            }}>
+              <Box sx={{
+                bgcolor: `${colors.accent}1A`,
+                border: `1px solid ${colors.accent}4D`,
+                borderRadius: '8px',
+                p: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                mb: 1.5
+              }}>
+                <Box sx={{ width: 10, height: 10, bgcolor: colors.accent, borderRadius: '50%' }} />
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textPrimary }}>
+                  Showing <Box component="strong" sx={{ color: colors.accent }}>{bookingType}</Box> availability
+                </Typography>
+              </Box>
+
+              <Typography sx={{
+                fontSize: '0.8rem',
+                color: colors.textSecondary,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                mb: 1
+              }}>
+                I'm looking to book a...
+              </Typography>
+
+              <Box sx={{
+                display: 'flex',
+                bgcolor: colors.background,
+                borderRadius: '8px',
+                p: 0.5,
+                gap: 0.5
+              }}>
+                <Button
+                  onClick={() => setBookingType('consultation')}
+                  sx={{
+                    flex: 1,
+                    py: 1,
+                    px: 1.5,
+                    borderRadius: '6px',
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    flexDirection: 'column',
+                    ...(bookingType === 'consultation' ? {
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover }
+                    } : {
+                      color: colors.textSecondary,
+                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                    })
+                  }}
+                >
+                  Consultation
+                  <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}></Box>
+                </Button>
+                <Button
+                  onClick={() => setBookingType('appointment')}
+                  sx={{
+                    flex: 1,
+                    py: 1,
+                    px: 1.5,
+                    borderRadius: '6px',
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    flexDirection: 'column',
+                    ...(bookingType === 'appointment' ? {
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover }
+                    } : {
+                      color: colors.textSecondary,
+                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                    })
+                  }}
+                >
+                  Appointment
+                  <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}>In-studio session</Box>
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Legend Card - Client View */}
+            <Box sx={{
+              bgcolor: colors.surface,
+              borderRadius: '12px',
+              p: 2,
+              border: `1px solid ${colors.border}`
+            }}>
+              <Typography sx={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: '1.25rem',
+                fontWeight: 500,
+                mb: 1.5,
+                color: colors.textPrimary
+              }}>
+                Legend
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {[
+                  { type: 'available', label: 'Available', desc: 'Click to book' },
+                  { type: 'unavailable', label: 'Unavailable', desc: 'Fully booked' },
+                  { type: 'closed', label: 'Closed', desc: "Artist doesn't work this day" }
+                ].map(item => (
+                  <Box key={item.type} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '6px',
+                      flexShrink: 0,
+                      ...(item.type === 'available' ? {
+                        bgcolor: `${colors.accent}1A`,
+                        border: `2px solid ${colors.accent}`
+                      } : item.type === 'unavailable' ? {
+                        bgcolor: colors.background,
+                        border: '2px solid transparent'
+                      } : {
+                        background: `repeating-linear-gradient(45deg, ${colors.background}, ${colors.background} 3px, ${colors.surface} 3px, ${colors.surface} 6px)`,
+                        border: '2px solid transparent',
+                        position: 'relative',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          inset: 0,
+                          bgcolor: `${colors.background}80`,
+                          borderRadius: '4px'
+                        }
+                      })
+                    }} />
+                    <Box>
+                      <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.85rem' }}>
+                        {item.label}
+                      </Typography>
+                      <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem' }}>
+                        {item.desc}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+
+            {/* Info Card - Client View */}
+            <Box sx={{
+              bgcolor: colors.surface,
+              borderRadius: '12px',
+              p: 2,
+              border: `1px solid ${colors.border}`
+            }}>
+              <Typography sx={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: '1.25rem',
+                fontWeight: 500,
+                mb: 1,
+                color: colors.textPrimary
+              }}>
+                {config.title}
+              </Typography>
+              <Typography sx={{
+                color: colors.textSecondary,
+                fontSize: '0.9rem',
+                lineHeight: 1.6,
+                mb: 1.5,
+                pb: 1.5,
+                borderBottom: `1px solid ${colors.border}`
+              }}>
+                {config.description}
+              </Typography>
+              {[
+                { label: 'Duration', value: config.duration },
+                { label: 'Cost', value: config.cost, accent: true },
+                { label: 'Response Time', value: '~24 hours' }
+              ].map((item, idx) => (
+                <Box key={item.label} sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  py: 1,
+                  borderBottom: idx < 2 ? `1px solid ${colors.border}` : 'none',
+                  fontSize: '0.9rem'
+                }}>
+                  <Typography sx={{ color: colors.textSecondary }}>{item.label}</Typography>
+                  <Typography sx={{
+                    color: item.accent ? colors.accent : colors.textPrimary,
+                    fontWeight: 500
+                  }}>
+                    {item.value}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </>
+        )}
       </Box>
 
       {/* Booking Modal */}
@@ -1146,6 +1621,312 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
               }}
             >
               Sign Up
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Working Hours Modal */}
+      {isOwnProfile && (
+        <WorkingHoursModal
+          isOpen={workingHoursModalOpen}
+          onClose={() => setWorkingHoursModalOpen(false)}
+          onSave={handleSaveWorkingHours}
+          artistId={resolvedArtistId || undefined}
+          initialWorkingHours={workingHours}
+        />
+      )}
+
+      {/* Artist Day Management Modal */}
+      <Modal
+        open={artistDayModalOpen}
+        onClose={closeArtistDayModal}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <Box sx={{
+          bgcolor: colors.surface,
+          borderRadius: '16px',
+          p: 3,
+          width: '100%',
+          maxWidth: 480,
+          border: `1px solid ${colors.accent}33`,
+          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
+          mx: 2,
+          maxHeight: '90vh',
+          overflowY: 'auto'
+        }}>
+          {/* Header */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Box>
+              <Typography sx={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: '1.5rem',
+                fontWeight: 500,
+                color: colors.textPrimary
+              }}>
+                {selectedDay ? formatDateForDisplay(selectedDay) : ''}
+              </Typography>
+            </Box>
+            <IconButton
+              onClick={closeArtistDayModal}
+              sx={{
+                bgcolor: colors.background,
+                border: `1px solid ${colors.border}`,
+                borderRadius: '8px',
+                color: colors.textSecondary,
+                '&:hover': { bgcolor: colors.surface, color: colors.textPrimary }
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          {/* Existing Appointments Section */}
+          {selectedDay && getAppointmentsForDate(selectedDay).length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: colors.textSecondary,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                mb: 1.5
+              }}>
+                Scheduled
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {getAppointmentsForDate(selectedDay).map((apt, idx) => (
+                  <Box key={idx} sx={{
+                    p: 1.5,
+                    bgcolor: colors.background,
+                    borderRadius: '8px',
+                    border: `1px solid ${colors.border}`
+                  }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem' }}>
+                        {apt.title || 'Appointment'}
+                      </Typography>
+                      <Box sx={{
+                        px: 1,
+                        py: 0.25,
+                        bgcolor: apt.status === 'confirmed' ? `${colors.success}22` : `${colors.accent}22`,
+                        color: apt.status === 'confirmed' ? colors.success : colors.accent,
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase'
+                      }}>
+                        {apt.status || 'pending'}
+                      </Box>
+                    </Box>
+                    {apt.start && (
+                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.5 }}>
+                        {new Date(apt.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {/* No Appointments Message */}
+          {selectedDay && getAppointmentsForDate(selectedDay).length === 0 && (
+            <Box sx={{
+              p: 2,
+              bgcolor: colors.background,
+              borderRadius: '8px',
+              mb: 3,
+              textAlign: 'center'
+            }}>
+              <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
+                No appointments scheduled for this day
+              </Typography>
+            </Box>
+          )}
+
+          {/* Divider */}
+          <Box sx={{ height: '1px', bgcolor: colors.border, mb: 3 }} />
+
+          {/* Invite Guest Section */}
+          <Typography sx={{
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            color: colors.textSecondary,
+            textTransform: 'uppercase',
+            letterSpacing: '0.03em',
+            mb: 1.5
+          }}>
+            Invite a Guest
+          </Typography>
+
+          {/* Invite Type Toggle */}
+          <Box sx={{
+            display: 'flex',
+            bgcolor: colors.background,
+            borderRadius: '8px',
+            p: 0.5,
+            gap: 0.5,
+            mb: 2
+          }}>
+            <Button
+              onClick={() => setInviteType('consultation')}
+              sx={{
+                flex: 1,
+                py: 1,
+                borderRadius: '6px',
+                textTransform: 'none',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                ...(inviteType === 'consultation' ? {
+                  bgcolor: colors.accent,
+                  color: colors.background,
+                  '&:hover': { bgcolor: colors.accentHover }
+                } : {
+                  color: colors.textSecondary,
+                  '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                })
+              }}
+            >
+              Consultation
+            </Button>
+            <Button
+              onClick={() => setInviteType('appointment')}
+              sx={{
+                flex: 1,
+                py: 1,
+                borderRadius: '6px',
+                textTransform: 'none',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                ...(inviteType === 'appointment' ? {
+                  bgcolor: colors.accent,
+                  color: colors.background,
+                  '&:hover': { bgcolor: colors.accentHover }
+                } : {
+                  color: colors.textSecondary,
+                  '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                })
+              }}
+            >
+              Appointment
+            </Button>
+          </Box>
+
+          {/* Guest Details Form */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                Guest Email *
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="client@email.com"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: colors.background,
+                    color: colors.textPrimary,
+                    fontSize: '0.9rem',
+                    '& fieldset': { borderColor: colors.border },
+                    '&:hover fieldset': { borderColor: colors.borderLight },
+                    '&.Mui-focused fieldset': { borderColor: colors.accent }
+                  },
+                  '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                }}
+              />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                Guest Name
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Client name (optional)"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: colors.background,
+                    color: colors.textPrimary,
+                    fontSize: '0.9rem',
+                    '& fieldset': { borderColor: colors.border },
+                    '&:hover fieldset': { borderColor: colors.borderLight },
+                    '&.Mui-focused fieldset': { borderColor: colors.accent }
+                  },
+                  '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                }}
+              />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                Note
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                multiline
+                rows={2}
+                placeholder="Add a message for your guest..."
+                value={inviteNote}
+                onChange={(e) => setInviteNote(e.target.value)}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: colors.background,
+                    color: colors.textPrimary,
+                    fontSize: '0.9rem',
+                    '& fieldset': { borderColor: colors.border },
+                    '&:hover fieldset': { borderColor: colors.borderLight },
+                    '&.Mui-focused fieldset': { borderColor: colors.accent }
+                  },
+                  '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                }}
+              />
+            </Box>
+          </Box>
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button
+              onClick={closeArtistDayModal}
+              sx={{
+                flex: 1,
+                py: 1.25,
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: colors.textPrimary,
+                border: `1px solid ${colors.border}`,
+                '&:hover': { borderColor: colors.textSecondary }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendInvite}
+              disabled={!guestEmail || sendingInvite}
+              sx={{
+                flex: 1,
+                py: 1.25,
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                bgcolor: colors.accent,
+                color: colors.background,
+                '&:hover': { bgcolor: colors.accentHover },
+                '&:disabled': { bgcolor: `${colors.accent}80`, color: colors.background }
+              }}
+            >
+              {sendingInvite ? 'Sending...' : 'Send Invite'}
             </Button>
           </Box>
         </Box>

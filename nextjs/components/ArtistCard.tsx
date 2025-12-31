@@ -5,7 +5,6 @@ import { Box, Typography, IconButton, Avatar } from '@mui/material';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import StarIcon from '@mui/icons-material/Star';
 import { ArtistType } from '../models/artist.interface';
 import { useUserData } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -274,29 +273,10 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                 <Box sx={{
                     p: '0.75rem 1rem',
                     display: 'flex',
-                    justifyContent: 'space-between',
+                    justifyContent: 'flex-end',
                     alignItems: 'center',
                     borderTop: `1px solid ${colors.border}`
                 }}>
-                    {/* Rating */}
-                    <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        fontSize: '0.85rem',
-                        color: colors.accent,
-                        fontWeight: 500
-                    }}>
-                        <StarIcon sx={{ fontSize: 16 }} />
-                        <span>4.9</span>
-                        <Typography component="span" sx={{
-                            color: colors.textSecondary,
-                            fontWeight: 400
-                        }}>
-                            (127)
-                        </Typography>
-                    </Box>
-
                     {/* Availability */}
                     <Box sx={{
                         fontSize: '0.75rem',

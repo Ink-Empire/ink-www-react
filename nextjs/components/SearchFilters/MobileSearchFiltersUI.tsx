@@ -12,6 +12,7 @@ import {
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { SearchFiltersContent } from './SearchFiltersContent';
+import { GuidedSearchHelper } from './GuidedSearchHelper';
 import { SearchFiltersUIProps } from './types';
 
 interface MobileSearchFiltersUIProps extends SearchFiltersUIProps {
@@ -80,27 +81,49 @@ export const MobileSearchFiltersUI: React.FC<MobileSearchFiltersUIProps> = ({
           width: '100%',
           height: '100%',
           overflowY: 'auto',
-          p: 2,
           display: 'flex',
           flexDirection: 'column'
         }}>
-          {/* Header for mobile drawer */}
-          <Box sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            mb: 2,
-            pb: 1,
-            borderBottom: 1,
-            borderColor: 'divider',
-            pr: 6 // Add padding to avoid overlap with close button
-          }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Filters
-            </Typography>
-          </Box>
+          {/* Guided Search Helper */}
+          <GuidedSearchHelper
+            onApplyFilters={(data) => {
+              // Apply the guided search results to the filter state
+              if (data.locationType === 'anywhere') {
+                contentProps.onLocationOptionChange('any');
+              } else if (data.locationType === 'near_me') {
+                contentProps.onLocationOptionChange('my');
+              } else if (data.locationType === 'custom' && data.customLocation) {
+                contentProps.onLocationOptionChange('custom');
+                // Apply the selected location with coordinates
+                contentProps.onLocationSelect(data.customLocation, data.locationCoords);
+              }
 
-          <SearchFiltersContent {...contentProps} />
+              if (data.searchText) {
+                const event = { target: { value: data.searchText } } as React.ChangeEvent<HTMLInputElement>;
+                contentProps.onSearchChange(event);
+              }
+            }}
+          />
+
+          <Box sx={{ p: 2, flex: 1 }}>
+            {/* Header for mobile drawer */}
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 2,
+              pb: 1,
+              borderBottom: 1,
+              borderColor: 'divider',
+              pr: 6 // Add padding to avoid overlap with close button
+            }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Filters
+              </Typography>
+            </Box>
+
+            <SearchFiltersContent {...contentProps} />
+          </Box>
         </Box>
       </Drawer>
     </>

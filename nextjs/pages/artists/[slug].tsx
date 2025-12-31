@@ -8,7 +8,6 @@ import { Box, Button, Modal, Paper, IconButton, Typography, Avatar } from '@mui/
 import EditIcon from '@mui/icons-material/Edit';
 import ImageIcon from '@mui/icons-material/Image';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import StarIcon from '@mui/icons-material/Star';
 import CloseIcon from '@mui/icons-material/Close';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
@@ -301,20 +300,6 @@ export default function ArtistDetail() {
                                 {artist.location}
                             </Typography>
                         )}
-
-                        {/* Rating */}
-                        <Box sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5,
-                            color: colors.accent,
-                            fontWeight: 500,
-                            mb: 1
-                        }}>
-                            <StarIcon sx={{ fontSize: '1rem' }} />
-                            <Typography sx={{ fontWeight: 500 }}>4.9</Typography>
-                            <Typography sx={{ color: colors.textSecondary, fontWeight: 400 }}>(127 reviews)</Typography>
-                        </Box>
 
                         {/* About */}
                         {artist.about && (

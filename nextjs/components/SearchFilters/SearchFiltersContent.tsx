@@ -206,25 +206,17 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
       overflowY: 'auto',
       display: 'flex',
       flexDirection: 'column',
+      pr: '0.5rem',
       '&::-webkit-scrollbar': { width: 6 },
-      '&::-webkit-scrollbar-track': { background: 'transparent' },
+      '&::-webkit-scrollbar-track': { background: 'transparent', mr: '0.5rem' },
       '&::-webkit-scrollbar-thumb': {
-        background: colors.background,
+        background: colors.borderLight,
         borderRadius: 3
       }
     }}>
       {/* Search Section */}
       <FilterSection title="Search">
-        <Box sx={{ position: 'relative', mb: 0.5 }}>
-          <SearchIcon sx={{
-            position: 'absolute',
-            left: '0.875rem',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            width: 16,
-            height: 16,
-            color: colors.textSecondary
-          }} />
+        <Box sx={{ mb: 0.5 }}>
           <TextField
             fullWidth
             placeholder="Search..."
@@ -234,7 +226,6 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
             sx={{
               '& .MuiOutlinedInput-root': {
                 bgcolor: colors.background,
-                pl: '2.5rem',
                 '& fieldset': { borderColor: `${colors.textPrimary}1A` },
                 '&:hover fieldset': { borderColor: `${colors.textPrimary}1A` },
                 '&.Mui-focused fieldset': { borderColor: colors.accent }
@@ -246,7 +237,15 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
               }
             }}
             InputProps={{
-              sx: { pl: 0 },
+              startAdornment: (
+                <SearchIcon sx={{
+                  width: 16,
+                  height: 16,
+                  color: colors.textSecondary,
+                  mr: '0.5rem',
+                  flexShrink: 0
+                }} />
+              ),
               endAdornment: searchString ? (
                 <ClearIcon
                   onClick={handleClearSearch}

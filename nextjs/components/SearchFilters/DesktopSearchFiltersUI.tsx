@@ -3,6 +3,7 @@ import { Box, Typography, IconButton } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { SearchFiltersContent } from './SearchFiltersContent';
+import { GuidedSearchHelper } from './GuidedSearchHelper';
 import { SearchFiltersUIProps } from './types';
 import { colors } from '@/styles/colors';
 
@@ -55,6 +56,29 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
       {/* Sidebar content - only show when expanded */}
       {isExpanded && (
         <>
+          {/* Guided Search Helper */}
+          <GuidedSearchHelper
+            onApplyFilters={(data) => {
+              // Apply the guided search results to the filter state
+              // Set location based on locationType
+              if (data.locationType === 'anywhere') {
+                contentProps.onLocationOptionChange('any');
+              } else if (data.locationType === 'near_me') {
+                contentProps.onLocationOptionChange('my');
+              } else if (data.locationType === 'custom' && data.customLocation) {
+                contentProps.onLocationOptionChange('custom');
+                // Apply the selected location with coordinates
+                contentProps.onLocationSelect(data.customLocation, data.locationCoords);
+              }
+
+              // Apply the search text
+              if (data.searchText) {
+                const event = { target: { value: data.searchText } } as React.ChangeEvent<HTMLInputElement>;
+                contentProps.onSearchChange(event);
+              }
+            }}
+          />
+
           {/* Sidebar Header */}
           <Box sx={{
             p: '1.25rem 1.25rem 1rem',

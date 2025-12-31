@@ -29,7 +29,6 @@ import { colors } from '@/styles/colors';
 const NAV_LINKS = [
   { href: '/artists', label: 'Find Artists', mobileLabel: 'Find Artists' },
   { href: '/tattoos', label: 'Browse Tattoos', mobileLabel: 'Browse Tattoos' },
-  { href: '/for-artists', label: 'For Artists', mobileLabel: 'For Artists', desktopOnly: true },
 ];
 
 const Navbar: React.FC = () => {

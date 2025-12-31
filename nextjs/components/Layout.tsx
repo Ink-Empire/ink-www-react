@@ -19,6 +19,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     router.pathname === page || router.pathname.startsWith(`${page}/`)
   );
 
+  // Pages that have a sidebar (footer needs left margin on desktop)
+  const sidebarPages = ['/artists', '/tattoos'];
+  const hasSidebar = sidebarPages.some(page => router.pathname.startsWith(page));
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
@@ -56,7 +60,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           borderColor: 'rgba(255, 255, 255, 0.1)',
           py: 3,
           mt: 'auto',
-          bgcolor: colors.background
+          bgcolor: colors.background,
+          ml: { md: hasSidebar ? '280px' : 0 },
+          transition: 'margin-left 0.3s ease'
         }}
       >
         <Container maxWidth="lg">

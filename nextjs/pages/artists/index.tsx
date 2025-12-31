@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Box, Typography, Select, MenuItem, FormControl, IconButton, Button, Modal, Paper } from '@mui/material';
+import { Box, Typography, Select, MenuItem, FormControl, Button, Modal, Paper, IconButton } from '@mui/material';
 import { useTheme, useMediaQuery } from '@mui/material';
-import GridViewIcon from '@mui/icons-material/GridView';
-import ViewListIcon from '@mui/icons-material/ViewList';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloseIcon from '@mui/icons-material/Close';
 import ArtistCard from '../../components/ArtistCard';
@@ -61,7 +59,6 @@ export default function ArtistList() {
     const [searchParams, setSearchParams] = useState<Record<string, any>>(initialFilters);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
     const [sortBy, setSortBy] = useState('relevant');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { artists, loading, error } = useArtists(searchParams);
 
@@ -275,7 +272,8 @@ export default function ArtistList() {
                     ml: isDesktop ? (sidebarExpanded ? '280px' : '48px') : 0,
                     transition: 'margin-left 0.3s ease',
                     p: { xs: '1rem', md: '1.5rem 2rem' },
-                    minWidth: 0
+                    minWidth: 0,
+                    minHeight: { md: 'calc(100vh - 64px)' }
                 }}
             >
                 {/* Results Header */}
@@ -350,44 +348,9 @@ export default function ArtistList() {
                                 }}
                             >
                                 <MenuItem value="relevant">Most Relevant</MenuItem>
-                                <MenuItem value="rating">Highest Rated</MenuItem>
-                                <MenuItem value="reviews">Most Reviewed</MenuItem>
                                 <MenuItem value="nearest">Nearest</MenuItem>
                             </Select>
                         </FormControl>
-
-                        {/* View Toggle */}
-                        <Box sx={{
-                            display: { xs: 'none', sm: 'flex' },
-                            bgcolor: colors.surface,
-                            borderRadius: '6px',
-                            p: '3px'
-                        }}>
-                            <IconButton
-                                onClick={() => setViewMode('grid')}
-                                sx={{
-                                    p: '0.5rem 0.75rem',
-                                    borderRadius: '4px',
-                                    color: viewMode === 'grid' ? colors.accent : colors.textSecondary,
-                                    bgcolor: viewMode === 'grid' ? colors.background : 'transparent',
-                                    '&:hover': { color: colors.textPrimary }
-                                }}
-                            >
-                                <GridViewIcon sx={{ fontSize: 18 }} />
-                            </IconButton>
-                            <IconButton
-                                onClick={() => setViewMode('list')}
-                                sx={{
-                                    p: '0.5rem 0.75rem',
-                                    borderRadius: '4px',
-                                    color: viewMode === 'list' ? colors.accent : colors.textSecondary,
-                                    bgcolor: viewMode === 'list' ? colors.background : 'transparent',
-                                    '&:hover': { color: colors.textPrimary }
-                                }}
-                            >
-                                <ViewListIcon sx={{ fontSize: 18 }} />
-                            </IconButton>
-                        </Box>
                     </Box>
                 </Box>
 
