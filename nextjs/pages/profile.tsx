@@ -25,6 +25,8 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import GroupIcon from '@mui/icons-material/Group';
 import ChatIcon from '@mui/icons-material/Chat';
 import PublicIcon from '@mui/icons-material/Public';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
 import { useAuth, useUser } from '@/contexts/AuthContext';
 import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
@@ -312,6 +314,7 @@ const ProfilePage: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
 
   // Extract artist ID safely - ensure it's always a number or null
   const artistId = React.useMemo(() => {
@@ -577,6 +580,40 @@ const ProfilePage: React.FC = () => {
     authLogout();
   };
 
+  // Get public profile URL
+  const getProfileUrl = () => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://inkedin.com';
+    if (isArtist) {
+      const identifier = userData?.slug || artistId;
+      return identifier ? `${baseUrl}/artists/${identifier}` : null;
+    }
+    // For studios, use studio slug/id if available
+    const studioId = (userData as any)?.studio?.id;
+    const studioSlug = (userData as any)?.studio?.slug;
+    if (studioId || studioSlug) {
+      return `${baseUrl}/studios/${studioSlug || studioId}`;
+    }
+    return null;
+  };
+
+  // Copy profile URL to clipboard
+  const handleCopyUrl = async () => {
+    const url = getProfileUrl();
+    if (!url) return;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
+      setToastMessage('Failed to copy URL');
+      setShowToast(true);
+    }
+  };
+
+  const profileUrl = getProfileUrl();
+
   // Get initials for avatar
   const getInitials = () => {
     const name = userData?.name || '';
@@ -692,6 +729,45 @@ const ProfilePage: React.FC = () => {
             <Typography sx={{ fontSize: '0.95rem', color: colors.textSecondary }}>
               This is how clients see you on InkedIn
             </Typography>
+
+            {/* Profile URL with copy button */}
+            {profileUrl && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  mt: '0.35rem'
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: '0.9rem',
+                    color: colors.accent,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {profileUrl}
+                </Typography>
+                <IconButton
+                  onClick={handleCopyUrl}
+                  size="small"
+                  sx={{
+                    p: '4px',
+                    color: urlCopied ? colors.accent : colors.textSecondary,
+                    '&:hover': { color: colors.accent, bgcolor: 'transparent' }
+                  }}
+                >
+                  {urlCopied ? (
+                    <CheckIcon sx={{ fontSize: 16 }} />
+                  ) : (
+                    <ContentCopyIcon sx={{ fontSize: 16 }} />
+                  )}
+                </IconButton>
+              </Box>
+            )}
           </Box>
 
           {/* Profile Photo Section */}
