@@ -145,9 +145,9 @@ export function useWishlist(): UseWishlistReturn {
 
   const addToWishlist = useCallback(async (artistId: number, notifyBookingOpen: boolean = true): Promise<boolean> => {
     try {
-      await api.post('/client/wishlist', {
-        artist_id: artistId,
-        notify_booking_open: notifyBookingOpen,
+      await api.post('/users/favorites/artist', {
+        ids: artistId,
+        action: 'add'
       }, { requiresAuth: true });
 
       await fetchWishlist();
@@ -160,7 +160,10 @@ export function useWishlist(): UseWishlistReturn {
 
   const removeFromWishlist = useCallback(async (artistId: number): Promise<boolean> => {
     try {
-      await api.delete(`/client/wishlist/${artistId}`, { requiresAuth: true });
+      await api.post('/users/favorites/artist', {
+        ids: artistId,
+        action: 'remove'
+      }, { requiresAuth: true });
 
       setWishlist((prev) => prev.filter((artist) => artist.id !== artistId));
       return true;

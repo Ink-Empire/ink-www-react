@@ -7,6 +7,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import Layout from '../components/Layout';
 import { useStyles } from '@/contexts/StyleContext';
 import { useTags } from '@/contexts/TagContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/colors';
 
 // Banner section with image background and text overlay
@@ -112,6 +113,7 @@ export default function HowItWorksPage() {
   const router = useRouter();
   const { styles } = useStyles();
   const { tags } = useTags();
+  const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Get top 5 styles (by popularity or just first 5)
@@ -437,82 +439,84 @@ export default function HowItWorksPage() {
         ctaHref="/register"
       />
 
-      {/* Final CTA Section */}
-      <Box
-        sx={{
-          bgcolor: colors.background,
-          py: { xs: 6, md: 8 },
-          textAlign: 'center',
-        }}
-      >
-        <Container maxWidth="sm">
-          <Typography
-            variant="h3"
-            sx={{
-              fontFamily: '"Cormorant Garamond", Georgia, serif',
-              fontSize: { xs: '1.75rem', md: '2.25rem' },
-              fontWeight: 500,
-              color: colors.textPrimary,
-              mb: 2
-            }}
-          >
-            Ready to get started?
-          </Typography>
-          <Typography
-            sx={{
-              color: colors.textSecondary,
-              fontSize: '1.1rem',
-              mb: 4,
-            }}
-          >
-            Join thousands of artists and tattoo enthusiasts already using InkedIn.
-          </Typography>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            justifyContent="center"
-          >
-            <Button
-              component={Link}
-              href="/register"
-              variant="contained"
-              size="large"
+      {/* Final CTA Section - Only show when not logged in */}
+      {!isAuthenticated && (
+        <Box
+          sx={{
+            bgcolor: colors.background,
+            py: { xs: 6, md: 8 },
+            textAlign: 'center',
+          }}
+        >
+          <Container maxWidth="sm">
+            <Typography
+              variant="h3"
               sx={{
-                bgcolor: colors.accent,
-                color: colors.background,
-                textTransform: 'none',
-                px: 4,
-                py: 1.5,
-                fontSize: '1rem',
-                fontWeight: 600,
-                '&:hover': { bgcolor: colors.accentHover }
-              }}
-            >
-              Create Free Account
-            </Button>
-            <Button
-              component={Link}
-              href="/artists"
-              variant="outlined"
-              size="large"
-              sx={{
-                borderColor: colors.textSecondary,
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: { xs: '1.75rem', md: '2.25rem' },
+                fontWeight: 500,
                 color: colors.textPrimary,
-                textTransform: 'none',
-                px: 4,
-                py: 1.5,
-                fontSize: '1rem',
-                '&:hover': {
-                  borderColor: colors.textPrimary,
-                  bgcolor: 'transparent'
-                }
+                mb: 2
               }}
             >
-              Browse First
-            </Button>
-          </Stack>
-        </Container>
-      </Box>
+              Ready to get started?
+            </Typography>
+            <Typography
+              sx={{
+                color: colors.textSecondary,
+                fontSize: '1.1rem',
+                mb: 4,
+              }}
+            >
+              Join thousands of artists and tattoo enthusiasts already using InkedIn.
+            </Typography>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              justifyContent="center"
+            >
+              <Button
+                component={Link}
+                href="/register"
+                variant="contained"
+                size="large"
+                sx={{
+                  bgcolor: colors.accent,
+                  color: colors.background,
+                  textTransform: 'none',
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  '&:hover': { bgcolor: colors.accentHover }
+                }}
+              >
+                Create Free Account
+              </Button>
+              <Button
+                component={Link}
+                href="/artists"
+                variant="outlined"
+                size="large"
+                sx={{
+                  borderColor: colors.textSecondary,
+                  color: colors.textPrimary,
+                  textTransform: 'none',
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1rem',
+                  '&:hover': {
+                    borderColor: colors.textPrimary,
+                    bgcolor: 'transparent'
+                  }
+                }}
+              >
+                Browse First
+              </Button>
+            </Stack>
+          </Container>
+        </Box>
+      )}
     </Layout>
   );
 }

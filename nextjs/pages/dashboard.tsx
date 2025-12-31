@@ -21,6 +21,7 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import { useAuth } from '../contexts/AuthContext';
+import { useWishlist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
 import { StudioType } from '@/models/studio.interface';
@@ -154,6 +155,9 @@ export default function Dashboard() {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(defaultStats);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Saved artists (wishlist)
+  const { wishlist: savedArtists, loading: savedArtistsLoading, removeFromWishlist } = useWishlist();
 
   // Announcement form
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
@@ -574,6 +578,71 @@ export default function Dashboard() {
                 )}
               </Box>
             </Card>
+
+            {/* Your Saved Artists */}
+            {activeTab === 'artist' && (
+              <Card
+                title="Your Saved Artists"
+                action={<CardLink href="/artists">Browse More →</CardLink>}
+              >
+                {savedArtistsLoading ? (
+                  <Box sx={{ display: 'flex', gap: 2, p: 2, overflowX: 'auto' }}>
+                    {[1, 2, 3, 4].map((i) => (
+                      <Box key={i} sx={{ minWidth: 120, textAlign: 'center' }}>
+                        <Box sx={{ width: 64, height: 64, borderRadius: '50%', bgcolor: colors.background, mx: 'auto', mb: 1 }} />
+                        <Box sx={{ width: 80, height: 12, bgcolor: colors.background, mx: 'auto', mb: 0.5 }} />
+                        <Box sx={{ width: 60, height: 10, bgcolor: colors.background, mx: 'auto' }} />
+                      </Box>
+                    ))}
+                  </Box>
+                ) : savedArtists.length > 0 ? (
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 2,
+                    p: 2,
+                    overflowX: 'auto',
+                    '&::-webkit-scrollbar': { height: 6 },
+                    '&::-webkit-scrollbar-track': { bgcolor: colors.background, borderRadius: 3 },
+                    '&::-webkit-scrollbar-thumb': { bgcolor: colors.border, borderRadius: 3 },
+                  }}>
+                    {savedArtists.map((artist) => (
+                      <SavedArtistCard
+                        key={artist.id}
+                        artist={artist}
+                        onRemove={removeFromWishlist}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <BookmarkIcon sx={{ fontSize: 32, color: colors.textMuted, mb: 1 }} />
+                    <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem', mb: 0.5 }}>
+                      No saved artists yet
+                    </Typography>
+                    <Typography sx={{ color: colors.textMuted, fontSize: '0.8rem', mb: 2 }}>
+                      Save artists you love to keep track of their work
+                    </Typography>
+                    <Button
+                      component={Link}
+                      href="/artists"
+                      sx={{
+                        px: 2,
+                        py: 0.75,
+                        bgcolor: colors.accent,
+                        color: colors.background,
+                        borderRadius: '6px',
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        fontSize: '0.85rem',
+                        '&:hover': { bgcolor: colors.accentHover }
+                      }}
+                    >
+                      Browse Artists
+                    </Button>
+                  </Box>
+                )}
+              </Card>
+            )}
           </Box>
 
           {/* Side Column */}
@@ -1802,6 +1871,114 @@ function StudioCard({ studio }: { studio: GuestSpotStudio }) {
           Inquire About Guest Spot
         </Button>
       </Box>
+    </Box>
+  );
+}
+
+// Saved Artist Card Component
+function SavedArtistCard({ artist, onRemove }: { artist: WishlistArtist; onRemove: (id: number) => void }) {
+  const artistInitials = artist.name
+    ? artist.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : artist.username?.slice(0, 2).toUpperCase() || '??';
+
+  return (
+    <Box sx={{
+      minWidth: 140,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      p: 2,
+      bgcolor: colors.background,
+      border: `1px solid ${colors.border}`,
+      borderRadius: '10px',
+      transition: 'all 0.2s',
+      position: 'relative',
+      '&:hover': {
+        borderColor: colors.accent,
+        transform: 'translateY(-2px)',
+      }
+    }}>
+      {/* Remove button */}
+      <IconButton
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRemove(artist.id);
+        }}
+        sx={{
+          position: 'absolute',
+          top: 4,
+          right: 4,
+          p: 0.5,
+          color: colors.textMuted,
+          opacity: 0.6,
+          '&:hover': { color: colors.error, opacity: 1, bgcolor: `${colors.error}15` }
+        }}
+        size="small"
+      >
+        <DeleteIcon sx={{ fontSize: 14 }} />
+      </IconButton>
+
+      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
+        <Avatar
+          src={artist.image?.uri}
+          sx={{
+            width: 56,
+            height: 56,
+            bgcolor: colors.accent,
+            color: colors.background,
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            mb: 1,
+          }}
+        >
+          {artistInitials}
+        </Avatar>
+      </Link>
+      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
+        <Typography sx={{
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          color: colors.textPrimary,
+          textAlign: 'center',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: 120,
+          '&:hover': { color: colors.accent }
+        }}>
+          {artist.name || artist.username}
+        </Typography>
+      </Link>
+      <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1 }}>
+        @{artist.username}
+      </Typography>
+      {artist.books_open ? (
+        <Box sx={{
+          px: 1.5,
+          py: 0.25,
+          bgcolor: `${colors.success}20`,
+          borderRadius: '100px',
+          fontSize: '0.65rem',
+          fontWeight: 500,
+          color: colors.success,
+        }}>
+          Books Open
+        </Box>
+      ) : (
+        <Box sx={{
+          px: 1.5,
+          py: 0.25,
+          bgcolor: colors.surface,
+          borderRadius: '100px',
+          fontSize: '0.65rem',
+          color: colors.textMuted,
+        }}>
+          Books Closed
+        </Box>
+      )}
     </Box>
   );
 }

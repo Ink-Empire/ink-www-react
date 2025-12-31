@@ -715,6 +715,7 @@ const ProfilePage: React.FC = () => {
         <Box sx={{
           flex: 1,
           ml: { xs: 0, md: '72px' },
+          mr: { xs: 0, md: '72px' }, // Match left margin to center content
           pb: { xs: 12, md: 4 },
           maxWidth: '720px',
           mx: 'auto',
