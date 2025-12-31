@@ -258,7 +258,7 @@ export default function HowItWorksPage() {
             />
           </Box>
 
-          {/* Stats */}
+          {/* Stats - Hidden until we have real data
           <Stack
             direction="row"
             spacing={{ xs: 3, md: 6 }}
@@ -295,22 +295,8 @@ export default function HowItWorksPage() {
                 Designs Created
               </Typography>
             </Box>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography
-                sx={{
-                  fontFamily: '"Cormorant Garamond", Georgia, serif',
-                  fontSize: { xs: '1.75rem', md: '2.25rem' },
-                  fontWeight: 500,
-                  color: colors.accent,
-                }}
-              >
-                4.9
-              </Typography>
-              <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                Average Rating
-              </Typography>
-            </Box>
           </Stack>
+          */}
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
