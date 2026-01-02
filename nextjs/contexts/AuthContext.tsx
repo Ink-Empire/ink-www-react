@@ -214,8 +214,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           saveUser(null);
         }
       } else {
-        // Try to fetch in case there's a valid session
-        await fetchUser();
+        // Only try to fetch if there's a token (avoid 401 errors on public pages)
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+        if (token) {
+          await fetchUser();
+        }
       }
 
       if (mounted) {
