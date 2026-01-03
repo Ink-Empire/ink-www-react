@@ -36,7 +36,7 @@ export interface FilterSectionRef {
 }
 
 const FilterSection = forwardRef<FilterSectionRef, FilterSectionProps>(
-  ({ title, children, defaultExpanded = true }, ref) => {
+  ({ title, children, defaultExpanded = false }, ref) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -177,10 +177,13 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
     ).slice(0, 15); // Limit to 15 results in search
   }, [tags, displayTags, tagSearch]);
 
-  // Search hints
-  const searchHints = type === 'artists'
-    ? ['wolf', 'floral', 'traditional', 'realism']
-    : ['dragon', 'rose', 'sleeve', 'minimalist'];
+  // Search hints from featured tags (top 3 by popularity)
+  const searchHints = useMemo(() => {
+    if (!displayTags || displayTags.length === 0) {
+      return []; // Return empty while loading
+    }
+    return displayTags.slice(0, 3).map(tag => tag.name);
+  }, [displayTags]);
 
   const handleSearchHintClick = (hint: string) => {
     const event = { target: { value: hint } } as React.ChangeEvent<HTMLInputElement>;
@@ -215,7 +218,7 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
       }
     }}>
       {/* Search Section */}
-      <FilterSection title="Search">
+      <FilterSection title="Search" defaultExpanded={true}>
         <Box sx={{ mb: 0.5 }}>
           <TextField
             fullWidth
@@ -292,14 +295,6 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
             </Box>
           ))}
         </Box>
-        <Typography sx={{
-          fontSize: '0.75rem',
-          color: colors.textSecondary,
-          mt: '0.5rem',
-          fontStyle: 'italic'
-        }}>
-          Search by {type === 'artists' ? 'artist, studio, or subject matter' : 'artist, description, or tags'}
-        </Typography>
 
         {/* Quick Jump Links */}
         <Box sx={{
@@ -568,7 +563,7 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
       </FilterSection>
 
       {/* Tags Section */}
-      <FilterSection title="Tags" defaultExpanded={false} ref={tagsSectionRef}>
+      <FilterSection title="Tags" ref={tagsSectionRef}>
         {/* Tag Search */}
         <TextField
           fullWidth

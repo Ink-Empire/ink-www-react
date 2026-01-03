@@ -236,9 +236,6 @@ export const GuidedSearchHelper: React.FC<GuidedSearchHelperProps> = ({
               }}>
                 Need help searching?
               </Typography>
-              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
-                Answer 2 quick questions to find artists
-              </Typography>
             </Box>
             <IconButton
               onClick={handleDismiss}
