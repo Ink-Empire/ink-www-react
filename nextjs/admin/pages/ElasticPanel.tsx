@@ -68,13 +68,11 @@ export const ElasticPanel = () => {
 
     setLoading(true);
     try {
-      // Full reindex - we need to get all IDs first or use a different approach
-      // For now, we'll use params with a simple query that matches all
-      await api.post('/admin/elastic/rebuild', {
+      // Use scout:import via the reindex endpoint
+      await api.post('/elastic/reindex', {
         model,
-        params: [{ field: 'id', operator: '>', value: 0 }],
       });
-      showMessage('success', `Full reindex queued for ${model}`);
+      showMessage('success', `Full reindex started for ${model}`);
     } catch (error: any) {
       showMessage('error', error?.message || 'Failed to trigger full reindex');
     } finally {
