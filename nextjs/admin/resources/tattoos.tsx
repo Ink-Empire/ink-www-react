@@ -12,18 +12,14 @@ import {
     TopToolbar,
     SearchInput,
     useRecordContext,
-    useRefresh,
-    useNotify,
-    Button,
     FunctionField,
-    ImageField,
-    useUpdate,
     SaveButton,
-    Toolbar, SelectInput,
+    Toolbar,
+    SelectInput,
+    SelectArrayInput,
 } from 'react-admin';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import {Box, Chip, Typography, CircularProgress} from '@mui/material';
-import {api} from '@/utils/api';
+import {useStyles} from '@/contexts/StyleContext';
 
 const tattooFilters = [
     <SearchInput source="q" alwaysOn key="search" placeholder="Search descriptions..."/>,
@@ -73,45 +69,25 @@ const TagsDisplay = () => {
     );
 };
 
-const AIFixButton = () => {
+const StylesDisplay = () => {
     const record = useRecordContext();
-    const refresh = useRefresh();
-    const notify = useNotify();
-    const [loading, setLoading] = useState(false);
-
-    if (!record) return null;
-
-    const handleFix = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-
-        if (!confirm('Analyze this tattoo with AI and fix description/tags?')) {
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const result = await api.post(`/admin/tattoos/${record.id}/fix-ai`, {
-                create_tags: true,
-            });
-            notify(`Fixed! New tags: ${result.final_tags?.join(', ') || 'none'}`, {type: 'success'});
-            refresh();
-        } catch (error: any) {
-            notify(error?.message || 'Failed to fix tattoo', {type: 'error'});
-        } finally {
-            setLoading(false);
-        }
-    };
+    if (!record?.styles || record.styles.length === 0) {
+        return <span style={{color: '#999', fontStyle: 'italic'}}>No styles</span>;
+    }
 
     return (
-        <Button
-            label={loading ? 'Fixing...' : 'AI Fix'}
-            onClick={handleFix}
-            disabled={loading}
-            color="primary"
-        >
-            {loading ? <CircularProgress size={16}/> : <AutoFixHighIcon/>}
-        </Button>
+        <Box sx={{display: 'flex', flexWrap: 'wrap', gap: 0.5}}>
+            {record.styles.map((style: {id: number, name: string}) => (
+                <Chip
+                    key={style.id}
+                    label={style.name}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    sx={{fontSize: '11px'}}
+                />
+            ))}
+        </Box>
     );
 };
 
@@ -140,9 +116,9 @@ export const TattooList = () => (
                 )}
             />
             <TextField source="artist_name" label="Artist"/>
+            <StylesDisplay label="Styles"/>
             <TagsDisplay label="Tags"/>
             <DateField source="created_at" label="Created"/>
-            <AIFixButton/>
             <EditButton/>
         </Datagrid>
     </List>
@@ -187,45 +163,52 @@ const TagsInput = () => {
     );
 };
 
-const TattooEditToolbar = () => {
+const StylesInput = () => {
     const record = useRecordContext();
-    const notify = useNotify();
-    const refresh = useRefresh();
-    const [loading, setLoading] = useState(false);
+    const {styles: allStyles, loading: stylesLoading} = useStyles();
 
-    const handleAIFix = async () => {
-        if (!record) return;
-
-        if (!confirm('Analyze this tattoo with AI and update description/tags?')) {
-            return;
-        }
-
-        setLoading(true);
-        try {
-            await api.post(`/admin/tattoos/${record.id}/fix-ai`, {
-                create_tags: true,
-            });
-            notify('AI analysis complete! Refreshing...', {type: 'success'});
-            refresh();
-        } catch (error: any) {
-            notify(error?.message || 'Failed to run AI fix', {type: 'error'});
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Convert styles to choices format for SelectArrayInput
+    const styleChoices = allStyles.map(style => ({
+        id: style.id,
+        name: style.name,
+    }));
 
     return (
-        <Toolbar sx={{display: 'flex', justifyContent: 'space-between'}}>
+        <Box sx={{mb: 2}}>
+            <Typography variant="subtitle2" sx={{mb: 1}}>
+                Current Styles
+            </Typography>
+            {record?.styles && record.styles.length > 0 ? (
+                <Box sx={{display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2}}>
+                    {record.styles.map((style: {id: number, name: string}) => (
+                        <Chip key={style.id} label={style.name} size="small" color="primary" variant="outlined"/>
+                    ))}
+                </Box>
+            ) : (
+                <Typography variant="body2" color="textSecondary" sx={{mb: 2}}>
+                    No styles assigned
+                </Typography>
+            )}
+
+            {stylesLoading ? (
+                <CircularProgress size={20}/>
+            ) : (
+                <SelectArrayInput
+                    source="style_ids"
+                    label="Select Styles"
+                    choices={styleChoices}
+                    fullWidth
+                    helperText="Select one or more styles for this tattoo"
+                />
+            )}
+        </Box>
+    );
+};
+
+const TattooEditToolbar = () => {
+    return (
+        <Toolbar>
             <SaveButton/>
-            <Button
-                label={loading ? 'Running AI...' : 'Run AI Fix'}
-                onClick={handleAIFix}
-                disabled={loading}
-                color="secondary"
-                variant="outlined"
-            >
-                {loading ? <CircularProgress size={16}/> : <AutoFixHighIcon/>}
-            </Button>
         </Toolbar>
     );
 };
@@ -317,6 +300,7 @@ export const TattooEdit = () => {
                             }
                         />
                         <TagsInput/>
+                        <StylesInput/>
                     </Box>
                 </Box>
             </SimpleForm>

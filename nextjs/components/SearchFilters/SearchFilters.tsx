@@ -113,8 +113,9 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   const [selectedTags, setSelectedTags] = useState<number[]>(initialFilters.tags || []);
   const [distance, setDistance] = useState<number>(initialFilters.distance || 50);
   const [distanceUnit, setDistanceUnit] = useState<'mi' | 'km'>(initialFilters.distanceUnit || 'mi');
-  const [useMyLocation, setUseMyLocation] = useState<boolean>(initialFilters.useMyLocation !== undefined ? initialFilters.useMyLocation : true);
-  const [useAnyLocation, setUseAnyLocation] = useState<boolean>(initialFilters.useAnyLocation || false);
+  // Default to "Anywhere" unless user has a saved location or initialFilters specify otherwise
+  const [useMyLocation, setUseMyLocation] = useState<boolean>(initialFilters.useMyLocation || false);
+  const [useAnyLocation, setUseAnyLocation] = useState<boolean>(initialFilters.useAnyLocation !== undefined ? initialFilters.useAnyLocation : true);
   const [applySavedStyles, setApplySavedStyles] = useState<boolean>(initialFilters.applySavedStyles || false);
   const [booksOpen, setBooksOpen] = useState<boolean>(initialFilters.booksOpen || false);
   const [location, setLocation] = useState<string>(initialFilters.location || '');
