@@ -25,5 +25,11 @@ export interface SearchFiltersUIProps {
   onLocationSelect: (location: string, coords: { lat: number; lng: number } | undefined) => void;
   onApplyFilters: () => void;
   onClearFilters: () => Promise<void>;
+  onGuidedSearchApply: (data: {
+    searchText: string;
+    locationType: 'anywhere' | 'near_me' | 'custom' | null;
+    customLocation: string;
+    locationCoords?: { lat: number; lng: number };
+  }) => Promise<void>;
   onCreateTattoo?: () => void;
 }

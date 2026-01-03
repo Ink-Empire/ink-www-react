@@ -34,6 +34,7 @@ interface GuidedSearchHelperProps {
     detectedSubjects?: string[];
     detectedPlacements?: string[];
   }) => void;
+  onLocationChange?: (locationType: 'anywhere' | 'near_me' | 'custom', customLocation?: string, coords?: { lat: number; lng: number }) => void;
   onDismiss?: () => void;
 }
 
@@ -42,6 +43,7 @@ type LocationType = 'anywhere' | 'near_me' | 'custom' | null;
 
 export const GuidedSearchHelper: React.FC<GuidedSearchHelperProps> = ({
   onApplyFilters,
+  onLocationChange,
   onDismiss
 }) => {
   const [hasCompletedBefore, setHasCompletedBefore] = useState(false);
@@ -95,16 +97,25 @@ export const GuidedSearchHelper: React.FC<GuidedSearchHelperProps> = ({
   const handleLocationChoice = useCallback((type: LocationType) => {
     setSearchParams(prev => ({ ...prev, locationType: type }));
 
+    // Immediately notify parent of location change so filters update optimistically
+    if (type && onLocationChange) {
+      onLocationChange(type);
+    }
+
     if (type === 'anywhere' || type === 'near_me') {
       setStep('describe');
     }
-  }, []);
+  }, [onLocationChange]);
 
   const handleCustomLocationSubmit = useCallback(() => {
     if (searchParams.customLocation.trim()) {
+      // Immediately notify parent of custom location so filters update optimistically
+      if (onLocationChange) {
+        onLocationChange('custom', searchParams.customLocation, searchParams.locationCoords);
+      }
       setStep('describe');
     }
-  }, [searchParams.customLocation]);
+  }, [searchParams.customLocation, searchParams.locationCoords, onLocationChange]);
 
   const handleComplete = useCallback(() => {
     const parsed = parseDescription(searchParams.description);

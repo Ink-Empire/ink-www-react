@@ -86,22 +86,25 @@ export const MobileSearchFiltersUI: React.FC<MobileSearchFiltersUIProps> = ({
         }}>
           {/* Guided Search Helper */}
           <GuidedSearchHelper
-            onApplyFilters={(data) => {
-              // Apply the guided search results to the filter state
-              if (data.locationType === 'anywhere') {
+            onLocationChange={(locationType, customLocation, coords) => {
+              // Immediately update location filters as user progresses through guided search
+              if (locationType === 'anywhere') {
                 contentProps.onLocationOptionChange('any');
-              } else if (data.locationType === 'near_me') {
+              } else if (locationType === 'near_me') {
                 contentProps.onLocationOptionChange('my');
-              } else if (data.locationType === 'custom' && data.customLocation) {
+              } else if (locationType === 'custom' && customLocation) {
                 contentProps.onLocationOptionChange('custom');
-                // Apply the selected location with coordinates
-                contentProps.onLocationSelect(data.customLocation, data.locationCoords);
+                contentProps.onLocationSelect(customLocation, coords);
               }
-
-              if (data.searchText) {
-                const event = { target: { value: data.searchText } } as React.ChangeEvent<HTMLInputElement>;
-                contentProps.onSearchChange(event);
-              }
+            }}
+            onApplyFilters={(data) => {
+              // Apply all guided search params at once to avoid race conditions
+              contentProps.onGuidedSearchApply({
+                searchText: data.searchText,
+                locationType: data.locationType,
+                customLocation: data.customLocation,
+                locationCoords: data.locationCoords
+              });
             }}
           />
 

@@ -670,6 +670,72 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     });
   };
 
+  // Handle guided search apply - applies all guided search params at once
+  const handleGuidedSearchApply = async (data: {
+    searchText: string;
+    locationType: 'anywhere' | 'near_me' | 'custom' | null;
+    customLocation: string;
+    locationCoords?: { lat: number; lng: number };
+  }) => {
+    // Set search string state
+    setSearchString(data.searchText);
+
+    // Determine location settings based on locationType
+    let newUseMyLocation = false;
+    let newUseAnyLocation = false;
+    let newLocation = '';
+    let newLocationCoords: { lat: number; lng: number } | undefined = undefined;
+
+    if (data.locationType === 'anywhere') {
+      newUseAnyLocation = true;
+    } else if (data.locationType === 'near_me') {
+      newUseMyLocation = true;
+      // Try to get coordinates
+      const profileCoords = getUserProfileCoords();
+      if (profileCoords) {
+        newLocationCoords = profileCoords;
+      } else {
+        try {
+          setGeoLoading(true);
+          const position = await geoService.getCurrentPosition();
+          newLocationCoords = {
+            lat: position.latitude,
+            lng: position.longitude
+          };
+        } catch (error) {
+          console.error('Error getting user location:', error);
+          setGeoError(error instanceof Error ? error.message : 'Error getting your location');
+        } finally {
+          setGeoLoading(false);
+        }
+      }
+    } else if (data.locationType === 'custom' && data.customLocation) {
+      newLocation = data.customLocation;
+      newLocationCoords = data.locationCoords;
+    }
+
+    // Update all state at once
+    setUseMyLocation(newUseMyLocation);
+    setUseAnyLocation(newUseAnyLocation);
+    setLocation(newLocation);
+    setLocationCoords(newLocationCoords);
+
+    // Apply all filters in one call
+    onFilterChange({
+      searchString: data.searchText,
+      styles: selectedStyles,
+      tags: selectedTags,
+      distance,
+      distanceUnit,
+      location: newLocation,
+      useMyLocation: newUseMyLocation,
+      useAnyLocation: newUseAnyLocation,
+      applySavedStyles,
+      booksOpen,
+      locationCoords: newLocationCoords
+    });
+  };
+
   // Apply all filters
   const handleApplyFilters = () => {
     onFilterChange({
@@ -812,6 +878,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     onLocationSelect: handleLocationSelect,
     onApplyFilters: handleApplyFilters,
     onClearFilters: handleClearFilters,
+    onGuidedSearchApply: handleGuidedSearchApply,
     onCreateTattoo
   };
 
