@@ -175,12 +175,7 @@ export const GuidedSearchHelper: React.FC<GuidedSearchHelperProps> = ({
     };
   };
 
-  const suggestions = [
-    'japanese dragon sleeve',
-    'minimalist fine line flowers',
-    'blackwork geometric',
-    'traditional rose'
-  ];
+  const suggestions = ['japanese', 'dragon', 'sleeve'];
 
   // Collapsed state
   if (!isExpanded) {
@@ -297,10 +292,21 @@ export const GuidedSearchHelper: React.FC<GuidedSearchHelperProps> = ({
       {/* Location Step */}
       {step === 'location' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary }}>
               Where are you looking?
             </Typography>
+            <IconButton
+              onClick={handleDismiss}
+              size="small"
+              sx={{
+                color: colors.textSecondary,
+                p: '4px',
+                '&:hover': { color: colors.textPrimary }
+              }}
+            >
+              <CloseIcon sx={{ fontSize: '1rem' }} />
+            </IconButton>
           </Box>
 
           {searchParams.locationType !== 'custom' ? (
@@ -455,10 +461,21 @@ export const GuidedSearchHelper: React.FC<GuidedSearchHelperProps> = ({
       {/* Description Step */}
       {step === 'describe' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary }}>
               What are you looking for?
             </Typography>
+            <IconButton
+              onClick={handleDismiss}
+              size="small"
+              sx={{
+                color: colors.textSecondary,
+                p: '4px',
+                '&:hover': { color: colors.textPrimary }
+              }}
+            >
+              <CloseIcon sx={{ fontSize: '1rem' }} />
+            </IconButton>
           </Box>
 
           <TextField

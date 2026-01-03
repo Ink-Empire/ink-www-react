@@ -177,13 +177,8 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
     ).slice(0, 15); // Limit to 15 results in search
   }, [tags, displayTags, tagSearch]);
 
-  // Search hints from featured tags (top 3 by popularity)
-  const searchHints = useMemo(() => {
-    if (!displayTags || displayTags.length === 0) {
-      return []; // Return empty while loading
-    }
-    return displayTags.slice(0, 3).map(tag => tag.name);
-  }, [displayTags]);
+  // Search hints
+  const searchHints = ['japanese', 'dragon', 'sleeve'];
 
   const handleSearchHintClick = (hint: string) => {
     const event = { target: { value: hint } } as React.ChangeEvent<HTMLInputElement>;

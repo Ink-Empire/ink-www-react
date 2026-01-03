@@ -24,7 +24,7 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
         left: 0,
         top: '64px',
         height: 'calc(100vh - 64px)',
-        width: isExpanded ? '280px' : '48px',
+        width: isExpanded ? '320px' : '48px',
         transition: 'width 0.3s ease, transform 0.3s ease',
         zIndex: 10,
         bgcolor: colors.surface,
