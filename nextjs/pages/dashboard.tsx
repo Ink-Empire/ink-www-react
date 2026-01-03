@@ -215,19 +215,23 @@ export default function Dashboard() {
         ]);
 
         if (statsRes) {
+          // API returns { data: { ... } }, so extract the data object
+          const stats = (statsRes as any).data || statsRes;
           setDashboardStats({
-            upcomingAppointments: statsRes.upcoming_appointments || 0,
-            appointmentsTrend: statsRes.appointments_trend || '+0',
-            profileViews: statsRes.profile_views || 0,
-            viewsTrend: statsRes.views_trend || '+0%',
-            savesThisWeek: statsRes.saves_this_week || 0,
-            savesTrend: statsRes.saves_trend || '+0',
+            upcomingAppointments: stats.upcoming_appointments || 0,
+            appointmentsTrend: stats.appointments_trend || '+0',
+            profileViews: stats.profile_views || 0,
+            viewsTrend: stats.views_trend || '+0%',
+            savesThisWeek: stats.saves_this_week || 0,
+            savesTrend: stats.saves_trend || '+0',
             unreadMessages: 0 // TODO: Add unread messages API
           });
         }
 
         if (scheduleRes) {
-          setSchedule(scheduleRes);
+          // API returns { data: [...] }, so extract the data array
+          const scheduleData = (scheduleRes as any).data || scheduleRes;
+          setSchedule(Array.isArray(scheduleData) ? scheduleData : []);
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
