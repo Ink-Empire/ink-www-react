@@ -666,7 +666,7 @@ export default function Dashboard() {
                       onClick={() => avatarInputRef.current?.click()}
                     >
                       <Avatar
-                        src={user?.image?.uri}
+                        src={typeof user?.image === 'string' ? user.image : user?.image?.uri}
                         sx={{
                           width: 64,
                           height: 64,
@@ -1076,7 +1076,7 @@ export default function Dashboard() {
                       borderBottom: studioArtists.length > 0 ? `1px solid ${colors.border}` : 'none',
                     }}>
                       <Avatar
-                        src={user?.image?.uri}
+                        src={typeof user?.image === 'string' ? user.image : user?.image?.uri}
                         sx={{
                           width: 44,
                           height: 44,
