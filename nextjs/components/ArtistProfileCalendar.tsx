@@ -383,6 +383,14 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     }
   };
 
+  // use local timezone (not UTC)
+  const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Generate availability data
   const availabilityData = useMemo(() => {
     if (workingHoursLoading || booksOpen === false || !workingHours.length) {
@@ -404,16 +412,17 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         const isDayOff = dayWorkingHours.is_day_off === true || dayWorkingHours.is_day_off === 1;
 
         if (!isDayOff) {
-          const dateStr = currentDateIter.toISOString().split('T')[0];
+          // Use local date string to avoid UTC timezone shifts
+          const dateStr = formatLocalDate(currentDateIter);
 
           // Check if day is booked
           const isFullyBooked = fetchedAppointments.some(appointment => {
             let appointmentDate = '';
             try {
               if (appointment.start && typeof appointment.start === 'object' && 'toISOString' in appointment.start) {
-                appointmentDate = (appointment.start as Date).toISOString().split('T')[0];
+                appointmentDate = formatLocalDate(appointment.start as Date);
               } else if (typeof appointment.start === 'string') {
-                appointmentDate = new Date(appointment.start).toISOString().split('T')[0];
+                appointmentDate = formatLocalDate(new Date(appointment.start));
               }
             } catch (e) {
               appointmentDate = '';
@@ -450,9 +459,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   const daysInPrevMonth = new Date(year, month, 0).getDate();
 
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayStr = formatLocalDate(today);
 
-  // Count available days and find next available
+  // Count available days and find next available (only future dates)
   const { availableCount, nextAvailable } = useMemo(() => {
     let count = 0;
     let next: string | null = null;
@@ -463,7 +472,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       const dayOfWeek = date.getDay();
       const isClosed = closedDays.includes(dayOfWeek);
 
-      if (!isClosed && availabilityData[dateStr]?.[bookingType]) {
+      const isPast = dateStr < todayStr;
+
+      if (!isClosed && !isPast && availabilityData[dateStr]?.[bookingType]) {
         count++;
         if (!next) {
           const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
@@ -473,7 +484,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     }
 
     return { availableCount: count, nextAvailable: next || 'None' };
-  }, [year, month, daysInMonth, closedDays, availabilityData, bookingType]);
+  }, [year, month, daysInMonth, closedDays, availabilityData, bookingType, todayStr]);
 
   const changeMonth = (delta: number) => {
     setCurrentDate(new Date(year, month + delta, 1));
@@ -875,11 +886,12 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
             const dayOfWeek = date.getDay();
             const isToday = dateStr === todayStr;
             const isClosed = closedDays.includes(dayOfWeek);
-            const isAvailable = !isClosed && availabilityData[dateStr]?.[bookingType];
+            const isPast = dateStr < todayStr;
+            const isAvailable = !isClosed && !isPast && availabilityData[dateStr]?.[bookingType];
             const hasExternalEvents = showExternalEvents && hasExternalEventsOnDate(dateStr);
             const externalEventsOnDay = showExternalEvents ? getExternalEventsForDate(dateStr) : [];
 
-            // Allow artist to click any day on their own calendar
+            // Allow artist to click any day on their own calendar, clients can only click future available days
             const canClick = isOwnProfile || isAvailable;
 
             const tooltipContent = isOwnCalendar && externalEventsOnDay.length > 0 ? (
