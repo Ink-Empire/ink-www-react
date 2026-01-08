@@ -7,6 +7,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
+import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/utils/api';
 import { useArtistAppointments, useWorkingHours } from '@/hooks';
@@ -112,11 +114,20 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
 
   // Artist day management modal state
   const [artistDayModalOpen, setArtistDayModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'invite' | 'event'>('invite');
   const [inviteType, setInviteType] = useState<'consultation' | 'appointment'>('consultation');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestName, setGuestName] = useState('');
   const [inviteNote, setInviteNote] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
+
+  // Calendar event form state
+  const [eventType, setEventType] = useState<'appointment' | 'consultation' | 'other'>('appointment');
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventStartTime, setEventStartTime] = useState('09:00');
+  const [eventEndTime, setEventEndTime] = useState('10:00');
+  const [eventDescription, setEventDescription] = useState('');
+  const [creatingEvent, setCreatingEvent] = useState(false);
 
   // External calendar events state
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
@@ -529,10 +540,18 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   const closeArtistDayModal = () => {
     setArtistDayModalOpen(false);
     setSelectedDay(null);
+    // Reset invite form
     setGuestEmail('');
     setGuestName('');
     setInviteNote('');
     setInviteType('consultation');
+    // Reset event form
+    setModalMode('invite');
+    setEventType('appointment');
+    setEventTitle('');
+    setEventStartTime('09:00');
+    setEventEndTime('10:00');
+    setEventDescription('');
   };
 
   // Get appointments for a specific date
@@ -578,6 +597,36 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       console.error('Failed to send invite:', err);
     } finally {
       setSendingInvite(false);
+    }
+  };
+
+  // Handle creating a calendar event
+  const handleCreateEvent = async () => {
+    if (!selectedDay || !resolvedArtistId) return;
+
+    setCreatingEvent(true);
+    try {
+      // Create event title based on type if not provided
+      const title = eventTitle || (eventType === 'other' ? 'Busy' : eventType.charAt(0).toUpperCase() + eventType.slice(1));
+
+      await api.post('/appointments/event', {
+        artist_id: resolvedArtistId,
+        title,
+        type: eventType,
+        start: `${selectedDay}T${eventStartTime}:00`,
+        end: `${selectedDay}T${eventEndTime}:00`,
+        description: eventDescription,
+        status: 'booked',
+        sync_to_google: true
+      }, { requiresAuth: true });
+
+      // Refresh external events to show the new event
+      fetchExternalEvents();
+      closeArtistDayModal();
+    } catch (err) {
+      console.error('Failed to create event:', err);
+    } finally {
+      setCreatingEvent(false);
     }
   };
 
@@ -1937,186 +1986,452 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
             </Box>
           )}
 
-          {/* Divider */}
-          <Box sx={{ height: '1px', bgcolor: colors.border, mb: 3 }} />
-
-          {/* Invite Guest Section */}
-          <Typography sx={{
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            color: colors.textSecondary,
-            textTransform: 'uppercase',
-            letterSpacing: '0.03em',
-            mb: 1.5
-          }}>
-            Invite a Guest
-          </Typography>
-
-          {/* Invite Type Toggle */}
-          <Box sx={{
-            display: 'flex',
-            bgcolor: colors.background,
-            borderRadius: '8px',
-            p: 0.5,
-            gap: 0.5,
-            mb: 2
-          }}>
+          {/* Mode Toggle - Invite a Guest / Calendar Event */}
+          <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
             <Button
-              onClick={() => setInviteType('consultation')}
+              onClick={() => setModalMode('invite')}
               sx={{
                 flex: 1,
-                py: 1,
-                borderRadius: '6px',
+                py: 2,
+                borderRadius: '12px',
                 textTransform: 'none',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                ...(inviteType === 'consultation' ? {
-                  bgcolor: colors.accent,
-                  color: colors.background,
-                  '&:hover': { bgcolor: colors.accentHover }
-                } : {
-                  color: colors.textSecondary,
-                  '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
-                })
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 0.5,
+                border: `2px solid ${modalMode === 'invite' ? colors.accent : colors.border}`,
+                bgcolor: modalMode === 'invite' ? `${colors.accent}15` : 'transparent',
+                '&:hover': {
+                  borderColor: colors.accent,
+                  bgcolor: `${colors.accent}10`
+                }
               }}
             >
-              Consultation
+              <PersonAddAltIcon sx={{ fontSize: 24, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }} />
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }}>
+                Invite a Guest
+              </Typography>
             </Button>
             <Button
-              onClick={() => setInviteType('appointment')}
+              onClick={() => setModalMode('event')}
               sx={{
                 flex: 1,
-                py: 1,
-                borderRadius: '6px',
+                py: 2,
+                borderRadius: '12px',
                 textTransform: 'none',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                ...(inviteType === 'appointment' ? {
-                  bgcolor: colors.accent,
-                  color: colors.background,
-                  '&:hover': { bgcolor: colors.accentHover }
-                } : {
-                  color: colors.textSecondary,
-                  '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
-                })
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 0.5,
+                border: `2px solid ${modalMode === 'event' ? colors.accent : colors.border}`,
+                bgcolor: modalMode === 'event' ? `${colors.accent}15` : 'transparent',
+                '&:hover': {
+                  borderColor: colors.accent,
+                  bgcolor: `${colors.accent}10`
+                }
               }}
             >
-              Appointment
+              <CalendarMonthIcon sx={{ fontSize: 24, color: modalMode === 'event' ? colors.accent : colors.textSecondary }} />
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: modalMode === 'event' ? colors.accent : colors.textSecondary }}>
+                Calendar Event
+              </Typography>
             </Button>
           </Box>
 
-          {/* Guest Details Form */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
-            <Box>
-              <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
-                Guest Email *
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="client@email.com"
-                value={guestEmail}
-                onChange={(e) => setGuestEmail(e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: colors.background,
-                    color: colors.textPrimary,
-                    fontSize: '0.9rem',
-                    '& fieldset': { borderColor: colors.border },
-                    '&:hover fieldset': { borderColor: colors.borderLight },
-                    '&.Mui-focused fieldset': { borderColor: colors.accent }
-                  },
-                  '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
-                }}
-              />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
-                Guest Name
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Client name (optional)"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: colors.background,
-                    color: colors.textPrimary,
-                    fontSize: '0.9rem',
-                    '& fieldset': { borderColor: colors.border },
-                    '&:hover fieldset': { borderColor: colors.borderLight },
-                    '&.Mui-focused fieldset': { borderColor: colors.accent }
-                  },
-                  '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
-                }}
-              />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
-                Note
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                multiline
-                rows={2}
-                placeholder="Add a message for your guest..."
-                value={inviteNote}
-                onChange={(e) => setInviteNote(e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: colors.background,
-                    color: colors.textPrimary,
-                    fontSize: '0.9rem',
-                    '& fieldset': { borderColor: colors.border },
-                    '&:hover fieldset': { borderColor: colors.borderLight },
-                    '&.Mui-focused fieldset': { borderColor: colors.accent }
-                  },
-                  '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
-                }}
-              />
-            </Box>
-          </Box>
-
-          {/* Action Buttons */}
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Button
-              onClick={closeArtistDayModal}
-              sx={{
-                flex: 1,
-                py: 1.25,
+          {/* INVITE A GUEST MODE */}
+          {modalMode === 'invite' && (
+            <>
+              {/* Invite Type Toggle */}
+              <Box sx={{
+                display: 'flex',
+                bgcolor: colors.background,
                 borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: colors.textPrimary,
-                border: `1px solid ${colors.border}`,
-                '&:hover': { borderColor: colors.textSecondary }
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSendInvite}
-              disabled={!guestEmail || sendingInvite}
-              sx={{
-                flex: 1,
-                py: 1.25,
+                p: 0.5,
+                gap: 0.5,
+                mb: 2
+              }}>
+                <Button
+                  onClick={() => setInviteType('consultation')}
+                  sx={{
+                    flex: 1,
+                    py: 1,
+                    borderRadius: '6px',
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    ...(inviteType === 'consultation' ? {
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover }
+                    } : {
+                      color: colors.textSecondary,
+                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                    })
+                  }}
+                >
+                  Consultation
+                </Button>
+                <Button
+                  onClick={() => setInviteType('appointment')}
+                  sx={{
+                    flex: 1,
+                    py: 1,
+                    borderRadius: '6px',
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    ...(inviteType === 'appointment' ? {
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover }
+                    } : {
+                      color: colors.textSecondary,
+                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                    })
+                  }}
+                >
+                  Appointment
+                </Button>
+              </Box>
+
+              {/* Guest Details Form */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Guest Email *
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="guest@email.com"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.9rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Guest Name
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Guest name"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.9rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Note
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    multiline
+                    rows={2}
+                    placeholder="Add a message for your guest..."
+                    value={inviteNote}
+                    onChange={(e) => setInviteNote(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.9rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Action Buttons - Invite */}
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <Button
+                  onClick={closeArtistDayModal}
+                  sx={{
+                    flex: 1,
+                    py: 1.25,
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    color: colors.textPrimary,
+                    border: `1px solid ${colors.border}`,
+                    '&:hover': { borderColor: colors.textSecondary }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSendInvite}
+                  disabled={!guestEmail || sendingInvite}
+                  sx={{
+                    flex: 1,
+                    py: 1.25,
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    '&:hover': { bgcolor: colors.accentHover },
+                    '&:disabled': { bgcolor: `${colors.accent}80`, color: colors.background }
+                  }}
+                >
+                  {sendingInvite ? 'Sending...' : 'Send Invite'}
+                </Button>
+              </Box>
+            </>
+          )}
+
+          {/* CALENDAR EVENT MODE */}
+          {modalMode === 'event' && (
+            <>
+              {/* Event Type Toggle */}
+              <Box sx={{
+                display: 'flex',
+                bgcolor: colors.background,
                 borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                bgcolor: colors.accent,
-                color: colors.background,
-                '&:hover': { bgcolor: colors.accentHover },
-                '&:disabled': { bgcolor: `${colors.accent}80`, color: colors.background }
-              }}
-            >
-              {sendingInvite ? 'Sending...' : 'Send Invite'}
-            </Button>
-          </Box>
+                p: 0.5,
+                gap: 0.5,
+                mb: 2
+              }}>
+                <Button
+                  onClick={() => setEventType('consultation')}
+                  sx={{
+                    flex: 1,
+                    py: 1,
+                    borderRadius: '6px',
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    ...(eventType === 'consultation' ? {
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover }
+                    } : {
+                      color: colors.textSecondary,
+                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                    })
+                  }}
+                >
+                  Consultation
+                </Button>
+                <Button
+                  onClick={() => setEventType('appointment')}
+                  sx={{
+                    flex: 1,
+                    py: 1,
+                    borderRadius: '6px',
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    ...(eventType === 'appointment' ? {
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover }
+                    } : {
+                      color: colors.textSecondary,
+                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                    })
+                  }}
+                >
+                  Appointment
+                </Button>
+                <Button
+                  onClick={() => setEventType('other')}
+                  sx={{
+                    flex: 1,
+                    py: 1,
+                    borderRadius: '6px',
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    ...(eventType === 'other' ? {
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover }
+                    } : {
+                      color: colors.textSecondary,
+                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                    })
+                  }}
+                >
+                  Other
+                </Button>
+              </Box>
+
+              {/* Event Details Form */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Event Title
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder={eventType === 'other' ? 'e.g., Personal time, Break' : `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} with client`}
+                    value={eventTitle}
+                    onChange={(e) => setEventTitle(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.9rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+
+                {/* Time Inputs */}
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                      Start Time
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="time"
+                      value={eventStartTime}
+                      onChange={(e) => setEventStartTime(e.target.value)}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          bgcolor: colors.background,
+                          color: colors.textPrimary,
+                          fontSize: '0.9rem',
+                          '& fieldset': { borderColor: colors.border },
+                          '&:hover fieldset': { borderColor: colors.borderLight },
+                          '&.Mui-focused fieldset': { borderColor: colors.accent }
+                        },
+                        '& input[type="time"]::-webkit-calendar-picker-indicator': {
+                          filter: 'invert(0.7)'
+                        }
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                      End Time
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="time"
+                      value={eventEndTime}
+                      onChange={(e) => setEventEndTime(e.target.value)}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          bgcolor: colors.background,
+                          color: colors.textPrimary,
+                          fontSize: '0.9rem',
+                          '& fieldset': { borderColor: colors.border },
+                          '&:hover fieldset': { borderColor: colors.borderLight },
+                          '&.Mui-focused fieldset': { borderColor: colors.accent }
+                        },
+                        '& input[type="time"]::-webkit-calendar-picker-indicator': {
+                          filter: 'invert(0.7)'
+                        }
+                      }}
+                    />
+                  </Box>
+                </Box>
+
+                <Box>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: 0.5 }}>
+                    Description
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    multiline
+                    rows={2}
+                    placeholder="Add notes or details..."
+                    value={eventDescription}
+                    onChange={(e) => setEventDescription(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: colors.background,
+                        color: colors.textPrimary,
+                        fontSize: '0.9rem',
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.borderLight },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent }
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textSecondary, opacity: 0.7 }
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              {/* Action Buttons - Event */}
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <Button
+                  onClick={closeArtistDayModal}
+                  sx={{
+                    flex: 1,
+                    py: 1.25,
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    color: colors.textPrimary,
+                    border: `1px solid ${colors.border}`,
+                    '&:hover': { borderColor: colors.textSecondary }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateEvent}
+                  disabled={creatingEvent}
+                  sx={{
+                    flex: 1,
+                    py: 1.25,
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    '&:hover': { bgcolor: colors.accentHover },
+                    '&:disabled': { bgcolor: `${colors.accent}80`, color: colors.background }
+                  }}
+                >
+                  {creatingEvent ? 'Creating...' : 'Create Event'}
+                </Button>
+              </Box>
+            </>
+          )}
         </Box>
       </Modal>
     </Box>
