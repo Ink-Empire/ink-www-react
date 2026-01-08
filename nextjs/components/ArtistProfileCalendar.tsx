@@ -1821,9 +1821,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
             </IconButton>
           </Box>
 
-          {/* Existing Appointments Section */}
+          {/* InkedIn Appointments Section */}
           {selectedDay && getAppointmentsForDate(selectedDay).length > 0 && (
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: 2 }}>
               <Typography sx={{
                 fontSize: '0.85rem',
                 fontWeight: 600,
@@ -1832,7 +1832,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 letterSpacing: '0.03em',
                 mb: 1.5
               }}>
-                Scheduled
+                InkedIn Appointments
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {getAppointmentsForDate(selectedDay).map((apt, idx) => (
@@ -1870,8 +1870,48 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
             </Box>
           )}
 
-          {/* No Appointments Message */}
-          {selectedDay && getAppointmentsForDate(selectedDay).length === 0 && (
+          {/* Google Calendar Events Section */}
+          {selectedDay && showExternalEvents && getExternalEventsForDate(selectedDay).length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography sx={{
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: colors.textSecondary,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                mb: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#4285F4' }} />
+                Google Calendar
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {getExternalEventsForDate(selectedDay).map((event) => (
+                  <Box key={event.id} sx={{
+                    p: 1.5,
+                    bgcolor: colors.background,
+                    borderRadius: '8px',
+                    border: `1px solid #4285F433`,
+                    borderLeft: `3px solid #4285F4`
+                  }}>
+                    <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem' }}>
+                      {event.title || 'Busy'}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.5 }}>
+                      {event.all_day ? 'All day' : (
+                        `${new Date(event.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${new Date(event.ends_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+                      )}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {/* No Events Message */}
+          {selectedDay && getAppointmentsForDate(selectedDay).length === 0 && (!showExternalEvents || getExternalEventsForDate(selectedDay).length === 0) && (
             <Box sx={{
               p: 2,
               bgcolor: colors.background,
@@ -1880,7 +1920,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               textAlign: 'center'
             }}>
               <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
-                No appointments scheduled for this day
+                No events scheduled for this day
               </Typography>
             </Box>
           )}
