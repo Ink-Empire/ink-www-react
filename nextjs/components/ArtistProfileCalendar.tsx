@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import Link from 'next/link';
-import { Box, Typography, IconButton, Modal, Button, CircularProgress, Switch, TextField } from '@mui/material';
+import { Box, Typography, IconButton, Modal, Button, CircularProgress, Switch, TextField, Tooltip } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/utils/api';
 import { useArtistAppointments, useWorkingHours } from '@/hooks';
@@ -17,6 +18,21 @@ interface ArtistProfileCalendarProps {
   artistId?: number;
   artistName?: string;
   onDateSelected?: (date: Date, workingHours: any, bookingType: 'consultation' | 'appointment') => void;
+  showExternalEvents?: boolean;
+  isOwnCalendar?: boolean;
+}
+
+export interface ArtistProfileCalendarRef {
+  refreshEvents: () => void;
+}
+
+interface ExternalCalendarEvent {
+  id: number;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  all_day: boolean;
+  source: string;
 }
 
 interface WorkingHour {
@@ -52,12 +68,14 @@ const viewConfig = {
   }
 };
 
-const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
+const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfileCalendarProps>(({
   artistIdOrSlug,
   artistId: propArtistId,
   artistName = 'Artist',
-  onDateSelected
-}) => {
+  onDateSelected,
+  showExternalEvents = false,
+  isOwnCalendar = false,
+}, ref) => {
   const { user, isAuthenticated } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookingType, setBookingType] = useState<BookingType>('consultation');
@@ -100,6 +118,48 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
   const [inviteNote, setInviteNote] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
 
+  // External calendar events state
+  const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
+  const [externalEventsLoading, setExternalEventsLoading] = useState(false);
+
+  // Fetch external calendar events
+  const fetchExternalEvents = useCallback(async () => {
+    if (!showExternalEvents || !isOwnCalendar) return;
+
+    setExternalEventsLoading(true);
+    try {
+      // Fetch events for 3 months range
+      const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+      const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+      const start = startDate.toISOString().split('T')[0];
+      const end = endDate.toISOString().split('T')[0];
+
+      const response = await api.get<{ events: ExternalCalendarEvent[] }>(
+        `/calendar/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+        { requiresAuth: true }
+      );
+
+      setExternalEvents(response.events || []);
+    } catch (error) {
+      console.error('Failed to fetch external events:', error);
+      setExternalEvents([]);
+    } finally {
+      setExternalEventsLoading(false);
+    }
+  }, [showExternalEvents, isOwnCalendar, currentDate]);
+
+  // Expose refresh method to parent
+  useImperativeHandle(ref, () => ({
+    refreshEvents: () => {
+      fetchExternalEvents();
+    },
+  }), [fetchExternalEvents]);
+
+  // Fetch external events when calendar loads or month changes
+  useEffect(() => {
+    fetchExternalEvents();
+  }, [fetchExternalEvents]);
+
   // Fetch appointments
   const {
     appointments: fetchedAppointments,
@@ -107,7 +167,7 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
   } = useArtistAppointments(artistIdOrSlug);
 
   // Working hours hook for saving (only used when viewing own profile)
-  const { saveWorkingHours, refetch: refetchWorkingHours } = useWorkingHours(resolvedArtistId);
+  const { saveWorkingHours } = useWorkingHours(resolvedArtistId);
 
   // Get closed days from working hours
   const closedDays = useMemo(() => {
@@ -472,6 +532,21 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
     });
   };
 
+  // Get external events for a specific date
+  const getExternalEventsForDate = useCallback((dateStr: string) => {
+    return externalEvents.filter(event => {
+      const eventStart = new Date(event.starts_at).toISOString().split('T')[0];
+      const eventEnd = new Date(event.ends_at).toISOString().split('T')[0];
+      // Event spans this date if it starts on this day, ends on this day, or spans across it
+      return dateStr >= eventStart && dateStr <= eventEnd;
+    });
+  }, [externalEvents]);
+
+  // Check if a date has external events (for busy indicator)
+  const hasExternalEventsOnDate = useCallback((dateStr: string) => {
+    return getExternalEventsForDate(dateStr).length > 0;
+  }, [getExternalEventsForDate]);
+
   // Handle sending invite
   const handleSendInvite = async () => {
     if (!selectedDay || !guestEmail || !resolvedArtistId) return;
@@ -801,11 +876,32 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
             const isToday = dateStr === todayStr;
             const isClosed = closedDays.includes(dayOfWeek);
             const isAvailable = !isClosed && availabilityData[dateStr]?.[bookingType];
+            const hasExternalEvents = showExternalEvents && hasExternalEventsOnDate(dateStr);
+            const externalEventsOnDay = showExternalEvents ? getExternalEventsForDate(dateStr) : [];
 
             // Allow artist to click any day on their own calendar
             const canClick = isOwnProfile || isAvailable;
 
-            return (
+            const tooltipContent = isOwnCalendar && externalEventsOnDay.length > 0 ? (
+              <Box sx={{ p: 0.5 }}>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, mb: 0.5 }}>
+                  Google Calendar:
+                </Typography>
+                {externalEventsOnDay.slice(0, 3).map((event, idx) => (
+                  <Typography key={idx} sx={{ fontSize: '0.7rem', color: 'inherit' }}>
+                    • {event.title || 'Busy'}
+                    {event.all_day ? ' (all day)' : ''}
+                  </Typography>
+                ))}
+                {externalEventsOnDay.length > 3 && (
+                  <Typography sx={{ fontSize: '0.7rem', fontStyle: 'italic' }}>
+                    +{externalEventsOnDay.length - 3} more
+                  </Typography>
+                )}
+              </Box>
+            ) : hasExternalEvents ? 'Busy' : '';
+
+            const dayContent = (
               <Box
                 key={day}
                 onClick={canClick ? () => handleDayClick(dateStr) : undefined}
@@ -862,7 +958,29 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
                     Today
                   </Box>
                 )}
+                {/* External event indicator */}
+                {hasExternalEvents && !isClosed && (
+                  <Box sx={{
+                    position: 'absolute',
+                    top: '3px',
+                    right: '3px',
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: isOwnCalendar ? '#4285F4' : colors.warning, // Google blue for own, warning for others
+                    zIndex: 2,
+                  }} />
+                )}
               </Box>
+            );
+
+            // Wrap with tooltip if there are external events to show
+            return hasExternalEvents && tooltipContent ? (
+              <Tooltip key={day} title={tooltipContent} arrow placement="top">
+                {dayContent}
+              </Tooltip>
+            ) : (
+              <React.Fragment key={day}>{dayContent}</React.Fragment>
             );
           })}
 
@@ -1160,7 +1278,8 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
                 {[
                   { type: 'available', label: 'Available', desc: 'Open for bookings' },
                   { type: 'unavailable', label: 'Unavailable', desc: 'Already booked' },
-                  { type: 'closed', label: 'Closed', desc: 'Day off' }
+                  { type: 'closed', label: 'Closed', desc: 'Day off' },
+                  ...(showExternalEvents ? [{ type: 'google', label: 'Google Event', desc: 'From Google Calendar' }] : [])
                 ].map(item => (
                   <Box key={item.type} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box sx={{
@@ -1168,17 +1287,34 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
                       height: 24,
                       borderRadius: '4px',
                       flexShrink: 0,
+                      position: 'relative',
                       ...(item.type === 'available' ? {
                         bgcolor: `${colors.accent}1A`,
                         border: `2px solid ${colors.accent}`
                       } : item.type === 'unavailable' ? {
                         bgcolor: colors.background,
                         border: '2px solid transparent'
+                      } : item.type === 'google' ? {
+                        bgcolor: colors.background,
+                        border: '2px solid transparent'
                       } : {
                         background: `repeating-linear-gradient(45deg, ${colors.background}, ${colors.background} 3px, ${colors.surface} 3px, ${colors.surface} 6px)`,
                         border: '2px solid transparent'
                       })
-                    }} />
+                    }}>
+                      {/* Google Calendar blue dot indicator */}
+                      {item.type === 'google' && (
+                        <Box sx={{
+                          position: 'absolute',
+                          top: '2px',
+                          right: '2px',
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          bgcolor: '#4285F4',
+                        }} />
+                      )}
+                    </Box>
                     <Box>
                       <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.8rem' }}>
                         {item.label}
@@ -1933,6 +2069,8 @@ const ArtistProfileCalendar: React.FC<ArtistProfileCalendarProps> = ({
       </Modal>
     </Box>
   );
-};
+});
+
+ArtistProfileCalendar.displayName = 'ArtistProfileCalendar';
 
 export default ArtistProfileCalendar;
