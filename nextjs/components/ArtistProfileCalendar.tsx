@@ -140,7 +140,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   // Fetch appointments
   const {
     appointments: fetchedAppointments,
-    loading: appointmentsLoading
+    loading: appointmentsLoading,
+    refresh: refreshAppointments,
+    deleteAppointment
   } = useArtistAppointments(artistIdOrSlug);
 
   // Working hours hook for saving (only used when viewing own profile)
@@ -543,6 +545,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     return getExternalEventsForDate(dateStr).length > 0;
   }, [getExternalEventsForDate]);
 
+  // Check if a date has InkedIn appointments
+  const hasAppointmentsOnDate = useCallback((dateStr: string) => {
+    return getAppointmentsForDate(dateStr).length > 0;
+  }, [fetchedAppointments]);
+
   // Handle sending invite
   const handleSendInvite = async () => {
     if (!selectedDay || !guestEmail || !resolvedArtistId) return;
@@ -586,7 +593,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         sync_to_google: true
       }, { requiresAuth: true });
 
-      // Refresh external events to show the new event
+      // Refresh appointments and external events to show the new event
+      refreshAppointments();
       fetchExternalEvents();
       closeArtistDayModal();
     } catch (err) {
@@ -921,29 +929,52 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
             const isPast = dateStr < todayStr;
             const isAvailable = !isClosed && !isPast && availabilityData[dateStr]?.[bookingType];
             const hasExternalEvents = showExternalEvents && hasExternalEventsOnDate(dateStr);
+            const hasAppointments = hasAppointmentsOnDate(dateStr);
             const externalEventsOnDay = showExternalEvents ? getExternalEventsForDate(dateStr) : [];
+            const appointmentsOnDay = getAppointmentsForDate(dateStr);
 
             // Allow artist to click any day on their own calendar, clients can only click future available days
             const canClick = isOwnProfile || isAvailable;
 
-            const tooltipContent = isOwnCalendar && externalEventsOnDay.length > 0 ? (
+            const tooltipContent = isOwnCalendar && (externalEventsOnDay.length > 0 || appointmentsOnDay.length > 0) ? (
               <Box sx={{ p: 0.5 }}>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, mb: 0.5 }}>
-                  Google Calendar:
-                </Typography>
-                {externalEventsOnDay.slice(0, 3).map((event, idx) => (
-                  <Typography key={idx} sx={{ fontSize: '0.7rem', color: 'inherit' }}>
-                    • {event.title || 'Busy'}
-                    {event.all_day ? ' (all day)' : ''}
-                  </Typography>
-                ))}
-                {externalEventsOnDay.length > 3 && (
-                  <Typography sx={{ fontSize: '0.7rem', fontStyle: 'italic' }}>
-                    +{externalEventsOnDay.length - 3} more
-                  </Typography>
+                {appointmentsOnDay.length > 0 && (
+                  <>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, mb: 0.5, color: colors.accent }}>
+                      InkedIn:
+                    </Typography>
+                    {appointmentsOnDay.slice(0, 3).map((apt, idx) => (
+                      <Typography key={idx} sx={{ fontSize: '0.7rem', color: 'inherit' }}>
+                        • {apt.title || 'Appointment'}
+                      </Typography>
+                    ))}
+                    {appointmentsOnDay.length > 3 && (
+                      <Typography sx={{ fontSize: '0.7rem', fontStyle: 'italic' }}>
+                        +{appointmentsOnDay.length - 3} more
+                      </Typography>
+                    )}
+                  </>
+                )}
+                {externalEventsOnDay.length > 0 && (
+                  <>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, mb: 0.5, mt: appointmentsOnDay.length > 0 ? 1 : 0 }}>
+                      Google Calendar:
+                    </Typography>
+                    {externalEventsOnDay.slice(0, 3).map((event, idx) => (
+                      <Typography key={idx} sx={{ fontSize: '0.7rem', color: 'inherit' }}>
+                        • {event.title || 'Busy'}
+                        {event.all_day ? ' (all day)' : ''}
+                      </Typography>
+                    ))}
+                    {externalEventsOnDay.length > 3 && (
+                      <Typography sx={{ fontSize: '0.7rem', fontStyle: 'italic' }}>
+                        +{externalEventsOnDay.length - 3} more
+                      </Typography>
+                    )}
+                  </>
                 )}
               </Box>
-            ) : hasExternalEvents ? 'Busy' : '';
+            ) : (hasExternalEvents || hasAppointments) ? 'Events scheduled' : '';
 
             const dayContent = (
               <Box
@@ -1019,6 +1050,19 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                     bgcolor: colors.textSecondary,
                   }} />
                 )}
+                {/* InkedIn appointment indicator */}
+                {hasAppointments && !isClosed && (
+                  <Box sx={{
+                    position: 'absolute',
+                    top: { xs: '2px', sm: '3px' },
+                    left: { xs: '2px', sm: '3px' },
+                    width: { xs: 6, sm: 8 },
+                    height: { xs: 6, sm: 8 },
+                    borderRadius: '50%',
+                    bgcolor: colors.accent,
+                    zIndex: 2,
+                  }} />
+                )}
                 {/* External event indicator */}
                 {hasExternalEvents && !isClosed && (
                   <Box sx={{
@@ -1035,8 +1079,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               </Box>
             );
 
-            // Wrap with tooltip if there are external events to show
-            return hasExternalEvents && tooltipContent ? (
+            // Wrap with tooltip if there are events to show
+            return (hasExternalEvents || hasAppointments) && tooltipContent ? (
               <Tooltip key={day} title={tooltipContent} arrow placement="top">
                 {dayContent}
               </Tooltip>
@@ -1787,35 +1831,71 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 InkedIn Appointments
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {getAppointmentsForDate(selectedDay).map((apt, idx) => (
-                  <Box key={idx} sx={{
+                {getAppointmentsForDate(selectedDay).map((apt) => (
+                  <Box key={apt.id} sx={{
                     p: 1.5,
                     bgcolor: colors.background,
                     borderRadius: '8px',
-                    border: `1px solid ${colors.border}`
+                    border: `1px solid ${colors.border}`,
+                    position: 'relative'
                   }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem' }}>
-                        {apt.title || 'Appointment'}
-                      </Typography>
-                      <Box sx={{
-                        px: 1,
-                        py: 0.25,
-                        bgcolor: apt.status === 'confirmed' ? `${colors.success}22` : `${colors.accent}22`,
-                        color: apt.status === 'confirmed' ? colors.success : colors.accent,
-                        borderRadius: '4px',
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase'
-                      }}>
-                        {apt.status || 'pending'}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem' }}>
+                            {apt.title || 'Appointment'}
+                          </Typography>
+                          <Box sx={{
+                            px: 1,
+                            py: 0.25,
+                            bgcolor: apt.extendedProps?.status === 'booked' ? `${colors.success}22` : `${colors.accent}22`,
+                            color: apt.extendedProps?.status === 'booked' ? colors.success : colors.accent,
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            textTransform: 'uppercase'
+                          }}>
+                            {apt.extendedProps?.status || apt.status || 'pending'}
+                          </Box>
+                        </Box>
+                        {apt.start && (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.5 }}>
+                            {new Date(apt.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            {apt.end && ` - ${new Date(apt.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                          </Typography>
+                        )}
+                        {apt.extendedProps?.clientName && (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.25 }}>
+                            Client: {apt.extendedProps.clientName}
+                          </Typography>
+                        )}
+                        {apt.extendedProps?.description && (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.25, fontStyle: 'italic' }}>
+                            {apt.extendedProps.description}
+                          </Typography>
+                        )}
                       </Box>
+                      {/* Delete button */}
+                      <IconButton
+                        size="small"
+                        onClick={async () => {
+                          if (window.confirm('Are you sure you want to delete this appointment?')) {
+                            try {
+                              await deleteAppointment(apt.id);
+                            } catch (err) {
+                              console.error('Failed to delete appointment:', err);
+                            }
+                          }
+                        }}
+                        sx={{
+                          color: colors.textSecondary,
+                          '&:hover': { color: colors.error, bgcolor: `${colors.error}15` },
+                          ml: 1
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
                     </Box>
-                    {apt.start && (
-                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.5 }}>
-                        {new Date(apt.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                      </Typography>
-                    )}
                   </Box>
                 ))}
               </Box>

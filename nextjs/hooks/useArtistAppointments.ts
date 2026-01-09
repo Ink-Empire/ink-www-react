@@ -1,21 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/utils/api';
 
 export interface AppointmentType {
-  id: string;
+  id: number | string;
   title: string;
   start: string;
   end: string;
   allDay: boolean;
-  status: 'available' | 'booked' | 'tentative' | 'unavailable';
+  status: 'pending' | 'booked' | 'completed' | 'cancelled';
   description?: string;
-  clientName?: string;
-  clientId?: string | number;
-  tattooId?: string | number;
+  clientName?: string | null;
+  artistName?: string | null;
+  clientId?: string | number | null;
+  tattooId?: string | number | null;
+  extendedProps?: {
+    status: string;
+    description?: string;
+    clientName?: string | null;
+    artistName?: string | null;
+    studioName?: string;
+  };
 }
 
 interface UseArtistAppointmentsOptions {
-  status?: 'available' | 'booked' | 'tentative' | 'unavailable' | 'all';
+  status?: 'pending' | 'booked' | 'completed' | 'cancelled' | 'all';
   startDate?: Date;
   endDate?: Date;
 }
@@ -30,64 +38,82 @@ export function useArtistAppointments(
 
   const { status = 'all', startDate, endDate } = options;
 
-  useEffect(() => {
+  const fetchAppointments = useCallback(async () => {
     if (!artistId) {
       setLoading(false);
       return;
     }
 
-    const fetchAppointments = async () => {
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
 
-        // Build request body
-        const requestBody: Record<string, any> = {
-          artist_id: artistId
-        };
+      // Build request body
+      const requestBody: Record<string, any> = {
+        artist_id: artistId
+      };
 
-        // Add filters if specified
-        if (status && status !== 'all') {
-          requestBody.status = status;
-        }
-
-        if (startDate) {
-          requestBody.start_date = startDate.toISOString().split('T')[0];
-        }
-
-        if (endDate) {
-          requestBody.end_date = endDate.toISOString().split('T')[0];
-        }
-
-        console.log('Fetching artist appointments:', requestBody);
-
-        // Call the API endpoint
-        const response = await api.post<AppointmentType[]>(
-          '/artists/appointments', 
-          requestBody,
-          {
-            requiresAuth: false, // Allow viewing appointments without authentication
-            useCache: true, // Enable caching for this request
-            cacheTTL: 5 * 60 * 1000 // 5 minute cache
-          }
-        );
-
-        // Normalize the response data
-        const normalizedAppointments = Array.isArray(response) 
-          ? response 
-          : [];
-
-        setAppointments(normalizedAppointments);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching artist appointments:', err);
-        setError(err instanceof Error ? err : new Error('Failed to fetch artist appointments'));
-      } finally {
-        setLoading(false);
+      // Add filters if specified
+      if (status && status !== 'all') {
+        requestBody.status = status;
       }
-    };
 
-    fetchAppointments();
+      if (startDate) {
+        requestBody.start_date = startDate.toISOString().split('T')[0];
+      }
+
+      if (endDate) {
+        requestBody.end_date = endDate.toISOString().split('T')[0];
+      }
+
+      console.log('Fetching artist appointments:', requestBody);
+
+      // Call the API endpoint
+      const response = await api.post<{ data: AppointmentType[] } | AppointmentType[]>(
+        '/artists/appointments',
+        requestBody,
+        {
+          requiresAuth: false,
+          useCache: false, // Don't cache so we see updates immediately
+        }
+      );
+
+      // Handle both wrapped and unwrapped responses
+      const normalizedAppointments = Array.isArray(response)
+        ? response
+        : (response as any).data || [];
+
+      setAppointments(normalizedAppointments);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching artist appointments:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch artist appointments'));
+    } finally {
+      setLoading(false);
+    }
   }, [artistId, status, startDate, endDate]);
 
-  return { appointments, loading, error };
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
+
+  // Function to delete an appointment
+  const deleteAppointment = useCallback(async (appointmentId: number | string) => {
+    try {
+      await api.delete(`/appointments/${appointmentId}`, { requiresAuth: true });
+      // Refresh the list after deletion
+      await fetchAppointments();
+      return true;
+    } catch (err) {
+      console.error('Error deleting appointment:', err);
+      throw err;
+    }
+  }, [fetchAppointments]);
+
+  return {
+    appointments,
+    loading,
+    error,
+    refresh: fetchAppointments,
+    deleteAppointment
+  };
 }
