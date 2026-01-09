@@ -1,0 +1,422 @@
+/**
+ * CalendarDayModal - Bottom sheet modal for day details
+ *
+ * Shows appointments and booking options when a day is selected
+ */
+
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  ScrollView,
+  Pressable,
+} from 'react-native';
+import {
+  Appointment,
+  ExternalCalendarEvent,
+  BookingConfig,
+  formatDateForDisplay,
+} from '@inkedin/shared/types';
+
+// Color palette matching the web app
+const colors = {
+  background: '#0D0D0D',
+  surface: '#1A1A1A',
+  border: '#2A2A2A',
+  textPrimary: '#E8E8E8',
+  textSecondary: '#888888',
+  accent: '#C9A962',
+  success: '#4CAF50',
+  googleBlue: '#4285F4',
+};
+
+interface CalendarDayModalProps {
+  visible: boolean;
+  onClose: () => void;
+  selectedDate: string | null;
+  bookingConfig: BookingConfig;
+  artistName: string;
+  appointments: Appointment[];
+  externalEvents: ExternalCalendarEvent[];
+}
+
+export function CalendarDayModal({
+  visible,
+  onClose,
+  selectedDate,
+  bookingConfig,
+  artistName,
+  appointments,
+  externalEvents,
+}: CalendarDayModalProps) {
+  if (!selectedDate) return null;
+
+  const handleBooking = () => {
+    // TODO: Navigate to booking flow or show booking form
+    console.log('Request booking for', selectedDate);
+    onClose();
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.modalContent}>
+              {/* Drag Handle */}
+              <View style={styles.dragHandleContainer}>
+                <View style={styles.dragHandle} />
+              </View>
+
+              {/* Header */}
+              <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                  <Text style={styles.dateTitle}>
+                    {formatDateForDisplay(selectedDate)}
+                  </Text>
+                  <View style={styles.bookingTypeBadge}>
+                    <Text style={styles.bookingTypeBadgeText}>
+                      {bookingConfig.title}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                  <Text style={styles.closeButtonText}>×</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.scrollContent}>
+                {/* Appointments Section */}
+                {appointments.length > 0 && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>InkedIn Appointments</Text>
+                    {appointments.map((apt) => (
+                      <View key={apt.id} style={styles.eventCard}>
+                        <View style={styles.eventCardHeader}>
+                          <Text style={styles.eventTitle}>
+                            {apt.title || 'Appointment'}
+                          </Text>
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              apt.status === 'booked' && styles.statusBadgeBooked,
+                            ]}
+                          >
+                            <Text style={styles.statusBadgeText}>
+                              {apt.status}
+                            </Text>
+                          </View>
+                        </View>
+                        {apt.start_time && (
+                          <Text style={styles.eventTime}>{apt.start_time}</Text>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* External Events Section */}
+                {externalEvents.length > 0 && (
+                  <View style={styles.section}>
+                    <View style={styles.sectionTitleRow}>
+                      <View style={styles.googleDot} />
+                      <Text style={styles.sectionTitle}>Google Calendar</Text>
+                    </View>
+                    {externalEvents.map((event) => (
+                      <View key={event.id} style={styles.externalEventCard}>
+                        <Text style={styles.eventTitle}>
+                          {event.title || 'Busy'}
+                        </Text>
+                        <Text style={styles.eventTime}>
+                          {event.all_day
+                            ? 'All day'
+                            : `${new Date(event.starts_at).toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })} - ${new Date(event.ends_at).toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })}`}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* No Events Message */}
+                {appointments.length === 0 && externalEvents.length === 0 && (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>
+                      No events scheduled for this day
+                    </Text>
+                  </View>
+                )}
+
+                {/* Booking Info */}
+                <View style={styles.bookingInfo}>
+                  <Text style={styles.bookingDescription}>
+                    {bookingConfig.modalDescription(artistName)}
+                  </Text>
+                  <View style={styles.bookingDetails}>
+                    <View style={styles.bookingDetailItem}>
+                      <Text style={styles.bookingDetailLabel}>Duration</Text>
+                      <Text style={styles.bookingDetailValue}>
+                        {bookingConfig.modalDuration}
+                      </Text>
+                    </View>
+                    <View style={styles.bookingDetailItem}>
+                      <Text style={styles.bookingDetailLabel}>Cost</Text>
+                      <Text style={[styles.bookingDetailValue, styles.accentText]}>
+                        {bookingConfig.modalCost}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.actions}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.bookButton}
+                    onPress={handleBooking}
+                  >
+                    <Text style={styles.bookButtonText}>Request Booking</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  dateTitle: {
+    fontSize: 22,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  bookingTypeBadge: {
+    backgroundColor: `${colors.accent}20`,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 100,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  bookingTypeBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.accent,
+    textTransform: 'uppercase',
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: colors.textSecondary,
+    lineHeight: 24,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 34, // Safe area
+  },
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  googleDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.googleBlue,
+  },
+  eventCard: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 8,
+  },
+  externalEventCard: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: `${colors.googleBlue}33`,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.googleBlue,
+    marginBottom: 8,
+  },
+  eventCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  eventTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  eventTime: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  statusBadge: {
+    backgroundColor: `${colors.accent}20`,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  statusBadgeBooked: {
+    backgroundColor: `${colors.success}20`,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.accent,
+    textTransform: 'uppercase',
+  },
+  emptyState: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  bookingInfo: {
+    marginBottom: 16,
+  },
+  bookingDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  bookingDetails: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: 12,
+  },
+  bookingDetailItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  bookingDetailLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  bookingDetailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  accentText: {
+    color: colors.accent,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  bookButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+  },
+  bookButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.background,
+  },
+});

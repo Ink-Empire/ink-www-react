@@ -12,6 +12,7 @@ import HomeScreen from './app/screens/HomeScreen';
 import SearchScreen from './app/screens/SearchScreen';
 import ArtistListScreen from './app/screens/ArtistListScreen';
 import ArtistDetailScreen from './app/screens/ArtistDetailScreen';
+import CalendarScreen from './app/screens/CalendarScreen';
 
 // Create the navigator
 const Stack = createStackNavigator();
@@ -36,11 +37,18 @@ function App(): React.JSX.Element {
           component={ArtistListScreen} 
           options={{ title: 'Artists' }}
         />
-        <Stack.Screen 
-          name="ArtistDetail" 
-          component={ArtistDetailScreen} 
-          options={({ route }: any) => ({ 
-            title: route.params?.name || 'Artist Details' 
+        <Stack.Screen
+          name="ArtistDetail"
+          component={ArtistDetailScreen}
+          options={({ route }: any) => ({
+            title: route.params?.name || 'Artist Details'
+          })}
+        />
+        <Stack.Screen
+          name="Calendar"
+          component={CalendarScreen}
+          options={({ route }: any) => ({
+            title: route.params?.artistName ? `${route.params.artistName}'s Calendar` : 'Calendar'
           })}
         />
       </Stack.Navigator>

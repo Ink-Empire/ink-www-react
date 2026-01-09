@@ -22,3 +22,5 @@ export {
 } from './useTattoos';
 
 export { useStyles, useTags } from './useStyles';
+
+export { useCalendar } from './useCalendar';

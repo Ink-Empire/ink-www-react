@@ -5,22 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/utils/api';
 import { useArtistAppointments } from '@/hooks';
 import { colors } from '@/styles/colors';
+import { WorkingHour } from '@inkedin/shared/types';
 
 interface ArtistCalendarProps {
   artistIdOrSlug: string | number;
   onDateSelected?: (date: Date, workingHours: any) => void;
   isOwnCalendar?: boolean; // If true, always show calendar even with books closed
-}
-
-// Interface for working hours from API
-interface WorkingHour {
-  id?: number;
-  artist_id: number;
-  day_of_week: number;
-  day_name?: string;
-  start_time: string;
-  end_time: string;
-  is_day_off: boolean | number; // API may return 0/1 instead of true/false
 }
 
 interface CalendarEvent {

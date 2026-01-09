@@ -108,8 +108,8 @@ export interface Artist {
   is_verified?: boolean;
   rating?: number;
 
-  // Working hours
-  working_hours?: WorkingHours[];
+  // Working hours - uses WorkingHour from calendar.ts
+  working_hours?: import('./calendar').WorkingHour[];
 }
 
 // Alias for backward compatibility
@@ -284,38 +284,14 @@ export type StudioType = Studio;
 export type IStudio = Studio;
 
 // =============================================================================
-// Working Hours Types
+// Working Hours & Appointment Types
 // =============================================================================
+// Note: These are now defined in calendar.ts and re-exported below.
+// The WorkingHour (singular) type uses is_day_off instead of is_available.
+// Use WorkingHours (plural alias) for backwards compatibility with Artist interface.
 
-export interface WorkingHours {
-  id?: number;
-  artist_id?: number;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  is_available: boolean;
-}
-
-// =============================================================================
-// Appointment Types
-// =============================================================================
-
-export interface Appointment {
-  id: number;
-  client_id: number;
-  artist_id: number;
-  studio_id?: number;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  date: string;
-  start_time?: string;
-  end_time?: string;
-  notes?: string;
-  client?: User;
-  artist?: Artist;
-  studio?: Studio;
-  created_at?: string;
-  updated_at?: string;
-}
+// Backwards compatibility alias - WorkingHour is the canonical type in calendar.ts
+export type { WorkingHour as WorkingHours } from './calendar';
 
 // =============================================================================
 // Search & Filter Types
@@ -375,3 +351,9 @@ export interface Country {
   name: string;
   code: string;
 }
+
+// =============================================================================
+// Calendar Types (re-exported from calendar.ts)
+// =============================================================================
+
+export * from './calendar';

@@ -3,15 +3,10 @@ import { Box, Typography, IconButton, Modal } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import WorkingHoursEditor from './WorkingHoursEditor';
 import { colors } from '@/styles/colors';
+import { WorkingHour } from '@inkedin/shared/types';
 
-export interface WorkingHour {
-  artist_id?: number;
-  studio_id?: number;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  is_day_off: boolean;
-}
+// Re-export for backwards compatibility with existing imports
+export type { WorkingHour } from '@inkedin/shared/types';
 
 interface WorkingHoursModalProps {
   isOpen: boolean;

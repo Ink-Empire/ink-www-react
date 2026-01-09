@@ -10,3 +10,5 @@ export { useInbox, useHistory, useArtistInbox, useArtistHistory } from './useInb
 export { useInboxCount } from './useInboxCount';
 export { useClientDashboard, useWishlist, useSuggestedArtists } from './useClientDashboard';
 export { useConversations, useConversation, useUnreadConversationCount, createConversation } from './useConversations';
+export { useMobile, useTablet, useBreakpoint } from './useMobile';
+export { useGoogleCalendar } from './useGoogleCalendar';

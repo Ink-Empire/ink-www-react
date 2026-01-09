@@ -11,9 +11,16 @@ import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/utils/api';
-import { useArtistAppointments, useWorkingHours } from '@/hooks';
+import { useArtistAppointments, useWorkingHours, useMobile } from '@/hooks';
 import { colors } from '@/styles/colors';
 import WorkingHoursModal from './WorkingHoursModal';
+import { ResponsiveModal } from './ui/ResponsiveModal';
+import {
+  ExternalCalendarEvent,
+  WorkingHour,
+  BookingType,
+  BOOKING_CONFIG,
+} from '@inkedin/shared/types';
 
 interface ArtistProfileCalendarProps {
   artistIdOrSlug: string | number;
@@ -28,48 +35,6 @@ export interface ArtistProfileCalendarRef {
   refreshEvents: () => void;
 }
 
-interface ExternalCalendarEvent {
-  id: number;
-  title: string;
-  starts_at: string;
-  ends_at: string;
-  all_day: boolean;
-  source: string;
-}
-
-interface WorkingHour {
-  id?: number;
-  artist_id: number;
-  day_of_week: number;
-  day_name?: string;
-  start_time: string;
-  end_time: string;
-  is_day_off: boolean | number;
-}
-
-type BookingType = 'consultation' | 'appointment';
-
-const viewConfig = {
-  consultation: {
-    title: 'Consultation',
-    description: 'Set aside time to discuss your tattoo idea, placement, sizing, and get a quote before committing.',
-    duration: '15 minutes',
-    cost: 'Free',
-    modalDescription: (artistName: string) => `You're requesting a consultation with ${artistName} to discuss your tattoo idea.`,
-    modalDuration: '15 min',
-    modalCost: 'Free'
-  },
-  appointment: {
-    title: 'Appointment',
-    description: 'An in-studio tattoo session. A deposit is required to confirm your booking and will be deducted from your final total.',
-    duration: '2+ hours',
-    cost: '$180/hr',
-    modalDescription: (artistName: string) => `You're requesting an in-studio appointment with ${artistName}. A deposit is required to confirm.`,
-    modalDuration: '2+ hrs',
-    modalCost: 'Deposit req.'
-  }
-};
-
 const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfileCalendarProps>(({
   artistIdOrSlug,
   artistId: propArtistId,
@@ -79,6 +44,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   isOwnCalendar = false,
 }, ref) => {
   const { user, isAuthenticated } = useAuth();
+  const isMobile = useMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookingType, setBookingType] = useState<BookingType>('consultation');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -834,30 +800,31 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     );
   }
 
-  const config = viewConfig[bookingType];
+  const config = BOOKING_CONFIG[bookingType];
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gap: 3 }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gap: { xs: 2, md: 3 } }}>
       {/* Calendar Container */}
       <Box sx={{
         bgcolor: colors.surface,
-        borderRadius: '12px',
-        p: 3,
+        borderRadius: { xs: '10px', sm: '12px' },
+        p: { xs: 2, sm: 3 },
         border: `1px solid ${colors.border}`
       }}>
         {/* Calendar Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: { xs: 1.5, sm: 2 } }}>
           <Box>
             <Typography sx={{
               fontFamily: '"Cormorant Garamond", Georgia, serif',
-              fontSize: '1.75rem',
+              fontSize: { xs: '1.35rem', sm: '1.75rem' },
               fontWeight: 500,
               color: colors.textPrimary
             }}>
               {monthNames[month]} {year}
             </Typography>
-            <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
-              <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{availableCount}</Box> days available · Next: <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{nextAvailable}</Box>
+            <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, color: colors.textSecondary }}>
+              <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{availableCount}</Box> days available
+              {!isMobile && <> · Next: <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{nextAvailable}</Box></>}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -868,10 +835,13 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 border: `1px solid ${colors.border}`,
                 borderRadius: '8px',
                 color: colors.textPrimary,
+                p: { xs: 0.75, sm: 1 },
+                minWidth: { xs: 36, sm: 40 },
+                minHeight: { xs: 36, sm: 40 },
                 '&:hover': { bgcolor: colors.background, borderColor: colors.accent, color: colors.accent }
               }}
             >
-              <ChevronLeftIcon />
+              <ChevronLeftIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
             </IconButton>
             <IconButton
               onClick={() => changeMonth(1)}
@@ -880,28 +850,36 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 border: `1px solid ${colors.border}`,
                 borderRadius: '8px',
                 color: colors.textPrimary,
+                p: { xs: 0.75, sm: 1 },
+                minWidth: { xs: 36, sm: 40 },
+                minHeight: { xs: 36, sm: 40 },
                 '&:hover': { bgcolor: colors.background, borderColor: colors.accent, color: colors.accent }
               }}
             >
-              <ChevronRightIcon />
+              <ChevronRightIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
             </IconButton>
           </Box>
         </Box>
 
         {/* Weekday Headers */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', mb: 0.5 }}>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: { xs: '2px', sm: '4px' },
+          mb: 0.5
+        }}>
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
             <Box key={day} sx={{
               textAlign: 'center',
-              py: 1,
-              fontSize: '0.75rem',
+              py: { xs: 0.5, sm: 1 },
+              fontSize: { xs: '0.65rem', sm: '0.75rem' },
               fontWeight: 600,
               color: closedDays.includes(index) ? colors.textSecondary : colors.textSecondary,
               textTransform: 'uppercase',
               letterSpacing: '0.05em'
             }}>
-              {day}
-              {closedDays.includes(index) && (
+              {isMobile ? day.charAt(0) : day}
+              {closedDays.includes(index) && !isMobile && (
                 <Box sx={{ fontSize: '0.6rem', fontWeight: 400, mt: '2px' }}>(Closed)</Box>
               )}
             </Box>
@@ -909,19 +887,24 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         </Box>
 
         {/* Calendar Grid */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: { xs: '2px', sm: '4px' }
+        }}>
           {/* Previous month trailing days */}
           {Array.from({ length: firstDay }, (_, i) => (
             <Box key={`prev-${i}`} sx={{
               aspectRatio: '1',
+              minHeight: { xs: 40, sm: 'auto' },
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               bgcolor: colors.background,
-              borderRadius: '8px',
+              borderRadius: { xs: '6px', sm: '8px' },
               color: colors.textSecondary,
               opacity: 0.3,
-              fontSize: '0.95rem'
+              fontSize: { xs: '0.8rem', sm: '0.95rem' }
             }}>
               {daysInPrevMonth - firstDay + i + 1}
             </Box>
@@ -968,17 +951,23 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 onClick={canClick ? () => handleDayClick(dateStr) : undefined}
                 sx={{
                   aspectRatio: '1',
+                  minHeight: { xs: 40, sm: 'auto' }, // Ensure minimum touch target
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderRadius: '8px',
-                  fontSize: '0.95rem',
+                  borderRadius: { xs: '6px', sm: '8px' },
+                  fontSize: { xs: '0.8rem', sm: '0.95rem' },
                   fontWeight: 500,
                   position: 'relative',
                   cursor: canClick ? 'pointer' : 'default',
-                  border: '2px solid transparent',
+                  border: { xs: '1.5px solid transparent', sm: '2px solid transparent' },
                   transition: 'all 0.25s ease',
+                  // Touch feedback for mobile
+                  WebkitTapHighlightColor: 'transparent',
+                  '&:active': canClick ? {
+                    transform: 'scale(0.95)',
+                  } : {},
                   ...(isClosed ? {
                     background: `repeating-linear-gradient(45deg, ${colors.background}, ${colors.background} 4px, ${colors.surface} 4px, ${colors.surface} 8px)`,
                     color: colors.textSecondary,
@@ -987,7 +976,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                       position: 'absolute',
                       inset: 0,
                       bgcolor: `${colors.background}80`,
-                      borderRadius: '6px'
+                      borderRadius: { xs: '5px', sm: '6px' }
                     }
                   } : isAvailable ? {
                     bgcolor: `${colors.accent}1A`,
@@ -995,8 +984,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                     color: colors.textPrimary,
                     '&:hover': {
                       bgcolor: `${colors.accent}33`,
-                      transform: 'scale(1.08)',
-                      boxShadow: `0 4px 20px ${colors.accent}33`,
+                      transform: { xs: 'none', sm: 'scale(1.08)' },
+                      boxShadow: { xs: 'none', sm: `0 4px 20px ${colors.accent}33` },
                       zIndex: 2
                     }
                   } : {
@@ -1007,7 +996,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 }}
               >
                 <Box component="span" sx={{ position: 'relative', zIndex: 1 }}>{day}</Box>
-                {isToday && (
+                {isToday && !isMobile && (
                   <Box sx={{
                     position: 'absolute',
                     bottom: '4px',
@@ -1019,16 +1008,27 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                     Today
                   </Box>
                 )}
+                {/* Today indicator for mobile - just a dot */}
+                {isToday && isMobile && (
+                  <Box sx={{
+                    position: 'absolute',
+                    bottom: '2px',
+                    width: 4,
+                    height: 4,
+                    borderRadius: '50%',
+                    bgcolor: colors.textSecondary,
+                  }} />
+                )}
                 {/* External event indicator */}
                 {hasExternalEvents && !isClosed && (
                   <Box sx={{
                     position: 'absolute',
-                    top: '3px',
-                    right: '3px',
-                    width: 8,
-                    height: 8,
+                    top: { xs: '2px', sm: '3px' },
+                    right: { xs: '2px', sm: '3px' },
+                    width: { xs: 6, sm: 8 },
+                    height: { xs: 6, sm: 8 },
                     borderRadius: '50%',
-                    bgcolor: isOwnCalendar ? '#4285F4' : colors.warning, // Google blue for own, warning for others
+                    bgcolor: isOwnCalendar ? '#4285F4' : colors.warning,
                     zIndex: 2,
                   }} />
                 )}
@@ -1049,14 +1049,15 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
           {Array.from({ length: (7 - ((firstDay + daysInMonth) % 7)) % 7 }, (_, i) => (
             <Box key={`next-${i}`} sx={{
               aspectRatio: '1',
+              minHeight: { xs: 40, sm: 'auto' },
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               bgcolor: colors.background,
-              borderRadius: '8px',
+              borderRadius: { xs: '6px', sm: '8px' },
               color: colors.textSecondary,
               opacity: 0.3,
-              fontSize: '0.95rem'
+              fontSize: { xs: '0.8rem', sm: '0.95rem' }
             }}>
               {i + 1}
             </Box>
@@ -1592,236 +1593,167 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       </Box>
 
       {/* Booking Modal */}
-      <Modal
+      <ResponsiveModal
         open={modalOpen}
         onClose={closeModal}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
-        <Box sx={{
-          bgcolor: colors.surface,
-          borderRadius: '16px',
-          p: 3,
-          width: '100%',
-          maxWidth: 440,
-          border: `1px solid ${colors.accent}33`,
-          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
-          mx: 2
-        }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-            <Box>
-              <Typography sx={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontSize: '1.5rem',
-                fontWeight: 500,
-                color: colors.textPrimary
-              }}>
-                {selectedDay ? formatDateForDisplay(selectedDay) : ''}
-              </Typography>
-              <Box sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
-                bgcolor: `${colors.accent}1A`,
-                color: colors.accent,
-                px: 1,
-                py: 0.5,
-                borderRadius: '100px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                mt: 0.5
-              }}>
-                {config.title}
-              </Box>
-            </Box>
-            <IconButton
-              onClick={closeModal}
-              sx={{
-                bgcolor: colors.background,
-                border: `1px solid ${colors.border}`,
-                borderRadius: '8px',
-                color: colors.textSecondary,
-                '&:hover': { bgcolor: colors.surface, color: colors.textPrimary }
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
-
-          <Typography sx={{ color: colors.textSecondary, fontSize: '0.95rem', lineHeight: 1.6, mb: 2 }}>
-            {config.modalDescription(artistName)}
-          </Typography>
-
+        title={selectedDay ? formatDateForDisplay(selectedDay) : ''}
+        subtitle={
           <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 1.5,
-            bgcolor: colors.background,
-            borderRadius: '10px',
-            p: 1.5,
-            mb: 2
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.5,
+            bgcolor: `${colors.accent}1A`,
+            color: colors.accent,
+            px: 1,
+            py: 0.5,
+            borderRadius: '100px',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.03em',
+            mt: 0.5
           }}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, textTransform: 'uppercase', mb: 0.5 }}>
-                Duration
-              </Typography>
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.textPrimary }}>
-                {config.modalDuration}
-              </Typography>
-            </Box>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, textTransform: 'uppercase', mb: 0.5 }}>
-                Cost
-              </Typography>
-              <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.accent }}>
-                {config.modalCost}
-              </Typography>
-            </Box>
+            {config.title}
           </Box>
+        }
+        maxWidth={440}
+      >
+        <Typography sx={{ color: colors.textSecondary, fontSize: { xs: '0.875rem', sm: '0.95rem' }, lineHeight: 1.6, mb: 2 }}>
+          {config.modalDescription(artistName)}
+        </Typography>
 
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Button
-              onClick={closeModal}
-              sx={{
-                flex: 1,
-                py: 1.25,
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: colors.textPrimary,
-                border: `1px solid ${colors.border}`,
-                '&:hover': { borderColor: colors.textSecondary }
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmBooking}
-              sx={{
-                flex: 1,
-                py: 1.25,
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                bgcolor: colors.accent,
-                color: colors.background,
-                '&:hover': { bgcolor: colors.accentHover }
-              }}
-            >
-              Request Booking
-            </Button>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 1.5,
+          bgcolor: colors.background,
+          borderRadius: '10px',
+          p: 1.5,
+          mb: 2
+        }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, textTransform: 'uppercase', mb: 0.5 }}>
+              Duration
+            </Typography>
+            <Typography sx={{ fontSize: { xs: '1rem', sm: '1.1rem' }, fontWeight: 600, color: colors.textPrimary }}>
+              {config.modalDuration}
+            </Typography>
+          </Box>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, textTransform: 'uppercase', mb: 0.5 }}>
+              Cost
+            </Typography>
+            <Typography sx={{ fontSize: { xs: '1rem', sm: '1.1rem' }, fontWeight: 600, color: colors.accent }}>
+              {config.modalCost}
+            </Typography>
           </Box>
         </Box>
-      </Modal>
+
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button
+            onClick={closeModal}
+            sx={{
+              flex: 1,
+              py: { xs: 1.5, sm: 1.25 },
+              minHeight: { xs: 48, sm: 'auto' },
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontSize: { xs: '0.95rem', sm: '0.9rem' },
+              fontWeight: 600,
+              color: colors.textPrimary,
+              border: `1px solid ${colors.border}`,
+              '&:hover': { borderColor: colors.textSecondary }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmBooking}
+            sx={{
+              flex: 1,
+              py: { xs: 1.5, sm: 1.25 },
+              minHeight: { xs: 48, sm: 'auto' },
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontSize: { xs: '0.95rem', sm: '0.9rem' },
+              fontWeight: 600,
+              bgcolor: colors.accent,
+              color: colors.background,
+              '&:hover': { bgcolor: colors.accentHover }
+            }}
+          >
+            Request Booking
+          </Button>
+        </Box>
+      </ResponsiveModal>
 
       {/* Login Required Modal */}
-      <Modal
+      <ResponsiveModal
         open={loginModalOpen}
         onClose={closeLoginModal}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
+        title="Account Required"
+        maxWidth={400}
       >
-        <Box sx={{
-          bgcolor: colors.surface,
-          borderRadius: '16px',
-          p: 3,
-          width: '100%',
-          maxWidth: 400,
-          border: `1px solid ${colors.accent}33`,
-          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
-          mx: 2
-        }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-            <Typography sx={{
-              fontFamily: '"Cormorant Garamond", Georgia, serif',
-              fontSize: '1.5rem',
-              fontWeight: 500,
-              color: colors.accent
-            }}>
-              Account Required
-            </Typography>
-            <IconButton
-              onClick={closeLoginModal}
-              sx={{
-                bgcolor: colors.background,
-                border: `1px solid ${colors.border}`,
-                borderRadius: '8px',
-                color: colors.textSecondary,
-                '&:hover': { bgcolor: colors.surface, color: colors.textPrimary }
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
+        <Typography sx={{ color: colors.textSecondary, fontSize: { xs: '0.875rem', sm: '0.95rem' }, lineHeight: 1.6, mb: 3 }}>
+          Please log in or create an account to book appointments with this artist.
+        </Typography>
 
-          <Typography sx={{ color: colors.textSecondary, fontSize: '0.95rem', lineHeight: 1.6, mb: 3 }}>
-            Please log in or create an account to book appointments with this artist.
-          </Typography>
-
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Button
-              onClick={closeLoginModal}
-              sx={{
-                flex: 1,
-                py: 1.25,
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: colors.textPrimary,
-                border: `1px solid ${colors.border}`,
-                '&:hover': { borderColor: colors.textSecondary }
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              component={Link}
-              href="/login"
-              sx={{
-                flex: 1,
-                py: 1.25,
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: colors.textPrimary,
-                border: `1px solid ${colors.border}`,
-                '&:hover': { borderColor: colors.accent, color: colors.accent }
-              }}
-            >
-              Log In
-            </Button>
-            <Button
-              component={Link}
-              href="/register"
-              sx={{
-                flex: 1,
-                py: 1.25,
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                bgcolor: colors.accent,
-                color: colors.background,
-                '&:hover': { bgcolor: colors.accentHover }
-              }}
-            >
-              Sign Up
-            </Button>
-          </Box>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5 }}>
+          <Button
+            onClick={closeLoginModal}
+            sx={{
+              flex: 1,
+              py: { xs: 1.5, sm: 1.25 },
+              minHeight: { xs: 48, sm: 'auto' },
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontSize: { xs: '0.95rem', sm: '0.9rem' },
+              fontWeight: 600,
+              color: colors.textPrimary,
+              border: `1px solid ${colors.border}`,
+              '&:hover': { borderColor: colors.textSecondary }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            component={Link}
+            href="/login"
+            sx={{
+              flex: 1,
+              py: { xs: 1.5, sm: 1.25 },
+              minHeight: { xs: 48, sm: 'auto' },
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontSize: { xs: '0.95rem', sm: '0.9rem' },
+              fontWeight: 600,
+              color: colors.textPrimary,
+              border: `1px solid ${colors.border}`,
+              '&:hover': { borderColor: colors.accent, color: colors.accent }
+            }}
+          >
+            Log In
+          </Button>
+          <Button
+            component={Link}
+            href="/register"
+            sx={{
+              flex: 1,
+              py: { xs: 1.5, sm: 1.25 },
+              minHeight: { xs: 48, sm: 'auto' },
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontSize: { xs: '0.95rem', sm: '0.9rem' },
+              fontWeight: 600,
+              bgcolor: colors.accent,
+              color: colors.background,
+              '&:hover': { bgcolor: colors.accentHover }
+            }}
+          >
+            Sign Up
+          </Button>
         </Box>
-      </Modal>
+      </ResponsiveModal>
 
       {/* Working Hours Modal */}
       {isOwnProfile && (
@@ -1835,53 +1767,12 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       )}
 
       {/* Artist Day Management Modal */}
-      <Modal
+      <ResponsiveModal
         open={artistDayModalOpen}
         onClose={closeArtistDayModal}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
+        title={selectedDay ? formatDateForDisplay(selectedDay) : ''}
+        maxWidth={480}
       >
-        <Box sx={{
-          bgcolor: colors.surface,
-          borderRadius: '16px',
-          p: 3,
-          width: '100%',
-          maxWidth: 480,
-          border: `1px solid ${colors.accent}33`,
-          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
-          mx: 2,
-          maxHeight: '90vh',
-          overflowY: 'auto'
-        }}>
-          {/* Header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-            <Box>
-              <Typography sx={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontSize: '1.5rem',
-                fontWeight: 500,
-                color: colors.textPrimary
-              }}>
-                {selectedDay ? formatDateForDisplay(selectedDay) : ''}
-              </Typography>
-            </Box>
-            <IconButton
-              onClick={closeArtistDayModal}
-              sx={{
-                bgcolor: colors.background,
-                border: `1px solid ${colors.border}`,
-                borderRadius: '8px',
-                color: colors.textSecondary,
-                '&:hover': { bgcolor: colors.surface, color: colors.textPrimary }
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
-
           {/* InkedIn Appointments Section */}
           {selectedDay && getAppointmentsForDate(selectedDay).length > 0 && (
             <Box sx={{ mb: 2 }}>
@@ -1987,12 +1878,13 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
           )}
 
           {/* Mode Toggle - Invite a Guest / Calendar Event */}
-          <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
+          <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, mb: 3 }}>
             <Button
               onClick={() => setModalMode('invite')}
               sx={{
                 flex: 1,
-                py: 2,
+                py: { xs: 1.5, sm: 2 },
+                minHeight: { xs: 72, sm: 'auto' },
                 borderRadius: '12px',
                 textTransform: 'none',
                 display: 'flex',
@@ -2004,11 +1896,14 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 '&:hover': {
                   borderColor: colors.accent,
                   bgcolor: `${colors.accent}10`
+                },
+                '&:active': {
+                  transform: 'scale(0.98)'
                 }
               }}
             >
-              <PersonAddAltIcon sx={{ fontSize: 24, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }} />
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }}>
+              <PersonAddAltIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }} />
+              <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.85rem' }, fontWeight: 600, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }}>
                 Invite a Guest
               </Typography>
             </Button>
@@ -2016,7 +1911,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               onClick={() => setModalMode('event')}
               sx={{
                 flex: 1,
-                py: 2,
+                py: { xs: 1.5, sm: 2 },
+                minHeight: { xs: 72, sm: 'auto' },
                 borderRadius: '12px',
                 textTransform: 'none',
                 display: 'flex',
@@ -2028,11 +1924,14 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 '&:hover': {
                   borderColor: colors.accent,
                   bgcolor: `${colors.accent}10`
+                },
+                '&:active': {
+                  transform: 'scale(0.98)'
                 }
               }}
             >
-              <CalendarMonthIcon sx={{ fontSize: 24, color: modalMode === 'event' ? colors.accent : colors.textSecondary }} />
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: modalMode === 'event' ? colors.accent : colors.textSecondary }}>
+              <CalendarMonthIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: modalMode === 'event' ? colors.accent : colors.textSecondary }} />
+              <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.85rem' }, fontWeight: 600, color: modalMode === 'event' ? colors.accent : colors.textSecondary }}>
                 Calendar Event
               </Typography>
             </Button>
@@ -2175,10 +2074,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                   onClick={closeArtistDayModal}
                   sx={{
                     flex: 1,
-                    py: 1.25,
+                    py: { xs: 1.5, sm: 1.25 },
+                    minHeight: { xs: 48, sm: 'auto' },
                     borderRadius: '8px',
                     textTransform: 'none',
-                    fontSize: '0.9rem',
+                    fontSize: { xs: '0.95rem', sm: '0.9rem' },
                     fontWeight: 600,
                     color: colors.textPrimary,
                     border: `1px solid ${colors.border}`,
@@ -2192,10 +2092,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                   disabled={!guestEmail || sendingInvite}
                   sx={{
                     flex: 1,
-                    py: 1.25,
+                    py: { xs: 1.5, sm: 1.25 },
+                    minHeight: { xs: 48, sm: 'auto' },
                     borderRadius: '8px',
                     textTransform: 'none',
-                    fontSize: '0.9rem',
+                    fontSize: { xs: '0.95rem', sm: '0.9rem' },
                     fontWeight: 600,
                     bgcolor: colors.accent,
                     color: colors.background,
@@ -2399,10 +2300,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                   onClick={closeArtistDayModal}
                   sx={{
                     flex: 1,
-                    py: 1.25,
+                    py: { xs: 1.5, sm: 1.25 },
+                    minHeight: { xs: 48, sm: 'auto' },
                     borderRadius: '8px',
                     textTransform: 'none',
-                    fontSize: '0.9rem',
+                    fontSize: { xs: '0.95rem', sm: '0.9rem' },
                     fontWeight: 600,
                     color: colors.textPrimary,
                     border: `1px solid ${colors.border}`,
@@ -2416,10 +2318,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                   disabled={creatingEvent}
                   sx={{
                     flex: 1,
-                    py: 1.25,
+                    py: { xs: 1.5, sm: 1.25 },
+                    minHeight: { xs: 48, sm: 'auto' },
                     borderRadius: '8px',
                     textTransform: 'none',
-                    fontSize: '0.9rem',
+                    fontSize: { xs: '0.95rem', sm: '0.9rem' },
                     fontWeight: 600,
                     bgcolor: colors.accent,
                     color: colors.background,
@@ -2432,8 +2335,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               </Box>
             </>
           )}
-        </Box>
-      </Modal>
+      </ResponsiveModal>
     </Box>
   );
 });

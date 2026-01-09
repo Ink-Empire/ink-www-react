@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import { colors } from '@/styles/colors';
+import { WorkingHour, isDayOff } from '@inkedin/shared/types';
+
+// Re-export for backwards compatibility
+export type { WorkingHour } from '@inkedin/shared/types';
 
 // Time options with AM/PM labels
 const TIME_OPTIONS = [
@@ -54,15 +58,7 @@ type Schedule = {
   [key: string]: DaySchedule;
 };
 
-// External format (API compatible)
-export interface WorkingHour {
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  is_day_off: boolean;
-  artist_id?: number;
-  studio_id?: number;
-}
+// WorkingHour type is now imported from @inkedin/shared/types
 
 interface WorkingHoursEditorProps {
   initialHours?: WorkingHour[];
