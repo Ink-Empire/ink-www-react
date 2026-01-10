@@ -103,14 +103,18 @@ export default function BulkUploadReviewPage() {
 
   // Auto-refresh while processing - refresh both upload and items
   useEffect(() => {
-    if (upload?.status === 'scanning' || upload?.status === 'processing') {
+    const isProcessing = upload?.status === 'scanning' || upload?.status === 'processing';
+    // Also poll if we have no items loaded but upload exists and isn't failed
+    const needsItemRefresh = upload && items.length === 0 && upload.status !== 'failed' && upload.status !== 'completed';
+
+    if (isProcessing || needsItemRefresh) {
       const interval = setInterval(() => {
         loadUpload();
         loadItems();
-      }, 2000); // Poll every 2 seconds during processing
+      }, 1000); // Poll every second during processing
       return () => clearInterval(interval);
     }
-  }, [upload?.status, loadUpload, loadItems]);
+  }, [upload?.status, items.length, loadUpload, loadItems]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
