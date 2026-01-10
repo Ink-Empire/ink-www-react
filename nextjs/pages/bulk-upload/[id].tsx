@@ -58,6 +58,8 @@ export default function BulkUploadReviewPage() {
     message: '',
     type: 'success',
   });
+  const [awaitingPublish, setAwaitingPublish] = useState(false);
+  const [prePublishReadyCount, setPrePublishReadyCount] = useState<number | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -101,20 +103,30 @@ export default function BulkUploadReviewPage() {
     }
   }, [isAuthenticated, id, loadUpload, loadItems]);
 
-  // Auto-refresh while processing - refresh both upload and items
+  // Auto-refresh while processing or awaiting publish completion
   useEffect(() => {
     const isProcessing = upload?.status === 'scanning' || upload?.status === 'processing';
     // Also poll if we have no items loaded but upload exists and isn't failed
     const needsItemRefresh = upload && items.length === 0 && upload.status !== 'failed' && upload.status !== 'completed';
 
-    if (isProcessing || needsItemRefresh) {
+    if (isProcessing || needsItemRefresh || awaitingPublish) {
       const interval = setInterval(() => {
         loadUpload();
         loadItems();
-      }, 5000); // Poll every 5 seconds to avoid rate limiting
+      }, awaitingPublish ? 2000 : 5000); // Poll faster when awaiting publish
       return () => clearInterval(interval);
     }
-  }, [upload?.status, items.length, loadUpload, loadItems]);
+  }, [upload?.status, items.length, loadUpload, loadItems, awaitingPublish]);
+
+  // Stop polling once publish completes (ready_count changed)
+  useEffect(() => {
+    if (awaitingPublish && prePublishReadyCount !== null && upload) {
+      if (upload.ready_count !== prePublishReadyCount || upload.status === 'completed' || upload.status === 'incomplete') {
+        setAwaitingPublish(false);
+        setPrePublishReadyCount(null);
+      }
+    }
+  }, [awaitingPublish, prePublishReadyCount, upload?.ready_count, upload?.status]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -147,22 +159,26 @@ export default function BulkUploadReviewPage() {
 
     setPublishing(true);
     setError(null);
+    // Store current ready_count to detect when publish completes
+    setPrePublishReadyCount(upload.ready_count);
+
     try {
       const result = await publish(upload.id);
       // Show success snackbar
       setSnackbar({
         open: true,
-        message: `Successfully published ${result.count || count} tattoo${(result.count || count) !== 1 ? 's' : ''} to your portfolio!`,
+        message: `Publishing ${result.count || count} tattoo${(result.count || count) !== 1 ? 's' : ''}...`,
         type: 'success',
       });
-      // Refresh immediately
-      await Promise.all([loadUpload(), loadItems()]);
+      // Start polling to detect when publish job completes
+      setAwaitingPublish(true);
     } catch (err) {
       setSnackbar({
         open: true,
         message: err instanceof Error ? err.message : 'Publishing failed',
         type: 'error',
       });
+      setPrePublishReadyCount(null);
     } finally {
       setPublishing(false);
     }
