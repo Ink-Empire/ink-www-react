@@ -1,8 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/utils/api';
 import { TattooType } from '@/models/tattoo.interface';
 import { tattooService } from '@/services/tattooService';
 import { getToken } from '@/utils/auth';
+
+// Function to delete a tattoo
+export async function deleteTattoo(id: number | string): Promise<{ success: boolean; message: string; images_deleted: number }> {
+  const response = await api.delete<{ success: boolean; message: string; images_deleted: number }>(`/tattoos/${id}`, {
+    requiresAuth: true,
+  });
+
+  // Clear any cached data for this tattoo
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(`tattoo_cache:${id}`);
+      // Also clear artist tattoos cache entries that might contain this tattoo
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('artist_tattoos_cache:') || key.startsWith('tattoos_cache:')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      console.warn('Error clearing tattoo cache', e);
+    }
+  }
+
+  return response;
+}
 
 // Hook for fetching tattoos list
 export function useTattoos(searchParams?: Record<string, any>) {

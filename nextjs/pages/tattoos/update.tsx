@@ -8,16 +8,23 @@ import { useStyles } from '@/contexts/StyleContext';
 import { useImageCache } from '@/contexts/ImageCacheContext';
 import { fetchCsrfToken, getCsrfToken } from '@/utils/api';
 import { getToken } from '@/utils/auth';
+import { deleteTattoo } from '@/hooks/useTattoos';
 import {
   Box,
   Typography,
   CircularProgress,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { colors } from '@/styles/colors';
 import TagsAutocomplete, { Tag } from '@/components/TagsAutocomplete';
 
@@ -311,6 +318,14 @@ const styles = {
       cursor: 'not-allowed',
     },
   },
+  btnDanger: {
+    bgcolor: 'transparent',
+    border: `1px solid ${colors.error}`,
+    color: colors.error,
+    '&:hover': {
+      bgcolor: 'rgba(232, 84, 84, 0.1)',
+    },
+  },
 };
 
 // Track existing images from API
@@ -335,6 +350,8 @@ export default function UpdateTattoo() {
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
@@ -499,6 +516,29 @@ export default function UpdateTattoo() {
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!tattooId) return;
+
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      await deleteTattoo(tattooId as string);
+      // Navigate to artist's public profile after successful deletion
+      if (user?.slug) {
+        router.push(`/artists/${user.slug}`);
+      } else {
+        router.push('/profile');
+      }
+    } catch (error) {
+      console.error('Error deleting tattoo:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete tattoo');
+      setShowDeleteDialog(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -775,6 +815,14 @@ export default function UpdateTattoo() {
         <Box sx={styles.footerInner}>
           <Box
             component="button"
+            sx={{ ...styles.btn, ...styles.btnDanger, flex: 'none', px: 2 }}
+            onClick={() => setShowDeleteDialog(true)}
+            title="Delete tattoo"
+          >
+            <DeleteOutlineIcon sx={{ fontSize: 20 }} />
+          </Box>
+          <Box
+            component="button"
             sx={{ ...styles.btn, ...styles.btnSecondary }}
             onClick={() => router.back()}
           >
@@ -790,6 +838,50 @@ export default function UpdateTattoo() {
           </Box>
         </Box>
       </Box>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteDialog}
+        onClose={() => !isDeleting && setShowDeleteDialog(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 2,
+            maxWidth: 400,
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: colors.textPrimary, fontWeight: 600 }}>
+          Delete Tattoo?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: colors.textSecondary }}>
+            This will permanently remove this tattoo from your portfolio and delete all associated images. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setShowDeleteDialog(false)}
+            disabled={isDeleting}
+            sx={{ color: colors.textSecondary }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            sx={{
+              bgcolor: colors.error,
+              color: '#fff',
+              '&:hover': { bgcolor: '#c74444' },
+              '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+            }}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Layout>
   );
 }
