@@ -125,6 +125,8 @@ export default function BulkUploadPage() {
         return 'success';
       case 'completed':
         return 'success';
+      case 'incomplete':
+        return 'warning';
       case 'failed':
         return 'error';
       case 'deleting':
@@ -145,7 +147,9 @@ export default function BulkUploadPage() {
       case 'ready':
         return 'Ready to Review';
       case 'completed':
-        return 'Published';
+        return 'Completed';
+      case 'incomplete':
+        return 'Incomplete';
       case 'failed':
         return 'Failed';
       case 'deleting':
@@ -167,6 +171,8 @@ export default function BulkUploadPage() {
         return `${upload.ready_count} images ready to publish. Click Continue to review and publish.`;
       case 'completed':
         return `${upload.published_images} tattoos published to your portfolio.`;
+      case 'incomplete':
+        return `${upload.published_images} published, ${upload.cataloged_images - upload.published_images} remaining. Click Continue to finish.`;
       case 'failed':
         return upload.error_message || 'Something went wrong. Please try again.';
       case 'deleting':
@@ -183,6 +189,7 @@ export default function BulkUploadPage() {
       case 'deleting':
         return { bgcolor: colors.infoDim, color: colors.info, border: `1px solid ${colors.info}` };
       case 'cataloged':
+      case 'incomplete':
         return { bgcolor: colors.warningDim, color: colors.warning, border: `1px solid ${colors.warning}` };
       case 'ready':
       case 'completed':
