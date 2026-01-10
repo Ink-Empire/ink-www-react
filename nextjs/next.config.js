@@ -34,10 +34,8 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
-    // For production, use the hardcoded URL to ensure it works
-    const apiUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://api.inkedin.dev'
-      : process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+    // Use the environment variable for API URL
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
     
     console.log('API URL for rewrites:', apiUrl);
     

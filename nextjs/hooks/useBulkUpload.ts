@@ -178,7 +178,8 @@ export function useBulkUpload() {
       // Call API directly to bypass Next.js proxy body size limit
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
       xhr.open('POST', `${apiUrl}/api/bulk-uploads`);
-      xhr.withCredentials = true;
+      // Don't send cookies when using Bearer token to avoid session/token conflicts
+      xhr.withCredentials = false;
 
       // Add auth token
       const token = getToken('upload-zip');
