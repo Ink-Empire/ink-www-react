@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
-import {Box, Typography, Button, Avatar, Switch, TextField, IconButton, CircularProgress, Divider} from '@mui/material';
+import {Box, Typography, Button, Avatar, Switch, TextField, IconButton, CircularProgress, Divider, Menu, MenuItem, ListItemIcon, ListItemText} from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -20,6 +20,9 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CollectionsIcon from '@mui/icons-material/Collections';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useAuth } from '../contexts/AuthContext';
 import { useWishlist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { colors } from '@/styles/colors';
@@ -136,6 +139,7 @@ export default function Dashboard() {
   const [addArtistOpen, setAddArtistOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [uploadTattooOpen, setUploadTattooOpen] = useState(false);
+  const [uploadMenuAnchor, setUploadMenuAnchor] = useState<null | HTMLElement>(null);
 
   // Studio data states
   const [studioData, setStudioData] = useState<any>(null);
@@ -436,10 +440,7 @@ export default function Dashboard() {
               View Public Profile
             </Button>
             <Button
-              onClick={() => {
-                console.log('Upload Tattoo clicked!');
-                setUploadTattooOpen(true);
-              }}
+              onClick={(e) => setUploadMenuAnchor(e.currentTarget)}
               sx={{
                 flex: { xs: 1, md: 'none' },
                 px: 2,
@@ -453,9 +454,68 @@ export default function Dashboard() {
                 '&:hover': { bgcolor: colors.accentHover }
               }}
               startIcon={<AddIcon sx={{ fontSize: 18 }} />}
+              endIcon={<ArrowDropDownIcon sx={{ fontSize: 18 }} />}
             >
-              Upload Tattoo
+              Upload
             </Button>
+            <Menu
+              anchorEl={uploadMenuAnchor}
+              open={Boolean(uploadMenuAnchor)}
+              onClose={() => setUploadMenuAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              PaperProps={{
+                sx: {
+                  bgcolor: colors.surface,
+                  border: `1px solid ${colors.border}`,
+                  mt: 1,
+                  minWidth: 200,
+                }
+              }}
+            >
+              <MenuItem
+                onClick={() => {
+                  setUploadMenuAnchor(null);
+                  setUploadTattooOpen(true);
+                }}
+                sx={{
+                  color: colors.textPrimary,
+                  py: 1.5,
+                  '&:hover': { bgcolor: colors.background }
+                }}
+              >
+                <ListItemIcon>
+                  <CloudUploadIcon sx={{ color: colors.accent }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Upload Single"
+                  secondary="Add one tattoo at a time"
+                  primaryTypographyProps={{ fontWeight: 500 }}
+                  secondaryTypographyProps={{ fontSize: '0.75rem', color: colors.textMuted }}
+                />
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setUploadMenuAnchor(null);
+                  router.push('/bulk-upload');
+                }}
+                sx={{
+                  color: colors.textPrimary,
+                  py: 1.5,
+                  '&:hover': { bgcolor: colors.background }
+                }}
+              >
+                <ListItemIcon>
+                  <CollectionsIcon sx={{ color: colors.accent }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Bulk Upload"
+                  secondary="Import from Instagram or ZIP"
+                  primaryTypographyProps={{ fontWeight: 500 }}
+                  secondaryTypographyProps={{ fontSize: '0.75rem', color: colors.textMuted }}
+                />
+              </MenuItem>
+            </Menu>
           </Box>
         </Box>
 
