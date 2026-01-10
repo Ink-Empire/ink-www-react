@@ -58,8 +58,6 @@ export default function BulkUploadReviewPage() {
     message: '',
     type: 'success',
   });
-  const [awaitingPublish, setAwaitingPublish] = useState(false);
-  const [prePublishReadyCount, setPrePublishReadyCount] = useState<number | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -103,30 +101,20 @@ export default function BulkUploadReviewPage() {
     }
   }, [isAuthenticated, id, loadUpload, loadItems]);
 
-  // Auto-refresh while processing or awaiting publish completion
+  // Auto-refresh while processing
   useEffect(() => {
     const isProcessing = upload?.status === 'scanning' || upload?.status === 'processing';
     // Also poll if we have no items loaded but upload exists and isn't failed
     const needsItemRefresh = upload && items.length === 0 && upload.status !== 'failed' && upload.status !== 'completed';
 
-    if (isProcessing || needsItemRefresh || awaitingPublish) {
+    if (isProcessing || needsItemRefresh) {
       const interval = setInterval(() => {
         loadUpload();
         loadItems();
-      }, awaitingPublish ? 2000 : 5000); // Poll faster when awaiting publish
+      }, 5000); // Poll every 5 seconds
       return () => clearInterval(interval);
     }
-  }, [upload?.status, items.length, loadUpload, loadItems, awaitingPublish]);
-
-  // Stop polling once publish completes (ready_count changed)
-  useEffect(() => {
-    if (awaitingPublish && prePublishReadyCount !== null && upload) {
-      if (upload.ready_count !== prePublishReadyCount || upload.status === 'completed' || upload.status === 'incomplete') {
-        setAwaitingPublish(false);
-        setPrePublishReadyCount(null);
-      }
-    }
-  }, [awaitingPublish, prePublishReadyCount, upload?.ready_count, upload?.status]);
+  }, [upload?.status, items.length, loadUpload, loadItems]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -159,8 +147,6 @@ export default function BulkUploadReviewPage() {
 
     setPublishing(true);
     setError(null);
-    // Store current ready_count to detect when publish completes
-    setPrePublishReadyCount(upload.ready_count);
 
     try {
       const result = await publish(upload.id);
@@ -170,15 +156,38 @@ export default function BulkUploadReviewPage() {
         message: `Publishing ${result.count || count} tattoo${(result.count || count) !== 1 ? 's' : ''}...`,
         type: 'success',
       });
-      // Start polling to detect when publish job completes
-      setAwaitingPublish(true);
+
+      // Poll until publish job completes (ready_count changes)
+      const originalReadyCount = upload.ready_count;
+      const pollForCompletion = async (attempts = 0) => {
+        if (attempts > 15) return; // Stop after 30 seconds
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await loadUpload();
+        await loadItems();
+
+        // Check if the upload data has changed
+        const currentUpload = await getUpload(Number(id));
+        if (currentUpload.ready_count !== originalReadyCount ||
+            currentUpload.status === 'completed' ||
+            currentUpload.status === 'incomplete') {
+          // Publishing completed, final refresh
+          await loadUpload();
+          await loadItems();
+          return;
+        }
+
+        // Continue polling
+        pollForCompletion(attempts + 1);
+      };
+
+      pollForCompletion();
     } catch (err) {
       setSnackbar({
         open: true,
         message: err instanceof Error ? err.message : 'Publishing failed',
         type: 'error',
       });
-      setPrePublishReadyCount(null);
     } finally {
       setPublishing(false);
     }
