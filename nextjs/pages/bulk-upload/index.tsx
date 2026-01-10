@@ -127,6 +127,8 @@ export default function BulkUploadPage() {
         return 'success';
       case 'failed':
         return 'error';
+      case 'deleting':
+        return 'default';
       default:
         return 'default';
     }
@@ -146,6 +148,8 @@ export default function BulkUploadPage() {
         return 'Published';
       case 'failed':
         return 'Failed';
+      case 'deleting':
+        return 'Deleting...';
       default:
         return status;
     }
@@ -165,6 +169,8 @@ export default function BulkUploadPage() {
         return `${upload.published_images} tattoos published to your portfolio.`;
       case 'failed':
         return upload.error_message || 'Something went wrong. Please try again.';
+      case 'deleting':
+        return 'Cleaning up files...';
       default:
         return '';
     }
@@ -174,6 +180,7 @@ export default function BulkUploadPage() {
     switch (status) {
       case 'scanning':
       case 'processing':
+      case 'deleting':
         return { bgcolor: colors.infoDim, color: colors.info, border: `1px solid ${colors.info}` };
       case 'cataloged':
         return { bgcolor: colors.warningDim, color: colors.warning, border: `1px solid ${colors.warning}` };
@@ -336,7 +343,7 @@ export default function BulkUploadPage() {
                     </Box>
 
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      {upload.status !== 'failed' && upload.status !== 'completed' && (
+                      {upload.status !== 'failed' && upload.status !== 'completed' && upload.status !== 'deleting' && (
                         <Button
                           variant="contained"
                           size="small"
@@ -364,13 +371,15 @@ export default function BulkUploadPage() {
                           View
                         </Button>
                       )}
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDelete(upload.id)}
-                        sx={{ color: colors.error }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                      {upload.status !== 'deleting' && (
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(upload.id)}
+                          sx={{ color: colors.error }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      )}
                     </Box>
                   </Box>
 
