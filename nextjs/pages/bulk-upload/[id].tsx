@@ -111,7 +111,7 @@ export default function BulkUploadReviewPage() {
       const interval = setInterval(() => {
         loadUpload();
         loadItems();
-      }, 1000); // Poll every second during processing
+      }, 5000); // Poll every 5 seconds to avoid rate limiting
       return () => clearInterval(interval);
     }
   }, [upload?.status, items.length, loadUpload, loadItems]);
@@ -306,6 +306,20 @@ export default function BulkUploadReviewPage() {
             onItemClick={handleItemClick}
             onPageChange={setPage}
           />
+        ) : (upload?.status === 'scanning' || upload?.status === 'processing') ? (
+          <Card sx={{ bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
+            <CardContent sx={{ textAlign: 'center', py: 8 }}>
+              <CircularProgress size={48} sx={{ color: colors.accent, mb: 3 }} />
+              <Typography variant="h6" sx={{ color: colors.textPrimary, mb: 1 }}>
+                {upload?.status === 'scanning' ? 'Scanning ZIP file...' : 'Processing images...'}
+              </Typography>
+              <Typography sx={{ color: colors.textSecondary }}>
+                {upload?.status === 'scanning'
+                  ? 'Finding images in your upload. This may take a moment.'
+                  : `Processing ${upload?.processed_images || 0} of ${upload?.total_images || 0} images...`}
+              </Typography>
+            </CardContent>
+          </Card>
         ) : (
           <Card sx={{ bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
             <CardContent sx={{ textAlign: 'center', py: 6 }}>

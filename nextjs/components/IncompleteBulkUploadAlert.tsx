@@ -63,23 +63,27 @@ export default function IncompleteBulkUploadAlert() {
   }
 
   const getStatusMessage = () => {
-    const { status, unprocessed_count, ready_count, processed_images, total_images } = incompleteUpload;
+    const { status, ready_count, processed_images, total_images, cataloged_images } = incompleteUpload;
 
     if (status === 'scanning') {
-      return 'Your bulk upload is being scanned';
+      return 'Scanning your ZIP file for images...';
     }
 
-    if (status === 'processing' || unprocessed_count > 0) {
-      return `Processing images (${processed_images}/${total_images})`;
+    if (status === 'cataloged') {
+      return `Found ${cataloged_images} images - ready to add styles and tags`;
     }
 
-    if (ready_count > 0) {
-      return `${ready_count} tattoo${ready_count !== 1 ? 's' : ''} ready to publish`;
+    if (status === 'processing') {
+      return `Processing images (${processed_images}/${total_images})...`;
+    }
+
+    if (status === 'ready' && ready_count > 0) {
+      return `${ready_count} tattoo${ready_count !== 1 ? 's' : ''} ready to publish!`;
     }
 
     // Processed but nothing ready - need to add styles/placements
-    if (processed_images > 0) {
-      return `${processed_images} images need review`;
+    if (processed_images > 0 && ready_count === 0) {
+      return `${processed_images} images need styles and tags before publishing`;
     }
 
     return 'You have an incomplete bulk upload';
@@ -107,10 +111,16 @@ export default function IncompleteBulkUploadAlert() {
       <Typography variant="body1" sx={{ color: colors.textSecondary }}>
         {getStatusMessage()} -{' '}
         <Link
-          href={`/bulk-upload/${incompleteUpload.id}`}
+          href={incompleteUpload.status === 'scanning' || incompleteUpload.status === 'processing'
+            ? '/bulk-upload'
+            : `/bulk-upload/${incompleteUpload.id}`}
           style={{ color: colors.warning, textDecoration: 'underline' }}
         >
-          Continue where you left off
+          {incompleteUpload.status === 'scanning' || incompleteUpload.status === 'processing'
+            ? 'View progress'
+            : incompleteUpload.status === 'ready'
+            ? 'Review and publish'
+            : 'Continue'}
         </Link>
       </Typography>
       <IconButton
