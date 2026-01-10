@@ -91,6 +91,7 @@ export function useBulkUpload() {
     try {
       const response = await api.get<{ data: BulkUpload[] }>('/bulk-uploads', {
         requiresAuth: true,
+        useCache: false,
       });
       return response.data;
     } catch (err) {
@@ -109,6 +110,7 @@ export function useBulkUpload() {
     try {
       const response = await api.get<{ data: BulkUpload }>(`/bulk-uploads/${id}`, {
         requiresAuth: true,
+        useCache: false, // Always fetch fresh data for status updates
       });
       return response.data;
     } catch (err) {
@@ -228,7 +230,7 @@ export function useBulkUpload() {
 
       const response = await api.get<ItemsResponse>(
         `/bulk-uploads/${uploadId}/items?${params.toString()}`,
-        { requiresAuth: true }
+        { requiresAuth: true, useCache: false }
       );
       return response;
     } catch (err) {
@@ -382,6 +384,7 @@ export function useBulkUpload() {
     try {
       const response = await api.get(`/bulk-uploads/${uploadId}/publish-status`, {
         requiresAuth: true,
+        useCache: false,
       });
       return response as any;
     } catch (err) {
