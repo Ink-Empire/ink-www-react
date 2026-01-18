@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 // Simple in-memory rate limiting
 const rateLimitMap = new Map<string, { count: number; lastRequest: number }>();
@@ -93,22 +93,13 @@ export default async function handler(
       return res.status(400).json({ error: 'Request expired. Please refresh and try again.' });
     }
 
-    // Create email content
-    const emailContent = `
-New Contact Form Submission
-============================
+    // Check if Resend API key is configured
+    if (!process.env.RESEND_API_KEY) {
+      console.error('Contact form error: RESEND_API_KEY not configured');
+      return res.status(500).json({ error: 'Email service not configured. Please try again later.' });
+    }
 
-From: ${email}
-Is Artist: ${isArtist ? 'Yes' : 'No'}
-Submitted: ${new Date().toLocaleString()}
-
-Message:
-${message}
-
----
-This message was sent from the InkedIn contact form.
-IP: ${ip}
-    `.trim();
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -158,31 +149,29 @@ IP: ${ip}
 </html>
     `.trim();
 
-    // Configure email transport
-    // Uses environment variables for SMTP configuration
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    // Send email
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: 'info@getinked.in',
+    const { data, error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || 'info <info@getinked.in>',
+      to: ['info@getinked.in'],
       replyTo: email,
       subject: `InkedIn Contact: ${isArtist ? 'Artist' : 'User'} Inquiry`,
-      text: emailContent,
       html: htmlContent,
     });
 
+    if (error) {
+      console.error('Resend error:', JSON.stringify(error));
+      return res.status(500).json({
+        error: 'Failed to send message. Please try again later.',
+        debug: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+
     return res.status(200).json({ success: true, message: 'Message sent successfully' });
   } catch (error) {
-    console.error('Contact form error:', error);
-    return res.status(500).json({ error: 'Failed to send message. Please try again later.' });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Contact form error:', errorMessage);
+    return res.status(500).json({
+      error: 'Failed to send message. Please try again later.',
+      debug: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    });
   }
 }
