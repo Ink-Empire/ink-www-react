@@ -7,6 +7,7 @@ import { StyleProvider } from '../contexts/StyleContext';
 import { TagProvider } from '../contexts/TagContext';
 import { DialogProvider } from '../contexts/DialogContext';
 import { ImageCacheProvider } from '../contexts/ImageCacheContext';
+import { DemoModeProvider } from '../contexts/DemoModeContext';
 import { preloadGoogleMaps } from '../services/googlePlacesService';
 import theme from '../styles/theme';
 import '../styles/globals.css';
@@ -25,15 +26,17 @@ function MyApp({ Component, pageProps }: AppProps) {
       <ThemeProvider theme={theme}>
         <CssBaseline />
       <AuthProvider>
-        <ImageCacheProvider>
-          <StyleProvider>
-            <TagProvider>
-              <DialogProvider>
-                <Component {...pageProps} />
-              </DialogProvider>
-            </TagProvider>
-          </StyleProvider>
-        </ImageCacheProvider>
+        <DemoModeProvider>
+          <ImageCacheProvider>
+            <StyleProvider>
+              <TagProvider>
+                <DialogProvider>
+                  <Component {...pageProps} />
+                </DialogProvider>
+              </TagProvider>
+            </StyleProvider>
+          </ImageCacheProvider>
+        </DemoModeProvider>
       </AuthProvider>
     </ThemeProvider>
     </>

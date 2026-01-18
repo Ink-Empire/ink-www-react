@@ -16,7 +16,19 @@ interface ApiOptions {
   useCache?: boolean;        // Whether to use cache at all
   cacheTTL?: number;         // Cache time-to-live in milliseconds
   invalidateCache?: boolean; // Force a fresh request even if cache exists
+  // Demo mode - if not specified, uses global demo mode setting
+  skipDemoMode?: boolean;    // Set to true to skip adding is_demo parameter
 }
+
+// Check if demo mode is enabled (reads from localStorage)
+const isDemoModeEnabled = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem('inkedin_demo_mode') === 'true';
+  } catch {
+    return false;
+  }
+};
 
 // Function to get CSRF token from cookies or localStorage
 export const getCsrfToken = (): string | null => {
@@ -94,19 +106,41 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     useCache = method === 'GET', // Only cache GET requests by default
     cacheTTL = 5 * 60 * 1000,    // 5 minutes default TTL
     invalidateCache = false,      // Don't invalidate by default
+    skipDemoMode = false,         // Whether to skip demo mode parameter
   } = options;
-  
+
   // Use a mutable variable for the body so we can modify it
   let body = initialBody;
+
+  // Append is_demo parameter if demo mode is enabled
+  let finalEndpoint = endpoint;
+  const demoModeEnabled = !skipDemoMode && isDemoModeEnabled();
+
+  console.log(`[API] Demo mode enabled: ${demoModeEnabled}, localStorage value: ${typeof window !== 'undefined' ? localStorage.getItem('inkedin_demo_mode') : 'SSR'}`);
+
+  if (demoModeEnabled) {
+    if (method === 'GET') {
+      // For GET requests, add to URL
+      const separator = endpoint.includes('?') ? '&' : '?';
+      finalEndpoint = `${endpoint}${separator}is_demo=1`;
+    } else if (body && typeof body === 'object' && !(body instanceof FormData)) {
+      // For POST/PUT requests with JSON body, add is_demo to filter demo data
+      body = { ...body, is_demo: 1 };
+      console.log(`[API] Body after adding is_demo:`, body);
+    } else if (!body) {
+      // For POST/PUT without body, create one with is_demo
+      body = { is_demo: 1 };
+    }
+  }
   
-  // Generate a cache key for this request
-  const cacheKey = generateCacheKey(endpoint, method, body);
+  // Generate a cache key for this request (include demo mode in key so cached demo data doesn't mix with live data)
+  const cacheKey = generateCacheKey(finalEndpoint, method, body);
   
   // Check if we should try to use the cache
   if (useCache && !invalidateCache && method === 'GET') {
     const cachedData = getCacheItem<T>(cacheKey);
     if (cachedData !== null) {
-      console.log(`Using cached data for ${method} ${endpoint}`);
+      console.log(`Using cached data for ${method} ${finalEndpoint}`);
       return cachedData;
     }
   }
@@ -150,14 +184,15 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   
   // Log all API requests in development
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`${method} ${endpoint} request`, { 
+    console.log(`[API] ${method} ${endpoint} request`, {
       headers: JSON.stringify(headers),
-      body: body ? '(has body)' : '(no body)'
+      body: body ? JSON.stringify(body) : '(no body)',
+      demoModeEnabled
     });
   }
 
   // Use the API URL with /api prefix for all endpoints
-  const url = `/api${endpoint}`;
+  const url = `/api${finalEndpoint}`;
 
   const requestHeaders: HeadersInit = {
     'Accept': 'application/json', // Always request JSON responses
@@ -228,7 +263,7 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     
     // Cache the successful response if caching is enabled
     if (useCache && method === 'GET' && response.ok) {
-      console.log(`Caching response for ${method} ${endpoint}`);
+      console.log(`Caching response for ${method} ${finalEndpoint}`);
       setCacheItem(cacheKey, responseData, cacheTTL);
     }
     

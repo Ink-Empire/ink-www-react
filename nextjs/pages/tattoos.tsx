@@ -15,10 +15,13 @@ import { useStyles } from "@/contexts/StyleContext";
 import { useTags } from "@/contexts/TagContext";
 import { distancePreferences } from "@/utils/distancePreferences";
 import { colors } from "@/styles/colors";
+import { useDemoMode } from "@/contexts/DemoModeContext";
+import EmptyStateFoundingArtist from "@/components/EmptyStateFoundingArtist";
 
 export default function TattoosPage() {
   const me = useUserData();
   const { isAuthenticated } = useAuth();
+  const { isDemoMode } = useDemoMode();
   const { styles } = useStyles();
   const { tags } = useTags();
   const router = useRouter();
@@ -357,7 +360,8 @@ export default function TattoosPage() {
     if (searchParams.useMyLocation) {
       filters.push({ label: 'Near me', key: 'location' });
     } else if (searchParams.useAnyLocation) {
-      filters.push({ label: 'Anywhere', key: 'location' });
+      // "Anywhere" is shown but marked as non-restrictive (default state)
+      filters.push({ label: 'Anywhere', key: 'location', isDefault: true });
     } else if (searchParams.location) {
       filters.push({ label: searchParams.location, key: 'location' });
     }
@@ -631,47 +635,55 @@ export default function TattoosPage() {
             <Typography sx={{ color: colors.error }}>Error: {error.message}</Typography>
           </Box>
         ) : tattooCount === 0 && !loading ? (
-          <Box sx={{ textAlign: 'center', py: 6 }}>
-            <Typography sx={{
-              color: colors.textPrimary,
-              fontSize: '1.25rem',
-              fontWeight: 500,
-              mb: 1
-            }}>
-              Nothing matches that search
-            </Typography>
-            <Typography sx={{
-              color: colors.textSecondary,
-              fontSize: '0.95rem',
-              mb: 3
-            }}>
-              Try removing some filters to see more results
-            </Typography>
-            {activeFilters.length > 0 && (
-              <Button
-                onClick={() => {
-                  setSearchParams({
-                    ...initialSearchParams,
-                    subject: 'tattoos'
-                  });
-                  setDismissedStyles([]);
-                }}
-                sx={{
-                  color: colors.accent,
-                  borderColor: colors.accent,
-                  border: '1px solid',
-                  textTransform: 'none',
-                  px: 3,
-                  '&:hover': {
-                    bgcolor: `${colors.accent}1A`,
-                    borderColor: colors.accent
-                  }
-                }}
-              >
-                Clear all filters
-              </Button>
-            )}
-          </Box>
+          // Show "founding artists" CTA when live site is empty (no demo mode, no restrictive filters)
+          // Only count non-default filters as restrictive
+          !isDemoMode && activeFilters.filter(f => !(f as any).isDefault).length === 0 ? (
+            <Box sx={{ py: 6 }}>
+              <EmptyStateFoundingArtist />
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <Typography sx={{
+                color: colors.textPrimary,
+                fontSize: '1.25rem',
+                fontWeight: 500,
+                mb: 1
+              }}>
+                Nothing matches that search
+              </Typography>
+              <Typography sx={{
+                color: colors.textSecondary,
+                fontSize: '0.95rem',
+                mb: 3
+              }}>
+                Try removing some filters to see more results
+              </Typography>
+              {activeFilters.length > 0 && (
+                <Button
+                  onClick={() => {
+                    setSearchParams({
+                      ...initialSearchParams,
+                      subject: 'tattoos'
+                    });
+                    setDismissedStyles([]);
+                  }}
+                  sx={{
+                    color: colors.accent,
+                    borderColor: colors.accent,
+                    border: '1px solid',
+                    textTransform: 'none',
+                    px: 3,
+                    '&:hover': {
+                      bgcolor: `${colors.accent}1A`,
+                      borderColor: colors.accent
+                    }
+                  }}
+                >
+                  Clear all filters
+                </Button>
+              )}
+            </Box>
+          )
         ) : (
           <Box sx={{
             display: 'grid',

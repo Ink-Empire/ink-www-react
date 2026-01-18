@@ -28,3 +28,10 @@ yarn-error.log*
 .env*.local
 .env
 nextjs/node_modules/
+
+# Playwright
+nextjs/tests/temp/
+nextjs/tests/reports/
+nextjs/test-results/
+nextjs/playwright-report/
+nextjs/.env.test

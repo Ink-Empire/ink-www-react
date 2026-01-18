@@ -3,6 +3,7 @@ import { api } from '@/utils/api';
 import { TattooType } from '@/models/tattoo.interface';
 import { tattooService } from '@/services/tattooService';
 import { getToken } from '@/utils/auth';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 // Function to delete a tattoo
 export async function deleteTattoo(id: number | string): Promise<{ success: boolean; message: string; images_deleted: number }> {
@@ -34,9 +35,10 @@ export function useTattoos(searchParams?: Record<string, any>) {
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  
-  // Use JSON.stringify to compare searchParams objects
-  const searchParamsKey = JSON.stringify(searchParams || {});
+  const { isDemoMode } = useDemoMode();
+
+  // Use JSON.stringify to compare searchParams objects, include demo mode in key
+  const searchParamsKey = JSON.stringify({ ...(searchParams || {}), _demoMode: isDemoMode });
 
   useEffect(() => {
     let isMounted = true;

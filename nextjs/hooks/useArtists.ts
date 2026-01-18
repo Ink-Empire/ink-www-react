@@ -2,15 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { artistService } from '@/services/artistService';
 import { ArtistType } from '@/models/artist.interface';
 import { api } from '@/utils/api';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 // Hook for fetching artists list
 export function useArtists(searchParams?: Record<string, any>) {
   const [artists, setArtists] = useState<ArtistType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  
-  // Use JSON.stringify to compare searchParams objects
-  const searchParamsKey = JSON.stringify(searchParams || {});
+  const { isDemoMode } = useDemoMode();
+
+  // Use JSON.stringify to compare searchParams objects, include demo mode in key
+  const searchParamsKey = JSON.stringify({ ...(searchParams || {}), _demoMode: isDemoMode });
 
   useEffect(() => {
     let isMounted = true;

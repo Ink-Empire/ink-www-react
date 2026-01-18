@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { Box, Container, Typography, Button, Stack } from '@mui/material';
 import Navbar from './Navbar';
 import IncompleteBulkUploadAlert from './IncompleteBulkUploadAlert';
+import PreviewBanner from './PreviewBanner';
 import LogoText from './LogoText';
 import { colors } from '@/styles/colors';
 
@@ -27,6 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
+      <PreviewBanner />
       <IncompleteBulkUploadAlert />
 
       <Box component="main" sx={{ flexGrow: 1, bgcolor: colors.background }}>
