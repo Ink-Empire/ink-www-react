@@ -179,7 +179,9 @@ export default function Dashboard() {
     ? ownedStudio.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'ST';
   const hasStudio = user?.is_studio_admin && ownedStudio;
-  const isClient = user?.type_id === 1;
+  // type_id: 1 = client/enthusiast, 2 = artist, 3 = studio
+  const isClient = user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client';
+
 
   // Load studio data when tab switches to studio
   useEffect(() => {

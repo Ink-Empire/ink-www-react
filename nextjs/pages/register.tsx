@@ -312,6 +312,25 @@ const RegisterPage: React.FC = () => {
           }
         }
 
+        // Create tattoo lead for clients with intent data
+        if (data.userType === 'client' && data.tattooIntent && data.tattooIntent.timing) {
+          try {
+            console.log('Creating tattoo lead...');
+            await api.post('/leads', {
+              timing: data.tattooIntent.timing,
+              allow_artist_contact: data.tattooIntent.allowArtistContact,
+              style_ids: data.selectedStyles,
+              tag_ids: data.tattooIntent.selectedTags,
+              custom_themes: data.tattooIntent.customThemes || [],
+              description: data.tattooIntent.description || '',
+            });
+            console.log('Tattoo lead created successfully');
+          } catch (leadErr) {
+            console.error('Failed to create tattoo lead:', leadErr);
+            // Continue even if lead creation fails
+          }
+        }
+
         // Redirect to appropriate page based on user type
         if (data.userType === 'artist') {
           router.push('/dashboard');

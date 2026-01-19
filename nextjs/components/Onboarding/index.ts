@@ -7,5 +7,7 @@ export { default as UserDetails } from './UserDetails';
 export { default as AccountSetup } from './AccountSetup';
 export { default as StudioOwnerCheck } from './StudioOwnerCheck';
 export { default as StudioDetails } from './StudioDetails';
+export { default as TattooIntent } from './TattooIntent';
 
 export type { OnboardingData, UserRegistrationPayload, StudioCreationPayload } from './OnboardingWizard';
+export type { TattooIntentData } from './TattooIntent';
