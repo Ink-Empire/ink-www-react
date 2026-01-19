@@ -157,29 +157,58 @@ const RegisterPage: React.FC = () => {
 
   // Studio creation callback - called from StudioDetails
   const handleCreateStudio = useCallback(async (payload: StudioCreationPayload): Promise<{ studioId: number }> => {
-    console.log('Creating studio...', payload);
+    console.log('Creating/claiming studio...', payload);
 
-    const studioPayload: Record<string, unknown> = {
-      name: payload.studioDetails?.name || '',
-      slug: generateSlug(payload.studioDetails?.username || payload.studioDetails?.name || ''),
-      about: payload.studioDetails?.bio || '',
-      location: payload.studioDetails?.location || '',
-      location_lat_long: payload.studioDetails?.locationLatLong || '',
-      owner_id: payload.ownerId,
-    };
+    let studioId: number | undefined;
 
-    if (payload.studioDetails?.email) {
-      studioPayload.email = payload.studioDetails.email;
+    // Check if we're claiming an existing unclaimed studio
+    if (payload.studioDetails?.existingStudioId) {
+      console.log('Claiming existing studio:', payload.studioDetails.existingStudioId);
+
+      // Claim the existing studio
+      const claimPayload: Record<string, unknown> = {
+        owner_id: payload.ownerId,
+        name: payload.studioDetails?.name || '',
+        slug: generateSlug(payload.studioDetails?.username || payload.studioDetails?.name || ''),
+        about: payload.studioDetails?.bio || '',
+        location: payload.studioDetails?.location || '',
+        location_lat_long: payload.studioDetails?.locationLatLong || '',
+      };
+
+      if (payload.studioDetails?.email) {
+        claimPayload.email = payload.studioDetails.email;
+      }
+
+      if (payload.studioDetails?.phone) {
+        claimPayload.phone = payload.studioDetails.phone;
+      }
+
+      const claimResponse = await api.post(`/studios/${payload.studioDetails.existingStudioId}/claim`, claimPayload) as { studio?: { id?: number } };
+      console.log('Studio claimed:', claimResponse);
+      studioId = claimResponse?.studio?.id;
+    } else {
+      // Create a new studio
+      const studioPayload: Record<string, unknown> = {
+        name: payload.studioDetails?.name || '',
+        slug: generateSlug(payload.studioDetails?.username || payload.studioDetails?.name || ''),
+        about: payload.studioDetails?.bio || '',
+        location: payload.studioDetails?.location || '',
+        location_lat_long: payload.studioDetails?.locationLatLong || '',
+        owner_id: payload.ownerId,
+      };
+
+      if (payload.studioDetails?.email) {
+        studioPayload.email = payload.studioDetails.email;
+      }
+
+      if (payload.studioDetails?.phone) {
+        studioPayload.phone = payload.studioDetails.phone;
+      }
+
+      const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
+      console.log('Studio created:', studioResponse);
+      studioId = studioResponse?.studio?.id;
     }
-
-    if (payload.studioDetails?.phone) {
-      studioPayload.phone = payload.studioDetails.phone;
-    }
-
-    const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
-    console.log('Studio created:', studioResponse);
-
-    const studioId = studioResponse?.studio?.id;
 
     // Handle studio image upload if provided - use presigned URLs for speed
     if (payload.studioDetails?.profileImage && studioId) {
@@ -237,7 +266,7 @@ const RegisterPage: React.FC = () => {
       }
 
       // Standard user/artist registration
-      const registrationPayload = {
+      const registrationPayload: Record<string, unknown> = {
         name: data.userDetails?.name || '',
         username: data.userDetails?.username || '',
         slug: generateSlug(data.userDetails?.username || ''),
@@ -252,6 +281,11 @@ const RegisterPage: React.FC = () => {
         preferred_styles: data.preferredStyles || [],
         experience_level: data.experienceLevel,
       };
+
+      // Add studio affiliation for artists
+      if (data.userType === 'artist' && data.userDetails?.studioAffiliation) {
+        registrationPayload.studio_id = data.userDetails.studioAffiliation.studioId;
+      }
 
       // Create the user account
       const response = await fetch('/api/register', {

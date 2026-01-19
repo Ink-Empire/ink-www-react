@@ -22,6 +22,7 @@ import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
 import LocationAutocomplete from '../LocationAutocomplete';
+import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
 
 interface UserDetailsProps {
   onStepComplete: (userDetails: {
@@ -31,6 +32,12 @@ interface UserDetailsProps {
     profileImage?: File | null;
     location: string;
     locationLatLong: string;
+    studioAffiliation?: {
+      studioId: number;
+      studioName: string;
+      isNew: boolean;
+      isClaimed: boolean;
+    } | null;
   }) => void;
   onBack: () => void;
   userType: 'client' | 'artist' | 'studio';
@@ -52,6 +59,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Studio affiliation (for artists only)
+  const [selectedStudio, setSelectedStudio] = useState<StudioOption | null>(null);
 
   // Username availability state
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
@@ -231,13 +241,13 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       await onStepComplete({
         name: name.trim(),
@@ -246,6 +256,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         profileImage,
         location: location.trim(),
         locationLatLong: locationLatLong,
+        studioAffiliation: selectedStudio ? {
+          studioId: selectedStudio.id,
+          studioName: selectedStudio.name,
+          isNew: selectedStudio.is_new,
+          isClaimed: selectedStudio.is_claimed,
+        } : null,
       });
     } catch (error) {
       console.error('Error submitting user details:', error);
@@ -620,6 +636,50 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               </Alert>
             )}
           </Box>
+
+          {/* Studio Affiliation (Artists only) */}
+          {userType === 'artist' && (
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: colors.textSecondary }}
+              >
+                Studio Affiliation
+                <Typography
+                  component="span"
+                  sx={{ fontWeight: 'normal', fontSize: '0.875rem', color: 'text.secondary', ml: 1 }}
+                >
+                  (Optional)
+                </Typography>
+              </Typography>
+
+              <Typography
+                variant="body2"
+                sx={{ mb: 2, color: 'text.secondary' }}
+              >
+                Are you affiliated with a tattoo studio? Search to link your profile to an existing studio.
+              </Typography>
+
+              <StudioAutocomplete
+                value={selectedStudio}
+                onChange={(studio) => setSelectedStudio(studio)}
+                label="Search for your studio"
+                placeholder="Start typing studio name..."
+                location={locationLatLong || undefined}
+              />
+
+              {selectedStudio && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(201, 169, 98, 0.1)', borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ color: colors.accent }}>
+                    You'll be linked to: <strong>{selectedStudio.name}</strong>
+                    {selectedStudio.location && (
+                      <span style={{ color: colors.textSecondary }}> - {selectedStudio.location}</span>
+                    )}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
 
           {errors.submit && (
             <Alert severity="error">

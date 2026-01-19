@@ -255,3 +255,137 @@ export const preloadGoogleMaps = (): void => {
     // Silently fail - will retry on actual use
   });
 };
+
+/**
+ * Search for tattoo studios/parlors using Google Places Autocomplete
+ * @param query - Search query
+ * @param location - Optional location to bias results (lat,lng format or {lat, lng} object)
+ * @param radiusMeters - Radius in meters for location bias (default 80467 = ~50 miles)
+ */
+export const searchEstablishments = async (
+  query: string,
+  location?: string | { lat: number; lng: number } | null,
+  radiusMeters: number = 80467, // ~50 miles
+): Promise<PlacePrediction[]> => {
+  if (!query || query.length < 2) {
+    return [];
+  }
+
+  const loaded = await ensureLoaded();
+  if (!loaded || !autocompleteService) {
+    return [];
+  }
+
+  // Prepend "tattoo" to the query to filter results to tattoo businesses
+  const tattooQuery = query.toLowerCase().includes('tattoo')
+    ? query
+    : `tattoo ${query}`;
+
+  return new Promise((resolve) => {
+    const request: google.maps.places.AutocompletionRequest = {
+      input: tattooQuery,
+      sessionToken: sessionToken || undefined,
+      types: ['establishment'],
+    };
+
+    // Add location bias if provided
+    if (location) {
+      let lat: number, lng: number;
+
+      if (typeof location === 'string') {
+        const [latStr, lngStr] = location.split(',');
+        lat = parseFloat(latStr);
+        lng = parseFloat(lngStr);
+      } else {
+        lat = location.lat;
+        lng = location.lng;
+      }
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        // Calculate bounding box from center and radius
+        // Approximate degrees per meter at given latitude
+        const latDelta = radiusMeters / 111320; // ~111km per degree latitude
+        const lngDelta = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180));
+
+        const bounds = new google.maps.LatLngBounds(
+          new google.maps.LatLng(lat - latDelta, lng - lngDelta), // SW corner
+          new google.maps.LatLng(lat + latDelta, lng + lngDelta)  // NE corner
+        );
+
+        (request as any).bounds = bounds;
+        (request as any).strictBounds = true;
+      }
+    }
+
+    autocompleteService!.getPlacePredictions(request, (predictions, status) => {
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+        resolve([]);
+        return;
+      }
+
+      const results: PlacePrediction[] = predictions.map((p) => ({
+        placeId: p.place_id,
+        description: p.description,
+        mainText: p.structured_formatting?.main_text || p.description.split(',')[0],
+        secondaryText: p.structured_formatting?.secondary_text || '',
+        types: p.types || [],
+      }));
+
+      resolve(results);
+    });
+  });
+};
+
+export interface EstablishmentDetails {
+  placeId: string;
+  name: string;
+  formattedAddress: string;
+  lat: number;
+  lng: number;
+  phone?: string;
+  website?: string;
+  rating?: number;
+}
+
+/**
+ * Get establishment details including name, address, phone, website
+ */
+export const getEstablishmentDetails = async (placeId: string): Promise<EstablishmentDetails | null> => {
+  if (!placeId) return null;
+
+  const loaded = await ensureLoaded();
+  if (!loaded || !placesService) {
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    const request: google.maps.places.PlaceDetailsRequest = {
+      placeId,
+      sessionToken: sessionToken || undefined,
+      fields: ['place_id', 'name', 'formatted_address', 'geometry', 'formatted_phone_number', 'website', 'rating'],
+    };
+
+    placesService!.getDetails(request, (place, status) => {
+      // Refresh session token after getting details (ends the session)
+      refreshSessionToken();
+
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+        resolve(null);
+        return;
+      }
+
+      const details: EstablishmentDetails = {
+        placeId: place.place_id || placeId,
+        name: place.name || '',
+        formattedAddress: place.formatted_address || '',
+        lat: place.geometry?.location?.lat() || 0,
+        lng: place.geometry?.location?.lng() || 0,
+        phone: place.formatted_phone_number,
+        website: place.website,
+        rating: place.rating,
+      };
+
+      resolve(details);
+    });
+  });
+};

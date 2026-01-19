@@ -22,6 +22,7 @@ import {
 import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
 import LocationAutocomplete from '../LocationAutocomplete';
+import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
 import { api } from '@/utils/api';
 import type { StudioCreationPayload } from './OnboardingWizard';
 
@@ -34,6 +35,7 @@ interface StudioDetailsData {
   locationLatLong: string;
   email?: string;
   phone?: string;
+  existingStudioId?: number; // If claiming an existing unclaimed studio
 }
 
 interface StudioDetailsProps {
@@ -64,6 +66,10 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Google Places autofill
+  const [selectedGoogleStudio, setSelectedGoogleStudio] = useState<StudioOption | null>(null);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [userLocation, setUserLocation] = useState<string | null>(null);
 
   // Availability checking state
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -75,6 +81,54 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { getCurrentPosition, getLocation } = useAppGeolocation();
+
+  // Get user's location on mount for search bias
+  useEffect(() => {
+    getCurrentPosition()
+      .then((pos) => {
+        setUserLocation(`${pos.latitude},${pos.longitude}`);
+      })
+      .catch(() => {
+        // Silently fail - location bias is optional
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Handler for when user selects a studio from Google Places
+  const handleGoogleStudioSelect = (studio: StudioOption | null) => {
+    setSelectedGoogleStudio(studio);
+
+    if (studio) {
+      // Check if this studio is already claimed
+      if (studio.is_claimed) {
+        setErrors(prev => ({
+          ...prev,
+          googleStudio: 'This studio has already been claimed. If this is your studio, please contact support.'
+        }));
+        return;
+      }
+
+      // Auto-fill the form with Google data
+      setName(studio.name);
+      if (studio.location) {
+        setLocation(studio.location);
+        // Extract lat/long if available from the studio
+        // (The backend sets this when creating from Google Places)
+      }
+      if (studio.phone) {
+        setPhone(studio.phone);
+      }
+
+      // Clear any Google-related errors
+      setErrors(prev => {
+        const { googleStudio, ...rest } = prev;
+        return rest;
+      });
+
+      // Show the form for them to complete the remaining fields
+      setShowManualEntry(true);
+    }
+  };
 
   // Check username availability
   const checkUsernameAvailability = useCallback(async (usernameToCheck: string) => {
@@ -362,6 +416,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       locationLatLong: locationLatLong,
       email: email.trim() || undefined,
       phone: phone.trim() || undefined,
+      existingStudioId: selectedGoogleStudio?.id, // Pass existing studio ID if claiming
     };
 
     try {
@@ -414,6 +469,77 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
       <form onSubmit={handleSubmit}>
         <Stack spacing={4}>
+          {/* Google Places Lookup */}
+          {!showManualEntry && (
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ mb: 2, color: colors.textSecondary }}
+              >
+                Find your studio
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ mb: 2, color: 'text.secondary' }}
+              >
+                Search for your studio to auto-fill your details, or enter them manually.
+              </Typography>
+              <StudioAutocomplete
+                value={selectedGoogleStudio}
+                onChange={handleGoogleStudioSelect}
+                label="Search for your studio"
+                placeholder="Start typing your studio name..."
+                error={!!errors.googleStudio}
+                helperText={errors.googleStudio}
+                location={userLocation}
+              />
+              <Button
+                variant="text"
+                onClick={() => setShowManualEntry(true)}
+                sx={{
+                  mt: 2,
+                  color: colors.accent,
+                  textTransform: 'none',
+                  '&:hover': {
+                    backgroundColor: 'rgba(201, 169, 98, 0.1)',
+                  },
+                }}
+              >
+                Or enter details manually
+              </Button>
+            </Box>
+          )}
+
+          {/* Show manual entry form when they've selected a studio or clicked manual entry */}
+          {showManualEntry && (
+            <>
+              {selectedGoogleStudio && (
+                <Alert
+                  severity="success"
+                  sx={{ mb: 2 }}
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => {
+                        setSelectedGoogleStudio(null);
+                        setShowManualEntry(false);
+                        setName('');
+                        setLocation('');
+                        setLocationLatLong('');
+                        setPhone('');
+                      }}
+                    >
+                      Change
+                    </Button>
+                  }
+                >
+                  <Typography variant="body2">
+                    <strong>{selectedGoogleStudio.name}</strong> found! Complete the remaining details below.
+                  </Typography>
+                </Alert>
+              )}
+
           {/* Studio Image */}
           <Box sx={{ textAlign: 'center' }}>
             <Typography
@@ -796,6 +922,8 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
               {errors.submit}
             </Alert>
           )}
+            </>
+          )}
 
           {/* Action Buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -804,6 +932,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
               type="submit"
               variant="contained"
               disabled={
+                !showManualEntry ||
                 isSubmitting ||
                 checkingUsername ||
                 usernameAvailable === false ||

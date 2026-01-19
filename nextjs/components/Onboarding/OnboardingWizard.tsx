@@ -31,6 +31,12 @@ export interface OnboardingData {
     profileImage?: File | null;
     location: string;
     locationLatLong: string;
+    studioAffiliation?: {
+      studioId: number;
+      studioName: string;
+      isNew: boolean;
+      isClaimed: boolean;
+    } | null;
   };
   credentials?: {
     email: string;
@@ -47,6 +53,7 @@ export interface OnboardingData {
     locationLatLong: string;
     email?: string; // Optional contact email for the studio
     phone?: string; // Optional phone number for the studio
+    existingStudioId?: number; // If claiming an existing unclaimed studio
   };
   // Studio owner info - populated when userType is 'studio'
   studioOwner?: {
@@ -68,6 +75,7 @@ export interface UserRegistrationPayload {
   selectedStyles: number[];
   experienceLevel?: string;
   studioOwner?: OnboardingData['studioOwner'];
+  studioAffiliation?: OnboardingData['userDetails'] extends { studioAffiliation?: infer T } ? T : never;
 }
 
 // Studio creation payload
