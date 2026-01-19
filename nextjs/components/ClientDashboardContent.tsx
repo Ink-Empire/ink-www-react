@@ -3,7 +3,11 @@ import Link from 'next/link';
 import { Box, Typography, Button, Avatar, Skeleton, Switch, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import CloseIcon from '@mui/icons-material/Close';
+import SettingsIcon from '@mui/icons-material/Settings';
+import StarIcon from '@mui/icons-material/Star';
+import AddIcon from '@mui/icons-material/Add';
 import ChangePasswordModal from './ChangePasswordModal';
+import StyleModal from './StyleModal';
 import TattooIntent, { TattooIntentData } from './Onboarding/TattooIntent';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
@@ -19,6 +23,8 @@ import { useClientDashboard, useWishlist, DashboardAppointment, SuggestedArtist,
 import { ApiConversation } from '@/hooks/useConversations';
 import { api } from '@/utils/api';
 import { useDemoMode } from '@/contexts/DemoModeContext';
+import { useStyles } from '@/contexts/StyleContext';
+import { useUser } from '@/contexts/AuthContext';
 
 interface ClientDashboardContentProps {
   userName: string;
@@ -31,9 +37,36 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const [leadLoading, setLeadLoading] = useState(true);
   const [leadToggling, setLeadToggling] = useState(false);
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
+  const [styleModalOpen, setStyleModalOpen] = useState(false);
+  const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
   const { isDemoMode } = useDemoMode();
+  const { styles, getStyleName } = useStyles();
+  const { userData, updateStyles } = useUser();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Initialize selected styles from user data
+  useEffect(() => {
+    if (userData) {
+      setSelectedStyles(userData.styles || []);
+    }
+  }, [userData]);
+
+  // Handle style update
+  const handleApplyStyles = async (updatedStyles: number[]) => {
+    setSelectedStyles(updatedStyles);
+    try {
+      await updateStyles(updatedStyles);
+    } catch (err) {
+      console.error('Failed to update styles:', err);
+    }
+  };
+
+  // Remove a single style
+  const removeStyle = (styleId: number) => {
+    const updatedStyles = selectedStyles.filter(id => id !== styleId);
+    handleApplyStyles(updatedStyles);
+  };
 
   const {
     appointments,
@@ -268,55 +301,55 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         </Card>
       </Box>
 
-      {/* Artists You Might Like - show if demo mode OR if there's real data */}
-      {(isDemoMode || suggestedArtists.length > 0) && (
-        <Card
-          title="Artists You Might Like"
-          subtitle="Based on your favorite styles and saved tattoos"
-          icon={<PersonAddIcon sx={{ color: colors.accent, fontSize: 20 }} />}
-          action={
-            <CardLink href="/artists">
-              See All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
-            </CardLink>
-          }
-          sx={{ mb: 3 }}
-        >
-          {dashboardLoading ? (
-            <Box sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-              gap: 2,
-              p: 2,
-            }}>
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Skeleton key={i} variant="rounded" height={180} sx={{ bgcolor: colors.background }} />
-              ))}
-            </Box>
-          ) : suggestedArtists.length > 0 ? (
-            <Box sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-              gap: 2,
-              p: 2,
-            }}>
-              {suggestedArtists.map((artist) => (
-                <SuggestedArtistCard
-                  key={artist.id}
-                  artist={artist}
-                  onAddToWishlist={handleAddToWishlist}
-                  isOnWishlist={wishlist.some((w) => w.id === artist.id)}
-                />
-              ))}
-            </Box>
-          ) : (
-            <EmptyState
-              icon={<PersonAddIcon sx={{ fontSize: 32, color: colors.textMuted }} />}
-              message="No suggestions yet"
-              subMessage="Save some styles or tattoos to get personalized recommendations"
-            />
-          )}
-        </Card>
-      )}
+      {/* Artists You Might Like - filter out demo artists when not in demo mode */}
+      {(() => {
+        const filteredArtists = isDemoMode
+          ? suggestedArtists
+          : suggestedArtists.filter(a => !a.is_demo);
+        if (filteredArtists.length === 0) return null;
+        return (
+          <Card
+            title="Artists You Might Like"
+            subtitle="Based on your favorite styles and saved tattoos"
+            icon={<PersonAddIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+            action={
+              <CardLink href="/artists">
+                See All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
+              </CardLink>
+            }
+            sx={{ mb: 3 }}
+          >
+            {dashboardLoading ? (
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: 2,
+                p: 2,
+              }}>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Skeleton key={i} variant="rounded" height={180} sx={{ bgcolor: colors.background }} />
+                ))}
+              </Box>
+            ) : (
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: 2,
+                p: 2,
+              }}>
+                {filteredArtists.map((artist) => (
+                  <SuggestedArtistCard
+                    key={artist.id}
+                    artist={artist}
+                    onAddToWishlist={handleAddToWishlist}
+                    isOnWishlist={wishlist.some((w) => w.id === artist.id)}
+                  />
+                ))}
+              </Box>
+            )}
+          </Card>
+        );
+      })()}
 
       {/* Two Column Layout */}
       <Box sx={{
@@ -398,9 +431,86 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         </Card>
       </Box>
 
+      {/* Preferences */}
+      <Card
+        title="Preferences"
+        icon={<SettingsIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+        sx={{ mt: 3 }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <StarIcon sx={{ color: colors.accent, fontSize: 18 }} />
+            <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
+              Your Styles
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted, mb: 2 }}>
+            Select styles you're interested in to help us personalize your experience.
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 2 }}>
+            {selectedStyles.map(styleId => (
+              <Box
+                key={styleId}
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: `${colors.accent}20`,
+                  borderRadius: '100px',
+                  fontSize: '0.85rem',
+                  color: colors.accent,
+                  fontWeight: 500,
+                }}
+              >
+                {getStyleName(styleId)}
+                <IconButton
+                  size="small"
+                  onClick={() => removeStyle(styleId)}
+                  sx={{
+                    p: 0.25,
+                    ml: 0.25,
+                    color: colors.accent,
+                    '&:hover': { color: colors.error, bgcolor: 'transparent' }
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </Box>
+            ))}
+            <Button
+              onClick={() => setStyleModalOpen(true)}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                px: 1.5,
+                py: 0.5,
+                bgcolor: colors.background,
+                border: `1px dashed ${colors.border}`,
+                borderRadius: '100px',
+                fontSize: '0.85rem',
+                color: colors.textMuted,
+                textTransform: 'none',
+                minWidth: 'auto',
+                '&:hover': {
+                  borderColor: colors.accent,
+                  color: colors.accent,
+                  bgcolor: colors.background,
+                }
+              }}
+            >
+              <AddIcon sx={{ fontSize: 16 }} />
+              Add Style
+            </Button>
+          </Box>
+        </Box>
+      </Card>
+
       {/* Security Settings */}
       <Card
-        title="Security Settings"
+        title="Security"
         icon={<LockIcon sx={{ color: colors.accent, fontSize: 20 }} />}
         sx={{ mt: 3 }}
       >
@@ -440,6 +550,13 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
       <ChangePasswordModal
         isOpen={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
+      />
+
+      <StyleModal
+        isOpen={styleModalOpen}
+        onClose={() => setStyleModalOpen(false)}
+        onApply={handleApplyStyles}
+        selectedStyles={selectedStyles}
       />
 
       {/* Tattoo Intent Dialog - shown when toggling Open to New Work ON */}

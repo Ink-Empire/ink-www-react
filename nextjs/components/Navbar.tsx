@@ -220,7 +220,7 @@ const Navbar: React.FC = () => {
                     }
                   }}
                 >
-                  {user?.slug && (
+                  {user?.slug && user?.type_id !== 1 && user?.type_id !== '1' && user?.type !== 'client' && user?.type !== 'user' && (
                     <MenuItem
                       component={Link}
                       href={`/artists/${user.slug}`}
@@ -340,7 +340,7 @@ const Navbar: React.FC = () => {
                   </Badge>
                 </IconButton>
 
-                <IconButton component={Link} href="/profile" size="small">
+                <IconButton component={Link} href={user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user' ? '/dashboard' : '/profile'} size="small">
                   <Avatar
                     src={avatarUrl || undefined}
                     alt={getDisplayName()}
@@ -456,7 +456,7 @@ const Navbar: React.FC = () => {
               <>
                 <ListItem
                   component={Link}
-                  href="/profile"
+                  href={user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user' ? '/dashboard' : '/profile'}
                   onClick={() => setMobileMenuOpen(false)}
                   sx={{
                     borderRadius: 1,
