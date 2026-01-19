@@ -31,6 +31,7 @@
     "@mui/icons-material": "^7.0.1",
     "@mui/joy": "^5.0.0-beta.52",
     "@mui/material": "^7.0.1",
+    "@vercel/analytics": "^1.6.1",
     "axios": "^1.6.7",
     "date-fns": "^4.1.0",
     "next": "^14.1.0",

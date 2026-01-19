@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { AppProps } from 'next/app';
 import Head from 'next/head';
 import { ThemeProvider, CssBaseline } from '@mui/material';
+import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '../contexts/AuthContext';
 import { StyleProvider } from '../contexts/StyleContext';
 import { TagProvider } from '../contexts/TagContext';
@@ -39,6 +40,7 @@ function MyApp({ Component, pageProps }: AppProps) {
         </DemoModeProvider>
       </AuthProvider>
     </ThemeProvider>
+      <Analytics />
     </>
   );
 }
