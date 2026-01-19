@@ -6,9 +6,10 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloseIcon from '@mui/icons-material/Close';
 import ArtistCard from '../../components/ArtistCard';
+import UnclaimedStudioCard from '../../components/UnclaimedStudioCard';
 import SearchFilters from '../../components/SearchFilters';
 import Layout from '../../components/Layout';
-import { useArtists } from '@/hooks';
+import { useArtists, UnclaimedStudio } from '@/hooks';
 import { useUserData } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStyles } from '@/contexts/StyleContext';
@@ -63,7 +64,7 @@ export default function ArtistList() {
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
     const [sortBy, setSortBy] = useState('relevant');
     const [loginModalOpen, setLoginModalOpen] = useState(false);
-    const { artists, loading, error } = useArtists(searchParams);
+    const { artists, unclaimedStudios, loading, error } = useArtists(searchParams);
 
     // Handle filter changes from SearchFilters component
     const handleFilterChange = (filters: {
@@ -123,6 +124,13 @@ export default function ArtistList() {
                 // Fallback to user's saved profile location
                 newParams.studio_near_me = user.location_lat_long;
                 newParams.artist_near_me = user.location_lat_long;
+                // Also set locationCoords for Google Places search
+                const lat = user.location_lat_long.latitude ?? user.location_lat_long.lat;
+                const lng = user.location_lat_long.longitude ?? user.location_lat_long.lng;
+                if (lat && lng) {
+                    newParams.locationCoords = { lat, lng };
+                    newParams.locationCoordsString = `${lat},${lng}`;
+                }
             }
             newParams.studios = user?.studios;
         } else if (filters.useAnyLocation) {
@@ -225,6 +233,37 @@ export default function ArtistList() {
 
     const activeFilters = getActiveFilters();
     const artistCount = artists?.length || 0;
+
+    const getInterleavedResults = () => {
+        if (!artists || artists.length === 0) return [];
+        if (!unclaimedStudios || unclaimedStudios.length === 0) {
+            return artists.map(artist => ({ type: 'artist' as const, data: artist }));
+        }
+
+        const results: Array<{ type: 'artist' | 'unclaimed'; data: any }> = [];
+        let unclaimedIndex = 0;
+        const insertInterval = 4; // Insert unclaimed studio after every 4 artists
+
+        artists.forEach((artist, index) => {
+            results.push({ type: 'artist', data: artist });
+
+            // After every insertInterval artists, add an unclaimed studio if available
+            if ((index + 1) % insertInterval === 0 && unclaimedIndex < unclaimedStudios.length) {
+                results.push({ type: 'unclaimed', data: unclaimedStudios[unclaimedIndex] });
+                unclaimedIndex++;
+            }
+        });
+
+        // Add any remaining unclaimed studios at the end
+        while (unclaimedIndex < unclaimedStudios.length) {
+            results.push({ type: 'unclaimed', data: unclaimedStudios[unclaimedIndex] });
+            unclaimedIndex++;
+        }
+
+        return results;
+    };
+
+    const interleavedResults = getInterleavedResults();
 
     return (
         <Layout>
@@ -469,13 +508,20 @@ export default function ArtistList() {
                         },
                         gap: '1.25rem'
                     }}>
-                        {artists && artists.map((artist) => (
+                        {interleavedResults.map((item, index) => (
+                            item.type === 'artist' ? (
                                 <ArtistCard
-                                    key={artist.id}
-                                    artist={artist}
+                                    key={`artist-${item.data.id}`}
+                                    artist={item.data}
                                     onSaveClick={handleArtistSaveClick}
                                 />
-                            ))}
+                            ) : (
+                                <UnclaimedStudioCard
+                                    key={`unclaimed-${item.data.id}`}
+                                    studio={item.data}
+                                />
+                            )
+                        ))}
                     </Box>
                 )}
             </Box>

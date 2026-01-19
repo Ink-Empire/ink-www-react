@@ -9,7 +9,8 @@ import TattooModal from "../components/TattooModal";
 import SearchFilters from "../components/SearchFilters";
 import Layout from "../components/Layout";
 import TattooCreateWizard from "../components/TattooCreateWizard";
-import { useTattoos } from "../hooks";
+import UnclaimedStudioCard from "../components/UnclaimedStudioCard";
+import { useTattoos, UnclaimedStudio } from "../hooks";
 import { useUserData, useAuth } from "@/contexts/AuthContext";
 import { useStyles } from "@/contexts/StyleContext";
 import { useTags } from "@/contexts/TagContext";
@@ -183,7 +184,35 @@ export default function TattoosPage() {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   // Fetch tattoos based on search params
-  const { tattoos, total, loading, error } = useTattoos(searchParams);
+  const { tattoos, unclaimedStudios, total, loading, error } = useTattoos(searchParams);
+
+  const getInterleavedResults = () => {
+    if (!tattoos || !unclaimedStudios || unclaimedStudios.length === 0) {
+      return tattoos?.map(tattoo => ({ type: 'tattoo' as const, data: tattoo })) || [];
+    }
+
+    const results: Array<{ type: 'tattoo' | 'unclaimed_studio'; data: any }> = [];
+    let studioIndex = 0;
+
+    tattoos.forEach((tattoo, index) => {
+      results.push({ type: 'tattoo', data: tattoo });
+      // Insert an unclaimed studio after every 6 tattoos
+      if ((index + 1) % 6 === 0 && studioIndex < unclaimedStudios.length) {
+        results.push({ type: 'unclaimed_studio', data: unclaimedStudios[studioIndex] });
+        studioIndex++;
+      }
+    });
+
+    // Add remaining studios at the end
+    while (studioIndex < unclaimedStudios.length) {
+      results.push({ type: 'unclaimed_studio', data: unclaimedStudios[studioIndex] });
+      studioIndex++;
+    }
+
+    return results;
+  };
+
+  const interleavedResults = getInterleavedResults();
 
   // New user fallback: if no results with location filter, try without location
   useEffect(() => {
@@ -634,7 +663,7 @@ export default function TattoosPage() {
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography sx={{ color: colors.error }}>Error: {error.message}</Typography>
           </Box>
-        ) : tattooCount === 0 && !loading ? (
+        ) : tattooCount === 0 && unclaimedStudios.length === 0 && !loading ? (
           // Show "founding artists" CTA when live site is empty (no demo mode, no restrictive filters)
           // Only count non-default filters as restrictive
           !isDemoMode && activeFilters.filter(f => !(f as any).isDefault).length === 0 ? (
@@ -693,15 +722,20 @@ export default function TattoosPage() {
             },
             gap: '1.25rem'
           }}>
-            {tattoos &&
-              Array.isArray(tattoos) &&
-              tattoos.map((tattoo: any) => (
+            {interleavedResults.map((item, index) => (
+              item.type === 'tattoo' ? (
                 <TattooCard
-                  key={tattoo.id}
-                  tattoo={tattoo}
+                  key={`tattoo-${item.data.id}`}
+                  tattoo={item.data}
                   onTattooClick={handleTattooClick}
                 />
-              ))}
+              ) : (
+                <UnclaimedStudioCard
+                  key={`unclaimed-${item.data.id}`}
+                  studio={item.data}
+                />
+              )
+            ))}
           </Box>
         )}
       </Box>

@@ -4,9 +4,20 @@ import { ArtistType } from '@/models/artist.interface';
 import { api } from '@/utils/api';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 
+// Unclaimed studio type
+export interface UnclaimedStudio {
+  id: number;
+  name: string;
+  location?: string;
+  rating?: number;
+  weekly_impressions?: number;
+  is_claimed: boolean;
+}
+
 // Hook for fetching artists list
 export function useArtists(searchParams?: Record<string, any>) {
   const [artists, setArtists] = useState<ArtistType[]>([]);
+  const [unclaimedStudios, setUnclaimedStudios] = useState<UnclaimedStudio[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const { isDemoMode } = useDemoMode();
@@ -97,18 +108,27 @@ export function useArtists(searchParams?: Record<string, any>) {
 
         // Process the response - handle array, { data: [...] }, and { response: [...] } formats
         let artistsData: ArtistType[] = [];
+        let unclaimedStudiosData: UnclaimedStudio[] = [];
 
         if (response) {
           if (Array.isArray(response)) {
             artistsData = response;
           } else if ('response' in response && Array.isArray((response as any).response)) {
             artistsData = (response as any).response;
+            // Also check for unclaimed_studios in the response
+            if ('unclaimed_studios' in response && Array.isArray((response as any).unclaimed_studios)) {
+              unclaimedStudiosData = (response as any).unclaimed_studios;
+            }
           } else if ('data' in response && Array.isArray((response as any).data)) {
             artistsData = (response as any).data;
           }
           console.log('Artists fetched successfully via POST:', artistsData.length);
+          if (unclaimedStudiosData.length > 0) {
+            console.log('Unclaimed studios fetched:', unclaimedStudiosData.length);
+          }
         }
         setArtists(artistsData);
+        setUnclaimedStudios(unclaimedStudiosData);
         saveToCache(artistsData);
         setError(null);
       } catch (err) {
@@ -133,7 +153,7 @@ export function useArtists(searchParams?: Record<string, any>) {
     };
   }, [searchParamsKey]); // Use the stringified version for dependency tracking
 
-  return { artists, loading, error };
+  return { artists, unclaimedStudios, loading, error };
 }
 
 // Hook for fetching a single artist by ID or slug
