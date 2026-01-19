@@ -1,18 +1,55 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/utils/api';
 import { TattooType } from '@/models/tattoo.interface';
 import { tattooService } from '@/services/tattooService';
 import { getToken } from '@/utils/auth';
+import { useDemoMode } from '@/contexts/DemoModeContext';
+
+// Unclaimed studio type (same as in useArtists)
+export interface UnclaimedStudio {
+  id: number;
+  name: string;
+  location?: string;
+  rating?: number;
+  weekly_impressions?: number;
+  is_claimed: boolean;
+}
+
+// Function to delete a tattoo
+export async function deleteTattoo(id: number | string): Promise<{ success: boolean; message: string; images_deleted: number }> {
+  const response = await api.delete<{ success: boolean; message: string; images_deleted: number }>(`/tattoos/${id}`, {
+    requiresAuth: true,
+  });
+
+  // Clear any cached data for this tattoo
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(`tattoo_cache:${id}`);
+      // Also clear artist tattoos cache entries that might contain this tattoo
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('artist_tattoos_cache:') || key.startsWith('tattoos_cache:')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      console.warn('Error clearing tattoo cache', e);
+    }
+  }
+
+  return response;
+}
 
 // Hook for fetching tattoos list
 export function useTattoos(searchParams?: Record<string, any>) {
   const [tattoos, setTattoos] = useState<TattooType[]>([]);
+  const [unclaimedStudios, setUnclaimedStudios] = useState<UnclaimedStudio[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  
-  // Use JSON.stringify to compare searchParams objects
-  const searchParamsKey = JSON.stringify(searchParams || {});
+  const { isDemoMode } = useDemoMode();
+
+  // Use JSON.stringify to compare searchParams objects, include demo mode in key
+  const searchParamsKey = JSON.stringify({ ...(searchParams || {}), _demoMode: isDemoMode });
 
   useEffect(() => {
     let isMounted = true;
@@ -102,6 +139,7 @@ export function useTattoos(searchParams?: Record<string, any>) {
 
         // Process the response - handle array, { data: [...] }, and { response: [...] } formats
         let tattoosData: TattooType[] = [];
+        let unclaimedStudiosData: UnclaimedStudio[] = [];
         let totalCount = 0;
 
         if (response) {
@@ -111,13 +149,21 @@ export function useTattoos(searchParams?: Record<string, any>) {
           } else if ('response' in response && Array.isArray((response as any).response)) {
             tattoosData = (response as any).response;
             totalCount = (response as any).total ?? tattoosData.length;
+            // Also check for unclaimed_studios in the response
+            if ('unclaimed_studios' in response && Array.isArray((response as any).unclaimed_studios)) {
+              unclaimedStudiosData = (response as any).unclaimed_studios;
+            }
           } else if ('data' in response && Array.isArray((response as any).data)) {
             tattoosData = (response as any).data;
             totalCount = (response as any).total ?? tattoosData.length;
           }
           console.log('Tattoos fetched successfully via POST:', tattoosData.length, 'of', totalCount, 'total');
+          if (unclaimedStudiosData.length > 0) {
+            console.log('Unclaimed studios fetched:', unclaimedStudiosData.length);
+          }
         }
         setTattoos(tattoosData);
+        setUnclaimedStudios(unclaimedStudiosData);
         setTotal(totalCount);
         saveToCache(tattoosData);
         setError(null);
@@ -143,7 +189,7 @@ export function useTattoos(searchParams?: Record<string, any>) {
     };
   }, [searchParamsKey]); // Use the stringified version for dependency tracking
 
-  return { tattoos, total, loading, error };
+  return { tattoos, unclaimedStudios, total, loading, error };
 }
 
 // Hook for fetching a single tattoo by ID

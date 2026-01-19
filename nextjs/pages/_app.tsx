@@ -2,11 +2,13 @@ import React, { useEffect } from 'react';
 import { AppProps } from 'next/app';
 import Head from 'next/head';
 import { ThemeProvider, CssBaseline } from '@mui/material';
+import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '../contexts/AuthContext';
 import { StyleProvider } from '../contexts/StyleContext';
 import { TagProvider } from '../contexts/TagContext';
 import { DialogProvider } from '../contexts/DialogContext';
 import { ImageCacheProvider } from '../contexts/ImageCacheContext';
+import { DemoModeProvider } from '../contexts/DemoModeContext';
 import { preloadGoogleMaps } from '../services/googlePlacesService';
 import theme from '../styles/theme';
 import '../styles/globals.css';
@@ -25,17 +27,20 @@ function MyApp({ Component, pageProps }: AppProps) {
       <ThemeProvider theme={theme}>
         <CssBaseline />
       <AuthProvider>
-        <ImageCacheProvider>
-          <StyleProvider>
-            <TagProvider>
-              <DialogProvider>
-                <Component {...pageProps} />
-              </DialogProvider>
-            </TagProvider>
-          </StyleProvider>
-        </ImageCacheProvider>
+        <DemoModeProvider>
+          <ImageCacheProvider>
+            <StyleProvider>
+              <TagProvider>
+                <DialogProvider>
+                  <Component {...pageProps} />
+                </DialogProvider>
+              </TagProvider>
+            </StyleProvider>
+          </ImageCacheProvider>
+        </DemoModeProvider>
       </AuthProvider>
     </ThemeProvider>
+      <Analytics />
     </>
   );
 }

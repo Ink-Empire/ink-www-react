@@ -9,16 +9,20 @@ import TattooModal from "../components/TattooModal";
 import SearchFilters from "../components/SearchFilters";
 import Layout from "../components/Layout";
 import TattooCreateWizard from "../components/TattooCreateWizard";
-import { useTattoos } from "../hooks";
+import UnclaimedStudioCard from "../components/UnclaimedStudioCard";
+import { useTattoos, UnclaimedStudio } from "../hooks";
 import { useUserData, useAuth } from "@/contexts/AuthContext";
 import { useStyles } from "@/contexts/StyleContext";
 import { useTags } from "@/contexts/TagContext";
 import { distancePreferences } from "@/utils/distancePreferences";
 import { colors } from "@/styles/colors";
+import { useDemoMode } from "@/contexts/DemoModeContext";
+import EmptyStateFoundingArtist from "@/components/EmptyStateFoundingArtist";
 
 export default function TattoosPage() {
   const me = useUserData();
   const { isAuthenticated } = useAuth();
+  const { isDemoMode } = useDemoMode();
   const { styles } = useStyles();
   const { tags } = useTags();
   const router = useRouter();
@@ -180,7 +184,35 @@ export default function TattoosPage() {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   // Fetch tattoos based on search params
-  const { tattoos, total, loading, error } = useTattoos(searchParams);
+  const { tattoos, unclaimedStudios, total, loading, error } = useTattoos(searchParams);
+
+  const getInterleavedResults = () => {
+    if (!tattoos || !unclaimedStudios || unclaimedStudios.length === 0) {
+      return tattoos?.map(tattoo => ({ type: 'tattoo' as const, data: tattoo })) || [];
+    }
+
+    const results: Array<{ type: 'tattoo' | 'unclaimed_studio'; data: any }> = [];
+    let studioIndex = 0;
+
+    tattoos.forEach((tattoo, index) => {
+      results.push({ type: 'tattoo', data: tattoo });
+      // Insert an unclaimed studio after every 6 tattoos
+      if ((index + 1) % 6 === 0 && studioIndex < unclaimedStudios.length) {
+        results.push({ type: 'unclaimed_studio', data: unclaimedStudios[studioIndex] });
+        studioIndex++;
+      }
+    });
+
+    // Add remaining studios at the end
+    while (studioIndex < unclaimedStudios.length) {
+      results.push({ type: 'unclaimed_studio', data: unclaimedStudios[studioIndex] });
+      studioIndex++;
+    }
+
+    return results;
+  };
+
+  const interleavedResults = getInterleavedResults();
 
   // New user fallback: if no results with location filter, try without location
   useEffect(() => {
@@ -357,7 +389,8 @@ export default function TattoosPage() {
     if (searchParams.useMyLocation) {
       filters.push({ label: 'Near me', key: 'location' });
     } else if (searchParams.useAnyLocation) {
-      filters.push({ label: 'Anywhere', key: 'location' });
+      // "Anywhere" is shown but marked as non-restrictive (default state)
+      filters.push({ label: 'Anywhere', key: 'location', isDefault: true });
     } else if (searchParams.location) {
       filters.push({ label: searchParams.location, key: 'location' });
     }
@@ -630,48 +663,56 @@ export default function TattoosPage() {
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography sx={{ color: colors.error }}>Error: {error.message}</Typography>
           </Box>
-        ) : tattooCount === 0 && !loading ? (
-          <Box sx={{ textAlign: 'center', py: 6 }}>
-            <Typography sx={{
-              color: colors.textPrimary,
-              fontSize: '1.25rem',
-              fontWeight: 500,
-              mb: 1
-            }}>
-              Nothing matches that search
-            </Typography>
-            <Typography sx={{
-              color: colors.textSecondary,
-              fontSize: '0.95rem',
-              mb: 3
-            }}>
-              Try removing some filters to see more results
-            </Typography>
-            {activeFilters.length > 0 && (
-              <Button
-                onClick={() => {
-                  setSearchParams({
-                    ...initialSearchParams,
-                    subject: 'tattoos'
-                  });
-                  setDismissedStyles([]);
-                }}
-                sx={{
-                  color: colors.accent,
-                  borderColor: colors.accent,
-                  border: '1px solid',
-                  textTransform: 'none',
-                  px: 3,
-                  '&:hover': {
-                    bgcolor: `${colors.accent}1A`,
-                    borderColor: colors.accent
-                  }
-                }}
-              >
-                Clear all filters
-              </Button>
-            )}
-          </Box>
+        ) : tattooCount === 0 && unclaimedStudios.length === 0 && !loading ? (
+          // Show "founding artists" CTA when live site is empty (no demo mode, no restrictive filters)
+          // Only count non-default filters as restrictive
+          !isDemoMode && activeFilters.filter(f => !(f as any).isDefault).length === 0 ? (
+            <Box sx={{ py: 6 }}>
+              <EmptyStateFoundingArtist />
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <Typography sx={{
+                color: colors.textPrimary,
+                fontSize: '1.25rem',
+                fontWeight: 500,
+                mb: 1
+              }}>
+                Nothing matches that search
+              </Typography>
+              <Typography sx={{
+                color: colors.textSecondary,
+                fontSize: '0.95rem',
+                mb: 3
+              }}>
+                Try removing some filters to see more results
+              </Typography>
+              {activeFilters.length > 0 && (
+                <Button
+                  onClick={() => {
+                    setSearchParams({
+                      ...initialSearchParams,
+                      subject: 'tattoos'
+                    });
+                    setDismissedStyles([]);
+                  }}
+                  sx={{
+                    color: colors.accent,
+                    borderColor: colors.accent,
+                    border: '1px solid',
+                    textTransform: 'none',
+                    px: 3,
+                    '&:hover': {
+                      bgcolor: `${colors.accent}1A`,
+                      borderColor: colors.accent
+                    }
+                  }}
+                >
+                  Clear all filters
+                </Button>
+              )}
+            </Box>
+          )
         ) : (
           <Box sx={{
             display: 'grid',
@@ -681,15 +722,20 @@ export default function TattoosPage() {
             },
             gap: '1.25rem'
           }}>
-            {tattoos &&
-              Array.isArray(tattoos) &&
-              tattoos.map((tattoo: any) => (
+            {interleavedResults.map((item, index) => (
+              item.type === 'tattoo' ? (
                 <TattooCard
-                  key={tattoo.id}
-                  tattoo={tattoo}
+                  key={`tattoo-${item.data.id}`}
+                  tattoo={item.data}
                   onTattooClick={handleTattooClick}
                 />
-              ))}
+              ) : (
+                <UnclaimedStudioCard
+                  key={`unclaimed-${item.data.id}`}
+                  studio={item.data}
+                />
+              )
+            ))}
           </Box>
         )}
       </Box>

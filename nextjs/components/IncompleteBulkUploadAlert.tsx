@@ -13,6 +13,7 @@ export default function IncompleteBulkUploadAlert() {
   const { isAuthenticated, user } = useAuth();
   const { listUploads } = useBulkUpload();
   const [incompleteUpload, setIncompleteUpload] = useState<BulkUpload | null>(null);
+  const [incompleteCount, setIncompleteCount] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [checked, setChecked] = useState(false);
 
@@ -34,11 +35,12 @@ export default function IncompleteBulkUploadAlert() {
     const checkUploads = async () => {
       try {
         const uploads = await listUploads();
-        // Find first incomplete upload (not completed, not failed)
-        const incomplete = uploads.find(
-          (u) => u.status !== 'completed' && u.status !== 'failed'
+        // Find incomplete uploads (not completed, not failed, not deleting)
+        const incompleteUploads = uploads.filter(
+          (u) => u.status !== 'completed' && u.status !== 'failed' && u.status !== 'deleting'
         );
-        setIncompleteUpload(incomplete || null);
+        setIncompleteCount(incompleteUploads.length);
+        setIncompleteUpload(incompleteUploads[0] || null);
       } catch (err) {
         // Silently fail - this is a non-critical feature
         console.error('Failed to check bulk uploads:', err);
@@ -63,26 +65,68 @@ export default function IncompleteBulkUploadAlert() {
   }
 
   const getStatusMessage = () => {
-    const { status, unprocessed_count, ready_count, processed_images, total_images } = incompleteUpload;
+    if (!incompleteUpload) return '';
+
+    // If multiple incomplete uploads, show generic message
+    if (incompleteCount > 1) {
+      return `You have ${incompleteCount} bulk uploads in progress`;
+    }
+
+    const { status, ready_count, processed_images, total_images, cataloged_images, published_images } = incompleteUpload;
 
     if (status === 'scanning') {
-      return 'Your bulk upload is being scanned';
+      return 'Scanning your ZIP file for images...';
     }
 
-    if (status === 'processing' || unprocessed_count > 0) {
-      return `Processing images (${processed_images}/${total_images})`;
+    if (status === 'cataloged') {
+      return `Found ${cataloged_images} images - ready to add styles and tags`;
     }
 
-    if (ready_count > 0) {
-      return `${ready_count} tattoo${ready_count !== 1 ? 's' : ''} ready to publish`;
+    if (status === 'processing') {
+      return `Processing images (${processed_images}/${total_images})...`;
+    }
+
+    if (status === 'incomplete') {
+      const remaining = cataloged_images - published_images;
+      return `${published_images} published, ${remaining} remaining`;
+    }
+
+    if (status === 'ready' && ready_count > 0) {
+      return `${ready_count} tattoo${ready_count !== 1 ? 's' : ''} ready to publish!`;
     }
 
     // Processed but nothing ready - need to add styles/placements
-    if (processed_images > 0) {
-      return `${processed_images} images need review`;
+    if (processed_images > 0 && ready_count === 0) {
+      return `${processed_images} images need styles and tags before publishing`;
     }
 
     return 'You have an incomplete bulk upload';
+  };
+
+  const getLinkHref = () => {
+    // If multiple uploads, go to the list page
+    if (incompleteCount > 1) {
+      return '/bulk-upload';
+    }
+    // If scanning or processing, go to the list page to see progress
+    if (incompleteUpload?.status === 'scanning' || incompleteUpload?.status === 'processing') {
+      return '/bulk-upload';
+    }
+    // Otherwise go directly to the upload
+    return `/bulk-upload/${incompleteUpload?.id}`;
+  };
+
+  const getLinkText = () => {
+    if (incompleteCount > 1) {
+      return 'View all';
+    }
+    if (incompleteUpload?.status === 'scanning' || incompleteUpload?.status === 'processing') {
+      return 'View progress';
+    }
+    if (incompleteUpload?.status === 'ready') {
+      return 'Review and publish';
+    }
+    return 'Continue';
   };
 
   return (
@@ -107,10 +151,10 @@ export default function IncompleteBulkUploadAlert() {
       <Typography variant="body1" sx={{ color: colors.textSecondary }}>
         {getStatusMessage()} -{' '}
         <Link
-          href={`/bulk-upload/${incompleteUpload.id}`}
+          href={getLinkHref()}
           style={{ color: colors.warning, textDecoration: 'underline' }}
         >
-          Continue where you left off
+          {getLinkText()}
         </Link>
       </Typography>
       <IconButton

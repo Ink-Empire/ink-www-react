@@ -37,6 +37,7 @@ export default function BulkUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -61,18 +62,38 @@ export default function BulkUploadPage() {
     }
   }, [isAuthenticated, loadUploads]);
 
+  // Auto-refresh when there are active uploads
+  useEffect(() => {
+    const hasActiveUploads = uploads.some(
+      (u) => u.status === 'scanning' || u.status === 'processing'
+    );
+
+    if (hasActiveUploads) {
+      const interval = setInterval(() => {
+        loadUploads();
+      }, 5000); // Refresh every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [uploads, loadUploads]);
+
   const handleFileSelect = async (file: File, source: 'instagram' | 'manual') => {
     setUploading(true);
     setUploadProgress(0);
     setError(null);
+    setSuccessMessage(null);
 
     try {
-      const upload = await uploadZip(file, source, (progress) => {
+      await uploadZip(file, source, (progress) => {
         setUploadProgress(progress);
       });
 
-      // Redirect to the review page
-      router.push(`/bulk-upload/${upload.id}`);
+      // Stay on page and show success - refresh uploads list
+      setSuccessMessage(
+        'Upload received! We\'re scanning your ZIP file to find images. This usually takes 1-2 minutes. ' +
+        'Once ready, you\'ll be able to add styles and tags before publishing. You can leave this page and come back anytime.'
+      );
+      setUploading(false);
+      loadUploads();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
       setUploading(false);
@@ -104,8 +125,12 @@ export default function BulkUploadPage() {
         return 'success';
       case 'completed':
         return 'success';
+      case 'incomplete':
+        return 'warning';
       case 'failed':
         return 'error';
+      case 'deleting':
+        return 'default';
       default:
         return 'default';
     }
@@ -114,7 +139,7 @@ export default function BulkUploadPage() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'scanning':
-        return 'Scanning ZIP...';
+        return 'Scanning...';
       case 'cataloged':
         return 'Ready to Process';
       case 'processing':
@@ -123,10 +148,37 @@ export default function BulkUploadPage() {
         return 'Ready to Review';
       case 'completed':
         return 'Completed';
+      case 'incomplete':
+        return 'Incomplete';
       case 'failed':
         return 'Failed';
+      case 'deleting':
+        return 'Deleting...';
       default:
         return status;
+    }
+  };
+
+  const getStatusDescription = (upload: BulkUpload) => {
+    switch (upload.status) {
+      case 'scanning':
+        return 'Finding images in your ZIP file...';
+      case 'cataloged':
+        return `Found ${upload.cataloged_images} images. Click Continue to add styles and tags.`;
+      case 'processing':
+        return `Processing ${upload.processed_images} of ${upload.cataloged_images} images...`;
+      case 'ready':
+        return `${upload.ready_count} images ready to publish. Click Continue to review and publish.`;
+      case 'completed':
+        return `${upload.published_images} tattoos published to your portfolio.`;
+      case 'incomplete':
+        return `${upload.published_images} published, ${upload.cataloged_images - upload.published_images} remaining. Click Continue to finish.`;
+      case 'failed':
+        return upload.error_message || 'Something went wrong. Please try again.';
+      case 'deleting':
+        return 'Cleaning up files...';
+      default:
+        return '';
     }
   };
 
@@ -134,8 +186,10 @@ export default function BulkUploadPage() {
     switch (status) {
       case 'scanning':
       case 'processing':
+      case 'deleting':
         return { bgcolor: colors.infoDim, color: colors.info, border: `1px solid ${colors.info}` };
       case 'cataloged':
+      case 'incomplete':
         return { bgcolor: colors.warningDim, color: colors.warning, border: `1px solid ${colors.warning}` };
       case 'ready':
       case 'completed':
@@ -218,6 +272,22 @@ export default function BulkUploadPage() {
           Import your tattoo portfolio from Instagram or upload a ZIP of images
         </Typography>
 
+        {successMessage && (
+          <Alert
+            severity="success"
+            sx={{
+              mb: 3,
+              bgcolor: colors.successDim,
+              color: colors.success,
+              border: `1px solid ${colors.success}`,
+              '& .MuiAlert-icon': { color: colors.success },
+            }}
+            onClose={() => setSuccessMessage(null)}
+          >
+            {successMessage}
+          </Alert>
+        )}
+
         {error && (
           <Alert
             severity="error"
@@ -234,37 +304,9 @@ export default function BulkUploadPage() {
           </Alert>
         )}
 
-        {/* Upload Section */}
-        {uploading ? (
-          <Card sx={{ mb: 4, bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
-            <CardContent sx={{ textAlign: 'center', py: 4 }}>
-              <CircularProgress size={48} sx={{ mb: 2, color: colors.accent }} />
-              <Typography variant="h6" sx={{ mb: 2, color: colors.textPrimary }}>
-                Uploading...
-              </Typography>
-              <LinearProgress
-                variant="determinate"
-                value={uploadProgress}
-                sx={{
-                  maxWidth: 400,
-                  mx: 'auto',
-                  mb: 1,
-                  bgcolor: colors.background,
-                  '& .MuiLinearProgress-bar': { bgcolor: colors.accent },
-                }}
-              />
-              <Typography variant="body2" sx={{ color: colors.textSecondary }}>
-                {uploadProgress}% complete
-              </Typography>
-            </CardContent>
-          </Card>
-        ) : (
-          <UploadDropzone onFileSelect={handleFileSelect} />
-        )}
-
-        {/* Existing Uploads */}
+        {/* Existing Uploads - show first if user has uploads */}
         {uploads.length > 0 && (
-          <Box sx={{ mt: 4 }}>
+          <Box sx={{ mb: 4 }}>
             <Typography variant="h6" sx={{ mb: 2, color: colors.textPrimary }}>
               Your Uploads
             </Typography>
@@ -301,24 +343,14 @@ export default function BulkUploadPage() {
                           size="small"
                           sx={getStatusChipSx(upload.status)}
                         />
-                        <Typography variant="body2" sx={{ color: colors.textSecondary }}>
-                          {upload.cataloged_images} images found
-                        </Typography>
-                        {upload.processed_images > 0 && (
-                          <Typography variant="body2" sx={{ color: colors.textSecondary }}>
-                            &bull; {upload.processed_images} processed
-                          </Typography>
-                        )}
-                        {upload.published_images > 0 && (
-                          <Typography variant="body2" sx={{ color: colors.textSecondary }}>
-                            &bull; {upload.published_images} published
-                          </Typography>
-                        )}
                       </Box>
+                      <Typography variant="body2" sx={{ color: colors.textSecondary, mt: 1 }}>
+                        {getStatusDescription(upload)}
+                      </Typography>
                     </Box>
 
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      {upload.status !== 'failed' && upload.status !== 'completed' && (
+                      {upload.status !== 'failed' && upload.status !== 'completed' && upload.status !== 'deleting' && (
                         <Button
                           variant="contained"
                           size="small"
@@ -346,13 +378,15 @@ export default function BulkUploadPage() {
                           View
                         </Button>
                       )}
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDelete(upload.id)}
-                        sx={{ color: colors.error }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                      {upload.status !== 'deleting' && (
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(upload.id)}
+                          sx={{ color: colors.error }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      )}
                     </Box>
                   </Box>
 
@@ -370,11 +404,11 @@ export default function BulkUploadPage() {
                     </Alert>
                   )}
 
-                  {(upload.status === 'cataloged' || upload.status === 'ready') && (
+                  {(upload.status === 'cataloged' || upload.status === 'ready' || upload.status === 'processing') && (
                     <Box sx={{ mt: 2 }}>
                       <LinearProgress
                         variant="determinate"
-                        value={(upload.processed_images / upload.cataloged_images) * 100}
+                        value={upload.cataloged_images > 0 ? (upload.processed_images / upload.cataloged_images) * 100 : 0}
                         sx={{
                           height: 8,
                           borderRadius: 1,
@@ -391,6 +425,34 @@ export default function BulkUploadPage() {
               </Card>
             ))}
           </Box>
+        )}
+
+        {/* Upload Section */}
+        {uploading ? (
+          <Card sx={{ mb: 4, bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
+            <CardContent sx={{ textAlign: 'center', py: 4 }}>
+              <CircularProgress size={48} sx={{ mb: 2, color: colors.accent }} />
+              <Typography variant="h6" sx={{ mb: 2, color: colors.textPrimary }}>
+                Uploading...
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={uploadProgress}
+                sx={{
+                  maxWidth: 400,
+                  mx: 'auto',
+                  mb: 1,
+                  bgcolor: colors.background,
+                  '& .MuiLinearProgress-bar': { bgcolor: colors.accent },
+                }}
+              />
+              <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                {uploadProgress}% complete
+              </Typography>
+            </CardContent>
+          </Card>
+        ) : (
+          <UploadDropzone onFileSelect={handleFileSelect} />
         )}
 
         {/* Help Section */}

@@ -101,16 +101,20 @@ export default function BulkUploadReviewPage() {
     }
   }, [isAuthenticated, id, loadUpload, loadItems]);
 
-  // Auto-refresh while processing - refresh both upload and items
+  // Auto-refresh while processing
   useEffect(() => {
-    if (upload?.status === 'scanning' || upload?.status === 'processing') {
+    const isProcessing = upload?.status === 'scanning' || upload?.status === 'processing';
+    // Also poll if we have no items loaded but upload exists and isn't failed
+    const needsItemRefresh = upload && items.length === 0 && upload.status !== 'failed' && upload.status !== 'completed';
+
+    if (isProcessing || needsItemRefresh) {
       const interval = setInterval(() => {
         loadUpload();
         loadItems();
-      }, 2000); // Poll every 2 seconds during processing
+      }, 5000); // Poll every 5 seconds
       return () => clearInterval(interval);
     }
-  }, [upload?.status, loadUpload, loadItems]);
+  }, [upload?.status, items.length, loadUpload, loadItems]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -143,16 +147,41 @@ export default function BulkUploadReviewPage() {
 
     setPublishing(true);
     setError(null);
+
     try {
       const result = await publish(upload.id);
       // Show success snackbar
       setSnackbar({
         open: true,
-        message: `Successfully published ${result.count || count} tattoo${(result.count || count) !== 1 ? 's' : ''} to your portfolio!`,
+        message: `Publishing ${result.count || count} tattoo${(result.count || count) !== 1 ? 's' : ''}...`,
         type: 'success',
       });
-      // Refresh immediately
-      await Promise.all([loadUpload(), loadItems()]);
+
+      // Poll until publish job completes (ready_count changes)
+      const originalReadyCount = upload.ready_count;
+      const pollForCompletion = async (attempts = 0) => {
+        if (attempts > 15) return; // Stop after 30 seconds
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await loadUpload();
+        await loadItems();
+
+        // Check if the upload data has changed
+        const currentUpload = await getUpload(Number(id));
+        if (currentUpload.ready_count !== originalReadyCount ||
+            currentUpload.status === 'completed' ||
+            currentUpload.status === 'incomplete') {
+          // Publishing completed, final refresh
+          await loadUpload();
+          await loadItems();
+          return;
+        }
+
+        // Continue polling
+        pollForCompletion(attempts + 1);
+      };
+
+      pollForCompletion();
     } catch (err) {
       setSnackbar({
         open: true,
@@ -302,6 +331,20 @@ export default function BulkUploadReviewPage() {
             onItemClick={handleItemClick}
             onPageChange={setPage}
           />
+        ) : (upload?.status === 'scanning' || upload?.status === 'processing') ? (
+          <Card sx={{ bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
+            <CardContent sx={{ textAlign: 'center', py: 8 }}>
+              <CircularProgress size={48} sx={{ color: colors.accent, mb: 3 }} />
+              <Typography variant="h6" sx={{ color: colors.textPrimary, mb: 1 }}>
+                {upload?.status === 'scanning' ? 'Scanning ZIP file...' : 'Processing images...'}
+              </Typography>
+              <Typography sx={{ color: colors.textSecondary }}>
+                {upload?.status === 'scanning'
+                  ? 'Finding images in your upload. This may take a moment.'
+                  : `Processing ${upload?.processed_images || 0} of ${upload?.total_images || 0} images...`}
+              </Typography>
+            </CardContent>
+          </Card>
         ) : (
           <Card sx={{ bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
             <CardContent sx={{ textAlign: 'center', py: 6 }}>

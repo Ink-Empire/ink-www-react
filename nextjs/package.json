@@ -6,7 +6,18 @@
     "dev": "next dev -p 4000",
     "build": "next build",
     "start": "next start -p 4000",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:bulk-upload": "playwright test bulk-upload-performance",
+    "test:bulk-upload:small": "TEST_IMAGE_COUNT=50 TEST_IMAGE_SIZE=small playwright test bulk-upload-performance --headed",
+    "test:bulk-upload:medium": "TEST_IMAGE_COUNT=200 TEST_IMAGE_SIZE=small playwright test bulk-upload-performance --headed",
+    "test:bulk-upload:large": "TEST_IMAGE_COUNT=500 TEST_IMAGE_SIZE=small playwright test bulk-upload-performance --headed",
+    "test:bulk-upload:stress": "TEST_IMAGE_COUNT=1000 TEST_IMAGE_SIZE=medium playwright test bulk-upload-performance --headed",
+    "test:generate-zip": "npx ts-node tests/e2e/utils/test-zip-generator.ts",
+    "test:report": "playwright show-report tests/reports"
   },
   "dependencies": {
     "@capacitor/geolocation": "^7.1.1",
@@ -20,6 +31,7 @@
     "@mui/icons-material": "^7.0.1",
     "@mui/joy": "^5.0.0-beta.52",
     "@mui/material": "^7.0.1",
+    "@vercel/analytics": "^1.6.1",
     "axios": "^1.6.7",
     "date-fns": "^4.1.0",
     "next": "^14.1.0",
@@ -30,17 +42,22 @@
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.50.1",
     "react-native-geolocation-service": "^5.3.1",
+    "resend": "^6.7.0",
     "swr": "^2.3.6",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/google.maps": "^3.58.1",
     "@types/node": "^20.11.24",
     "@types/react": "^18.2.63",
     "@types/react-dom": "^18.2.19",
+    "archiver": "^6.0.1",
     "autoprefixer": "^10.4.17",
+    "dotenv": "^17.2.3",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.17",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
 }

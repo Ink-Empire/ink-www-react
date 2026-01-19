@@ -16,12 +16,19 @@ import {
   List,
   ListItem,
   ListItemText,
+  ListItemIcon,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Menu,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 import InboxIcon from '@mui/icons-material/Inbox';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import PersonIcon from '@mui/icons-material/Person';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import LogoutIcon from '@mui/icons-material/Logout';
 import LogoText from './LogoText';
 import { colors } from '@/styles/colors';
 
@@ -40,6 +47,7 @@ const Navbar: React.FC = () => {
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
     // Support both object format (image.uri) and string format for backwards compatibility
@@ -172,8 +180,7 @@ const Navbar: React.FC = () => {
                 </IconButton>
 
                 <Button
-                  component={Link}
-                  href="/profile"
+                  onClick={(e) => setProfileMenuAnchor(e.currentTarget)}
                   startIcon={
                     <Avatar
                       src={avatarUrl || undefined}
@@ -197,21 +204,69 @@ const Navbar: React.FC = () => {
                   {getDisplayName()}
                 </Button>
 
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleLogout}
-                  sx={{
-                    color: colors.textPrimary,
-                    borderColor: colors.textSecondary,
-                    '&:hover': {
-                      borderColor: colors.textPrimary,
-                      backgroundColor: 'transparent'
+                <Menu
+                  anchorEl={profileMenuAnchor}
+                  open={Boolean(profileMenuAnchor)}
+                  onClose={() => setProfileMenuAnchor(null)}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  PaperProps={{
+                    sx: {
+                      bgcolor: colors.surface,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 2,
+                      mt: 1,
+                      minWidth: 180,
                     }
                   }}
                 >
-                  Log out
-                </Button>
+                  {user?.slug && user?.type_id !== 1 && user?.type_id !== '1' && user?.type !== 'client' && user?.type !== 'user' && (
+                    <MenuItem
+                      component={Link}
+                      href={`/artists/${user.slug}`}
+                      onClick={() => setProfileMenuAnchor(null)}
+                      sx={{
+                        color: colors.textPrimary,
+                        '&:hover': { bgcolor: `${colors.accent}1A` }
+                      }}
+                    >
+                      <ListItemIcon>
+                        <PersonIcon sx={{ color: colors.textSecondary }} />
+                      </ListItemIcon>
+                      <ListItemText primary="My Profile" />
+                    </MenuItem>
+                  )}
+                  <MenuItem
+                    component={Link}
+                    href="/dashboard"
+                    onClick={() => setProfileMenuAnchor(null)}
+                    sx={{
+                      color: colors.textPrimary,
+                      '&:hover': { bgcolor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemIcon>
+                      <DashboardIcon sx={{ color: colors.textSecondary }} />
+                    </ListItemIcon>
+                    <ListItemText primary="Dashboard" />
+                  </MenuItem>
+                  <Divider sx={{ borderColor: colors.border, my: 0.5 }} />
+                  <MenuItem
+                    onClick={() => {
+                      setProfileMenuAnchor(null);
+                      handleLogout();
+                    }}
+                    sx={{
+                      color: colors.textPrimary,
+                      '&:hover': { bgcolor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemIcon>
+                      <LogoutIcon sx={{ color: colors.textSecondary }} />
+                    </ListItemIcon>
+                    <ListItemText primary="Log out" />
+                  </MenuItem>
+                </Menu>
               </Stack>
             ) : (
               <Stack direction="row" spacing={2}>
@@ -285,7 +340,7 @@ const Navbar: React.FC = () => {
                   </Badge>
                 </IconButton>
 
-                <IconButton component={Link} href="/profile" size="small">
+                <IconButton component={Link} href={user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user' ? '/dashboard' : '/profile'} size="small">
                   <Avatar
                     src={avatarUrl || undefined}
                     alt={getDisplayName()}
@@ -401,7 +456,7 @@ const Navbar: React.FC = () => {
               <>
                 <ListItem
                   component={Link}
-                  href="/profile"
+                  href={user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user' ? '/dashboard' : '/profile'}
                   onClick={() => setMobileMenuOpen(false)}
                   sx={{
                     borderRadius: 1,

@@ -85,6 +85,14 @@ export default function BatchProgress({
             sx={{ bgcolor: colors.successDim, color: colors.success, border: `1px solid ${colors.success}` }}
           />
         );
+      case 'incomplete':
+        return (
+          <Chip
+            label="Incomplete"
+            size="small"
+            sx={{ bgcolor: colors.warningDim, color: colors.warning, border: `1px solid ${colors.warning}` }}
+          />
+        );
       case 'failed':
         return (
           <Chip
@@ -220,6 +228,12 @@ export default function BatchProgress({
           {upload.status === 'completed' && (
             <Typography variant="body2" sx={{ color: colors.success, alignSelf: 'center' }}>
               All images have been published!
+            </Typography>
+          )}
+
+          {upload.status === 'incomplete' && upload.ready_count === 0 && (
+            <Typography variant="body2" sx={{ color: colors.warning, alignSelf: 'center' }}>
+              Add styles and tags to more images to continue publishing.
             </Typography>
           )}
         </Box>

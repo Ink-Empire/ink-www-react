@@ -6,19 +6,23 @@ import { useTheme, useMediaQuery } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloseIcon from '@mui/icons-material/Close';
 import ArtistCard from '../../components/ArtistCard';
+import UnclaimedStudioCard from '../../components/UnclaimedStudioCard';
 import SearchFilters from '../../components/SearchFilters';
 import Layout from '../../components/Layout';
-import { useArtists } from '@/hooks';
+import { useArtists, UnclaimedStudio } from '@/hooks';
 import { useUserData } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStyles } from '@/contexts/StyleContext';
 import { useTags } from '@/contexts/TagContext';
 import { distancePreferences } from '@/utils/distancePreferences';
 import { colors } from '@/styles/colors';
+import { useDemoMode } from '@/contexts/DemoModeContext';
+import EmptyStateFoundingArtist from '@/components/EmptyStateFoundingArtist';
 
 export default function ArtistList() {
     const user = useUserData();
     const { isAuthenticated } = useAuth();
+    const { isDemoMode } = useDemoMode();
     const { styles } = useStyles();
     const { tags } = useTags();
     const theme = useTheme();
@@ -60,7 +64,7 @@ export default function ArtistList() {
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
     const [sortBy, setSortBy] = useState('relevant');
     const [loginModalOpen, setLoginModalOpen] = useState(false);
-    const { artists, loading, error } = useArtists(searchParams);
+    const { artists, unclaimedStudios, loading, error } = useArtists(searchParams);
 
     // Handle filter changes from SearchFilters component
     const handleFilterChange = (filters: {
@@ -120,6 +124,13 @@ export default function ArtistList() {
                 // Fallback to user's saved profile location
                 newParams.studio_near_me = user.location_lat_long;
                 newParams.artist_near_me = user.location_lat_long;
+                // Also set locationCoords for Google Places search
+                const lat = user.location_lat_long.latitude ?? user.location_lat_long.lat;
+                const lng = user.location_lat_long.longitude ?? user.location_lat_long.lng;
+                if (lat && lng) {
+                    newParams.locationCoords = { lat, lng };
+                    newParams.locationCoordsString = `${lat},${lng}`;
+                }
             }
             newParams.studios = user?.studios;
         } else if (filters.useAnyLocation) {
@@ -164,7 +175,8 @@ export default function ArtistList() {
         if (searchParams.useMyLocation) {
             filters.push({ label: 'Near me', key: 'location' });
         } else if (searchParams.useAnyLocation) {
-            filters.push({ label: 'Anywhere', key: 'location' });
+            // "Anywhere" is shown but marked as non-restrictive (default state)
+            filters.push({ label: 'Anywhere', key: 'location', isDefault: true });
         } else if (searchParams.location) {
             filters.push({ label: searchParams.location, key: 'location' });
         }
@@ -221,6 +233,37 @@ export default function ArtistList() {
 
     const activeFilters = getActiveFilters();
     const artistCount = artists?.length || 0;
+
+    const getInterleavedResults = () => {
+        if (!artists || artists.length === 0) return [];
+        if (!unclaimedStudios || unclaimedStudios.length === 0) {
+            return artists.map(artist => ({ type: 'artist' as const, data: artist }));
+        }
+
+        const results: Array<{ type: 'artist' | 'unclaimed'; data: any }> = [];
+        let unclaimedIndex = 0;
+        const insertInterval = 4; // Insert unclaimed studio after every 4 artists
+
+        artists.forEach((artist, index) => {
+            results.push({ type: 'artist', data: artist });
+
+            // After every insertInterval artists, add an unclaimed studio if available
+            if ((index + 1) % insertInterval === 0 && unclaimedIndex < unclaimedStudios.length) {
+                results.push({ type: 'unclaimed', data: unclaimedStudios[unclaimedIndex] });
+                unclaimedIndex++;
+            }
+        });
+
+        // Add any remaining unclaimed studios at the end
+        while (unclaimedIndex < unclaimedStudios.length) {
+            results.push({ type: 'unclaimed', data: unclaimedStudios[unclaimedIndex] });
+            unclaimedIndex++;
+        }
+
+        return results;
+    };
+
+    const interleavedResults = getInterleavedResults();
 
     return (
         <Layout>
@@ -408,46 +451,54 @@ export default function ArtistList() {
                         <Typography sx={{ color: colors.error }}>Error: {error.message}</Typography>
                     </Box>
                 ) : artistCount === 0 && !loading ? (
-                    <Box sx={{ textAlign: 'center', py: 6 }}>
-                        <Typography sx={{
-                            color: colors.textPrimary,
-                            fontSize: '1.25rem',
-                            fontWeight: 500,
-                            mb: 1
-                        }}>
-                            Nothing matches that search
-                        </Typography>
-                        <Typography sx={{
-                            color: colors.textSecondary,
-                            fontSize: '0.95rem',
-                            mb: 3
-                        }}>
-                            Try removing some filters to see more results
-                        </Typography>
-                        {activeFilters.length > 0 && (
-                            <Button
-                                onClick={() => {
-                                    setSearchParams({
-                                        ...initialFilters,
-                                        subject: 'artists'
-                                    });
-                                }}
-                                sx={{
-                                    color: colors.accent,
-                                    borderColor: colors.accent,
-                                    border: '1px solid',
-                                    textTransform: 'none',
-                                    px: 3,
-                                    '&:hover': {
-                                        bgcolor: `${colors.accent}1A`,
-                                        borderColor: colors.accent
-                                    }
-                                }}
-                            >
-                                Clear all filters
-                            </Button>
-                        )}
-                    </Box>
+                    // Show "founding artists" CTA when live site is empty (no demo mode, no restrictive filters)
+                    // Only count non-default filters as restrictive
+                    !isDemoMode && activeFilters.filter(f => !(f as any).isDefault).length === 0 ? (
+                        <Box sx={{ py: 6 }}>
+                            <EmptyStateFoundingArtist />
+                        </Box>
+                    ) : (
+                        <Box sx={{ textAlign: 'center', py: 6 }}>
+                            <Typography sx={{
+                                color: colors.textPrimary,
+                                fontSize: '1.25rem',
+                                fontWeight: 500,
+                                mb: 1
+                            }}>
+                                Nothing matches that search
+                            </Typography>
+                            <Typography sx={{
+                                color: colors.textSecondary,
+                                fontSize: '0.95rem',
+                                mb: 3
+                            }}>
+                                Try removing some filters to see more results
+                            </Typography>
+                            {activeFilters.length > 0 && (
+                                <Button
+                                    onClick={() => {
+                                        setSearchParams({
+                                            ...initialFilters,
+                                            subject: 'artists'
+                                        });
+                                    }}
+                                    sx={{
+                                        color: colors.accent,
+                                        borderColor: colors.accent,
+                                        border: '1px solid',
+                                        textTransform: 'none',
+                                        px: 3,
+                                        '&:hover': {
+                                            bgcolor: `${colors.accent}1A`,
+                                            borderColor: colors.accent
+                                        }
+                                    }}
+                                >
+                                    Clear all filters
+                                </Button>
+                            )}
+                        </Box>
+                    )
                 ) : (
                     <Box sx={{
                         display: 'grid',
@@ -457,13 +508,20 @@ export default function ArtistList() {
                         },
                         gap: '1.25rem'
                     }}>
-                        {artists && artists.map((artist) => (
+                        {interleavedResults.map((item, index) => (
+                            item.type === 'artist' ? (
                                 <ArtistCard
-                                    key={artist.id}
-                                    artist={artist}
+                                    key={`artist-${item.data.id}`}
+                                    artist={item.data}
                                     onSaveClick={handleArtistSaveClick}
                                 />
-                            ))}
+                            ) : (
+                                <UnclaimedStudioCard
+                                    key={`unclaimed-${item.data.id}`}
+                                    studio={item.data}
+                                />
+                            )
+                        ))}
                     </Box>
                 )}
             </Box>

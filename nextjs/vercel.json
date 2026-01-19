@@ -4,19 +4,6 @@
   "outputDirectory": ".next",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
-  "env": {
-    "NEXT_PUBLIC_API_URL": "https://api.inkedin.dev"
-  },
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://api.inkedin.dev/api/:path*"
-    },
-    {
-      "source": "/sanctum/:path*",
-      "destination": "https://api.inkedin.dev/sanctum/:path*"
-    }
-  ],
   "functions": {
     "pages/api/**/*.js": {
       "maxDuration": 30

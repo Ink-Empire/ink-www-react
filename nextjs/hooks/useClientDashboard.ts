@@ -31,6 +31,7 @@ export interface SuggestedArtist {
   studio: { id: number; name: string } | null;
   styles: { id: number; name: string }[];
   books_open: boolean;
+  is_demo?: boolean;
 }
 
 export interface WishlistArtist extends SuggestedArtist {

@@ -312,22 +312,31 @@ const RegisterPage: React.FC = () => {
           }
         }
 
+        // Create tattoo lead for clients with intent data
+        if (data.userType === 'client' && data.tattooIntent && data.tattooIntent.timing) {
+          try {
+            console.log('Creating tattoo lead...');
+            await api.post('/leads', {
+              timing: data.tattooIntent.timing,
+              allow_artist_contact: data.tattooIntent.allowArtistContact,
+              style_ids: data.selectedStyles,
+              tag_ids: data.tattooIntent.selectedTags,
+              custom_themes: data.tattooIntent.customThemes || [],
+              description: data.tattooIntent.description || '',
+            });
+            console.log('Tattoo lead created successfully');
+          } catch (leadErr) {
+            console.error('Failed to create tattoo lead:', leadErr);
+            // Continue even if lead creation fails
+          }
+        }
+
         // Redirect to appropriate page based on user type
         if (data.userType === 'artist') {
           router.push('/dashboard');
-        } else if (data.userType === 'client' && data.selectedStyles && data.selectedStyles.length > 0) {
-          // For clients with selected styles, redirect to tattoos page with filters
-          const params = new URLSearchParams();
-          params.set('styles', data.selectedStyles.join(','));
-
-          // If they have a location, add location filter with 50 mile radius
-          if (data.userDetails?.locationLatLong) {
-            params.set('locationCoords', data.userDetails.locationLatLong);
-            params.set('distance', '50');
-            params.set('newUser', 'true'); // Flag to enable fallback if no results
-          }
-
-          router.push(`/tattoos?${params.toString()}`);
+        } else if (data.userType === 'client') {
+          // Redirect clients to tattoos page (styles are saved to their profile)
+          router.push('/tattoos');
         } else {
           router.push('/');
         }
