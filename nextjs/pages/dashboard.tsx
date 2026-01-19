@@ -3,7 +3,11 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
-import {Box, Typography, Button, Avatar, Switch, TextField, IconButton, CircularProgress, Divider, Menu, MenuItem, ListItemIcon, ListItemText} from '@mui/material';
+import {Box, Typography, Button, Avatar, Switch, TextField, IconButton, CircularProgress, Divider, Menu, MenuItem, ListItemIcon, ListItemText, Dialog, DialogContent, DialogTitle} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import EmailIcon from '@mui/icons-material/Email';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -129,6 +133,24 @@ interface Tattoo {
   images?: { uri?: string }[];
 }
 
+interface LeadUser {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  image?: { uri?: string } | string;
+  location?: string;
+}
+
+interface Lead {
+  id: number;
+  timing: string | null;
+  timing_label: string;
+  description?: string;
+  custom_themes?: string[];
+  user: LeadUser;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { user, isAuthenticated, refreshUser } = useAuth();
@@ -154,6 +176,11 @@ export default function Dashboard() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [artistTattoos, setArtistTattoos] = useState<Tattoo[]>([]);
   const [isLoadingTattoos, setIsLoadingTattoos] = useState(false);
+
+  // Leads for artists to reach out to
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   // Dashboard stats and schedule (fetched from API)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(defaultStats);
@@ -196,6 +223,23 @@ export default function Dashboard() {
       loadArtistTattoos();
     }
   }, [user?.id]);
+
+  // Load leads for artists
+  useEffect(() => {
+    const loadLeads = async () => {
+      if (!user?.id || isClient) return;
+      setIsLoadingLeads(true);
+      try {
+        const response = await api.get<{ leads: Lead[] }>('/leads/for-artists', { requiresAuth: true });
+        setLeads(response.leads || []);
+      } catch (err) {
+        console.error('Failed to load leads:', err);
+      } finally {
+        setIsLoadingLeads(false);
+      }
+    };
+    loadLeads();
+  }, [user?.id, isClient]);
 
   // Load dashboard stats and schedule
   useEffect(() => {
@@ -645,11 +689,57 @@ export default function Dashboard() {
               </Box>
             </Card>
 
+            {/* Clients to Reach Out To */}
+            {activeTab === 'artist' && (
+              <Card
+                title="Clients to Reach Out To"
+                subtitle="People looking for their next tattoo"
+                icon={<PersonAddIcon />}
+              >
+                {isLoadingLeads ? (
+                  <Box sx={{ display: 'flex', gap: 2, p: 2, overflowX: 'auto' }}>
+                    {[1, 2, 3, 4].map((i) => (
+                      <Box key={i} sx={{ minWidth: 120, textAlign: 'center' }}>
+                        <Box sx={{ width: 64, height: 64, borderRadius: '50%', bgcolor: colors.background, mx: 'auto', mb: 1 }} />
+                        <Box sx={{ width: 80, height: 12, bgcolor: colors.background, mx: 'auto', mb: 0.5 }} />
+                        <Box sx={{ width: 60, height: 10, bgcolor: colors.background, mx: 'auto' }} />
+                      </Box>
+                    ))}
+                  </Box>
+                ) : leads.length > 0 ? (
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 2,
+                    p: 2,
+                    overflowX: 'auto',
+                    '&::-webkit-scrollbar': { height: 6 },
+                    '&::-webkit-scrollbar-track': { bgcolor: colors.background, borderRadius: 3 },
+                    '&::-webkit-scrollbar-thumb': { bgcolor: colors.border, borderRadius: 3 },
+                  }}>
+                    {leads.map((lead) => (
+                      <LeadCard key={lead.id} lead={lead} onClick={() => setSelectedLead(lead)} />
+                    ))}
+                  </Box>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <PersonAddIcon sx={{ fontSize: 32, color: colors.textMuted, mb: 1 }} />
+                    <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem', mb: 0.5 }}>
+                      No leads available yet
+                    </Typography>
+                    <Typography sx={{ color: colors.textMuted, fontSize: '0.8rem' }}>
+                      Check back soon for people looking for tattoos
+                    </Typography>
+                  </Box>
+                )}
+              </Card>
+            )}
+
             {/* Your Saved Artists */}
             {activeTab === 'artist' && (
               <Card
                 title="Your Saved Artists"
                 action={<CardLink href="/artists">Browse More →</CardLink>}
+                icon={<BookmarkIcon />}
               >
                 {savedArtistsLoading ? (
                   <Box sx={{ display: 'flex', gap: 2, p: 2, overflowX: 'auto' }}>
@@ -811,15 +901,6 @@ export default function Dashboard() {
                     >
                       Change Password
                     </Button>
-                  </Box>
-                </Card>
-
-                {/* Clients to Reach Out To */}
-                <Card title="Clients to Reach Out To">
-                  <Box sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
-                      Client insights coming soon
-                    </Typography>
                   </Box>
                 </Card>
 
@@ -1469,6 +1550,171 @@ export default function Dashboard() {
         }}
       />
 
+      {/* Lead Detail Modal */}
+      <Dialog
+        open={!!selectedLead}
+        onClose={() => setSelectedLead(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            border: `1px solid ${colors.accent}50`,
+            borderRadius: '16px',
+            boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 80px ${colors.accent}30`,
+          }
+        }}
+      >
+        {selectedLead && (
+          <>
+            <DialogTitle sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: `1px solid ${colors.border}`,
+              pb: 2,
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar
+                  src={typeof selectedLead.user.image === 'string' ? selectedLead.user.image : selectedLead.user.image?.uri}
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {selectedLead.user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                </Avatar>
+                <Box>
+                  <Typography sx={{ fontWeight: 600, fontSize: '1.1rem', color: colors.textPrimary }}>
+                    {selectedLead.user.name || selectedLead.user.username}
+                  </Typography>
+                  {selectedLead.user.location && (
+                    <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted }}>
+                      {selectedLead.user.location}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+              <IconButton onClick={() => setSelectedLead(null)} sx={{ color: colors.textMuted }}>
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent sx={{ pt: 3 }}>
+              {/* Timeline */}
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <ScheduleIcon sx={{ color: colors.accent, fontSize: 20 }} />
+                  <Typography sx={{ fontWeight: 600, color: colors.textPrimary }}>
+                    Timeline
+                  </Typography>
+                </Box>
+                <Box sx={{
+                  px: 2,
+                  py: 1.5,
+                  bgcolor: `${colors.accent}15`,
+                  borderRadius: '8px',
+                  border: `1px solid ${colors.accent}30`,
+                }}>
+                  <Typography sx={{ color: colors.textPrimary, fontWeight: 500 }}>
+                    {selectedLead.timing_label}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* What they're looking for */}
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <LocalOfferIcon sx={{ color: colors.accent, fontSize: 20 }} />
+                  <Typography sx={{ fontWeight: 600, color: colors.textPrimary }}>
+                    What they're looking for
+                  </Typography>
+                </Box>
+                <Box sx={{
+                  px: 2,
+                  py: 1.5,
+                  bgcolor: colors.background,
+                  borderRadius: '8px',
+                  border: `1px solid ${colors.border}`,
+                }}>
+                  {selectedLead.description ? (
+                    <Typography sx={{ color: colors.textPrimary, mb: selectedLead.custom_themes?.length ? 1.5 : 0 }}>
+                      {selectedLead.description}
+                    </Typography>
+                  ) : null}
+                  {selectedLead.custom_themes && selectedLead.custom_themes.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                      {selectedLead.custom_themes.map((theme, idx) => (
+                        <Box key={idx} sx={{
+                          px: 1.5,
+                          py: 0.5,
+                          bgcolor: `${colors.accent}20`,
+                          borderRadius: '100px',
+                          fontSize: '0.8rem',
+                          color: colors.accent,
+                          fontWeight: 500,
+                        }}>
+                          {theme}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                  {!selectedLead.description && (!selectedLead.custom_themes || selectedLead.custom_themes.length === 0) && (
+                    <Typography sx={{ color: colors.textMuted, fontStyle: 'italic' }}>
+                      No specific details provided
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Email */}
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <EmailIcon sx={{ color: colors.accent, fontSize: 20 }} />
+                  <Typography sx={{ fontWeight: 600, color: colors.textPrimary }}>
+                    Contact
+                  </Typography>
+                </Box>
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  px: 2,
+                  py: 1.5,
+                  bgcolor: colors.background,
+                  borderRadius: '8px',
+                  border: `1px solid ${colors.border}`,
+                }}>
+                  <Typography sx={{ color: colors.textPrimary }}>
+                    {selectedLead.user.email}
+                  </Typography>
+                  <Button
+                    href={`mailto:${selectedLead.user.email}`}
+                    sx={{
+                      px: 2,
+                      py: 0.75,
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      borderRadius: '6px',
+                      textTransform: 'none',
+                      fontWeight: 500,
+                      fontSize: '0.85rem',
+                      '&:hover': { bgcolor: colors.accentHover },
+                    }}
+                    startIcon={<EmailIcon sx={{ fontSize: 16 }} />}
+                  >
+                    Send Email
+                  </Button>
+                </Box>
+              </Box>
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
+
       {/* Hidden file input for avatar upload */}
       <input
         ref={avatarInputRef}
@@ -1540,14 +1786,17 @@ function StatCard({ icon, value, label, trend, trendUp }: {
   trend?: string;
   trendUp?: boolean;
 }) {
+  const cardShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 50px ${colors.accent}25`;
+
   return (
     <Box sx={{
       bgcolor: colors.surface,
-      border: `1px solid ${colors.border}`,
+      border: `1px solid ${colors.accent}35`,
       borderRadius: '12px',
       p: 2,
-      transition: 'border-color 0.2s',
-      '&:hover': { borderColor: colors.borderLight }
+      boxShadow: cardShadow,
+      transition: 'all 0.2s',
+      '&:hover': { borderColor: colors.accent }
     }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
         <Box sx={{
@@ -1587,18 +1836,22 @@ function StatCard({ icon, value, label, trend, trendUp }: {
 }
 
 // Card Component
-function Card({ title, subtitle, action, children }: {
+function Card({ title, subtitle, action, children, icon }: {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
+  icon?: React.ReactNode;
 }) {
+  const cardShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 50px ${colors.accent}25`;
+
   return (
     <Box sx={{
       bgcolor: colors.surface,
-      border: `1px solid ${colors.border}`,
+      border: `1px solid ${colors.accent}35`,
       borderRadius: '12px',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      boxShadow: cardShadow,
     }}>
       <Box sx={{
         display: 'flex',
@@ -1607,15 +1860,22 @@ function Card({ title, subtitle, action, children }: {
         p: 2,
         borderBottom: `1px solid ${colors.border}`
       }}>
-        <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary }}>
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted, mt: 0.25 }}>
-              {subtitle}
-            </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          {icon && (
+            <Box sx={{ color: colors.accent }}>
+              {icon}
+            </Box>
           )}
+          <Box>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary }}>
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted, mt: 0.25 }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
         </Box>
         {action}
       </Box>
@@ -2045,6 +2305,93 @@ function SavedArtistCard({ artist, onRemove }: { artist: WishlistArtist; onRemov
           Books Closed
         </Box>
       )}
+    </Box>
+  );
+}
+
+// Lead Card Component for artist dashboard - matches SavedArtistCard style
+function LeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
+  const userInitials = lead.user.name
+    ? lead.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : lead.user.username?.slice(0, 2).toUpperCase() || '??';
+
+  const imageUrl = typeof lead.user.image === 'string' ? lead.user.image : lead.user.image?.uri;
+
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        minWidth: 140,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        p: 2,
+        bgcolor: colors.background,
+        border: `1px solid ${colors.border}`,
+        borderRadius: '10px',
+        transition: 'all 0.2s',
+        cursor: 'pointer',
+        '&:hover': {
+          borderColor: colors.accent,
+          transform: 'translateY(-2px)',
+        }
+      }}
+    >
+      <Avatar
+        src={imageUrl}
+        sx={{
+          width: 56,
+          height: 56,
+          bgcolor: colors.accent,
+          color: colors.background,
+          fontSize: '1rem',
+          fontWeight: 600,
+          mb: 1,
+        }}
+      >
+        {userInitials}
+      </Avatar>
+
+      <Typography sx={{
+        fontSize: '0.85rem',
+        fontWeight: 600,
+        color: colors.textPrimary,
+        textAlign: 'center',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        maxWidth: 120,
+      }}>
+        {lead.user.name || lead.user.username}
+      </Typography>
+
+      {lead.user.location && (
+        <Typography sx={{
+          fontSize: '0.75rem',
+          color: colors.textMuted,
+          textAlign: 'center',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: 120,
+          mb: 1,
+        }}>
+          {lead.user.location}
+        </Typography>
+      )}
+
+      <Box sx={{
+        px: 1.5,
+        py: 0.25,
+        bgcolor: `${colors.accent}20`,
+        borderRadius: '100px',
+        fontSize: '0.65rem',
+        fontWeight: 500,
+        color: colors.accent,
+        mt: lead.user.location ? 0 : 1,
+      }}>
+        {lead.timing_label}
+      </Box>
     </Box>
   );
 }
