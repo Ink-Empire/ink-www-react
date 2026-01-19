@@ -301,11 +301,9 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         </Card>
       </Box>
 
-      {/* Artists You Might Like - filter out demo artists when not in demo mode */}
+      {/* Artists You Might Like - always filter out demo artists on dashboard */}
       {(() => {
-        const filteredArtists = isDemoMode
-          ? suggestedArtists
-          : suggestedArtists.filter(a => !a.is_demo);
+        const filteredArtists = suggestedArtists.filter(a => !a.is_demo);
         if (filteredArtists.length === 0) return null;
         return (
           <Card
