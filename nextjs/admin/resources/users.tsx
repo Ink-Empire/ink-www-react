@@ -40,6 +40,7 @@ const userFilters = [
     key="type"
   />,
   <BooleanInput source="is_admin" label="Admin Only" key="admin" />,
+  <BooleanInput source="is_demo" label="Demo Users" key="demo" />,
 ];
 
 const ListActions = () => (
@@ -63,6 +64,7 @@ export const UserList = () => (
       <TextField source="username" />
       <UserTypeField source="type_id" label="Type" />
       <BooleanField source="is_admin" label="Admin" />
+      <BooleanField source="is_demo" label="Demo" />
       <TextField source="location" />
       <DateField source="created_at" label="Created" />
       <EditButton />
@@ -80,6 +82,7 @@ export const UserEdit = () => (
       <TextInput source="username" />
       <SelectInput source="type_id" choices={userTypeChoices} label="User Type" />
       <BooleanInput source="is_admin" label="Admin" />
+      <BooleanInput source="is_demo" label="Demo User" />
       <TextInput source="phone" />
       <TextInput source="location" />
       <TextInput source="about" multiline rows={4} />
@@ -96,6 +99,7 @@ export const UserCreate = () => (
       <TextInput source="username" />
       <SelectInput source="type_id" choices={userTypeChoices} label="User Type" defaultValue={1} required />
       <BooleanInput source="is_admin" label="Admin" />
+      <BooleanInput source="is_demo" label="Demo User" />
       <TextInput source="phone" />
       <TextInput source="location" />
       <TextInput source="about" multiline rows={4} />
