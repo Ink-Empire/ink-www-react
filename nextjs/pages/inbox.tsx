@@ -545,6 +545,7 @@ export default function InboxPage() {
     sendBookingCard,
     sendDepositRequest,
     markAsRead,
+    updateAppointmentStatus,
   } = useConversation(selectedConversationId || undefined);
 
   const userInitials = user?.name
@@ -621,6 +622,12 @@ export default function InboxPage() {
   const handleRespondToBooking = async (action: 'accept' | 'decline', reason?: string) => {
     if (!selectedConversation?.appointment?.id) return;
 
+    const previousStatus = selectedConversation.appointment.status;
+    const newStatus = action === 'accept' ? 'booked' : 'cancelled';
+
+    // Optimistically update the UI immediately
+    updateAppointmentStatus(newStatus);
+
     if (action === 'accept') {
       setAcceptingBooking(true);
     } else {
@@ -643,10 +650,14 @@ export default function InboxPage() {
         severity: 'success',
       });
 
-      // Refresh conversations to update the status
+      // Refresh conversations in background to sync full state
       fetchConversations();
     } catch (error: any) {
       console.error(`Failed to ${action} booking:`, error);
+
+      // Revert optimistic update on error
+      updateAppointmentStatus(previousStatus);
+
       setSnackbar({
         open: true,
         message: error?.message || `Failed to ${action} booking. Please try again.`,
