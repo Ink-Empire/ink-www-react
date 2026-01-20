@@ -46,8 +46,6 @@ export default function BookingModal({
   const { showError, showSuccess } = useDialog();
   const router = useRouter();
 
-  console.log("user", user);
-
   const handleLoginClick = () => {
     onClose();
     router.push('/login');
