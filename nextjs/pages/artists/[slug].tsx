@@ -15,6 +15,9 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import EmailIcon from '@mui/icons-material/Email';
+import SmsIcon from '@mui/icons-material/Sms';
 import { useArtist } from '../../hooks';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooCreateWizard from '@/components/TattooCreateWizard';
@@ -39,6 +42,8 @@ export default function ArtistDetail() {
     const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
     const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
 
     // Booking info edit state
     const [isEditingBookingInfo, setIsEditingBookingInfo] = useState(false);
@@ -263,6 +268,49 @@ export default function ArtistDetail() {
             return;
         }
         // TODO: Implement save artist functionality
+    };
+
+    const handleShareProfile = async () => {
+        const shareUrl = window.location.href;
+        const shareTitle = `${artist?.name} on InkedIn`;
+        const shareText = `Check out ${artist?.name}'s tattoo portfolio on InkedIn`;
+
+        // Try native Web Share API first (works on mobile and some desktop browsers)
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                    url: shareUrl,
+                });
+                return;
+            } catch (err) {
+                // User cancelled or share failed, fall back to modal
+                if ((err as Error).name !== 'AbortError') {
+                    setShareModalOpen(true);
+                }
+            }
+        } else {
+            // No native share, show modal
+            setShareModalOpen(true);
+        }
+    };
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(window.location.href);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+    };
+
+    const handleShareViaEmail = () => {
+        const subject = encodeURIComponent(`Check out ${artist?.name} on InkedIn`);
+        const body = encodeURIComponent(`I thought you might like this tattoo artist:\n\n${artist?.name}\n${window.location.href}`);
+        window.open(`mailto:?subject=${subject}&body=${body}`);
+    };
+
+    const handleShareViaSMS = () => {
+        const text = encodeURIComponent(`Check out ${artist?.name}'s tattoo portfolio: ${window.location.href}`);
+        window.open(`sms:?body=${text}`);
     };
 
     if (artistLoading) {
@@ -994,7 +1042,7 @@ export default function ArtistDetail() {
                                         { icon: <EventAvailableIcon sx={{ fontSize: '1.25rem' }} />, label: 'View Availability', onClick: () => handleTabChange(1) },
                                         { icon: <ChatBubbleOutlineIcon sx={{ fontSize: '1.25rem' }} />, label: 'Send Message', onClick: handleMessageArtist },
                                         { icon: <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: 'Save Artist', onClick: handleSaveArtist },
-                                        { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: 'Share Profile', onClick: () => navigator.clipboard.writeText(window.location.href) }
+                                        { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: 'Share Profile', onClick: handleShareProfile }
                                     ].map((action, idx) => (
                                         <Box
                                             key={idx}
@@ -1144,6 +1192,99 @@ export default function ArtistDetail() {
                             }}
                         >
                             Sign Up
+                        </Button>
+                    </Box>
+                </Paper>
+            </Modal>
+
+            {/* Share Profile Modal */}
+            <Modal
+                open={shareModalOpen}
+                onClose={() => setShareModalOpen(false)}
+                aria-labelledby="share-profile-modal"
+            >
+                <Paper sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 400,
+                    maxWidth: '90%',
+                    bgcolor: colors.surface,
+                    boxShadow: 24,
+                    borderRadius: 2,
+                    p: 4
+                }}>
+                    <IconButton
+                        onClick={() => setShareModalOpen(false)}
+                        sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            color: colors.textSecondary
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+
+                    <Typography sx={{
+                        fontFamily: '"Cormorant Garamond", Georgia, serif',
+                        fontSize: '1.5rem',
+                        fontWeight: 500,
+                        color: colors.textPrimary,
+                        mb: 3,
+                        textAlign: 'center'
+                    }}>
+                        Share Profile
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <Button
+                            onClick={handleCopyLink}
+                            startIcon={linkCopied ? <CheckIcon /> : <ContentCopyIcon />}
+                            sx={{
+                                justifyContent: 'flex-start',
+                                color: linkCopied ? colors.accent : colors.textPrimary,
+                                border: `1px solid ${linkCopied ? colors.accent : colors.border}`,
+                                textTransform: 'none',
+                                py: 1.5,
+                                px: 2,
+                                '&:hover': { borderColor: colors.accent, bgcolor: `${colors.accent}1A` }
+                            }}
+                        >
+                            {linkCopied ? 'Link Copied!' : 'Copy Link'}
+                        </Button>
+
+                        <Button
+                            onClick={handleShareViaEmail}
+                            startIcon={<EmailIcon />}
+                            sx={{
+                                justifyContent: 'flex-start',
+                                color: colors.textPrimary,
+                                border: `1px solid ${colors.border}`,
+                                textTransform: 'none',
+                                py: 1.5,
+                                px: 2,
+                                '&:hover': { borderColor: colors.accent, bgcolor: `${colors.accent}1A` }
+                            }}
+                        >
+                            Share via Email
+                        </Button>
+
+                        <Button
+                            onClick={handleShareViaSMS}
+                            startIcon={<SmsIcon />}
+                            sx={{
+                                justifyContent: 'flex-start',
+                                color: colors.textPrimary,
+                                border: `1px solid ${colors.border}`,
+                                textTransform: 'none',
+                                py: 1.5,
+                                px: 2,
+                                '&:hover': { borderColor: colors.accent, bgcolor: `${colors.accent}1A` }
+                            }}
+                        >
+                            Share via Text
                         </Button>
                     </Box>
                 </Paper>
