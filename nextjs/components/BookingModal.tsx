@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, Paper, Typography, FormControl, InputLabel, Select, MenuItem, TextField, Button, Alert } from '@mui/material';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
 import { api } from '../utils/api';
 import { colors } from '@/styles/colors';
+import { formatTimeSlotWithClientTime, getClientTimezone, getTimezoneLabel, areTimezonesEqual } from '../utils/timezone';
 
 interface ArtistSettings {
   id: number;
@@ -24,6 +25,7 @@ interface BookingModalProps {
   selectedDate: Date | null;
   selectedWorkingHours: any;
   artistId?: number;
+  artistTimezone?: string;
   settings?: ArtistSettings;
   bookingType: string | null;
 }
@@ -34,6 +36,7 @@ export default function BookingModal({
   selectedDate,
   selectedWorkingHours,
   artistId,
+  artistTimezone,
   settings,
   bookingType: initialBookingType
 }: BookingModalProps) {
@@ -45,6 +48,13 @@ export default function BookingModal({
   const { user, isAuthenticated } = useAuth();
   const { showError, showSuccess } = useDialog();
   const router = useRouter();
+
+  // Timezone handling
+  const clientTimezone = useMemo(() => getClientTimezone(), []);
+  const showTimezoneConversion = useMemo(
+    () => artistTimezone && !areTimezonesEqual(artistTimezone, clientTimezone),
+    [artistTimezone, clientTimezone]
+  );
 
   const handleLoginClick = () => {
     onClose();
@@ -278,6 +288,9 @@ export default function BookingModal({
             {selectedWorkingHours && (
               <Typography variant="body2" sx={{ mb: 3, color: '#888' }}>
                 Artist's hours: {selectedWorkingHours.start_time?.slice(0, 5)} - {selectedWorkingHours.end_time?.slice(0, 5)}
+                {artistTimezone && showTimezoneConversion && (
+                  <span style={{ marginLeft: 4 }}>({getTimezoneLabel(artistTimezone)})</span>
+                )}
               </Typography>
             )}
 
@@ -332,11 +345,17 @@ export default function BookingModal({
                   }}
                 >
                   {availableTimeSlots.map((slot) => (
-                    <MenuItem key={slot} value={slot}>{slot}</MenuItem>
+                    <MenuItem key={slot} value={slot}>
+                      {selectedDate
+                        ? formatTimeSlotWithClientTime(slot, selectedDate, artistTimezone, clientTimezone)
+                        : slot}
+                    </MenuItem>
                   ))}
                 </Select>
                 <Typography variant="caption" sx={{ color: '#666', mt: 0.5, mb: 2, display: 'block' }}>
-                  The artist may suggest a different time based on their availability
+                  {showTimezoneConversion
+                    ? 'Times shown in artist\'s timezone with your local time in parentheses'
+                    : 'The artist may suggest a different time based on their availability'}
                 </Typography>
               </FormControl>
             )}

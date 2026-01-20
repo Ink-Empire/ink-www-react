@@ -28,6 +28,7 @@ export interface ArtistType {
     primaryImageId?: number;
     twitter?: string;
     location?: string;
+    timezone?: string;
     phone?: string;
     styles?: (string | {id: number, name: string, parent_id?: number})[];
     primary_image?: {
@@ -36,6 +37,10 @@ export interface ArtistType {
         artistId?: number;
         title?: string;
         filename?: string;
+    };
+    image?: {
+        id: number;
+        uri: string;
     };
     tattoos?: any[];
 }

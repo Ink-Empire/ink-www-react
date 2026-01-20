@@ -1158,6 +1158,7 @@ export default function ArtistDetail() {
                 selectedDate={selectedDate}
                 selectedWorkingHours={selectedWorkingHours}
                 artistId={artist?.id}
+                artistTimezone={artist?.timezone}
                 settings={artist?.settings}
                 bookingType={selectedBookingType}
             />

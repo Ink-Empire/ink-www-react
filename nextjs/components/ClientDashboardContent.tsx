@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Box, Typography, Button, Avatar, Skeleton, Switch, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Typography, Button, Avatar, Skeleton, Switch, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import CloseIcon from '@mui/icons-material/Close';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -25,6 +25,7 @@ import { api } from '@/utils/api';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 import { useStyles } from '@/contexts/StyleContext';
 import { useUser } from '@/contexts/AuthContext';
+import InfoTooltip from './InfoTooltip';
 
 interface ClientDashboardContentProps {
   userName: string;
@@ -39,6 +40,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
+  const [beaconSnackbarOpen, setBeaconSnackbarOpen] = useState(false);
   const { isDemoMode } = useDemoMode();
   const { styles, getStyleName } = useStyles();
   const { userData, updateStyles } = useUser();
@@ -121,6 +123,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
       });
       setLeadActive(true);
       setIntentDialogOpen(false);
+      setBeaconSnackbarOpen(true);
     } catch (err) {
       console.error('Failed to save lead preferences:', err);
     } finally {
@@ -256,7 +259,8 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
 
         {/* Open to New Work Toggle */}
         <Card
-          title="Open to New Work"
+          title="Let Artists Find You"
+          tooltip="With a few descriptive details, you can describe what work you're looking for, and artists in your area can contact you with quotes."
           variant={leadActive ? 'highlight' : 'default'}
           icon={<SearchIcon sx={{ color: leadActive ? colors.accent : colors.textMuted, fontSize: 20 }} />}
           compact
@@ -275,7 +279,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1.5, lineHeight: 1.4 }}>
               {leadActive
                 ? 'Artists in your area can reach out to you'
-                : 'Turn on to let artists know you\'re looking'}
+                : 'Turn on to let artists know you\'re looking for work'}
             </Typography>
             {leadLoading ? (
               <CircularProgress size={24} sx={{ color: colors.accent }} />
@@ -603,12 +607,34 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           </Box>
         </DialogContent>
       </Dialog>
+
+      {/* Beacon Success Snackbar */}
+      <Snackbar
+        open={beaconSnackbarOpen}
+        autoHideDuration={10000}
+        onClose={() => setBeaconSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setBeaconSnackbarOpen(false)}
+          icon={false}
+          sx={{
+            bgcolor: colors.accent,
+            color: colors.background,
+            fontWeight: 500,
+            '& .MuiAlert-action': { color: colors.background },
+            '& .MuiAlert-action .MuiIconButton-root:hover': { bgcolor: 'rgba(0,0,0,0.1)' },
+          }}
+        >
+          <strong>Now what?</strong> Just sit back! Artists in your area will see your idea and can contact you via email with their availability and quotes.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
 
 // Card Component with variants for visual distinction
-function Card({ title, subtitle, action, children, sx = {}, variant = 'default', icon, compact = false }: {
+function Card({ title, subtitle, action, children, sx = {}, variant = 'default', icon, compact = false, tooltip }: {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
@@ -617,6 +643,7 @@ function Card({ title, subtitle, action, children, sx = {}, variant = 'default',
   variant?: 'default' | 'highlight' | 'elevated' | 'accent-left' | 'info-left' | 'subtle';
   icon?: React.ReactNode;
   compact?: boolean;
+  tooltip?: string;
 }) {
   const cardShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 50px ${colors.accent}25`;
   const highlightShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 60px ${colors.accent}35`;
@@ -673,9 +700,12 @@ function Card({ title, subtitle, action, children, sx = {}, variant = 'default',
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {icon}
           <Box>
-            <Typography sx={{ fontSize: compact ? '0.9rem' : '1rem', fontWeight: 600, color: colors.textPrimary }}>
-              {title}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography sx={{ fontSize: compact ? '0.9rem' : '1rem', fontWeight: 600, color: colors.textPrimary }}>
+                {title}
+              </Typography>
+              {tooltip && <InfoTooltip text={tooltip} />}
+            </Box>
             {subtitle && (
               <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted, mt: 0.25 }}>
                 {subtitle}
