@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
-import { Box, Button, Modal, Paper, IconButton, Typography, Avatar, TextField, InputAdornment, CircularProgress } from '@mui/material';
+import { Box, Button, Modal, Paper, IconButton, Typography, Avatar, TextField, InputAdornment, CircularProgress, Switch } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
 import EditIcon from '@mui/icons-material/Edit';
 import ImageIcon from '@mui/icons-material/Image';
@@ -54,6 +54,7 @@ export default function ArtistDetail() {
         hourly_rate: '',
         minimum_session: '',
         deposit_amount: '',
+        accepts_consultations: false,
     });
 
     // Initialize booking info form when artist loads
@@ -64,9 +65,25 @@ export default function ArtistDetail() {
                 hourly_rate: String(artist.settings.hourly_rate || ''),
                 minimum_session: String(artist.settings.minimum_session || ''),
                 deposit_amount: String(artist.settings.deposit_amount || artist.settings.deposit || ''),
+                accepts_consultations: artist.settings.accepts_consultations || false,
             });
         }
     }, [artist?.settings]);
+
+    // Record profile view when artist loads
+    useEffect(() => {
+        if (artist?.id) {
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/artists/${artist.id}/view`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(localStorage.getItem('auth_token') && {
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    })
+                },
+            }).catch(err => console.error('Failed to record profile view:', err));
+        }
+    }, [artist?.id]);
 
     const handleStartEditBookingInfo = () => {
         if (artist?.settings) {
@@ -75,6 +92,7 @@ export default function ArtistDetail() {
                 hourly_rate: String(artist.settings.hourly_rate || ''),
                 minimum_session: String(artist.settings.minimum_session || ''),
                 deposit_amount: String(artist.settings.deposit_amount || artist.settings.deposit || ''),
+                accepts_consultations: artist.settings.accepts_consultations || false,
             });
         }
         setIsEditingBookingInfo(true);
@@ -90,6 +108,7 @@ export default function ArtistDetail() {
                 hourly_rate: String(artist.settings.hourly_rate || ''),
                 minimum_session: String(artist.settings.minimum_session || ''),
                 deposit_amount: String(artist.settings.deposit_amount || artist.settings.deposit || ''),
+                accepts_consultations: artist.settings.accepts_consultations || false,
             });
         }
     };
@@ -124,6 +143,7 @@ export default function ArtistDetail() {
                     hourly_rate: Number(bookingInfoForm.hourly_rate) || 0,
                     minimum_session: Number(bookingInfoForm.minimum_session) || 0,
                     deposit_amount: Number(bookingInfoForm.deposit_amount) || 0,
+                    accepts_consultations: bookingInfoForm.accepts_consultations,
                 }),
             });
 
@@ -952,6 +972,32 @@ export default function ArtistDetail() {
                                             />
                                         </Box>
 
+                                        <Box sx={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            mb: 1.5,
+                                            py: 1,
+                                            borderTop: `1px solid ${colors.border}`,
+                                            mt: 1
+                                        }}>
+                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+                                                Accepts Consultations
+                                            </Typography>
+                                            <Switch
+                                                checked={bookingInfoForm.accepts_consultations}
+                                                onChange={(e) => setBookingInfoForm({ ...bookingInfoForm, accepts_consultations: e.target.checked })}
+                                                sx={{
+                                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                                        color: colors.accent,
+                                                    },
+                                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                                        backgroundColor: colors.accent,
+                                                    },
+                                                }}
+                                            />
+                                        </Box>
+
                                         {bookingInfoError && (
                                             <Typography sx={{ color: colors.error, fontSize: '0.8rem', mb: 1 }}>
                                                 {bookingInfoError}
@@ -992,20 +1038,20 @@ export default function ArtistDetail() {
                                     /* Display Mode */
                                     <>
                                         {[
-                                            {
+                                            ...(bookingInfoForm.accepts_consultations ? [{
                                                 label: 'Consultation',
                                                 value: Number(bookingInfoForm.consultation_fee) > 0 ? `$${bookingInfoForm.consultation_fee}` : 'Free',
                                                 accent: !bookingInfoForm.consultation_fee || Number(bookingInfoForm.consultation_fee) === 0
-                                            },
+                                            }] : []),
                                             { label: 'Hourly Rate', value: Number(bookingInfoForm.hourly_rate) > 0 ? `$${bookingInfoForm.hourly_rate} USD` : 'Not set' },
                                             { label: 'Min. Session', value: Number(bookingInfoForm.minimum_session) > 0 ? `${bookingInfoForm.minimum_session} hours` : 'Not set' },
                                             { label: 'Deposit', value: Number(bookingInfoForm.deposit_amount) > 0 ? `$${bookingInfoForm.deposit_amount} USD` : 'Not set' }
-                                        ].map((item, idx) => (
+                                        ].map((item, idx, arr) => (
                                             <Box key={item.label} sx={{
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
                                                 py: 1,
-                                                borderBottom: idx < 3 ? `1px solid ${colors.border}` : 'none',
+                                                borderBottom: idx < arr.length - 1 ? `1px solid ${colors.border}` : 'none',
                                                 fontSize: '0.9rem'
                                             }}>
                                                 <Typography sx={{ color: colors.textSecondary }}>{item.label}</Typography>

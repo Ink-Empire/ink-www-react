@@ -17,6 +17,7 @@ import {
   KeyboardArrowDown as ArrowDownIcon,
   Sync as SyncIcon,
   LinkOff as DisconnectIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { colors } from '@/styles/colors';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
@@ -126,7 +127,9 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
     );
   }
 
-  // Connected state
+  // Connected state (may need reauth)
+  const needsReauth = status?.requires_reauth;
+
   return (
     <>
       <Button
@@ -136,26 +139,28 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
           py: 1,
           bgcolor: 'transparent',
           color: colors.textPrimary,
-          border: `1px solid ${colors.border}`,
+          border: `1px solid ${needsReauth ? '#f59e0b' : colors.border}`,
           borderRadius: '6px',
           textTransform: 'none',
           fontWeight: 500,
           fontSize: '0.9rem',
           '&:hover': {
-            borderColor: colors.accent,
+            borderColor: needsReauth ? '#f59e0b' : colors.accent,
             bgcolor: 'rgba(255,255,255,0.02)',
           },
         }}
         startIcon={
           isSyncing ? (
             <CircularProgress size={16} sx={{ color: colors.accent }} />
+          ) : needsReauth ? (
+            <WarningIcon sx={{ fontSize: 16, color: '#f59e0b' }} />
           ) : (
             <CheckIcon sx={{ fontSize: 16, color: colors.accent }} />
           )
         }
         endIcon={<ArrowDownIcon sx={{ fontSize: 18 }} />}
       >
-        Google Calendar
+        {needsReauth ? 'Calendar Issue' : 'Google Calendar'}
       </Button>
 
       <Menu
@@ -180,6 +185,24 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
           },
         }}
       >
+        {/* Warning if reauth needed */}
+        {needsReauth && (
+          <>
+            <Box sx={{ px: 2, py: 1.5, bgcolor: 'rgba(245, 158, 11, 0.1)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <WarningIcon sx={{ fontSize: 16, color: '#f59e0b' }} />
+                <Typography sx={{ fontSize: '0.875rem', color: '#f59e0b', fontWeight: 500 }}>
+                  Re-authentication Required
+                </Typography>
+              </Box>
+              <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted }}>
+                Your calendar connection has expired. Please disconnect and reconnect to restore sync.
+              </Typography>
+            </Box>
+            <Divider sx={{ borderColor: colors.border }} />
+          </>
+        )}
+
         {/* Connected account info */}
         <Box sx={{ px: 2, py: 1.5 }}>
           <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 0.5 }}>
@@ -195,28 +218,54 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
 
         <Divider sx={{ borderColor: colors.border }} />
 
-        <MenuItem
-          onClick={handleSync}
-          disabled={isSyncing}
-          sx={{
-            py: 1.5,
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <ListItemIcon>
-            {isSyncing ? (
-              <CircularProgress size={18} sx={{ color: colors.accent }} />
-            ) : (
-              <SyncIcon sx={{ color: colors.textSecondary, fontSize: 20 }} />
-            )}
-          </ListItemIcon>
-          <ListItemText
-            primary={isSyncing ? 'Syncing...' : 'Sync Now'}
-            primaryTypographyProps={{
-              sx: { fontSize: '0.875rem', color: colors.textPrimary }
+        {!needsReauth && (
+          <MenuItem
+            onClick={handleSync}
+            disabled={isSyncing}
+            sx={{
+              py: 1.5,
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
             }}
-          />
-        </MenuItem>
+          >
+            <ListItemIcon>
+              {isSyncing ? (
+                <CircularProgress size={18} sx={{ color: colors.accent }} />
+              ) : (
+                <SyncIcon sx={{ color: colors.textSecondary, fontSize: 20 }} />
+              )}
+            </ListItemIcon>
+            <ListItemText
+              primary={isSyncing ? 'Syncing...' : 'Sync Now'}
+              primaryTypographyProps={{
+                sx: { fontSize: '0.875rem', color: colors.textPrimary }
+              }}
+            />
+          </MenuItem>
+        )}
+
+        {needsReauth && (
+          <MenuItem
+            onClick={async () => {
+              handleClose();
+              await disconnect();
+              connect();
+            }}
+            sx={{
+              py: 1.5,
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
+            }}
+          >
+            <ListItemIcon>
+              <GoogleIcon sx={{ color: '#f59e0b', fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Reconnect Calendar"
+              primaryTypographyProps={{
+                sx: { fontSize: '0.875rem', color: '#f59e0b', fontWeight: 500 }
+              }}
+            />
+          </MenuItem>
+        )}
 
         <MenuItem
           onClick={handleDisconnect}

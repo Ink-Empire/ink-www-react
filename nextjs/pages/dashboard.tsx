@@ -274,7 +274,7 @@ export default function Dashboard() {
             viewsTrend: stats.views_trend || '+0%',
             savesThisWeek: stats.saves_this_week || 0,
             savesTrend: stats.saves_trend || '+0',
-            unreadMessages: 0 // TODO: Add unread messages API
+            unreadMessages: stats.unread_messages || 0
           });
         }
 

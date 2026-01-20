@@ -270,8 +270,14 @@ export default function BookingModal({
             )}
             
             {selectedDate && (
-              <Typography variant="body1" sx={{ mb: 3 }}>
+              <Typography variant="body1" sx={{ mb: 1 }}>
                 Date: {selectedDate.toLocaleDateString()}
+              </Typography>
+            )}
+
+            {selectedWorkingHours && (
+              <Typography variant="body2" sx={{ mb: 3, color: '#888' }}>
+                Artist's hours: {selectedWorkingHours.start_time?.slice(0, 5)} - {selectedWorkingHours.end_time?.slice(0, 5)}
               </Typography>
             )}
 
@@ -305,7 +311,7 @@ export default function BookingModal({
             
             {/* Time slot selection - only show if books are open */}
             {booksOpen && (
-              <FormControl fullWidth sx={{ mb: 3 }}>
+              <FormControl fullWidth sx={{ mb: 1 }}>
                 <InputLabel id="time-slot-label" sx={{ color: '#888' }}>Select Time</InputLabel>
                 <Select
                   labelId="time-slot-label"
@@ -329,6 +335,9 @@ export default function BookingModal({
                     <MenuItem key={slot} value={slot}>{slot}</MenuItem>
                   ))}
                 </Select>
+                <Typography variant="caption" sx={{ color: '#666', mt: 0.5, mb: 2, display: 'block' }}>
+                  The artist may suggest a different time based on their availability
+                </Typography>
               </FormControl>
             )}
             
