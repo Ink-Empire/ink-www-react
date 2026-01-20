@@ -34,6 +34,7 @@ export interface Appointment {
   title: string | null;
   description: string | null;
   placement: string | null;
+  timezone: string | null;
 }
 
 export interface ApiConversation {

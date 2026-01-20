@@ -935,7 +935,30 @@ export default function InboxPage() {
                         Booking Request
                       </Typography>
                       <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                        {selectedConversation.appointment.date} at {selectedConversation.appointment.start_time}
+                        {(() => {
+                          // Combine date and time for proper formatting
+                          const dateStr = selectedConversation.appointment.date?.split('T')[0] || '';
+                          const timeStr = selectedConversation.appointment.start_time || '00:00:00';
+                          const tz = selectedConversation.appointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+                          // Create datetime string and format it
+                          const datetime = new Date(`${dateStr}T${timeStr}`);
+                          const formattedDate = datetime.toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            timeZone: tz
+                          });
+                          const formattedTime = datetime.toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true,
+                            timeZone: tz
+                          });
+
+                          return `${formattedDate} at ${formattedTime}`;
+                        })()}
                         {selectedConversation.appointment.title && ` · ${selectedConversation.appointment.title}`}
                         {selectedConversation.appointment.placement && ` · ${selectedConversation.appointment.placement}`}
                       </Typography>
@@ -970,7 +993,7 @@ export default function InboxPage() {
                         '&:hover': { bgcolor: '#3d8a6d' },
                       }}
                     >
-                      Accept & Send Deposit
+                      {selectedConversation.type === 'consultation' ? 'Accept' : 'Accept & Request Deposit'}
                     </Button>
                   </Box>
                 </Box>
