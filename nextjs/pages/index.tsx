@@ -132,7 +132,7 @@ export default function HowItWorksPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/tattoos?search=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`/tattoos?search=${encodeURIComponent(searchQuery.trim())}&is_demo=1`);
     }
   };
 
