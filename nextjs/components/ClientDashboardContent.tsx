@@ -37,6 +37,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const [leadActive, setLeadActive] = useState(false);
   const [leadLoading, setLeadLoading] = useState(true);
   const [leadToggling, setLeadToggling] = useState(false);
+  const [artistsNotified, setArtistsNotified] = useState(0);
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
@@ -82,8 +83,9 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   useEffect(() => {
     const fetchLeadStatus = async () => {
       try {
-        const response = await api.get<{ has_lead: boolean; is_active: boolean }>('/leads/status');
+        const response = await api.get<{ has_lead: boolean; is_active: boolean; artists_notified: number }>('/leads/status');
         setLeadActive(response.is_active || false);
+        setArtistsNotified(response.artists_notified || 0);
       } catch (err) {
         console.error('Failed to fetch lead status:', err);
       } finally {
@@ -206,7 +208,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           title="Upcoming Appointments"
           icon={<CalendarMonthIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
-            <CardLink href="/appointments">
+            <CardLink href="/calendar">
               View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
             </CardLink>
           }
@@ -278,7 +280,9 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             </Typography>
             <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1.5, lineHeight: 1.4 }}>
               {leadActive
-                ? 'Artists in your area can reach out to you'
+                ? artistsNotified > 0
+                  ? `${artistsNotified} artist${artistsNotified === 1 ? '' : 's'} in your area notified`
+                  : 'Artists in your area can reach out to you'
                 : 'Turn on to let artists know you\'re looking for work'}
             </Typography>
             {leadLoading ? (
