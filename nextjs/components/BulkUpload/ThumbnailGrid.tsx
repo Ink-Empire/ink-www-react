@@ -10,10 +10,12 @@ import {
   Chip,
   Skeleton,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
 import CollectionsIcon from '@mui/icons-material/Collections';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { BulkUploadItem, ItemsResponse } from '@/hooks/useBulkUpload';
 import { colors } from '@/styles/colors';
 
@@ -30,6 +32,16 @@ export default function ThumbnailGrid({
   onItemClick,
   onPageChange,
 }: ThumbnailGridProps) {
+  // Check if an edited item is missing required details
+  const isMissingDetails = (item: BulkUploadItem): boolean => {
+    // Only show warning for items that have been edited by the user
+    if (!item.is_edited || item.is_skipped || item.is_ready_for_publish || item.is_published) {
+      return false;
+    }
+    // Required fields: placement and primary style
+    return !item.placement_id || !item.primary_style_id;
+  };
+
   const getStatusOverlay = (item: BulkUploadItem) => {
     if (item.is_published) {
       return (
@@ -80,6 +92,26 @@ export default function ThumbnailGrid({
             height: 20,
           }}
         />
+      );
+    }
+    // Show warning for processed items missing required details
+    if (isMissingDetails(item)) {
+      return (
+        <Tooltip title="Missing details" arrow placement="top">
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              bgcolor: colors.error,
+              borderRadius: '50%',
+              p: 0.5,
+              display: 'flex',
+            }}
+          >
+            <ErrorOutlineIcon sx={{ fontSize: 16, color: 'white' }} />
+          </Box>
+        </Tooltip>
       );
     }
     return null;
