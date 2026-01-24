@@ -22,8 +22,8 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
       sx={{
         position: 'fixed',
         left: 0,
-        top: '64px',
-        height: 'calc(100vh - 64px)',
+        top: { sm: '80px', lg: '140px' },
+        height: { sm: 'calc(100vh - 80px)', lg: 'calc(100vh - 140px)' },
         width: isExpanded ? '320px' : '48px',
         transition: 'width 0.3s ease, transform 0.3s ease',
         zIndex: 10,
