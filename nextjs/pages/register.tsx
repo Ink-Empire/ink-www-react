@@ -246,14 +246,15 @@ const RegisterPage: React.FC = () => {
       // Handle studio registration
       if (data.userType === 'studio') {
         // If user was already registered via early registration AND studio was created,
-        // just redirect - everything is done
+        // redirect to verify email
         if (earlyRegisteredUserId) {
-          console.log('Studio flow complete - user and studio already created, redirecting...');
-          router.push('/dashboard');
+          console.log('Studio flow complete - user and studio already created, redirecting to verify email...');
+          router.push('/verify-email');
           return;
         }
 
-        // If user logged in with existing account AND studio was created, redirect
+        // If user logged in with existing account AND studio was created, redirect to dashboard
+        // (existing users are already verified)
         if (data.studioOwner?.isAuthenticated && data.studioOwner?.existingAccountId) {
           console.log('Studio flow complete - existing user, studio created, redirecting...');
           router.push('/dashboard');
@@ -365,15 +366,9 @@ const RegisterPage: React.FC = () => {
           }
         }
 
-        // Redirect to appropriate page based on user type
-        if (data.userType === 'artist') {
-          router.push('/dashboard');
-        } else if (data.userType === 'client') {
-          // Redirect clients to tattoos page (styles are saved to their profile)
-          router.push('/tattoos');
-        } else {
-          router.push('/');
-        }
+        // Redirect to verify email page
+        // Users need to verify their email before fully using the site
+        router.push('/verify-email');
 
       } else {
         const errorData = await response.json();
@@ -548,8 +543,8 @@ const RegisterPage: React.FC = () => {
         }
       }
 
-      // Redirect to studio dashboard or profile
-      router.push('/dashboard');
+      // Redirect to verify email page (new users need to verify)
+      router.push('/verify-email');
 
     } catch (error) {
       console.error('Error during studio registration:', error);
