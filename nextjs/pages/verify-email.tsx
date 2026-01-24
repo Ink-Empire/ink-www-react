@@ -21,15 +21,23 @@ type Status = 'pending' | 'verifying' | 'verified' | 'already_verified' | 'error
 
 export default function VerifyEmailPage() {
   const router = useRouter();
-  const { refreshUser, setUserDirectly } = useAuth();
+  const { user, refreshUser, setUserDirectly } = useAuth();
   const [status, setStatus] = useState<Status>('pending');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string>('/dashboard');
+  const [resendEmail, setResendEmail] = useState<string>('');
+  const [resendLoading, setResendLoading] = useState(false);
 
   useEffect(() => {
     if (!router.isReady) return;
 
     const verifyUrl = router.query.url as string | undefined;
+    const emailFromUrl = router.query.email as string | undefined;
+
+    // Store email from URL for resend functionality
+    if (emailFromUrl) {
+      setResendEmail(emailFromUrl);
+    }
 
     // If there's a verification URL, attempt to verify
     if (verifyUrl) {
@@ -87,11 +95,19 @@ export default function VerifyEmailPage() {
   };
 
   const handleResendEmail = async () => {
+    const emailToUse = user?.email || resendEmail;
+    if (!emailToUse || !emailToUse.trim()) {
+      alert('Unable to resend email. Please try registering again or contact support.');
+      return;
+    }
+    setResendLoading(true);
     try {
-      await api.post('/email/verification-notification');
+      await api.post('/email/verification-notification', { email: emailToUse });
       alert('Verification email sent! Please check your inbox.');
     } catch (error: any) {
       alert(error.message || 'Failed to resend verification email.');
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -214,10 +230,12 @@ export default function VerifyEmailPage() {
               <Typography variant="body1" sx={{ color: colors.textSecondary, mb: 4, fontSize: '1.1rem' }}>
                 {errorMessage}
               </Typography>
+
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Button
                   variant="contained"
                   onClick={handleResendEmail}
+                  disabled={resendLoading}
                   sx={{
                     bgcolor: colors.accent,
                     color: colors.textOnLight,
@@ -226,7 +244,7 @@ export default function VerifyEmailPage() {
                     '&:hover': { bgcolor: colors.accentDark },
                   }}
                 >
-                  Resend Verification Email
+                  {resendLoading ? <CircularProgress size={24} /> : 'Resend Verification Email'}
                 </Button>
                 <Button
                   variant="outlined"
