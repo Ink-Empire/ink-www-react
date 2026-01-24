@@ -284,15 +284,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       saveUser(null);
 
       // Check for email verification required (403 with requires_verification)
-      if (err.response?.status === 403 && err.response?.data?.requires_verification) {
-        const verificationError = new Error(err.response.data.message) as any;
+      // Handle both err.response.data and err.data patterns
+      const errorData = err.response?.data || err.data || err;
+      const errorStatus = err.response?.status || err.status;
+
+      if (errorStatus === 403 && errorData?.requires_verification) {
+        const verificationError = new Error(errorData.message) as any;
         verificationError.requires_verification = true;
-        verificationError.email = err.response.data.email;
+        verificationError.email = errorData.email;
         throw verificationError;
       }
 
-      if (err.response?.status === 422) {
-        setErrors?.(err.response.data.errors);
+      // Also check if the error itself has requires_verification (direct API response)
+      if (err.requires_verification) {
+        throw err;
+      }
+
+      if (errorStatus === 422) {
+        setErrors?.(errorData.errors);
       } else {
         setErrors?.({ email: [err.message || 'Login failed. Please try again.'] });
       }

@@ -249,13 +249,19 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     
     if (contentType && contentType.indexOf('application/json') !== -1) {
       responseData = await response.json();
-      
+
       if (!response.ok) {
-        throw new Error(responseData.message || 'API request failed');
+        // Create error with full response data for proper error handling
+        const error = new Error(responseData.message || 'API request failed') as any;
+        error.status = response.status;
+        error.data = responseData;
+        throw error;
       }
     } else {
       if (!response.ok) {
-        throw new Error('API request failed');
+        const error = new Error('API request failed') as any;
+        error.status = response.status;
+        throw error;
       }
       
       responseData = await response.text();
