@@ -304,71 +304,12 @@ const RegisterPage: React.FC = () => {
         const result = await response.json();
         console.log('Registration successful:', result);
 
-        // Set the authentication token if provided
-        if (result.token) {
-          console.log('Setting token and refreshing auth state');
+        // TODO: Profile image and tattoo lead creation will be handled after email verification
+        // when the user completes their first login
 
-          // Set the new auth token
-          setToken(result.token);
-
-          // Clear the API cache to ensure fresh user data
-          api.clearUserCache();
-
-          // Set user directly from registration response
-          if (result.user && result.user.id) {
-            setUserDirectly(result.user);
-            console.log('User set directly from registration response');
-          } else {
-            // Fallback to refreshUser if user data not in response
-            try {
-              await refreshUser();
-              console.log('User authenticated and loaded in context');
-            } catch (authError) {
-              console.error('Failed to load user after registration:', authError);
-            }
-          }
-        }
-
-        // Handle profile image upload if provided - use presigned URLs for speed
-        if (data.userDetails?.profileImage && result.user?.id) {
-          try {
-            console.log('Uploading profile image via presigned URL...');
-            const uploadedImage = await uploadImageToS3(data.userDetails.profileImage, 'profile');
-            // Associate the uploaded image with the user
-            await api.post('/users/profile-photo', { image_id: uploadedImage.id });
-            console.log('Profile image uploaded via presigned URL');
-
-            // Refresh user data to include the newly uploaded image
-            await refreshUser();
-            console.log('User refreshed with new image');
-          } catch (imgErr) {
-            console.error('Failed to upload profile image:', imgErr);
-            // Continue with registration even if image upload fails
-          }
-        }
-
-        // Create tattoo lead for clients with intent data
-        if (data.userType === 'client' && data.tattooIntent && data.tattooIntent.timing) {
-          try {
-            console.log('Creating tattoo lead...');
-            await api.post('/leads', {
-              timing: data.tattooIntent.timing,
-              allow_artist_contact: data.tattooIntent.allowArtistContact,
-              style_ids: data.selectedStyles,
-              tag_ids: data.tattooIntent.selectedTags,
-              custom_themes: data.tattooIntent.customThemes || [],
-              description: data.tattooIntent.description || '',
-            });
-            console.log('Tattoo lead created successfully');
-          } catch (leadErr) {
-            console.error('Failed to create tattoo lead:', leadErr);
-            // Continue even if lead creation fails
-          }
-        }
-
-        // Redirect to verify email page
-        // Users need to verify their email before fully using the site
-        router.push('/verify-email');
+        // Redirect to verify email page with email for resend functionality
+        const email = encodeURIComponent(result.email || data.credentials?.email || '');
+        router.push(`/verify-email?email=${email}`);
 
       } else {
         const errorData = await response.json();

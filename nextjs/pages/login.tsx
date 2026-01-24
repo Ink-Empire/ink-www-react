@@ -40,12 +40,12 @@ const LoginPage: React.FC = () => {
   
   const onSubmit = async (data: FormValues) => {
     setError(null);
-    
+
     // Clear any pending error timeout
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
     }
-    
+
     try {
       await login({
         ...data,
@@ -65,6 +65,13 @@ const LoginPage: React.FC = () => {
         }
       });
     } catch (err: any) {
+      // Check if this is an email verification required error
+      if (err.requires_verification) {
+        // Redirect to verify email page with the email
+        const email = encodeURIComponent(err.email || data.email);
+        router.push(`/verify-email?email=${email}`);
+        return;
+      }
       setError(err.message || 'Login failed. Please try again.');
     }
   };

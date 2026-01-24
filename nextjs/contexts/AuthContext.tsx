@@ -283,6 +283,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       saveUser(null);
 
+      // Check for email verification required (403 with requires_verification)
+      if (err.response?.status === 403 && err.response?.data?.requires_verification) {
+        const verificationError = new Error(err.response.data.message) as any;
+        verificationError.requires_verification = true;
+        verificationError.email = err.response.data.email;
+        throw verificationError;
+      }
+
       if (err.response?.status === 422) {
         setErrors?.(err.response.data.errors);
       } else {
