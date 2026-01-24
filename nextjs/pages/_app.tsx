@@ -10,6 +10,7 @@ import { DialogProvider } from '../contexts/DialogContext';
 import { ImageCacheProvider } from '../contexts/ImageCacheContext';
 import { DemoModeProvider } from '../contexts/DemoModeContext';
 import { preloadGoogleMaps } from '../services/googlePlacesService';
+import FeedbackFAB from '../components/FeedbackFAB';
 import theme from '../styles/theme';
 import '../styles/globals.css';
 
@@ -33,6 +34,7 @@ function MyApp({ Component, pageProps }: AppProps) {
               <TagProvider>
                 <DialogProvider>
                   <Component {...pageProps} />
+                  <FeedbackFAB />
                 </DialogProvider>
               </TagProvider>
             </StyleProvider>
