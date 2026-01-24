@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Box,
   Card,
@@ -13,8 +14,10 @@ import {
 } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import FolderIcon from '@mui/icons-material/Folder';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { api } from '@/utils/api';
+
+// Dynamic import for ESM compatibility
+const ReactMarkdown = dynamic(() => import('react-markdown'), { ssr: false });
 
 interface DocFile {
   id: string;
@@ -29,7 +32,6 @@ interface DocContent extends DocFile {
 }
 
 const DocsPanel: React.FC = () => {
-  const dataProvider = useDataProvider();
   const [docs, setDocs] = useState<DocFile[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<DocContent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,17 +45,7 @@ const DocsPanel: React.FC = () => {
   const fetchDocs = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/docs', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch documentation');
-      }
-
-      const data = await response.json();
+      const data = await api.get<{ files: DocFile[] }>('/admin/docs');
       setDocs(data.files || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load documentation');
@@ -65,17 +57,7 @@ const DocsPanel: React.FC = () => {
   const fetchDocContent = async (docId: string) => {
     try {
       setLoadingContent(true);
-      const response = await fetch(`/api/admin/docs/${docId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch document content');
-      }
-
-      const data = await response.json();
+      const data = await api.get<DocContent>(`/admin/docs/${docId}`);
       setSelectedDoc(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load document');
@@ -253,7 +235,7 @@ const DocsPanel: React.FC = () => {
                     },
                   }}
                 >
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown>
                     {selectedDoc.content}
                   </ReactMarkdown>
                 </Box>
