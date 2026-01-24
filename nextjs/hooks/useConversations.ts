@@ -34,6 +34,7 @@ export interface Appointment {
   title: string | null;
   description: string | null;
   placement: string | null;
+  timezone: string | null;
 }
 
 export interface ApiConversation {
@@ -139,6 +140,7 @@ interface UseConversationReturn {
   sendBookingCard: (date: string, time: string, duration: string, depositAmount: string) => Promise<ApiMessage | null>;
   sendDepositRequest: (amount: string, appointmentId?: number) => Promise<ApiMessage | null>;
   markAsRead: () => Promise<void>;
+  updateAppointmentStatus: (status: string) => void;
 }
 
 interface UseUnreadCountReturn {
@@ -357,6 +359,19 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     }
   }, [conversationId]);
 
+  const updateAppointmentStatus = useCallback((status: string) => {
+    setConversation((prev) => {
+      if (!prev || !prev.appointment) return prev;
+      return {
+        ...prev,
+        appointment: {
+          ...prev.appointment,
+          status,
+        },
+      };
+    });
+  }, []);
+
   useEffect(() => {
     if (conversationId) {
       fetchConversation(conversationId);
@@ -375,6 +390,7 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     sendBookingCard,
     sendDepositRequest,
     markAsRead,
+    updateAppointmentStatus,
   };
 }
 

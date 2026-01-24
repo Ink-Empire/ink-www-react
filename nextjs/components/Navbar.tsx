@@ -29,7 +29,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
-import LogoText from './LogoText';
 import { colors } from '@/styles/colors';
 
 // Navigation link configuration
@@ -95,17 +94,18 @@ const Navbar: React.FC = () => {
 
   return (
     <AppBar position="static" elevation={2} sx={{ backgroundColor: colors.background }}>
-      <Toolbar sx={{ justifyContent: 'space-between', minHeight: { xs: 56, sm: 64 } }}>
+      <Toolbar sx={{ justifyContent: 'space-between', minHeight: { xs: 56, sm: 80 }, pl: { xs: 1, sm: 1, md: 2 }, pr: { xs: 1, sm: 2, md: 3 } }}>
         {/* Mobile Menu Button */}
-        {isMobile && (
-          <IconButton
-            color="inherit"
-            onClick={() => setMobileMenuOpen(true)}
-            sx={{ mr: 1 }}
-          >
-            <MenuIcon />
-          </IconButton>
-        )}
+        <IconButton
+          onClick={() => setMobileMenuOpen(true)}
+          sx={{
+            mr: 1,
+            color: colors.textPrimary,
+            display: { xs: 'flex', md: 'none' }
+          }}
+        >
+          <MenuIcon />
+        </IconButton>
 
         {/* Logo */}
         <Box
@@ -118,19 +118,28 @@ const Navbar: React.FC = () => {
             flex: isMobile ? 1 : 'none'
           }}
         >
-          <img
+          {/* Mobile: just rose icon */}
+          <Box
+            component="img"
             src="/assets/img/logo.png"
-            alt="InkedIn Logo"
-            width={isMobile ? "40" : "64"}
-            height={isMobile ? "40" : "64"}
-            style={{
-              marginRight: isMobile ? '8px' : '12px',
-              filter: 'brightness(1.2) contrast(1.1)'
+            alt="InkedIn"
+            sx={{
+              display: { xs: 'block', sm: 'none' },
+              width: '60px',
+              height: 'auto',
             }}
           />
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <LogoText fontSize={isMobile ? "1.25rem" : "2.5rem"} />
-          </Box>
+          {/* Tablet+: full logo */}
+          <Box
+            component="img"
+            src="/assets/images/inkedin-logo.png"
+            alt="InkedIn"
+            sx={{
+              display: { xs: 'none', sm: 'block' },
+              width: { sm: '240px', md: '300px' },
+              height: 'auto',
+            }}
+          />
         </Box>
 
         {/* Spacer */}
@@ -220,7 +229,7 @@ const Navbar: React.FC = () => {
                     }
                   }}
                 >
-                  {user?.slug && (
+                  {user?.slug && user?.type_id !== 1 && user?.type_id !== '1' && user?.type !== 'client' && user?.type !== 'user' && (
                     <MenuItem
                       component={Link}
                       href={`/artists/${user.slug}`}
@@ -340,7 +349,7 @@ const Navbar: React.FC = () => {
                   </Badge>
                 </IconButton>
 
-                <IconButton component={Link} href="/profile" size="small">
+                <IconButton component={Link} href={user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user' ? '/dashboard' : '/profile'} size="small">
                   <Avatar
                     src={avatarUrl || undefined}
                     alt={getDisplayName()}
@@ -415,20 +424,7 @@ const Navbar: React.FC = () => {
         }}
       >
         <Box sx={{ p: 2 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <img
-                src="/assets/img/logo.png"
-                alt="InkedIn Logo"
-                width="32"
-                height="32"
-                style={{
-                  marginRight: '8px',
-                  filter: 'brightness(1.2) contrast(1.1)'
-                }}
-              />
-              <LogoText fontSize="1.25rem" />
-            </Box>
+          <Stack direction="row" alignItems="center" justifyContent="flex-end" sx={{ mb: 3 }}>
             <IconButton onClick={() => setMobileMenuOpen(false)} sx={{ color: 'white' }}>
               <CloseIcon />
             </IconButton>
@@ -456,7 +452,7 @@ const Navbar: React.FC = () => {
               <>
                 <ListItem
                   component={Link}
-                  href="/profile"
+                  href={user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user' ? '/dashboard' : '/profile'}
                   onClick={() => setMobileMenuOpen(false)}
                   sx={{
                     borderRadius: 1,

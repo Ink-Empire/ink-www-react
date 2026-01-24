@@ -223,12 +223,15 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       newErrors.username = 'This username is already taken';
     }
 
-    if (!bio.trim()) {
-      newErrors.bio = 'Bio is required';
-    } else if (bio.length < 10) {
-      newErrors.bio = 'Bio must be at least 10 characters';
-    } else if (bio.length > 500) {
-      newErrors.bio = 'Bio must be less than 500 characters';
+    // Bio validation only for artists and studios, not clients
+    if (userType !== 'client') {
+      if (!bio.trim()) {
+        newErrors.bio = 'Bio is required';
+      } else if (bio.length < 10) {
+        newErrors.bio = 'Bio must be at least 10 characters';
+      } else if (bio.length > 500) {
+        newErrors.bio = 'Bio must be less than 500 characters';
+      }
     }
 
     if (!location.trim()) {
@@ -509,39 +512,41 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             )}
           </Box>
 
-          {/* Bio Field */}
-          <TextField
-            label="Bio"
-            name="bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder={getBioPlaceholder()}
-            error={!!errors.bio}
-            helperText={errors.bio || `${bio.length}/500 characters`}
-            fullWidth
-            multiline
-            rows={4}
-            required
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'rgba(232, 219, 197, 0.5)',
+          {/* Bio Field - hidden for clients */}
+          {userType !== 'client' && (
+            <TextField
+              label="Bio"
+              name="bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder={getBioPlaceholder()}
+              error={!!errors.bio}
+              helperText={errors.bio || `${bio.length}/500 characters`}
+              fullWidth
+              multiline
+              rows={4}
+              required
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: 'rgba(232, 219, 197, 0.5)',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: colors.textSecondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: colors.accent,
+                  },
                 },
-                '&:hover fieldset': {
-                  borderColor: colors.textSecondary,
+                '& .MuiInputLabel-root': {
+                  color: colors.textSecondary,
+                  '&.Mui-focused': {
+                    color: colors.accent,
+                  },
                 },
-                '&.Mui-focused fieldset': {
-                  borderColor: colors.accent,
-                },
-              },
-              '& .MuiInputLabel-root': {
-                color: colors.textSecondary,
-                '&.Mui-focused': {
-                  color: colors.accent,
-                },
-              },
-            }}
-          />
+              }}
+            />
+          )}
 
           {/* Location Field */}
           <Box>

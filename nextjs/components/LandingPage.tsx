@@ -22,7 +22,6 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import FacebookIcon from '@mui/icons-material/Facebook';
-import LogoText from './LogoText';
 import { colors } from '@/styles/colors';
 import { useArtists } from '@/hooks/useArtists';
 import { useStyles } from '@/contexts/StyleContext';
@@ -766,8 +765,11 @@ const LandingPage: React.FC = () => {
         >
           {/* Brand */}
           <Box>
-            <LogoText fontSize="1.5rem" />
-            <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem', mt: 1.5, maxWidth: 280 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <img src="/assets/images/inkedin-logo.png" alt="InkedIn" width="28" height="28" />
+              <Typography sx={{ color: colors.accent, fontSize: '1.25rem', fontWeight: 600 }}>InkedIn</Typography>
+            </Box>
+            <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem', maxWidth: 280 }}>
               The premier marketplace connecting tattoo artists with collectors worldwide.
             </Typography>
           </Box>

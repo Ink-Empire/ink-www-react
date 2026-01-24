@@ -57,16 +57,22 @@ const StylesSelection: React.FC<StylesSelectionProps> = ({
     }
   };
 
-  const getDescription = () => {
-    switch (userType) {
-      case 'artist':
-        return 'Select the tattoo styles you create or want to be known for. This helps clients find you when searching for specific styles.';
-      case 'studio':
-        return 'Select the tattoo styles your studio specializes in. This represents the collective expertise of your artists.';
-      default:
-        return 'Choose the tattoo styles you love or are curious about. We\'ll use this to show you relevant artists and inspiration.';
-    }
-  };
+    const getDescription = () => {
+        switch (userType) {
+            case 'artist':
+                return 'Select the tattoo styles you create or want to be known for. This helps clients find you when searching for specific styles.';
+            case 'studio':
+                return 'Select the tattoo styles your studio specializes in. This represents the collective expertise of your artists.';
+            default:
+                return (
+                    <>
+                        Choose the tattoo styles you love or are curious about. We'll use this to show you relevant artists and inspiration.
+                        <br /><br />
+                        Don't know yet? That's okay, you can always fill this out later!
+                    </>
+                );
+        }
+    };
 
   if (loading) {
     return (

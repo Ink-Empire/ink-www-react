@@ -4,7 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
-import { Box, Button, Modal, Paper, IconButton, Typography, Avatar } from '@mui/material';
+import { Box, Button, Modal, Paper, IconButton, Typography, Avatar, TextField, InputAdornment, CircularProgress, Switch } from '@mui/material';
+import CheckIcon from '@mui/icons-material/Check';
 import EditIcon from '@mui/icons-material/Edit';
 import ImageIcon from '@mui/icons-material/Image';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -14,6 +15,9 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import EmailIcon from '@mui/icons-material/Email';
+import SmsIcon from '@mui/icons-material/Sms';
 import { useArtist } from '../../hooks';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooCreateWizard from '@/components/TattooCreateWizard';
@@ -38,6 +42,124 @@ export default function ArtistDetail() {
     const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
     const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
+
+    // Booking info edit state
+    const [isEditingBookingInfo, setIsEditingBookingInfo] = useState(false);
+    const [bookingInfoSaving, setBookingInfoSaving] = useState(false);
+    const [bookingInfoError, setBookingInfoError] = useState('');
+    const [bookingInfoForm, setBookingInfoForm] = useState({
+        consultation_fee: '',
+        hourly_rate: '',
+        minimum_session: '',
+        deposit_amount: '',
+        accepts_consultations: false,
+    });
+
+    // Initialize booking info form when artist loads
+    useEffect(() => {
+        if (artist?.settings) {
+            setBookingInfoForm({
+                consultation_fee: String(artist.settings.consultation_fee || ''),
+                hourly_rate: String(artist.settings.hourly_rate || ''),
+                minimum_session: String(artist.settings.minimum_session || ''),
+                deposit_amount: String(artist.settings.deposit_amount || artist.settings.deposit || ''),
+                accepts_consultations: artist.settings.accepts_consultations || false,
+            });
+        }
+    }, [artist?.settings]);
+
+    // Record profile view when artist loads
+    useEffect(() => {
+        if (artist?.id) {
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/artists/${artist.id}/view`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(localStorage.getItem('auth_token') && {
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    })
+                },
+            }).catch(err => console.error('Failed to record profile view:', err));
+        }
+    }, [artist?.id]);
+
+    const handleStartEditBookingInfo = () => {
+        if (artist?.settings) {
+            setBookingInfoForm({
+                consultation_fee: String(artist.settings.consultation_fee || ''),
+                hourly_rate: String(artist.settings.hourly_rate || ''),
+                minimum_session: String(artist.settings.minimum_session || ''),
+                deposit_amount: String(artist.settings.deposit_amount || artist.settings.deposit || ''),
+                accepts_consultations: artist.settings.accepts_consultations || false,
+            });
+        }
+        setIsEditingBookingInfo(true);
+    };
+
+    const handleCancelEditBookingInfo = () => {
+        setIsEditingBookingInfo(false);
+        setBookingInfoError('');
+        // Reset form to current artist settings
+        if (artist?.settings) {
+            setBookingInfoForm({
+                consultation_fee: String(artist.settings.consultation_fee || ''),
+                hourly_rate: String(artist.settings.hourly_rate || ''),
+                minimum_session: String(artist.settings.minimum_session || ''),
+                deposit_amount: String(artist.settings.deposit_amount || artist.settings.deposit || ''),
+                accepts_consultations: artist.settings.accepts_consultations || false,
+            });
+        }
+    };
+
+    const handleSaveBookingInfo = async () => {
+        // Validate all fields are valid numbers
+        const fields = [
+            { name: 'Consultation Fee', value: bookingInfoForm.consultation_fee },
+            { name: 'Hourly Rate', value: bookingInfoForm.hourly_rate },
+            { name: 'Minimum Session', value: bookingInfoForm.minimum_session },
+            { name: 'Deposit Amount', value: bookingInfoForm.deposit_amount },
+        ];
+
+        for (const field of fields) {
+            if (field.value !== '' && (isNaN(Number(field.value)) || Number(field.value) < 0)) {
+                setBookingInfoError(`${field.name} must be a valid positive number`);
+                return;
+            }
+        }
+
+        setBookingInfoError('');
+        setBookingInfoSaving(true);
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/artists/${artist?.id}/settings`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+                },
+                body: JSON.stringify({
+                    consultation_fee: Number(bookingInfoForm.consultation_fee) || 0,
+                    hourly_rate: Number(bookingInfoForm.hourly_rate) || 0,
+                    minimum_session: Number(bookingInfoForm.minimum_session) || 0,
+                    deposit_amount: Number(bookingInfoForm.deposit_amount) || 0,
+                    accepts_consultations: bookingInfoForm.accepts_consultations,
+                }),
+            });
+
+            if (response.ok) {
+                setIsEditingBookingInfo(false);
+                refetch(); // Refresh artist data
+            } else {
+                setBookingInfoError('Failed to save. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error saving booking info:', error);
+            setBookingInfoError('Failed to save. Please try again.');
+        } finally {
+            setBookingInfoSaving(false);
+        }
+    };
 
     const isOwner = isAuthenticated && user && (user.slug === slug || user.id === artist?.id);
     const portfolio = artist?.tattoos || [];
@@ -166,6 +288,49 @@ export default function ArtistDetail() {
             return;
         }
         // TODO: Implement save artist functionality
+    };
+
+    const handleShareProfile = async () => {
+        const shareUrl = window.location.href;
+        const shareTitle = `${artist?.name} on InkedIn`;
+        const shareText = `Check out ${artist?.name}'s tattoo portfolio on InkedIn`;
+
+        // Try native Web Share API first (works on mobile and some desktop browsers)
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                    url: shareUrl,
+                });
+                return;
+            } catch (err) {
+                // User cancelled or share failed, fall back to modal
+                if ((err as Error).name !== 'AbortError') {
+                    setShareModalOpen(true);
+                }
+            }
+        } else {
+            // No native share, show modal
+            setShareModalOpen(true);
+        }
+    };
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(window.location.href);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+    };
+
+    const handleShareViaEmail = () => {
+        const subject = encodeURIComponent(`Check out ${artist?.name} on InkedIn`);
+        const body = encodeURIComponent(`I thought you might like this tattoo artist:\n\n${artist?.name}\n${window.location.href}`);
+        window.open(`mailto:?subject=${subject}&body=${body}`);
+    };
+
+    const handleShareViaSMS = () => {
+        const text = encodeURIComponent(`Check out ${artist?.name}'s tattoo portfolio: ${window.location.href}`);
+        window.open(`sms:?body=${text}`);
     };
 
     if (artistLoading) {
@@ -684,88 +849,274 @@ export default function ArtistDetail() {
                                 p: 2,
                                 border: `1px solid ${colors.border}`
                             }}>
-                                <Typography sx={{
-                                    fontFamily: '"Cormorant Garamond", Georgia, serif',
-                                    fontSize: '1.25rem',
-                                    fontWeight: 500,
-                                    mb: 1.5,
-                                    color: colors.textPrimary
-                                }}>
-                                    Booking Info
-                                </Typography>
-                                {[
-                                    { label: 'Consultation', value: 'Free', accent: true },
-                                    { label: 'Hourly Rate', value: artist.settings?.hourly_rate ? `$${artist.settings.hourly_rate}` : '$200 USD' },
-                                    { label: 'Min. Session', value: '2 hours' },
-                                    { label: 'Deposit', value: artist.settings?.deposit ? `$${artist.settings.deposit}` : '$150 USD' },
-                                    { label: 'Response Time', value: '~24 hours' }
-                                ].map((item, idx) => (
-                                    <Box key={item.label} sx={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        py: 1,
-                                        borderBottom: idx < 4 ? `1px solid ${colors.border}` : 'none',
-                                        fontSize: '0.9rem'
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                                    <Typography sx={{
+                                        fontFamily: '"Cormorant Garamond", Georgia, serif',
+                                        fontSize: '1.25rem',
+                                        fontWeight: 500,
+                                        color: colors.textPrimary
                                     }}>
-                                        <Typography sx={{ color: colors.textSecondary }}>{item.label}</Typography>
-                                        <Typography sx={{
-                                            color: item.accent ? colors.accent : colors.textPrimary,
-                                            fontWeight: 500
+                                        Booking Info
+                                    </Typography>
+                                    {isOwner && !isEditingBookingInfo && (
+                                        <IconButton
+                                            onClick={handleStartEditBookingInfo}
+                                            size="small"
+                                            sx={{
+                                                color: colors.textSecondary,
+                                                '&:hover': { color: colors.accent }
+                                            }}
+                                        >
+                                            <EditIcon fontSize="small" />
+                                        </IconButton>
+                                    )}
+                                </Box>
+
+                                {isEditingBookingInfo ? (
+                                    /* Edit Mode */
+                                    <Box>
+                                        <Box sx={{ mb: 1.5 }}>
+                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.5 }}>
+                                                Consultation Fee
+                                            </Typography>
+                                            <TextField
+                                                size="small"
+                                                value={bookingInfoForm.consultation_fee}
+                                                onChange={(e) => setBookingInfoForm({ ...bookingInfoForm, consultation_fee: e.target.value })}
+                                                InputProps={{
+                                                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                                }}
+                                                sx={{
+                                                    width: '100%',
+                                                    '& .MuiOutlinedInput-root': {
+                                                        bgcolor: colors.background,
+                                                        '& fieldset': { borderColor: colors.border },
+                                                        '&:hover fieldset': { borderColor: colors.textSecondary },
+                                                        '&.Mui-focused fieldset': { borderColor: colors.accent },
+                                                    },
+                                                    '& .MuiInputBase-input': { color: colors.textPrimary },
+                                                    '& .MuiInputAdornment-root': { color: colors.textSecondary },
+                                                }}
+                                                placeholder="0 for free"
+                                            />
+                                        </Box>
+
+                                        <Box sx={{ mb: 1.5 }}>
+                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.5 }}>
+                                                Hourly Rate
+                                            </Typography>
+                                            <TextField
+                                                size="small"
+                                                value={bookingInfoForm.hourly_rate}
+                                                onChange={(e) => setBookingInfoForm({ ...bookingInfoForm, hourly_rate: e.target.value })}
+                                                InputProps={{
+                                                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                                }}
+                                                sx={{
+                                                    width: '100%',
+                                                    '& .MuiOutlinedInput-root': {
+                                                        bgcolor: colors.background,
+                                                        '& fieldset': { borderColor: colors.border },
+                                                        '&:hover fieldset': { borderColor: colors.textSecondary },
+                                                        '&.Mui-focused fieldset': { borderColor: colors.accent },
+                                                    },
+                                                    '& .MuiInputBase-input': { color: colors.textPrimary },
+                                                    '& .MuiInputAdornment-root': { color: colors.textSecondary },
+                                                }}
+                                            />
+                                        </Box>
+
+                                        <Box sx={{ mb: 1.5 }}>
+                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.5 }}>
+                                                Minimum Session (hours)
+                                            </Typography>
+                                            <TextField
+                                                size="small"
+                                                value={bookingInfoForm.minimum_session}
+                                                onChange={(e) => setBookingInfoForm({ ...bookingInfoForm, minimum_session: e.target.value })}
+                                                sx={{
+                                                    width: '100%',
+                                                    '& .MuiOutlinedInput-root': {
+                                                        bgcolor: colors.background,
+                                                        '& fieldset': { borderColor: colors.border },
+                                                        '&:hover fieldset': { borderColor: colors.textSecondary },
+                                                        '&.Mui-focused fieldset': { borderColor: colors.accent },
+                                                    },
+                                                    '& .MuiInputBase-input': { color: colors.textPrimary },
+                                                }}
+                                            />
+                                        </Box>
+
+                                        <Box sx={{ mb: 1.5 }}>
+                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.5 }}>
+                                                Deposit Amount
+                                            </Typography>
+                                            <TextField
+                                                size="small"
+                                                value={bookingInfoForm.deposit_amount}
+                                                onChange={(e) => setBookingInfoForm({ ...bookingInfoForm, deposit_amount: e.target.value })}
+                                                InputProps={{
+                                                    startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                                }}
+                                                sx={{
+                                                    width: '100%',
+                                                    '& .MuiOutlinedInput-root': {
+                                                        bgcolor: colors.background,
+                                                        '& fieldset': { borderColor: colors.border },
+                                                        '&:hover fieldset': { borderColor: colors.textSecondary },
+                                                        '&.Mui-focused fieldset': { borderColor: colors.accent },
+                                                    },
+                                                    '& .MuiInputBase-input': { color: colors.textPrimary },
+                                                    '& .MuiInputAdornment-root': { color: colors.textSecondary },
+                                                }}
+                                            />
+                                        </Box>
+
+                                        <Box sx={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            mb: 1.5,
+                                            py: 1,
+                                            borderTop: `1px solid ${colors.border}`,
+                                            mt: 1
                                         }}>
-                                            {item.value}
-                                        </Typography>
+                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+                                                Accepts Consultations
+                                            </Typography>
+                                            <Switch
+                                                checked={bookingInfoForm.accepts_consultations}
+                                                onChange={(e) => setBookingInfoForm({ ...bookingInfoForm, accepts_consultations: e.target.checked })}
+                                                sx={{
+                                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                                        color: colors.accent,
+                                                    },
+                                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                                        backgroundColor: colors.accent,
+                                                    },
+                                                }}
+                                            />
+                                        </Box>
+
+                                        {bookingInfoError && (
+                                            <Typography sx={{ color: colors.error, fontSize: '0.8rem', mb: 1 }}>
+                                                {bookingInfoError}
+                                            </Typography>
+                                        )}
+
+                                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                                            <Button
+                                                onClick={handleCancelEditBookingInfo}
+                                                disabled={bookingInfoSaving}
+                                                sx={{
+                                                    flex: 1,
+                                                    color: colors.textSecondary,
+                                                    border: `1px solid ${colors.border}`,
+                                                    textTransform: 'none',
+                                                    '&:hover': { borderColor: colors.textSecondary }
+                                                }}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                onClick={handleSaveBookingInfo}
+                                                disabled={bookingInfoSaving}
+                                                sx={{
+                                                    flex: 1,
+                                                    bgcolor: colors.accent,
+                                                    color: colors.background,
+                                                    textTransform: 'none',
+                                                    '&:hover': { bgcolor: colors.accentHover },
+                                                    '&.Mui-disabled': { bgcolor: `${colors.accent}80` }
+                                                }}
+                                            >
+                                                {bookingInfoSaving ? <CircularProgress size={20} color="inherit" /> : 'Save'}
+                                            </Button>
+                                        </Box>
                                     </Box>
-                                ))}
+                                ) : (
+                                    /* Display Mode */
+                                    <>
+                                        {[
+                                            ...(bookingInfoForm.accepts_consultations ? [{
+                                                label: 'Consultation',
+                                                value: Number(bookingInfoForm.consultation_fee) > 0 ? `$${bookingInfoForm.consultation_fee}` : 'Free',
+                                                accent: !bookingInfoForm.consultation_fee || Number(bookingInfoForm.consultation_fee) === 0
+                                            }] : []),
+                                            { label: 'Hourly Rate', value: Number(bookingInfoForm.hourly_rate) > 0 ? `$${bookingInfoForm.hourly_rate} USD` : 'Not set' },
+                                            { label: 'Min. Session', value: Number(bookingInfoForm.minimum_session) > 0 ? `${bookingInfoForm.minimum_session} hours` : 'Not set' },
+                                            { label: 'Deposit', value: Number(bookingInfoForm.deposit_amount) > 0 ? `$${bookingInfoForm.deposit_amount} USD` : 'Not set' }
+                                        ].map((item, idx, arr) => (
+                                            <Box key={item.label} sx={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                py: 1,
+                                                borderBottom: idx < arr.length - 1 ? `1px solid ${colors.border}` : 'none',
+                                                fontSize: '0.9rem'
+                                            }}>
+                                                <Typography sx={{ color: colors.textSecondary }}>{item.label}</Typography>
+                                                <Typography sx={{
+                                                    color: item.accent ? colors.accent : colors.textPrimary,
+                                                    fontWeight: 500
+                                                }}>
+                                                    {item.value}
+                                                </Typography>
+                                            </Box>
+                                        ))}
+                                    </>
+                                )}
                             </Box>
 
-                            {/* Quick Actions */}
-                            <Box sx={{
-                                bgcolor: colors.surface,
-                                borderRadius: '12px',
-                                p: 2,
-                                border: `1px solid ${colors.border}`
-                            }}>
-                                <Typography sx={{
-                                    fontFamily: '"Cormorant Garamond", Georgia, serif',
-                                    fontSize: '1.25rem',
-                                    fontWeight: 500,
-                                    mb: 1.5,
-                                    color: colors.textPrimary
+                            {/* Quick Actions - only show for non-owners */}
+                            {!isOwner && (
+                                <Box sx={{
+                                    bgcolor: colors.surface,
+                                    borderRadius: '12px',
+                                    p: 2,
+                                    border: `1px solid ${colors.border}`
                                 }}>
-                                    Quick Actions
-                                </Typography>
-                                {[
-                                    { icon: <EventAvailableIcon sx={{ fontSize: '1.25rem' }} />, label: 'View Availability', onClick: () => handleTabChange(1) },
-                                    { icon: <ChatBubbleOutlineIcon sx={{ fontSize: '1.25rem' }} />, label: 'Send Message', onClick: handleMessageArtist },
-                                    { icon: <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: 'Save Artist', onClick: handleSaveArtist },
-                                    { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: 'Share Profile', onClick: () => navigator.clipboard.writeText(window.location.href) }
-                                ].map((action, idx) => (
-                                    <Box
-                                        key={idx}
-                                        onClick={action.onClick}
-                                        sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 1,
-                                            p: 1.25,
-                                            bgcolor: colors.background,
-                                            border: `1px solid ${colors.border}`,
-                                            borderRadius: '8px',
-                                            color: colors.textPrimary,
-                                            fontSize: '0.9rem',
-                                            fontWeight: 500,
-                                            cursor: 'pointer',
-                                            textDecoration: 'none',
-                                            mb: idx < 3 ? 1 : 0,
-                                            transition: 'all 0.2s',
-                                            '&:hover': { borderColor: colors.accent, color: colors.accent }
-                                        }}
-                                    >
-                                        <Box sx={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{action.icon}</Box>
-                                        {action.label}
-                                    </Box>
-                                ))}
-                            </Box>
+                                    <Typography sx={{
+                                        fontFamily: '"Cormorant Garamond", Georgia, serif',
+                                        fontSize: '1.25rem',
+                                        fontWeight: 500,
+                                        mb: 1.5,
+                                        color: colors.textPrimary
+                                    }}>
+                                        Quick Actions
+                                    </Typography>
+                                    {[
+                                        { icon: <EventAvailableIcon sx={{ fontSize: '1.25rem' }} />, label: 'View Availability', onClick: () => handleTabChange(1) },
+                                        { icon: <ChatBubbleOutlineIcon sx={{ fontSize: '1.25rem' }} />, label: 'Send Message', onClick: handleMessageArtist },
+                                        { icon: <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: 'Save Artist', onClick: handleSaveArtist },
+                                        { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: 'Share Profile', onClick: handleShareProfile }
+                                    ].map((action, idx) => (
+                                        <Box
+                                            key={idx}
+                                            onClick={action.onClick}
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                                p: 1.25,
+                                                bgcolor: colors.background,
+                                                border: `1px solid ${colors.border}`,
+                                                borderRadius: '8px',
+                                                color: colors.textPrimary,
+                                                fontSize: '0.9rem',
+                                                fontWeight: 500,
+                                                cursor: 'pointer',
+                                                textDecoration: 'none',
+                                                mb: idx < 3 ? 1 : 0,
+                                                transition: 'all 0.2s',
+                                                '&:hover': { borderColor: colors.accent, color: colors.accent }
+                                            }}
+                                        >
+                                            <Box sx={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{action.icon}</Box>
+                                            {action.label}
+                                        </Box>
+                                    ))}
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                 ) : (
@@ -807,6 +1158,7 @@ export default function ArtistDetail() {
                 selectedDate={selectedDate}
                 selectedWorkingHours={selectedWorkingHours}
                 artistId={artist?.id}
+                artistTimezone={artist?.timezone}
                 settings={artist?.settings}
                 bookingType={selectedBookingType}
             />
@@ -887,6 +1239,99 @@ export default function ArtistDetail() {
                             }}
                         >
                             Sign Up
+                        </Button>
+                    </Box>
+                </Paper>
+            </Modal>
+
+            {/* Share Profile Modal */}
+            <Modal
+                open={shareModalOpen}
+                onClose={() => setShareModalOpen(false)}
+                aria-labelledby="share-profile-modal"
+            >
+                <Paper sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 400,
+                    maxWidth: '90%',
+                    bgcolor: colors.surface,
+                    boxShadow: 24,
+                    borderRadius: 2,
+                    p: 4
+                }}>
+                    <IconButton
+                        onClick={() => setShareModalOpen(false)}
+                        sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            color: colors.textSecondary
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+
+                    <Typography sx={{
+                        fontFamily: '"Cormorant Garamond", Georgia, serif',
+                        fontSize: '1.5rem',
+                        fontWeight: 500,
+                        color: colors.textPrimary,
+                        mb: 3,
+                        textAlign: 'center'
+                    }}>
+                        Share Profile
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <Button
+                            onClick={handleCopyLink}
+                            startIcon={linkCopied ? <CheckIcon /> : <ContentCopyIcon />}
+                            sx={{
+                                justifyContent: 'flex-start',
+                                color: linkCopied ? colors.accent : colors.textPrimary,
+                                border: `1px solid ${linkCopied ? colors.accent : colors.border}`,
+                                textTransform: 'none',
+                                py: 1.5,
+                                px: 2,
+                                '&:hover': { borderColor: colors.accent, bgcolor: `${colors.accent}1A` }
+                            }}
+                        >
+                            {linkCopied ? 'Link Copied!' : 'Copy Link'}
+                        </Button>
+
+                        <Button
+                            onClick={handleShareViaEmail}
+                            startIcon={<EmailIcon />}
+                            sx={{
+                                justifyContent: 'flex-start',
+                                color: colors.textPrimary,
+                                border: `1px solid ${colors.border}`,
+                                textTransform: 'none',
+                                py: 1.5,
+                                px: 2,
+                                '&:hover': { borderColor: colors.accent, bgcolor: `${colors.accent}1A` }
+                            }}
+                        >
+                            Share via Email
+                        </Button>
+
+                        <Button
+                            onClick={handleShareViaSMS}
+                            startIcon={<SmsIcon />}
+                            sx={{
+                                justifyContent: 'flex-start',
+                                color: colors.textPrimary,
+                                border: `1px solid ${colors.border}`,
+                                textTransform: 'none',
+                                py: 1.5,
+                                px: 2,
+                                '&:hover': { borderColor: colors.accent, bgcolor: `${colors.accent}1A` }
+                            }}
+                        >
+                            Share via Text
                         </Button>
                     </Box>
                 </Paper>

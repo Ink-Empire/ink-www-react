@@ -39,6 +39,7 @@ export interface BulkUploadItem {
   is_processed: boolean;
   is_published: boolean;
   is_skipped: boolean;
+  is_edited: boolean;
   is_ready_for_publish: boolean;
   image_id: number | null;
   thumbnail_url: string | null;

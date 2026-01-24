@@ -461,7 +461,11 @@ export default function BulkUploadPage() {
             How it works
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
-            <Card sx={{ bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
+            <Card sx={{
+              bgcolor: colors.surface,
+              border: `1px solid ${colors.border}`,
+              boxShadow: `0 4px 20px rgba(0, 0, 0, 0.4), 0 0 40px ${colors.accent}15`,
+            }}>
               <CardContent>
                 <Box
                   sx={{
@@ -475,6 +479,7 @@ export default function BulkUploadPage() {
                     justifyContent: 'center',
                     mb: 2,
                     fontWeight: 600,
+                    boxShadow: `0 0 20px ${colors.accent}40`,
                   }}
                 >
                   1
@@ -488,7 +493,11 @@ export default function BulkUploadPage() {
               </CardContent>
             </Card>
 
-            <Card sx={{ bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
+            <Card sx={{
+              bgcolor: colors.surface,
+              border: `1px solid ${colors.border}`,
+              boxShadow: `0 4px 20px rgba(0, 0, 0, 0.4), 0 0 40px ${colors.accent}15`,
+            }}>
               <CardContent>
                 <Box
                   sx={{
@@ -502,6 +511,7 @@ export default function BulkUploadPage() {
                     justifyContent: 'center',
                     mb: 2,
                     fontWeight: 600,
+                    boxShadow: `0 0 20px ${colors.accent}40`,
                   }}
                 >
                   2
@@ -515,7 +525,11 @@ export default function BulkUploadPage() {
               </CardContent>
             </Card>
 
-            <Card sx={{ bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
+            <Card sx={{
+              bgcolor: colors.surface,
+              border: `1px solid ${colors.border}`,
+              boxShadow: `0 4px 20px rgba(0, 0, 0, 0.4), 0 0 40px ${colors.accent}15`,
+            }}>
               <CardContent>
                 <Box
                   sx={{
@@ -529,6 +543,7 @@ export default function BulkUploadPage() {
                     justifyContent: 'center',
                     mb: 2,
                     fontWeight: 600,
+                    boxShadow: `0 0 20px ${colors.accent}40`,
                   }}
                 >
                   3

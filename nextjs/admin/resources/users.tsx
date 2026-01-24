@@ -19,7 +19,11 @@ import {
   TopToolbar,
   SearchInput,
   useRecordContext,
+  NumberInput,
+  FormDataConsumer,
+  Labeled,
 } from 'react-admin';
+import { Box, Typography, Divider } from '@mui/material';
 
 const userTypeChoices = [
   { id: 1, name: 'Client' },
@@ -86,6 +90,33 @@ export const UserEdit = () => (
       <TextInput source="phone" />
       <TextInput source="location" />
       <TextInput source="about" multiline rows={4} />
+
+      <FormDataConsumer>
+        {({ formData }) =>
+          formData.type_id === 2 && (
+            <Box sx={{ width: '100%', mt: 3 }}>
+              <Divider sx={{ mb: 2 }} />
+              <Typography variant="h6" sx={{ mb: 2 }}>Artist Settings</Typography>
+
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                <BooleanInput source="artist_settings.books_open" label="Books Open" />
+                <BooleanInput source="artist_settings.accepts_walk_ins" label="Accepts Walk-ins" />
+                <BooleanInput source="artist_settings.accepts_deposits" label="Accepts Deposits" />
+                <BooleanInput source="artist_settings.accepts_consultations" label="Accepts Consultations" />
+                <BooleanInput source="artist_settings.accepts_appointments" label="Accepts Appointments" />
+                <BooleanInput source="artist_settings.seeking_guest_spots" label="Seeking Guest Spots" />
+              </Box>
+
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <NumberInput source="artist_settings.hourly_rate" label="Hourly Rate (cents)" />
+                <NumberInput source="artist_settings.deposit_amount" label="Deposit Amount (cents)" />
+                <NumberInput source="artist_settings.consultation_fee" label="Consultation Fee (cents)" />
+                <NumberInput source="artist_settings.minimum_session" label="Minimum Session (minutes)" />
+              </Box>
+            </Box>
+          )
+        }
+      </FormDataConsumer>
     </SimpleForm>
   </Edit>
 );

@@ -5,7 +5,6 @@ import { Box, Container, Typography, Button, Stack } from '@mui/material';
 import Navbar from './Navbar';
 import IncompleteBulkUploadAlert from './IncompleteBulkUploadAlert';
 import PreviewBanner from './PreviewBanner';
-import LogoText from './LogoText';
 import { colors } from '@/styles/colors';
 
 interface LayoutProps {
@@ -76,8 +75,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             alignItems={{ xs: 'center', md: 'flex-start' }}
             spacing={2}
           >
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              &copy; {new Date().getFullYear()} <LogoText fontSize="1.25rem" />. All rights reserved.
+            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+              &copy; {new Date().getFullYear()} <img src="/assets/images/inkedin-logo.png" alt="InkedIn" width="20" height="20" style={{ verticalAlign: 'middle' }} /> InkedIn. All rights reserved.
             </Typography>
 
             <Stack direction="row" spacing={3}>

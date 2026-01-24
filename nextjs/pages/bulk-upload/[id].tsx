@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
@@ -101,20 +101,31 @@ export default function BulkUploadReviewPage() {
     }
   }, [isAuthenticated, id, loadUpload, loadItems]);
 
+  // Refs to hold latest callback functions to avoid stale closures in interval
+  const loadUploadRef = useRef(loadUpload);
+  const loadItemsRef = useRef(loadItems);
+  useEffect(() => {
+    loadUploadRef.current = loadUpload;
+    loadItemsRef.current = loadItems;
+  }, [loadUpload, loadItems]);
+
   // Auto-refresh while processing
   useEffect(() => {
     const isProcessing = upload?.status === 'scanning' || upload?.status === 'processing';
-    // Also poll if we have no items loaded but upload exists and isn't failed
-    const needsItemRefresh = upload && items.length === 0 && upload.status !== 'failed' && upload.status !== 'completed';
+    // Statuses that indicate processing is complete
+    const completedStatuses = ['failed', 'completed', 'ready', 'incomplete'];
+    const isComplete = upload?.status && completedStatuses.includes(upload.status);
+    // Only poll if we need items and upload isn't in a final state
+    const needsItemRefresh = upload && items.length === 0 && !isComplete;
 
     if (isProcessing || needsItemRefresh) {
       const interval = setInterval(() => {
-        loadUpload();
-        loadItems();
+        loadUploadRef.current();
+        loadItemsRef.current();
       }, 5000); // Poll every 5 seconds
       return () => clearInterval(interval);
     }
-  }, [upload?.status, items.length, loadUpload, loadItems]);
+  }, [upload?.status, items.length]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

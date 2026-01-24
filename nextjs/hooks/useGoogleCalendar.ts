@@ -6,6 +6,7 @@ interface CalendarStatus {
   email?: string;
   last_synced_at?: string;
   sync_enabled?: boolean;
+  requires_reauth?: boolean;
 }
 
 interface UseGoogleCalendarReturn {

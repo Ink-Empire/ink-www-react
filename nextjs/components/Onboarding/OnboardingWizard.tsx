@@ -17,6 +17,7 @@ import UserDetails from './UserDetails';
 import AccountSetup from './AccountSetup';
 import StudioOwnerCheck from './StudioOwnerCheck';
 import StudioDetails from './StudioDetails';
+import TattooIntent, { TattooIntentData } from './TattooIntent';
 import { colors } from '@/styles/colors';
 
 export interface OnboardingData {
@@ -65,6 +66,8 @@ export interface OnboardingData {
     // Artist-specific fields (when ownerType === 'artist')
     artistStyles?: number[]; // Owner's personal specialty styles
   };
+  // Tattoo intent - for clients looking for tattoos
+  tattooIntent?: TattooIntentData;
 }
 
 // User registration payload for early registration
@@ -120,7 +123,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
     // Add experience level step for clients only
     if (onboardingData.userType === 'client') {
-      steps = [...steps, 'Experience', 'Interests', 'Profile', 'Account'];
+      steps = [...steps, 'Experience', 'Interests', 'Profile', 'Plans', 'Account'];
     } else if (onboardingData.userType === 'artist') {
       steps = [...steps, 'Specialties', 'Profile', 'Account'];
     } else if (onboardingData.userType === 'studio') {
@@ -202,6 +205,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
   const handleUserDetailsComplete = (userDetails: OnboardingData['userDetails']) => {
     setOnboardingData(prev => ({ ...prev, userDetails }));
+    setCurrentStep(currentStep + 1);
+  };
+
+  const handleTattooIntentComplete = (tattooIntent: TattooIntentData) => {
+    setOnboardingData(prev => ({ ...prev, tattooIntent }));
     setCurrentStep(currentStep + 1);
   };
 
@@ -318,8 +326,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     }
 
     // From here, step 1+ depends on user type
-    // Client flow: Experience -> Interests -> Profile -> Account
-    // Artist flow: Specialties -> Preferences -> Profile -> Account
+    // Client flow: Experience -> Interests -> Profile -> Plans -> Account
+    // Artist flow: Specialties -> Profile -> Account
     // Studio flow: Owner Check -> Specialties -> Profile -> Account
 
     if (isClient) {
@@ -349,6 +357,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             />
           );
         case 4:
+          return (
+            <TattooIntent
+              onStepComplete={handleTattooIntentComplete}
+              onBack={handleBack}
+              selectedStyles={onboardingData.selectedStyles}
+            />
+          );
+        case 5:
           return (
             <AccountSetup
               onStepComplete={handleAccountSetupComplete}

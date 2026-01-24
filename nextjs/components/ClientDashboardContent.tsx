@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Box, Typography, Button, Avatar, Skeleton } from '@mui/material';
+import { Box, Typography, Button, Avatar, Skeleton, Switch, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
+import CloseIcon from '@mui/icons-material/Close';
+import SettingsIcon from '@mui/icons-material/Settings';
+import StarIcon from '@mui/icons-material/Star';
+import AddIcon from '@mui/icons-material/Add';
 import ChangePasswordModal from './ChangePasswordModal';
+import StyleModal from './StyleModal';
+import TattooIntent, { TattooIntentData } from './Onboarding/TattooIntent';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -11,9 +17,15 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
 import { colors } from '@/styles/colors';
 import { useClientDashboard, useWishlist, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { ApiConversation } from '@/hooks/useConversations';
+import { api } from '@/utils/api';
+import { useDemoMode } from '@/contexts/DemoModeContext';
+import { useStyles } from '@/contexts/StyleContext';
+import { useUser } from '@/contexts/AuthContext';
+import InfoTooltip from './InfoTooltip';
 
 interface ClientDashboardContentProps {
   userName: string;
@@ -22,6 +34,42 @@ interface ClientDashboardContentProps {
 
 export default function ClientDashboardContent({ userName, userId }: ClientDashboardContentProps) {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [leadActive, setLeadActive] = useState(false);
+  const [leadLoading, setLeadLoading] = useState(true);
+  const [leadToggling, setLeadToggling] = useState(false);
+  const [artistsNotified, setArtistsNotified] = useState(0);
+  const [intentDialogOpen, setIntentDialogOpen] = useState(false);
+  const [styleModalOpen, setStyleModalOpen] = useState(false);
+  const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
+  const [beaconSnackbarOpen, setBeaconSnackbarOpen] = useState(false);
+  const { isDemoMode } = useDemoMode();
+  const { styles, getStyleName } = useStyles();
+  const { userData, updateStyles } = useUser();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Initialize selected styles from user data
+  useEffect(() => {
+    if (userData) {
+      setSelectedStyles(userData.styles || []);
+    }
+  }, [userData]);
+
+  // Handle style update
+  const handleApplyStyles = async (updatedStyles: number[]) => {
+    setSelectedStyles(updatedStyles);
+    try {
+      await updateStyles(updatedStyles);
+    } catch (err) {
+      console.error('Failed to update styles:', err);
+    }
+  };
+
+  // Remove a single style
+  const removeStyle = (styleId: number) => {
+    const updatedStyles = selectedStyles.filter(id => id !== styleId);
+    handleApplyStyles(updatedStyles);
+  };
 
   const {
     appointments,
@@ -30,6 +78,64 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
     loading: dashboardLoading,
     refresh: refreshDashboard,
   } = useClientDashboard();
+
+  // Fetch lead status on mount
+  useEffect(() => {
+    const fetchLeadStatus = async () => {
+      try {
+        const response = await api.get<{ has_lead: boolean; is_active: boolean; artists_notified: number }>('/leads/status');
+        setLeadActive(response.is_active || false);
+        setArtistsNotified(response.artists_notified || 0);
+      } catch (err) {
+        console.error('Failed to fetch lead status:', err);
+      } finally {
+        setLeadLoading(false);
+      }
+    };
+    fetchLeadStatus();
+  }, []);
+
+  const handleLeadToggle = async () => {
+    if (!leadActive) {
+      // Turning ON - show the intent dialog to collect preferences
+      setIntentDialogOpen(true);
+    } else {
+      // Turning OFF - set is_active to false
+      setLeadToggling(true);
+      try {
+        await api.put('/leads', { is_active: false });
+        setLeadActive(false);
+      } catch (err) {
+        console.error('Failed to deactivate lead:', err);
+      } finally {
+        setLeadToggling(false);
+      }
+    }
+  };
+
+  const handleIntentSubmit = async (intentData: TattooIntentData) => {
+    setLeadToggling(true);
+    try {
+      await api.post('/leads', {
+        timing: intentData.timing,
+        allow_artist_contact: intentData.allowArtistContact,
+        tag_ids: intentData.selectedTags,
+        custom_themes: intentData.customThemes || [],
+        description: intentData.description || '',
+      });
+      setLeadActive(true);
+      setIntentDialogOpen(false);
+      setBeaconSnackbarOpen(true);
+    } catch (err) {
+      console.error('Failed to save lead preferences:', err);
+    } finally {
+      setLeadToggling(false);
+    }
+  };
+
+  const handleIntentDialogClose = () => {
+    setIntentDialogOpen(false);
+  };
 
   const {
     wishlist,
@@ -69,9 +175,6 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           }}>
             Welcome back, {userName}!
           </Typography>
-          <Typography sx={{ color: colors.textSecondary, fontSize: '0.95rem' }}>
-            Your tattoo journey at a glance
-          </Typography>
         </Box>
         <Button
           component={Link}
@@ -93,15 +196,23 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         </Button>
       </Box>
 
-      {/* Upcoming Appointments */}
-      <Card
-        title="Upcoming Appointments"
-        action={
-          <CardLink href="/appointments">
-            View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
-          </CardLink>
-        }
-      >
+      {/* Appointments Row with Open to New Work */}
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', lg: '1fr 280px' },
+        gap: 3,
+        mb: 3,
+      }}>
+        {/* Upcoming Appointments */}
+        <Card
+          title="Upcoming Appointments"
+          icon={<CalendarMonthIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+          action={
+            <CardLink href="/calendar">
+              View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
+            </CardLink>
+          }
+        >
         {dashboardLoading ? (
           <Box sx={{ display: 'flex', gap: 2, p: 2 }}>
             {[1, 2, 3].map((i) => (
@@ -146,66 +257,117 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             }
           />
         )}
-      </Card>
+        </Card>
 
-      {/* Artists You Might Like */}
-      <Card
-        title="Artists You Might Like"
-        subtitle="Based on your favorite styles and saved tattoos"
-        action={
-          <CardLink href="/artists">
-            See All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
-          </CardLink>
-        }
-        sx={{ mt: 3 }}
-      >
-        {dashboardLoading ? (
+        {/* Open to New Work Toggle */}
+        <Card
+          title="Let Artists Find You"
+          tooltip="With a few descriptive details, you can describe what work you're looking for, and artists in your area can contact you with quotes."
+          variant={leadActive ? 'highlight' : 'default'}
+          icon={<SearchIcon sx={{ color: leadActive ? colors.accent : colors.textMuted, fontSize: 20 }} />}
+          compact
+        >
           <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            gap: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
             p: 2,
+            textAlign: 'center',
           }}>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} variant="rounded" height={180} sx={{ bgcolor: colors.background }} />
-            ))}
+            <Typography sx={{ fontWeight: 500, color: leadActive ? colors.accent : colors.textPrimary, mb: 0.5 }}>
+              Looking for a Tattoo
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1.5, lineHeight: 1.4 }}>
+              {leadActive
+                ? artistsNotified > 0
+                  ? `${artistsNotified} artist${artistsNotified === 1 ? '' : 's'} in your area notified`
+                  : 'Artists in your area can reach out to you'
+                : 'Turn on to let artists know you\'re looking for work'}
+            </Typography>
+            {leadLoading ? (
+              <CircularProgress size={24} sx={{ color: colors.accent }} />
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {leadToggling && <CircularProgress size={16} sx={{ color: colors.accent }} />}
+                <Switch
+                  checked={leadActive}
+                  onChange={handleLeadToggle}
+                  disabled={leadToggling}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: colors.accent,
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: colors.accent,
+                    },
+                  }}
+                />
+              </Box>
+            )}
           </Box>
-        ) : suggestedArtists.length > 0 ? (
-          <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            gap: 2,
-            p: 2,
-          }}>
-            {suggestedArtists.map((artist) => (
-              <SuggestedArtistCard
-                key={artist.id}
-                artist={artist}
-                onAddToWishlist={handleAddToWishlist}
-                isOnWishlist={wishlist.some((w) => w.id === artist.id)}
-              />
-            ))}
-          </Box>
-        ) : (
-          <EmptyState
-            icon={<PersonAddIcon sx={{ fontSize: 32, color: colors.textMuted }} />}
-            message="No suggestions yet"
-            subMessage="Save some styles or tattoos to get personalized recommendations"
-          />
-        )}
-      </Card>
+        </Card>
+      </Box>
+
+      {/* Artists You Might Like - always filter out demo artists on dashboard */}
+      {(() => {
+        const filteredArtists = suggestedArtists.filter(a => !a.is_demo);
+        if (filteredArtists.length === 0) return null;
+        return (
+          <Card
+            title="Artists You Might Like"
+            subtitle="Based on your favorite styles and saved tattoos"
+            icon={<PersonAddIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+            action={
+              <CardLink href="/artists">
+                See All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
+              </CardLink>
+            }
+            sx={{ mb: 3 }}
+          >
+            {dashboardLoading ? (
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: 2,
+                p: 2,
+              }}>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Skeleton key={i} variant="rounded" height={180} sx={{ bgcolor: colors.background }} />
+                ))}
+              </Box>
+            ) : (
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: 2,
+                p: 2,
+              }}>
+                {filteredArtists.map((artist) => (
+                  <SuggestedArtistCard
+                    key={artist.id}
+                    artist={artist}
+                    onAddToWishlist={handleAddToWishlist}
+                    isOnWishlist={wishlist.some((w) => w.id === artist.id)}
+                  />
+                ))}
+              </Box>
+            )}
+          </Card>
+        );
+      })()}
 
       {/* Two Column Layout */}
       <Box sx={{
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
         gap: 3,
-        mt: 3,
       }}>
         {/* Wishlist */}
         <Card
           title={`My Wishlist (${wishlistLoading ? '...' : wishlist.length})`}
           subtitle="Artists you want to book when they open"
+          icon={<BookmarkIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
             <CardLink href="/wishlist">
               Manage <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
@@ -241,6 +403,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         {/* Recent Messages */}
         <Card
           title="Recent Messages"
+          icon={<ChatBubbleOutlineIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
             <CardLink href="/inbox">
               View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
@@ -274,24 +437,102 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         </Card>
       </Box>
 
+      {/* Preferences */}
+      <Card
+        title="Preferences"
+        icon={<SettingsIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+        sx={{ mt: 3 }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <StarIcon sx={{ color: colors.accent, fontSize: 18 }} />
+            <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
+              Your Styles
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted, mb: 2 }}>
+            Select styles you're interested in to help us personalize your experience.
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 2 }}>
+            {selectedStyles.map(styleId => (
+              <Box
+                key={styleId}
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: `${colors.accent}20`,
+                  borderRadius: '100px',
+                  fontSize: '0.85rem',
+                  color: colors.accent,
+                  fontWeight: 500,
+                }}
+              >
+                {getStyleName(styleId)}
+                <IconButton
+                  size="small"
+                  onClick={() => removeStyle(styleId)}
+                  sx={{
+                    p: 0.25,
+                    ml: 0.25,
+                    color: colors.accent,
+                    '&:hover': { color: colors.error, bgcolor: 'transparent' }
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </Box>
+            ))}
+            <Button
+              onClick={() => setStyleModalOpen(true)}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                px: 1.5,
+                py: 0.5,
+                bgcolor: colors.background,
+                border: `1px dashed ${colors.border}`,
+                borderRadius: '100px',
+                fontSize: '0.85rem',
+                color: colors.textMuted,
+                textTransform: 'none',
+                minWidth: 'auto',
+                '&:hover': {
+                  borderColor: colors.accent,
+                  color: colors.accent,
+                  bgcolor: colors.background,
+                }
+              }}
+            >
+              <AddIcon sx={{ fontSize: 16 }} />
+              Add Style
+            </Button>
+          </Box>
+        </Box>
+      </Card>
+
       {/* Security Settings */}
-      <Card title="Security Settings" sx={{ mt: 3 }}>
+      <Card
+        title="Security"
+        icon={<LockIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+        sx={{ mt: 3 }}
+      >
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           p: 2,
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <LockIcon sx={{ color: colors.textMuted }} />
-            <Box>
-              <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
-                Password
-              </Typography>
-              <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
-                Keep your account secure
-              </Typography>
-            </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
+              Password
+            </Typography>
+            <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+              Keep your account secure
+            </Typography>
           </Box>
           <Button
             onClick={() => setChangePasswordOpen(true)}
@@ -316,22 +557,139 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         isOpen={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
       />
+
+      <StyleModal
+        isOpen={styleModalOpen}
+        onClose={() => setStyleModalOpen(false)}
+        onApply={handleApplyStyles}
+        selectedStyles={selectedStyles}
+      />
+
+      {/* Tattoo Intent Dialog - shown when toggling Open to New Work ON */}
+      <Dialog
+        open={intentDialogOpen}
+        onClose={handleIntentDialogClose}
+        fullScreen={isMobile}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            backgroundImage: 'none',
+            borderRadius: isMobile ? 0 : '16px',
+            maxHeight: isMobile ? '100%' : '90vh',
+            border: `1px solid ${colors.accent}50`,
+            boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 80px ${colors.accent}30`,
+          }
+        }}
+      >
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 2,
+          borderBottom: `1px solid ${colors.border}`,
+        }}>
+          <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.textPrimary }}>
+            Tell us about your tattoo plans
+          </Typography>
+          <IconButton
+            onClick={handleIntentDialogClose}
+            sx={{ color: colors.textMuted, '&:hover': { color: colors.textPrimary } }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            <TattooIntent
+              onStepComplete={handleIntentSubmit}
+              onBack={handleIntentDialogClose}
+              selectedStyles={[]}
+              isModalMode
+            />
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Beacon Success Snackbar */}
+      <Snackbar
+        open={beaconSnackbarOpen}
+        autoHideDuration={10000}
+        onClose={() => setBeaconSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setBeaconSnackbarOpen(false)}
+          icon={false}
+          sx={{
+            bgcolor: colors.accent,
+            color: colors.background,
+            fontWeight: 500,
+            '& .MuiAlert-action': { color: colors.background },
+            '& .MuiAlert-action .MuiIconButton-root:hover': { bgcolor: 'rgba(0,0,0,0.1)' },
+          }}
+        >
+          <strong>Now what?</strong> Just sit back! Artists in your area will see your idea and can contact you via email with their availability and quotes.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
 
-// Card Component
-function Card({ title, subtitle, action, children, sx = {} }: {
+// Card Component with variants for visual distinction
+function Card({ title, subtitle, action, children, sx = {}, variant = 'default', icon, compact = false, tooltip }: {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
   sx?: object;
+  variant?: 'default' | 'highlight' | 'elevated' | 'accent-left' | 'info-left' | 'subtle';
+  icon?: React.ReactNode;
+  compact?: boolean;
+  tooltip?: string;
 }) {
+  const cardShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 50px ${colors.accent}25`;
+  const highlightShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 60px ${colors.accent}35`;
+
+  const variantStyles = {
+    default: {
+      bgcolor: colors.surface,
+      border: `1px solid ${colors.accent}35`,
+      boxShadow: cardShadow,
+    },
+    highlight: {
+      bgcolor: colors.surface,
+      border: `1px solid ${colors.accent}60`,
+      boxShadow: highlightShadow,
+    },
+    elevated: {
+      bgcolor: colors.surfaceElevated,
+      border: `1px solid ${colors.accent}35`,
+      boxShadow: cardShadow,
+    },
+    'accent-left': {
+      bgcolor: colors.surface,
+      border: `1px solid ${colors.accent}35`,
+      borderLeft: `3px solid ${colors.accent}`,
+      boxShadow: cardShadow,
+    },
+    'info-left': {
+      bgcolor: colors.surface,
+      border: `1px solid ${colors.accent}35`,
+      borderLeft: `3px solid ${colors.info}`,
+      boxShadow: cardShadow,
+    },
+    subtle: {
+      bgcolor: colors.surface,
+      border: `1px solid ${colors.accent}35`,
+      boxShadow: cardShadow,
+    },
+  };
+
   return (
     <Box sx={{
-      bgcolor: colors.surface,
-      border: `1px solid ${colors.border}`,
+      ...variantStyles[variant],
       borderRadius: '12px',
       overflow: 'hidden',
       ...sx,
@@ -340,18 +698,24 @@ function Card({ title, subtitle, action, children, sx = {} }: {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        p: 2,
+        p: compact ? 1.5 : 2,
         borderBottom: `1px solid ${colors.border}`
       }}>
-        <Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary }}>
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted, mt: 0.25 }}>
-              {subtitle}
-            </Typography>
-          )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          {icon}
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography sx={{ fontSize: compact ? '0.9rem' : '1rem', fontWeight: 600, color: colors.textPrimary }}>
+                {title}
+              </Typography>
+              {tooltip && <InfoTooltip text={tooltip} />}
+            </Box>
+            {subtitle && (
+              <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted, mt: 0.25 }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
         </Box>
         {action}
       </Box>

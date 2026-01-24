@@ -398,7 +398,7 @@ export default function HowItWorksPage() {
         title="Save artists you love"
         description="Found an artist whose work gives you goosebumps? Add them to your wishlist. Build a collection of your favorites, compare styles, and keep track of the artists you want to work with—all in one place. Your future tattoo starts with inspiration."
         ctaText="Create your wishlist"
-        ctaHref="/register"
+        ctaHref="/wishlist"
       />
 
       {/* Banner 3 - Stay Notified */}
