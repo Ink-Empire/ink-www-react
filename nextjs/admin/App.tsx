@@ -8,6 +8,7 @@ import PlaceIcon from '@mui/icons-material/Place';
 import BlockIcon from '@mui/icons-material/Block';
 import BrushIcon from '@mui/icons-material/Brush';
 import EmailIcon from '@mui/icons-material/Email';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 import authProvider from './authProvider';
 import dataProvider from './dataProvider';
@@ -20,6 +21,7 @@ import { BlockedTermList, BlockedTermEdit, BlockedTermCreate } from './resources
 import { TattooList, TattooEdit } from './resources/tattoos';
 import ElasticPanel from './pages/ElasticPanel';
 import EmailTestPanel from './pages/EmailTestPanel';
+import DocsPanel from './pages/DocsPanel';
 
 const CustomMenu = () => (
   <Menu>
@@ -32,6 +34,7 @@ const CustomMenu = () => (
     <Menu.ResourceItem name="blocked-terms" />
     <Menu.Item to="/elastic" primaryText="Elasticsearch" leftIcon={<StorageIcon />} />
     <Menu.Item to="/email-test" primaryText="Email Testing" leftIcon={<EmailIcon />} />
+    <Menu.Item to="/docs" primaryText="Documentation" leftIcon={<DescriptionIcon />} />
   </Menu>
 );
 
@@ -66,6 +69,7 @@ const AdminApp = () => (
     <CustomRoutes>
       <Route path="/elastic" element={<ElasticPanel />} />
       <Route path="/email-test" element={<EmailTestPanel />} />
+      <Route path="/docs" element={<DocsPanel />} />
     </CustomRoutes>
     <Resource
       name="users"
