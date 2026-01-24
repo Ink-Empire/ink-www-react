@@ -624,6 +624,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               <LocationAutocomplete
                 value={location}
                 onChange={(newLocation, newLatLong) => {
+                  console.log('[UserDetails] Location selected:', { newLocation, newLatLong });
                   setLocation(newLocation);
                   setLocationLatLong(newLatLong);
                 }}
@@ -664,6 +665,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               >
                 Are you affiliated with a tattoo studio? Search to link your profile to an existing studio.
               </Typography>
+
+              {location && !locationLatLong && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Please select your location from the dropdown above to see studios near you.
+                </Alert>
+              )}
 
               <StudioAutocomplete
                 value={selectedStudio}

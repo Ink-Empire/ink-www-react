@@ -257,10 +257,11 @@ export const preloadGoogleMaps = (): void => {
 };
 
 /**
- * Search for tattoo studios/parlors using Google Places Autocomplete
+ * Search for tattoo studios/parlors using Google Places Nearby Search
+ * This provides better location-based filtering than Autocomplete
  * @param query - Search query
- * @param location - Optional location to bias results (lat,lng format or {lat, lng} object)
- * @param radiusMeters - Radius in meters for location bias (default 80467 = ~50 miles)
+ * @param location - Optional location to search near (lat,lng format or {lat, lng} object)
+ * @param radiusMeters - Radius in meters for search (default 80467 = ~50 miles)
  */
 export const searchEstablishments = async (
   query: string,
@@ -272,50 +273,75 @@ export const searchEstablishments = async (
   }
 
   const loaded = await ensureLoaded();
-  if (!loaded || !autocompleteService) {
+  if (!loaded || !placesService) {
     return [];
   }
 
-  // Prepend "tattoo" to the query to filter results to tattoo businesses
-  const tattooQuery = query.toLowerCase().includes('tattoo')
-    ? query
-    : `tattoo ${query}`;
+  // Parse location coordinates
+  let lat: number | undefined;
+  let lng: number | undefined;
 
+  if (location) {
+    if (typeof location === 'string') {
+      const [latStr, lngStr] = location.split(',');
+      lat = parseFloat(latStr);
+      lng = parseFloat(lngStr);
+    } else {
+      lat = location.lat;
+      lng = location.lng;
+    }
+
+    if (isNaN(lat!) || isNaN(lng!)) {
+      lat = undefined;
+      lng = undefined;
+    }
+  }
+
+
+  // If we have a location, use Nearby Search for better location filtering
+  if (lat !== undefined && lng !== undefined) {
+    return new Promise((resolve) => {
+      const searchLocation = new google.maps.LatLng(lat!, lng!);
+
+      // Use Text Search with location bias for better results
+      const request: google.maps.places.TextSearchRequest = {
+        query: `tattoo ${query}`,
+        location: searchLocation,
+        radius: radiusMeters,
+      };
+
+      placesService!.textSearch(request, (results, status) => {
+        console.log('[StudioSearch] Text search status:', status, 'results:', results?.length || 0);
+
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !results) {
+          resolve([]);
+          return;
+        }
+
+        const predictions: PlacePrediction[] = results.slice(0, 5).map((place) => ({
+          placeId: place.place_id || '',
+          description: place.formatted_address || place.name || '',
+          mainText: place.name || '',
+          secondaryText: place.formatted_address || '',
+          types: place.types || [],
+        }));
+
+        resolve(predictions);
+      });
+    });
+  }
+
+  // Fallback to Autocomplete if no location provided
   return new Promise((resolve) => {
+    const tattooQuery = query.toLowerCase().includes('tattoo')
+      ? query
+      : `tattoo ${query}`;
+
     const request: google.maps.places.AutocompletionRequest = {
       input: tattooQuery,
       sessionToken: sessionToken || undefined,
       types: ['establishment'],
     };
-
-    // Add location bias if provided
-    if (location) {
-      let lat: number, lng: number;
-
-      if (typeof location === 'string') {
-        const [latStr, lngStr] = location.split(',');
-        lat = parseFloat(latStr);
-        lng = parseFloat(lngStr);
-      } else {
-        lat = location.lat;
-        lng = location.lng;
-      }
-
-      if (!isNaN(lat) && !isNaN(lng)) {
-        // Calculate bounding box from center and radius
-        // Approximate degrees per meter at given latitude
-        const latDelta = radiusMeters / 111320; // ~111km per degree latitude
-        const lngDelta = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180));
-
-        const bounds = new google.maps.LatLngBounds(
-          new google.maps.LatLng(lat - latDelta, lng - lngDelta), // SW corner
-          new google.maps.LatLng(lat + latDelta, lng + lngDelta)  // NE corner
-        );
-
-        (request as any).bounds = bounds;
-        (request as any).strictBounds = true;
-      }
-    }
 
     autocompleteService!.getPlacePredictions(request, (predictions, status) => {
       if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {

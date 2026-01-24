@@ -85,33 +85,45 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     };
   }, []);
 
-  const handleOptionSelect = async (prediction: PlacePrediction | null) => {
-    if (prediction) {
-      // Fetch full place details to get coordinates
-      const details = await getPlaceDetails(prediction.placeId);
-
-      if (details) {
-        const option: LocationOption = {
-          label: prediction.description,
-          city: details.city,
-          state: details.state,
-          country: details.country,
-          countryCode: details.countryCode,
-          lat: details.lat,
-          lng: details.lng,
-          placeId: prediction.placeId,
-        };
-        const latLong = `${details.lat},${details.lng}`;
-        onChange(prediction.description, latLong, option);
-        setInputValue(prediction.description);
-      } else {
-        // Fallback if details fetch fails
-        onChange(prediction.description, '', undefined);
-        setInputValue(prediction.description);
-      }
-    } else {
+  const handleOptionSelect = async (prediction: PlacePrediction | string | null) => {
+    // Handle null/empty case
+    if (!prediction) {
       onChange('', '', undefined);
       setInputValue('');
+      return;
+    }
+
+    // Handle freeSolo string input (user typed without selecting from dropdown)
+    if (typeof prediction === 'string') {
+      // Just update the display value - coordinates won't be available
+      // The user needs to select from dropdown to get coordinates
+      onChange(prediction, '', undefined);
+      setInputValue(prediction);
+      return;
+    }
+
+    // Handle proper PlacePrediction selection
+    // Fetch full place details to get coordinates
+    const details = await getPlaceDetails(prediction.placeId);
+
+    if (details) {
+      const option: LocationOption = {
+        label: prediction.description,
+        city: details.city,
+        state: details.state,
+        country: details.country,
+        countryCode: details.countryCode,
+        lat: details.lat,
+        lng: details.lng,
+        placeId: prediction.placeId,
+      };
+      const latLong = `${details.lat},${details.lng}`;
+      onChange(prediction.description, latLong, option);
+      setInputValue(prediction.description);
+    } else {
+      // Fallback if details fetch fails
+      onChange(prediction.description, '', undefined);
+      setInputValue(prediction.description);
     }
   };
 
@@ -132,7 +144,6 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       }}
       isOptionEqualToValue={(option, val) => option.placeId === val.placeId}
       filterOptions={(x) => x} // Disable built-in filtering since we're using API search
-      freeSolo
       renderInput={(params) => (
         <TextField
           {...params}
