@@ -7,6 +7,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import PlaceIcon from '@mui/icons-material/Place';
 import BlockIcon from '@mui/icons-material/Block';
 import BrushIcon from '@mui/icons-material/Brush';
+import EmailIcon from '@mui/icons-material/Email';
 
 import authProvider from './authProvider';
 import dataProvider from './dataProvider';
@@ -18,6 +19,7 @@ import { PlacementList, PlacementEdit, PlacementCreate } from './resources/place
 import { BlockedTermList, BlockedTermEdit, BlockedTermCreate } from './resources/blockedTerms';
 import { TattooList, TattooEdit } from './resources/tattoos';
 import ElasticPanel from './pages/ElasticPanel';
+import EmailTestPanel from './pages/EmailTestPanel';
 
 const CustomMenu = () => (
   <Menu>
@@ -29,6 +31,7 @@ const CustomMenu = () => (
     <Menu.ResourceItem name="placements" />
     <Menu.ResourceItem name="blocked-terms" />
     <Menu.Item to="/elastic" primaryText="Elasticsearch" leftIcon={<StorageIcon />} />
+    <Menu.Item to="/email-test" primaryText="Email Testing" leftIcon={<EmailIcon />} />
   </Menu>
 );
 
@@ -46,6 +49,7 @@ const Dashboard = () => (
         <li><a href="#/tattoos">Manage Tattoos & Tags</a></li>
         <li><a href="#/tags?filter=%7B%22is_pending%22%3Atrue%7D">Review Pending Tags</a></li>
         <li><a href="#/elastic">Elasticsearch Management</a></li>
+        <li><a href="#/email-test">Email Testing</a></li>
       </ul>
     </div>
   </div>
@@ -61,6 +65,7 @@ const AdminApp = () => (
   >
     <CustomRoutes>
       <Route path="/elastic" element={<ElasticPanel />} />
+      <Route path="/email-test" element={<EmailTestPanel />} />
     </CustomRoutes>
     <Resource
       name="users"
