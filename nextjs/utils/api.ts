@@ -199,6 +199,12 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     ...headers,
   };
 
+  // Add app token for API access control
+  const appToken = process.env.NEXT_PUBLIC_API_APP_TOKEN;
+  if (appToken) {
+    requestHeaders['X-App-Token'] = appToken;
+  }
+
   // Only set Content-Type to application/json if body is not FormData
   if (!(body instanceof FormData)) {
     requestHeaders['Content-Type'] = 'application/json';
