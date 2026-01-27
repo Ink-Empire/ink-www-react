@@ -906,7 +906,7 @@ export default function InboxPage() {
   const handleCalendarClick = () => {
     if (selectedConversation?.participant) {
       // Navigate to the artist's profile calendar tab
-      const participantSlug = selectedConversation.participant.username;
+      const participantSlug = selectedConversation.participant.slug || selectedConversation.participant.username;
       window.open(`/artists/${participantSlug}?tab=calendar`, '_blank');
     }
   };
@@ -921,7 +921,7 @@ export default function InboxPage() {
 
   const handleViewProfile = () => {
     if (selectedConversation?.participant) {
-      const participantSlug = selectedConversation.participant.username;
+      const participantSlug = selectedConversation.participant.slug || selectedConversation.participant.username;
       window.open(`/artists/${participantSlug}`, '_blank');
     }
     handleMoreMenuClose();
