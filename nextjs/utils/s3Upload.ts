@@ -55,7 +55,7 @@ export type UploadProgress = {
  */
 export async function uploadImagesToS3(
   files: File[],
-  purpose: 'tattoo' | 'profile' | 'studio' = 'tattoo',
+  purpose: 'tattoo' | 'profile' | 'studio' | 'message' = 'tattoo',
   onProgress?: (progress: UploadProgress) => void
 ): Promise<UploadedImage[]> {
   if (files.length === 0) {
@@ -153,7 +153,7 @@ export async function uploadImagesToS3(
  */
 export async function uploadImageToS3(
   file: File,
-  purpose: 'tattoo' | 'profile' | 'studio' = 'tattoo',
+  purpose: 'tattoo' | 'profile' | 'studio' | 'message' = 'tattoo',
   onProgress?: (progress: UploadProgress) => void
 ): Promise<UploadedImage> {
   const images = await uploadImagesToS3([file], purpose, onProgress);

@@ -27,6 +27,7 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
+import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { colors } from '@/styles/colors';
@@ -258,6 +259,20 @@ const Navbar: React.FC = () => {
                       <DashboardIcon sx={{ color: colors.textSecondary }} />
                     </ListItemIcon>
                     <ListItemText primary="Dashboard" />
+                  </MenuItem>
+                  <MenuItem
+                    component={Link}
+                    href="/profile"
+                    onClick={() => setProfileMenuAnchor(null)}
+                    sx={{
+                      color: colors.textPrimary,
+                      '&:hover': { bgcolor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemIcon>
+                      <SettingsIcon sx={{ color: colors.textSecondary }} />
+                    </ListItemIcon>
+                    <ListItemText primary="Settings" />
                   </MenuItem>
                   <Divider sx={{ borderColor: colors.border, my: 0.5 }} />
                   <MenuItem

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +14,14 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -28,15 +37,21 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SendIcon from '@mui/icons-material/Send';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import DescriptionIcon from '@mui/icons-material/Description';
+import PersonIcon from '@mui/icons-material/Person';
+import BlockIcon from '@mui/icons-material/Block';
+import ReportIcon from '@mui/icons-material/Report';
+import CloseIcon from '@mui/icons-material/Close';
 import { colors } from '@/styles/colors';
 import {
   useConversations,
   useConversation,
+  createConversation,
   ApiConversation,
   ApiMessage,
   ConversationType,
 } from '../hooks/useConversations';
 import { api } from '../utils/api';
+import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
 
 type FilterType = 'all' | 'unread' | 'bookings' | 'consultations' | 'guest-spots';
 
@@ -518,20 +533,55 @@ function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: s
 }
 
 export default function InboxPage() {
+  const router = useRouter();
+  const { artistId } = router.query;
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [creatingConversation, setCreatingConversation] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
   const [mobileShowConversation, setMobileShowConversation] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [acceptingBooking, setAcceptingBooking] = useState(false);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
     message: '',
     severity: 'success',
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const designInputRef = useRef<HTMLInputElement>(null);
+
+  // Modal states
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null);
+
+  // Booking form state
+  const [bookingForm, setBookingForm] = useState({
+    date: '',
+    time: '',
+    duration: '2-3 hours',
+    deposit: '',
+  });
+
+  // Deposit form state
+  const [depositAmount, setDepositAmount] = useState('');
+
+  // Pending attachments state (files waiting to be sent)
+  interface PendingAttachment {
+    id: string; // Unique ID for React key
+    file: File;
+    previewUrl: string;
+    type: 'image' | 'design';
+  }
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+
+  // Check if user is an artist (type_id 2 or has type 'artist')
+  const isArtist = user?.type_id === 2 || user?.type === 'artist' || user?.type?.name === 'artist';
 
   // Fetch conversations
   const { conversations, loading: conversationsLoading, fetchConversations } = useConversations();
@@ -583,38 +633,337 @@ export default function InboxPage() {
 
   // Select first conversation by default
   useEffect(() => {
-    if (conversations.length > 0 && !selectedConversationId) {
+    if (conversations.length > 0 && !selectedConversationId && !artistId) {
       setSelectedConversationId(conversations[0].id);
     }
-  }, [conversations, selectedConversationId]);
+  }, [conversations, selectedConversationId, artistId]);
+
+  // Handle artistId query parameter - find or create conversation with artist
+  useEffect(() => {
+    if (!artistId || !isAuthenticated || conversationsLoading || creatingConversation) return;
+
+    const artistIdNum = parseInt(artistId as string, 10);
+    if (isNaN(artistIdNum)) return;
+
+    // Check if we already have a conversation with this artist
+    const existingConversation = conversations.find(
+      (conv) => conv.participant?.id === artistIdNum
+    );
+
+    if (existingConversation) {
+      // Select the existing conversation
+      setSelectedConversationId(existingConversation.id);
+      setMobileShowConversation(true);
+      // Clear the query parameter
+      router.replace('/inbox', undefined, { shallow: true });
+    } else {
+      // Create a new conversation with the artist
+      setCreatingConversation(true);
+      createConversation(artistIdNum, 'booking')
+        .then((newConversation) => {
+          if (newConversation) {
+            // Refresh conversations list and select the new one
+            fetchConversations().then(() => {
+              setSelectedConversationId(newConversation.id);
+              setMobileShowConversation(true);
+            });
+          }
+          // Clear the query parameter
+          router.replace('/inbox', undefined, { shallow: true });
+        })
+        .catch((err) => {
+          console.error('Failed to create conversation:', err);
+          setSnackbar({
+            open: true,
+            message: 'Failed to start conversation. Please try again.',
+            severity: 'error',
+          });
+        })
+        .finally(() => {
+          setCreatingConversation(false);
+        });
+    }
+  }, [artistId, isAuthenticated, conversations, conversationsLoading, creatingConversation, router, fetchConversations]);
 
   const unreadCount = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations]);
 
   const handleSelectConversation = (conv: ApiConversation) => {
+    // Clear pending attachments when switching conversations
+    if (conv.id !== selectedConversationId) {
+      clearPendingAttachments();
+      setMessageInput('');
+    }
     setSelectedConversationId(conv.id);
     setMobileShowConversation(true);
   };
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || sendingMessage) return;
+    const hasText = messageInput.trim().length > 0;
+    const hasAttachments = pendingAttachments.length > 0;
+
+    // Need either text or attachments to send
+    if ((!hasText && !hasAttachments) || sendingMessage) return;
 
     setSendingMessage(true);
+    setUploadingAttachments(hasAttachments);
+
     try {
-      await sendMessage(messageInput.trim());
+      let attachmentIds: number[] = [];
+
+      // Upload pending attachments if any
+      if (hasAttachments) {
+        const files = pendingAttachments.map((a) => a.file);
+        const hasDesigns = pendingAttachments.some((a) => a.type === 'design');
+
+        try {
+          const uploadedImages = await uploadImagesToS3(files, 'message');
+          attachmentIds = uploadedImages.map((img) => img.id);
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          setSnackbar({
+            open: true,
+            message: uploadError instanceof Error ? uploadError.message : 'Failed to upload images',
+            severity: 'error',
+          });
+          return;
+        } finally {
+          setUploadingAttachments(false);
+        }
+
+        // Determine message type based on attachments
+        const messageType = hasDesigns ? 'design_share' : 'image';
+        const metadata = hasDesigns && isArtist ? { apply_watermark: true } : null;
+
+        await sendMessage(messageInput.trim() || '', messageType, metadata, attachmentIds);
+      } else {
+        // Text only message
+        await sendMessage(messageInput.trim());
+      }
+
       setMessageInput('');
+      clearPendingAttachments();
     } finally {
       setSendingMessage(false);
+      setUploadingAttachments(false);
     }
   };
 
+  const handleOpenBookingModal = () => {
+    // Pre-fill with sensible defaults
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().split('T')[0];
+
+    setBookingForm({
+      date: dateStr,
+      time: '14:00',
+      duration: '2-3 hours',
+      deposit: user?.settings?.deposit_amount ? `$${user.settings.deposit_amount}` : '$100',
+    });
+    setBookingModalOpen(true);
+  };
+
   const handleSendBookingCard = async () => {
-    // TODO: Open a modal to collect booking details
-    await sendBookingCard('Dec 28, 2025', '2:00 PM', '3-4 hours', '$150 NZD');
+    if (!bookingForm.date || !bookingForm.time) {
+      setSnackbar({ open: true, message: 'Please fill in date and time', severity: 'error' });
+      return;
+    }
+
+    // Format date nicely
+    const dateObj = new Date(`${bookingForm.date}T${bookingForm.time}`);
+    const formattedDate = dateObj.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const formattedTime = dateObj.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    await sendBookingCard(formattedDate, formattedTime, bookingForm.duration, bookingForm.deposit);
+    setBookingModalOpen(false);
+    setSnackbar({ open: true, message: 'Booking card sent!', severity: 'success' });
+  };
+
+  const handleOpenDepositModal = () => {
+    // Pre-fill with artist's configured deposit amount if available
+    const defaultAmount = user?.settings?.deposit_amount || 100;
+    setDepositAmount(`$${defaultAmount}`);
+    setDepositModalOpen(true);
   };
 
   const handleSendDepositRequest = async () => {
-    // TODO: Open a modal to collect deposit amount
-    await sendDepositRequest('$150 NZD');
+    if (!depositAmount.trim()) {
+      setSnackbar({ open: true, message: 'Please enter a deposit amount', severity: 'error' });
+      return;
+    }
+
+    await sendDepositRequest(depositAmount, selectedConversation?.appointment?.id);
+    setDepositModalOpen(false);
+    setSnackbar({ open: true, message: 'Deposit request sent!', severity: 'success' });
+  };
+
+  // File upload handlers
+  const handleImageClick = () => {
+    imageInputRef.current?.click();
+  };
+
+  const handleFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Allowed image types for upload
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const ALLOWED_EXTENSIONS = 'JPG, PNG, WebP, or GIF';
+
+  const validateImageFiles = (files: File[]): { valid: File[]; invalid: string[] } => {
+    const valid: File[] = [];
+    const invalid: string[] = [];
+
+    for (const file of files) {
+      if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        valid.push(file);
+      } else {
+        const ext = file.name.split('.').pop()?.toUpperCase() || 'unknown';
+        invalid.push(`${file.name} (${ext})`);
+      }
+    }
+
+    return { valid, invalid };
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+    const { valid, invalid } = validateImageFiles(fileArray);
+
+    // Show error for invalid files
+    if (invalid.length > 0) {
+      setSnackbar({
+        open: true,
+        message: `Unsupported file type: ${invalid.join(', ')}. Please use ${ALLOWED_EXTENSIONS}.`,
+        severity: 'error',
+      });
+
+      // If no valid files, exit early
+      if (valid.length === 0) {
+        event.target.value = '';
+        return;
+      }
+    }
+
+    // Add valid files to pending attachments with preview URLs
+    const newAttachments: PendingAttachment[] = valid.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      type: 'image' as const,
+    }));
+
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
+
+    // Clear the input for next selection
+    event.target.value = '';
+  };
+
+  const removePendingAttachment = (id: string) => {
+    setPendingAttachments((prev) => {
+      const attachment = prev.find((a) => a.id === id);
+      if (attachment) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+      return prev.filter((a) => a.id !== id);
+    });
+  };
+
+  const clearPendingAttachments = () => {
+    pendingAttachments.forEach((a) => URL.revokeObjectURL(a.previewUrl));
+    setPendingAttachments([]);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // TODO: Implement actual file upload
+    setSnackbar({
+      open: true,
+      message: 'File attachment coming soon! This feature is under development.',
+      severity: 'info',
+    });
+
+    event.target.value = '';
+  };
+
+  // Header action handlers
+  const handleCalendarClick = () => {
+    if (selectedConversation?.participant) {
+      // Navigate to the artist's profile calendar tab
+      const participantSlug = selectedConversation.participant.username;
+      window.open(`/artists/${participantSlug}?tab=calendar`, '_blank');
+    }
+  };
+
+  const handleMoreMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMoreMenuAnchor(event.currentTarget);
+  };
+
+  const handleMoreMenuClose = () => {
+    setMoreMenuAnchor(null);
+  };
+
+  const handleViewProfile = () => {
+    if (selectedConversation?.participant) {
+      const participantSlug = selectedConversation.participant.username;
+      window.open(`/artists/${participantSlug}`, '_blank');
+    }
+    handleMoreMenuClose();
+  };
+
+  const handleShareDesign = () => {
+    // Open file picker for design images
+    designInputRef.current?.click();
+  };
+
+  const handleDesignUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+    const { valid, invalid } = validateImageFiles(fileArray);
+
+    // Show error for invalid files
+    if (invalid.length > 0) {
+      setSnackbar({
+        open: true,
+        message: `Unsupported file type: ${invalid.join(', ')}. Please use ${ALLOWED_EXTENSIONS}.`,
+        severity: 'error',
+      });
+
+      // If no valid files, exit early
+      if (valid.length === 0) {
+        event.target.value = '';
+        return;
+      }
+    }
+
+    // Add valid files to pending attachments as designs
+    const newAttachments: PendingAttachment[] = valid.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      type: 'design' as const,
+    }));
+
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
+
+    // Clear the input for next selection
+    event.target.value = '';
   };
 
   const [decliningBooking, setDecliningBooking] = useState(false);
@@ -881,7 +1230,14 @@ export default function InboxPage() {
             bgcolor: colors.background,
           }}
         >
-          {selectedConversation ? (
+          {creatingConversation ? (
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+              <CircularProgress sx={{ color: colors.accent, mb: 2 }} />
+              <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
+                Starting conversation...
+              </Typography>
+            </Box>
+          ) : selectedConversation ? (
             <>
               {/* Conversation Header */}
               <Box
@@ -935,19 +1291,26 @@ export default function InboxPage() {
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
+                  {/* Show calendar button when participant is an artist (booking/consultation conversations) */}
+                  {(selectedConversation?.type === 'booking' || selectedConversation?.type === 'consultation' || selectedConversation?.type === 'guest-spot') && (
+                    <IconButton
+                      onClick={handleCalendarClick}
+                      title="View calendar"
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        bgcolor: colors.background,
+                        border: `1px solid ${colors.borderSubtle}`,
+                        color: colors.textSecondary,
+                        '&:hover': { borderColor: colors.accent, color: colors.accent },
+                      }}
+                    >
+                      <CalendarMonthIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  )}
                   <IconButton
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      bgcolor: colors.background,
-                      border: `1px solid ${colors.borderSubtle}`,
-                      color: colors.textSecondary,
-                      '&:hover': { borderColor: colors.accent, color: colors.accent },
-                    }}
-                  >
-                    <CalendarMonthIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                  <IconButton
+                    onClick={handleMoreMenuClick}
+                    title="More options"
                     sx={{
                       width: 36,
                       height: 36,
@@ -960,6 +1323,39 @@ export default function InboxPage() {
                     <MoreHorizIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Box>
+
+                {/* More options menu */}
+                <Menu
+                  anchorEl={moreMenuAnchor}
+                  open={Boolean(moreMenuAnchor)}
+                  onClose={handleMoreMenuClose}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  PaperProps={{
+                    sx: {
+                      bgcolor: colors.surface,
+                      border: `1px solid ${colors.borderSubtle}`,
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                      minWidth: 180,
+                    },
+                  }}
+                >
+                  {/* Show View Profile when participant is an artist (booking/consultation conversations) */}
+                  {(selectedConversation?.type === 'booking' || selectedConversation?.type === 'consultation' || selectedConversation?.type === 'guest-spot') && (
+                    <MenuItem onClick={handleViewProfile} sx={{ color: colors.textPrimary }}>
+                      <ListItemIcon><PersonIcon sx={{ color: colors.textSecondary }} /></ListItemIcon>
+                      <ListItemText>View Profile</ListItemText>
+                    </MenuItem>
+                  )}
+                  <MenuItem onClick={handleMoreMenuClose} sx={{ color: colors.textPrimary }}>
+                    <ListItemIcon><BlockIcon sx={{ color: colors.textSecondary }} /></ListItemIcon>
+                    <ListItemText>Block User</ListItemText>
+                  </MenuItem>
+                  <MenuItem onClick={handleMoreMenuClose} sx={{ color: colors.error }}>
+                    <ListItemIcon><ReportIcon sx={{ color: colors.error }} /></ListItemIcon>
+                    <ListItemText>Report</ListItemText>
+                  </MenuItem>
+                </Menu>
               </Box>
 
               {/* Request Banner for pending appointments */}
@@ -1229,9 +1625,126 @@ export default function InboxPage() {
 
               {/* Compose Area */}
               <Box sx={{ px: 3, py: 2, bgcolor: colors.surface, borderTop: `1px solid ${colors.borderSubtle}` }}>
+                {/* Hidden file inputs */}
+                <input
+                  type="file"
+                  ref={imageInputRef}
+                  style={{ display: 'none' }}
+                  accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+                  multiple
+                  onChange={handleImageUpload}
+                />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleFileUpload}
+                />
+                <input
+                  type="file"
+                  ref={designInputRef}
+                  style={{ display: 'none' }}
+                  accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+                  multiple
+                  onChange={handleDesignUpload}
+                />
+
+                {/* Pending attachments preview */}
+                {pendingAttachments.length > 0 && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      gap: 1,
+                      mb: 2,
+                      p: 1.5,
+                      bgcolor: colors.background,
+                      borderRadius: '8px',
+                      border: `1px solid ${colors.borderSubtle}`,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    {pendingAttachments.map((attachment) => (
+                      <Box
+                        key={attachment.id}
+                        sx={{
+                          position: 'relative',
+                          width: 80,
+                          height: 80,
+                          borderRadius: '6px',
+                          overflow: 'hidden',
+                          border: `1px solid ${colors.borderLight}`,
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={attachment.previewUrl}
+                          alt="Pending attachment"
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                        {/* Design badge */}
+                        {attachment.type === 'design' && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              bottom: 2,
+                              left: 2,
+                              px: 0.5,
+                              py: 0.25,
+                              bgcolor: 'rgba(0,0,0,0.7)',
+                              borderRadius: '4px',
+                              fontSize: '0.6rem',
+                              color: colors.accent,
+                              fontWeight: 500,
+                            }}
+                          >
+                            Design
+                          </Box>
+                        )}
+                        {/* Remove button */}
+                        <IconButton
+                          onClick={() => removePendingAttachment(attachment.id)}
+                          size="small"
+                          sx={{
+                            position: 'absolute',
+                            top: 2,
+                            right: 2,
+                            width: 20,
+                            height: 20,
+                            bgcolor: 'rgba(0,0,0,0.6)',
+                            color: 'white',
+                            '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Box>
+                    ))}
+                    {/* Upload status indicator */}
+                    {uploadingAttachments && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          color: colors.textMuted,
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        <CircularProgress size={16} sx={{ color: colors.accent }} />
+                        Uploading...
+                      </Box>
+                    )}
+                  </Box>
+                )}
+
                 <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-end' }}>
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
                     <IconButton
+                      onClick={handleImageClick}
                       sx={{
                         width: 36,
                         height: 36,
@@ -1242,6 +1755,7 @@ export default function InboxPage() {
                       <ImageIcon sx={{ fontSize: 20 }} />
                     </IconButton>
                     <IconButton
+                      onClick={handleFileClick}
                       sx={{
                         width: 36,
                         height: 36,
@@ -1284,7 +1798,7 @@ export default function InboxPage() {
 
                   <IconButton
                     onClick={handleSendMessage}
-                    disabled={!messageInput.trim() || sendingMessage}
+                    disabled={(!messageInput.trim() && pendingAttachments.length === 0) || sendingMessage}
                     sx={{
                       width: 44,
                       height: 44,
@@ -1295,23 +1809,35 @@ export default function InboxPage() {
                       '&.Mui-disabled': { bgcolor: colors.surfaceElevated, color: colors.textMuted },
                     }}
                   >
-                    {sendingMessage ? <CircularProgress size={20} sx={{ color: colors.background }} /> : <SendIcon sx={{ fontSize: 20 }} />}
+                    {sendingMessage ? (
+                      <CircularProgress size={20} sx={{ color: colors.background }} />
+                    ) : (
+                      <SendIcon sx={{ fontSize: 20 }} />
+                    )}
                   </IconButton>
                 </Box>
 
-                {/* Quick Actions */}
+                {/* Quick Actions - Artist-only actions for booking/deposit */}
                 <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+                  {isArtist && (
+                    <>
+                      <QuickAction
+                        icon={<CalendarMonthIcon sx={{ fontSize: 14 }} />}
+                        label="Send Booking"
+                        onClick={handleOpenBookingModal}
+                      />
+                      <QuickAction
+                        icon={<AttachMoneyIcon sx={{ fontSize: 14 }} />}
+                        label="Request Deposit"
+                        onClick={handleOpenDepositModal}
+                      />
+                    </>
+                  )}
                   <QuickAction
-                    icon={<CalendarMonthIcon sx={{ fontSize: 14 }} />}
-                    label="Send Booking"
-                    onClick={handleSendBookingCard}
+                    icon={<DescriptionIcon sx={{ fontSize: 14 }} />}
+                    label="Share Design"
+                    onClick={handleShareDesign}
                   />
-                  <QuickAction
-                    icon={<AttachMoneyIcon sx={{ fontSize: 14 }} />}
-                    label="Request Deposit"
-                    onClick={handleSendDepositRequest}
-                  />
-                  <QuickAction icon={<DescriptionIcon sx={{ fontSize: 14 }} />} label="Share Design" />
                 </Box>
               </Box>
             </>
@@ -1342,6 +1868,198 @@ export default function InboxPage() {
         </Box>
       </Box>
 
+      {/* Booking Modal */}
+      <Dialog
+        open={bookingModalOpen}
+        onClose={() => setBookingModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            border: `1px solid ${colors.borderSubtle}`,
+            borderRadius: '12px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: colors.textPrimary }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CalendarMonthIcon sx={{ color: colors.accent }} />
+            Send Booking Details
+          </Box>
+          <IconButton onClick={() => setBookingModalOpen(false)} sx={{ color: colors.textMuted }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
+            <TextField
+              label="Date"
+              type="date"
+              value={bookingForm.date}
+              onChange={(e) => setBookingForm({ ...bookingForm, date: e.target.value })}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: colors.background,
+                  '& fieldset': { borderColor: colors.borderSubtle },
+                  '&:hover fieldset': { borderColor: colors.borderLight },
+                  '&.Mui-focused fieldset': { borderColor: colors.accent },
+                },
+                '& .MuiInputBase-input': { color: colors.textPrimary },
+                '& .MuiInputLabel-root': { color: colors.textMuted },
+              }}
+            />
+            <TextField
+              label="Time"
+              type="time"
+              value={bookingForm.time}
+              onChange={(e) => setBookingForm({ ...bookingForm, time: e.target.value })}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: colors.background,
+                  '& fieldset': { borderColor: colors.borderSubtle },
+                  '&:hover fieldset': { borderColor: colors.borderLight },
+                  '&.Mui-focused fieldset': { borderColor: colors.accent },
+                },
+                '& .MuiInputBase-input': { color: colors.textPrimary },
+                '& .MuiInputLabel-root': { color: colors.textMuted },
+              }}
+            />
+            <TextField
+              label="Estimated Duration"
+              value={bookingForm.duration}
+              onChange={(e) => setBookingForm({ ...bookingForm, duration: e.target.value })}
+              placeholder="e.g., 2-3 hours"
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: colors.background,
+                  '& fieldset': { borderColor: colors.borderSubtle },
+                  '&:hover fieldset': { borderColor: colors.borderLight },
+                  '&.Mui-focused fieldset': { borderColor: colors.accent },
+                },
+                '& .MuiInputBase-input': { color: colors.textPrimary },
+                '& .MuiInputLabel-root': { color: colors.textMuted },
+              }}
+            />
+            <TextField
+              label="Deposit Amount"
+              value={bookingForm.deposit}
+              onChange={(e) => setBookingForm({ ...bookingForm, deposit: e.target.value })}
+              placeholder="e.g., $100"
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: colors.background,
+                  '& fieldset': { borderColor: colors.borderSubtle },
+                  '&:hover fieldset': { borderColor: colors.borderLight },
+                  '&.Mui-focused fieldset': { borderColor: colors.accent },
+                },
+                '& .MuiInputBase-input': { color: colors.textPrimary },
+                '& .MuiInputLabel-root': { color: colors.textMuted },
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            onClick={() => setBookingModalOpen(false)}
+            sx={{ color: colors.textSecondary, textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSendBookingCard}
+            variant="contained"
+            sx={{
+              bgcolor: colors.accent,
+              color: colors.background,
+              textTransform: 'none',
+              '&:hover': { bgcolor: colors.accentHover },
+            }}
+          >
+            Send Booking Card
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Deposit Request Modal */}
+      <Dialog
+        open={depositModalOpen}
+        onClose={() => setDepositModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            border: `1px solid ${colors.borderSubtle}`,
+            borderRadius: '12px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: colors.textPrimary }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AttachMoneyIcon sx={{ color: colors.accent }} />
+            Request Deposit
+          </Box>
+          <IconButton onClick={() => setDepositModalOpen(false)} sx={{ color: colors.textMuted }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem', mb: 2 }}>
+            Enter the deposit amount to request from {selectedConversation?.participant?.name || 'the client'}.
+          </Typography>
+          <TextField
+            label="Deposit Amount"
+            value={depositAmount}
+            onChange={(e) => setDepositAmount(e.target.value)}
+            placeholder="e.g., $100"
+            fullWidth
+            autoFocus
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: colors.background,
+                '& fieldset': { borderColor: colors.borderSubtle },
+                '&:hover fieldset': { borderColor: colors.borderLight },
+                '&.Mui-focused fieldset': { borderColor: colors.accent },
+              },
+              '& .MuiInputBase-input': { color: colors.textPrimary, fontSize: '1.25rem', fontWeight: 500 },
+              '& .MuiInputLabel-root': { color: colors.textMuted },
+            }}
+          />
+          {user?.settings?.deposit_amount && (
+            <Typography sx={{ color: colors.textMuted, fontSize: '0.8rem', mt: 1 }}>
+              Your default deposit: ${user.settings.deposit_amount}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            onClick={() => setDepositModalOpen(false)}
+            sx={{ color: colors.textSecondary, textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSendDepositRequest}
+            variant="contained"
+            sx={{
+              bgcolor: colors.accent,
+              color: colors.background,
+              textTransform: 'none',
+              '&:hover': { bgcolor: colors.accentHover },
+            }}
+          >
+            Send Request
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
@@ -1353,11 +2071,11 @@ export default function InboxPage() {
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
           sx={{
-            bgcolor: snackbar.severity === 'success' ? colors.accent : colors.error,
-            color: snackbar.severity === 'success' ? colors.background : 'white',
+            bgcolor: snackbar.severity === 'success' ? colors.accent : snackbar.severity === 'info' ? colors.info : colors.error,
+            color: snackbar.severity === 'error' ? 'white' : colors.background,
             fontWeight: 500,
-            '& .MuiAlert-icon': { color: snackbar.severity === 'success' ? colors.background : 'white' },
-            '& .MuiAlert-action': { color: snackbar.severity === 'success' ? colors.background : 'white' },
+            '& .MuiAlert-icon': { color: snackbar.severity === 'error' ? 'white' : colors.background },
+            '& .MuiAlert-action': { color: snackbar.severity === 'error' ? 'white' : colors.background },
           }}
         >
           {snackbar.message}

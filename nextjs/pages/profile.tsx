@@ -27,6 +27,8 @@ import ChatIcon from '@mui/icons-material/Chat';
 import PublicIcon from '@mui/icons-material/Public';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
+import BrandingWatermarkIcon from '@mui/icons-material/BrandingWatermark';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useAuth, useUser } from '@/contexts/AuthContext';
 import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
@@ -34,6 +36,7 @@ import { useProfilePhoto } from '@/hooks';
 import { withAuth } from '@/components/WithAuth';
 import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
+import { uploadImageToS3 } from '@/utils/s3Upload';
 
 // Navigation items for sidebar
 const navItems = [
@@ -43,6 +46,7 @@ const navItems = [
   { id: 'styles', label: 'Styles', icon: StarIcon },
   { id: 'hours', label: 'Hours', icon: AccessTimeIcon },
   { id: 'booking', label: 'Booking & Rates', icon: EventIcon },
+  { id: 'watermark', label: 'Watermark', icon: BrandingWatermarkIcon },
   { id: 'travel', label: 'Travel', icon: PublicIcon },
 ];
 
@@ -305,8 +309,17 @@ const ProfilePage: React.FC = () => {
     hourly_rate: '',
     minimum_session: '',
     deposit_amount: '',
-    consultation_fee: ''
+    consultation_fee: '',
+    watermark_enabled: false,
+    watermark_opacity: 50,
+    watermark_position: 'bottom-right',
+    watermark_image: null as { id: number; uri: string } | null,
   });
+
+  // Watermark upload state
+  const watermarkInputRef = React.useRef<HTMLInputElement>(null);
+  const [uploadingWatermark, setUploadingWatermark] = useState(false);
+  const [watermarkSaved, setWatermarkSaved] = useState(false);
 
   // Track unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -372,7 +385,11 @@ const ProfilePage: React.FC = () => {
           hourly_rate: toDisplayValue(response.data.hourly_rate),
           minimum_session: toDisplayValue(response.data.minimum_session),
           deposit_amount: toDisplayValue(response.data.deposit_amount),
-          consultation_fee: toDisplayValue(response.data.consultation_fee)
+          consultation_fee: toDisplayValue(response.data.consultation_fee),
+          watermark_enabled: response.data.watermark_enabled ?? false,
+          watermark_opacity: response.data.watermark_opacity ?? 50,
+          watermark_position: response.data.watermark_position ?? 'bottom-right',
+          watermark_image: response.data.watermark_image ?? null,
         }));
       }
     } catch (err) {
@@ -523,6 +540,85 @@ const ProfilePage: React.FC = () => {
     setHasUnsavedSettings(false);
   };
 
+  // Handle watermark upload
+  const handleWatermarkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !artistId) return;
+
+    setUploadingWatermark(true);
+    try {
+      const uploadedImage = await uploadImageToS3(file, 'profile');
+
+      // Update artist settings with new watermark
+      await api.put(`/artists/${artistId}/settings`, {
+        watermark_image_id: uploadedImage.id,
+      }, { requiresAuth: true });
+
+      setArtistSettings(prev => ({
+        ...prev,
+        watermark_image: { id: uploadedImage.id, uri: uploadedImage.uri },
+      }));
+
+      // Show inline saved indicator
+      setWatermarkSaved(true);
+      setTimeout(() => setWatermarkSaved(false), 2000);
+    } catch (err) {
+      console.error('Watermark upload error:', err);
+      setToastMessage('Failed to upload watermark');
+      setShowToast(true);
+    } finally {
+      setUploadingWatermark(false);
+      event.target.value = '';
+    }
+  };
+
+  // Handle watermark removal
+  const handleRemoveWatermark = async () => {
+    if (!artistId) return;
+
+    try {
+      await api.put(`/artists/${artistId}/settings`, {
+        watermark_image_id: null,
+        watermark_enabled: false,
+      }, { requiresAuth: true });
+
+      setArtistSettings(prev => ({
+        ...prev,
+        watermark_image: null,
+        watermark_enabled: false,
+      }));
+
+      // Show inline saved indicator
+      setWatermarkSaved(true);
+      setTimeout(() => setWatermarkSaved(false), 2000);
+    } catch (err) {
+      setToastMessage('Failed to remove watermark');
+      setShowToast(true);
+    }
+  };
+
+  // Handle watermark setting changes
+  const handleWatermarkSettingChange = async (key: 'watermark_enabled' | 'watermark_opacity' | 'watermark_position', value: boolean | number | string) => {
+    if (!artistId) return;
+
+    const previousSettings = { ...artistSettings };
+    setArtistSettings(prev => ({ ...prev, [key]: value }));
+
+    try {
+      await api.put(`/artists/${artistId}/settings`, {
+        [key]: value,
+      }, { requiresAuth: true });
+
+      // Show inline saved indicator
+      setWatermarkSaved(true);
+      setTimeout(() => setWatermarkSaved(false), 2000);
+    } catch (err) {
+      setArtistSettings(previousSettings);
+      setToastMessage('Failed to update watermark settings');
+      setShowToast(true);
+    }
+  };
+
   // Open styles modal
   const openStylesModal = () => {
     setStyleModalOpen(true);
@@ -668,7 +764,7 @@ const ProfilePage: React.FC = () => {
             {navItems
               .filter(item => {
                 // Filter out artist-only sections for non-artists
-                if (!isArtist && ['studio', 'hours', 'booking', 'travel'].includes(item.id)) {
+                if (!isArtist && ['studio', 'hours', 'booking', 'watermark', 'travel'].includes(item.id)) {
                   return false;
                 }
                 return true;
@@ -715,13 +811,15 @@ const ProfilePage: React.FC = () => {
         <Box sx={{
           flex: 1,
           ml: { xs: 0, md: '72px' },
-          mr: { xs: 0, md: '72px' }, // Match left margin to center content
           pb: { xs: 12, md: 4 },
-          maxWidth: '720px',
-          mx: 'auto',
-          width: '100%',
-          p: { xs: '1.5rem 1rem 6rem', md: '2rem 1.5rem 4rem' }
+          display: 'flex',
+          justifyContent: 'center',
         }}>
+          <Box sx={{
+            maxWidth: '720px',
+            width: '100%',
+            p: { xs: '1.5rem 1rem 6rem', md: '2rem 1.5rem 4rem' }
+          }}>
           {/* Page Header */}
           <Box sx={{ mb: '2rem' }}>
             <Typography sx={{ fontSize: '1.75rem', fontWeight: 600, color: colors.textPrimary, mb: '0.5rem' }}>
@@ -1333,6 +1431,213 @@ const ProfilePage: React.FC = () => {
           </SettingsSection>
           )}
 
+          {/* Watermark Section (artists only) */}
+          {isArtist && (
+            <SettingsSection id="watermark" title="Design Watermark" icon={<BrandingWatermarkIcon sx={{ fontSize: 20 }} />}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '1rem' }}>
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
+                  Automatically add your watermark to designs when sharing them with clients. This helps protect your work.
+                </Typography>
+                {watermarkSaved && (
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    px: '0.75rem',
+                    py: '0.35rem',
+                    bgcolor: `${colors.accent}26`,
+                    borderRadius: '100px',
+                    flexShrink: 0,
+                    ml: '1rem',
+                  }}>
+                    <CheckIcon sx={{ fontSize: 14, color: colors.accent }} />
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, color: colors.accent }}>
+                      Saved
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+
+              {/* Watermark Preview/Upload */}
+              <FormGroup label="Watermark Image">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  {artistSettings.watermark_image ? (
+                    <Box sx={{
+                      width: 100,
+                      height: 100,
+                      border: `1px solid ${colors.borderLight}`,
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      position: 'relative',
+                      bgcolor: colors.background,
+                    }}>
+                      <Box
+                        component="img"
+                        src={artistSettings.watermark_image.uri}
+                        alt="Watermark"
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          opacity: artistSettings.watermark_opacity / 100,
+                          transition: 'opacity 0.15s ease',
+                        }}
+                      />
+                    </Box>
+                  ) : (
+                    <Box sx={{
+                      width: 100,
+                      height: 100,
+                      border: `1px dashed ${colors.borderLight}`,
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: colors.background,
+                    }}>
+                      <BrandingWatermarkIcon sx={{ fontSize: 32, color: colors.textSecondary, opacity: 0.5 }} />
+                    </Box>
+                  )}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <Box
+                      component="button"
+                      onClick={() => watermarkInputRef.current?.click()}
+                      disabled={uploadingWatermark}
+                      sx={{
+                        px: '1rem',
+                        py: '0.5rem',
+                        borderRadius: '6px',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        border: `1px solid ${colors.borderLight}`,
+                        bgcolor: 'transparent',
+                        color: colors.textPrimary,
+                        fontFamily: 'inherit',
+                        opacity: uploadingWatermark ? 0.7 : 1,
+                        '&:hover': { borderColor: colors.accent, color: colors.accent }
+                      }}
+                    >
+                      {uploadingWatermark ? 'Uploading...' : artistSettings.watermark_image ? 'Change' : 'Upload Watermark'}
+                    </Box>
+                    {artistSettings.watermark_image && (
+                      <Box
+                        component="button"
+                        onClick={handleRemoveWatermark}
+                        sx={{
+                          px: '1rem',
+                          py: '0.5rem',
+                          background: 'none',
+                          border: 'none',
+                          color: colors.error || '#ef4444',
+                          fontSize: '0.85rem',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          textAlign: 'left',
+                          '&:hover': { textDecoration: 'underline' }
+                        }}
+                      >
+                        Remove
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+                <input
+                  type="file"
+                  ref={watermarkInputRef}
+                  style={{ display: 'none' }}
+                  accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                  onChange={handleWatermarkUpload}
+                />
+              </FormGroup>
+
+              {/* Watermark Settings */}
+              {artistSettings.watermark_image && (
+                <>
+                  {/* Enable/Disable */}
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: '1rem',
+                    bgcolor: colors.background,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: '8px',
+                    mb: '1rem',
+                  }}>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 500, color: colors.textPrimary }}>
+                        Enable Watermark
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                        Automatically apply to shared designs
+                      </Typography>
+                    </Box>
+                    <Switch
+                      checked={artistSettings.watermark_enabled}
+                      onChange={(e) => handleWatermarkSettingChange('watermark_enabled', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': {
+                          color: colors.accent,
+                          '& + .MuiSwitch-track': { bgcolor: colors.accent }
+                        }
+                      }}
+                    />
+                  </Box>
+
+                  {/* Position */}
+                  <FormGroup label="Position">
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {['top-left', 'top-right', 'center', 'bottom-left', 'bottom-right'].map((pos) => (
+                        <Box
+                          key={pos}
+                          component="button"
+                          onClick={() => handleWatermarkSettingChange('watermark_position', pos)}
+                          sx={{
+                            px: '0.875rem',
+                            py: '0.5rem',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            border: `1px solid ${artistSettings.watermark_position === pos ? colors.accent : colors.borderLight}`,
+                            bgcolor: artistSettings.watermark_position === pos ? `${colors.accent}26` : 'transparent',
+                            color: artistSettings.watermark_position === pos ? colors.accent : colors.textSecondary,
+                            fontFamily: 'inherit',
+                            textTransform: 'capitalize',
+                            '&:hover': { borderColor: colors.accent }
+                          }}
+                        >
+                          {pos.replace('-', ' ')}
+                        </Box>
+                      ))}
+                    </Box>
+                  </FormGroup>
+
+                  {/* Opacity */}
+                  <FormGroup label={`Opacity: ${artistSettings.watermark_opacity}%`}>
+                    <Box sx={{ px: '0.5rem' }}>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        value={artistSettings.watermark_opacity}
+                        onChange={(e) => setArtistSettings(prev => ({ ...prev, watermark_opacity: parseInt(e.target.value) }))}
+                        onMouseUp={(e) => handleWatermarkSettingChange('watermark_opacity', artistSettings.watermark_opacity)}
+                        onTouchEnd={(e) => handleWatermarkSettingChange('watermark_opacity', artistSettings.watermark_opacity)}
+                        style={{
+                          width: '100%',
+                          accentColor: colors.accent,
+                        }}
+                      />
+                    </Box>
+                  </FormGroup>
+                </>
+              )}
+            </SettingsSection>
+          )}
+
           {/* Travel & Guest Spots Section (artists only) */}
           {isArtist && (
             <SettingsSection id="travel" title="Travel & Guest Spots" icon={<PublicIcon sx={{ fontSize: 20 }} />}>
@@ -1433,6 +1738,7 @@ const ProfilePage: React.FC = () => {
             </Box>
           </Box>
           </SettingsSection>
+          </Box>
         </Box>
 
         {/* Bottom Navigation - Mobile */}
@@ -1455,7 +1761,7 @@ const ProfilePage: React.FC = () => {
           {navItems
             .filter(item => {
               // Filter out artist-only sections for non-artists
-              if (!isArtist && ['studio', 'hours', 'booking', 'travel'].includes(item.id)) {
+              if (!isArtist && ['studio', 'hours', 'booking', 'watermark', 'travel'].includes(item.id)) {
                 return false;
               }
               return true;
