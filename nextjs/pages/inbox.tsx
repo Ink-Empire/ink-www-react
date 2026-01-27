@@ -379,21 +379,23 @@ function MessageBubble({
           alignItems: isSent ? 'flex-end' : 'flex-start',
         }}
       >
-        <Box
-          sx={{
-            px: 2,
-            py: 1.5,
-            bgcolor: isSent ? colors.accent : colors.surface,
-            color: isSent ? colors.background : colors.textPrimary,
-            borderRadius: '12px',
-            borderBottomLeftRadius: isSent ? '12px' : '4px',
-            borderBottomRightRadius: isSent ? '4px' : '12px',
-            fontSize: '0.9rem',
-            lineHeight: 1.5,
-          }}
-        >
-          {message.content}
-        </Box>
+        {message.content && (
+          <Box
+            sx={{
+              px: 2,
+              py: 1.5,
+              bgcolor: isSent ? colors.accent : colors.surface,
+              color: isSent ? colors.background : colors.textPrimary,
+              borderRadius: '12px',
+              borderBottomLeftRadius: isSent ? '12px' : '4px',
+              borderBottomRightRadius: isSent ? '4px' : '12px',
+              fontSize: '0.9rem',
+              lineHeight: 1.5,
+            }}
+          >
+            {message.content}
+          </Box>
+        )}
 
         {/* Image attachments */}
         {message.attachments && message.attachments.length > 0 && (
