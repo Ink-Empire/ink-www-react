@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { artistService } from '@/services/artistService';
 import { ArtistType } from '@/models/artist.interface';
 import { api } from '@/utils/api';
@@ -14,146 +14,130 @@ export interface UnclaimedStudio {
   is_claimed: boolean;
 }
 
-// Hook for fetching artists list
+// Hook for fetching artists list with infinite scroll support
 export function useArtists(searchParams?: Record<string, any>) {
   const [artists, setArtists] = useState<ArtistType[]>([]);
   const [unclaimedStudios, setUnclaimedStudios] = useState<UnclaimedStudio[]>([]);
+  const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState<number>(1);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const { isDemoMode } = useDemoMode();
 
-  // Use JSON.stringify to compare searchParams objects, include demo mode in key
+  // Track the current search params to detect changes
   const searchParamsKey = JSON.stringify({ ...(searchParams || {}), _demoMode: isDemoMode });
+  const prevSearchParamsKey = useRef<string>(searchParamsKey);
 
+  // Reset pagination when search params change
   useEffect(() => {
-    let isMounted = true;
-    
-    // Use localStorage caching for artist lists to reduce initial loading time
-    const ARTISTS_CACHE_KEY = `artists_cache:${searchParamsKey}`;
-    
-    // Try to load from localStorage first
-    const tryLoadFromCache = () => {
-      if (typeof window !== 'undefined') {
-        try {
-          const cachedData = localStorage.getItem(ARTISTS_CACHE_KEY);
-          if (cachedData) {
-            const parsedData = JSON.parse(cachedData);
-            
-            // Check if cache is fresh (less than 5 minutes old)
-            const cacheFreshness = 5 * 60 * 1000; // 5 minutes
-            if (parsedData.timestamp && Date.now() - parsedData.timestamp < cacheFreshness) {
-              if (parsedData.artists && Array.isArray(parsedData.artists)) {
-                console.log('Using cached artists data:', parsedData.artists.length, 'artists');
-                setArtists(parsedData.artists);
-                return true;
-              }
-            }
+    if (prevSearchParamsKey.current !== searchParamsKey) {
+      setPage(1);
+      setArtists([]);
+      setHasMore(true);
+      prevSearchParamsKey.current = searchParamsKey;
+    }
+  }, [searchParamsKey]);
+
+  // Fetch artists for a specific page
+  const fetchArtists = useCallback(async (pageNum: number, append: boolean = false) => {
+    if (pageNum === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      // Construct the request body from searchParams if provided
+      const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
+      if (requestBody.locationCoordsString) {
+        requestBody.locationCoords = requestBody.locationCoordsString;
+        delete requestBody.locationCoordsString;
+      } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
+        requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
+      }
+
+      console.log(`Fetching artists page ${pageNum}:`, requestBody);
+
+      type ArtistsResponse = {
+        response: ArtistType[];
+        unclaimed_studios?: UnclaimedStudio[];
+        total: number;
+        page: number;
+        per_page: number;
+        has_more: boolean;
+      };
+
+      const response = await api.post<ArtistsResponse>('/artists', requestBody, {
+        headers: { 'X-Account-Type': 'artist' },
+        useCache: false, // Don't cache paginated requests
+        requiresAuth: false
+      });
+
+      // Process the response
+      let artistsData: ArtistType[] = [];
+      let unclaimedStudiosData: UnclaimedStudio[] = [];
+      let totalCount = 0;
+      let hasMorePages = false;
+
+      if (response) {
+        if ('response' in response && Array.isArray(response.response)) {
+          artistsData = response.response;
+          totalCount = response.total ?? 0;
+          hasMorePages = response.has_more ?? false;
+          if (response.unclaimed_studios && Array.isArray(response.unclaimed_studios)) {
+            unclaimedStudiosData = response.unclaimed_studios;
           }
-        } catch (e) {
-          console.warn('Error reading artists from cache', e);
+        } else if (Array.isArray(response)) {
+          artistsData = response as unknown as ArtistType[];
+          totalCount = artistsData.length;
         }
+        console.log(`Artists page ${pageNum} fetched:`, artistsData.length, 'of', totalCount, 'total, hasMore:', hasMorePages);
       }
-      return false;
-    };
-    
-    // Save to localStorage
-    const saveToCache = (artistsData: ArtistType[]) => {
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(ARTISTS_CACHE_KEY, JSON.stringify({
-            artists: artistsData,
-            timestamp: Date.now()
-          }));
-        } catch (e) {
-          console.warn('Error saving artists to cache', e);
-        }
-      }
-    };
-    
-    const fetchArtists = async () => {
-      // If we successfully loaded from cache, don't show loading state
-      // but still fetch fresh data in the background
-      const loadedFromCache = tryLoadFromCache();
-      if (loadedFromCache) {
-        setLoading(false); // Dismiss loading immediately when using cached data
+
+      if (append) {
+        setArtists(prev => [...prev, ...artistsData]);
       } else {
-        setLoading(true);
-      }
-
-      try {
-        // Construct the request body from searchParams if provided
-        // Convert locationCoords object to string format for API
-        const requestBody = { ...searchParams };
-        if (requestBody.locationCoordsString) {
-          requestBody.locationCoords = requestBody.locationCoordsString;
-          delete requestBody.locationCoordsString;
-        } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
-          // Fallback: convert object to string if locationCoordsString wasn't set
-          requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
-        }
-
-        console.log('Fetching artists with search params:', requestBody);
-        
-        // Explicitly use POST method, passing searchParams in the request body
-        // Enable caching for search results
-        // Response could be array directly or wrapped in { data: [...] }
-        type ArtistsResponse = ArtistType[] | { data: ArtistType[] };
-        const response = await api.post<ArtistsResponse>('/artists', requestBody, {
-          headers: { 'X-Account-Type': 'artist' },
-          useCache: true, // Enable caching for this POST request as it's idempotent
-          cacheTTL: 5 * 60 * 1000 // 5 minute cache for artist searches
-        });
-
-        if (!isMounted) return;
-
-        // Process the response - handle array, { data: [...] }, and { response: [...] } formats
-        let artistsData: ArtistType[] = [];
-        let unclaimedStudiosData: UnclaimedStudio[] = [];
-
-        if (response) {
-          if (Array.isArray(response)) {
-            artistsData = response;
-          } else if ('response' in response && Array.isArray((response as any).response)) {
-            artistsData = (response as any).response;
-            // Also check for unclaimed_studios in the response
-            if ('unclaimed_studios' in response && Array.isArray((response as any).unclaimed_studios)) {
-              unclaimedStudiosData = (response as any).unclaimed_studios;
-            }
-          } else if ('data' in response && Array.isArray((response as any).data)) {
-            artistsData = (response as any).data;
-          }
-          console.log('Artists fetched successfully via POST:', artistsData.length);
-          if (unclaimedStudiosData.length > 0) {
-            console.log('Unclaimed studios fetched:', unclaimedStudiosData.length);
-          }
-        }
         setArtists(artistsData);
         setUnclaimedStudios(unclaimedStudiosData);
-        saveToCache(artistsData);
-        setError(null);
-      } catch (err) {
-        if (!isMounted) return;
-        
-        // Only set error if we didn't load from cache
-        if (!loadedFromCache) {
-          console.error('Error fetching artists:', err);
-          setError(err instanceof Error ? err : new Error('Failed to fetch artists'));
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
       }
-    };
+      setTotal(totalCount);
+      setHasMore(hasMorePages);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching artists:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch artists'));
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [searchParams]);
 
-    fetchArtists();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [searchParamsKey]); // Use the stringified version for dependency tracking
+  // Initial fetch when search params change
+  useEffect(() => {
+    fetchArtists(1, false);
+  }, [searchParamsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { artists, unclaimedStudios, loading, error };
+  // Load more function for infinite scroll
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchArtists(nextPage, true);
+    }
+  }, [loadingMore, hasMore, page, fetchArtists]);
+
+  return {
+    artists,
+    unclaimedStudios,
+    total,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    loadMore
+  };
 }
 
 // Hook for fetching a single artist by ID or slug
