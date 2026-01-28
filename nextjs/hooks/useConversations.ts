@@ -8,6 +8,7 @@ export interface Participant {
   id: number;
   name: string | null;
   username: string;
+  slug: string | null;
   initials: string;
   image: {
     id: number;

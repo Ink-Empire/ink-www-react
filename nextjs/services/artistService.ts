@@ -9,19 +9,21 @@ export const artistService = {
     });
   },
 
-  // Get artist by ID or slug (public access)
+  // Get artist by ID or slug (public access, but sends auth if available for block filtering)
   getById: async (idOrSlug: number | string, options?: { useCache?: boolean }): Promise<IArtist> => {
     const response = await api.get<{ artist: IArtist }>(`/artists/${idOrSlug}`, {
-      useCache: options?.useCache ?? true
+      useCache: options?.useCache ?? true,
+      requiresAuth: true, // Send token if available to filter blocked artists
     });
     return response.artist;
   },
 
-  // Search artists (public access)
+  // Search artists (public access, but sends auth if available for block filtering)
   search: async (params: Record<string, any>): Promise<IArtist[]> => {
     // Use POST with params in request body
     return api.post<IArtist[]>('/artists', params, {
-      headers: { 'X-Account-Type': 'artist' }
+      headers: { 'X-Account-Type': 'artist' },
+      requiresAuth: true, // Send token if available to filter blocked artists
     });
   },
 

@@ -70,6 +70,13 @@ export default function ArtistDetail() {
         }
     }, [artist?.settings]);
 
+    // Redirect to artists page if artist not found (e.g., blocked user)
+    useEffect(() => {
+        if (!artistLoading && artistError) {
+            router.replace('/artists');
+        }
+    }, [artistLoading, artistError, router]);
+
     // Record profile view when artist loads
     useEffect(() => {
         if (artist?.id) {
@@ -344,10 +351,11 @@ export default function ArtistDetail() {
     }
 
     if (artistError) {
+        // Show loading while redirecting (redirect happens in useEffect)
         return (
             <Layout>
-                <Box sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography sx={{ color: colors.error }}>Error: {artistError.message}</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                    <CircularProgress size={32} sx={{ color: colors.accent }} />
                 </Box>
             </Layout>
         );

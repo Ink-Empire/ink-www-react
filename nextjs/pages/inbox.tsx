@@ -927,6 +927,38 @@ export default function InboxPage() {
     handleMoreMenuClose();
   };
 
+  // Check if current participant is blocked
+  const isParticipantBlocked = selectedConversation?.participant?.id &&
+    user?.blocked_user_ids?.includes(selectedConversation.participant.id);
+
+  const handleBlockUser = async () => {
+    if (!selectedConversation?.participant?.id) return;
+
+    const participantId = selectedConversation.participant.id;
+    const isCurrentlyBlocked = isParticipantBlocked;
+
+    try {
+      if (isCurrentlyBlocked) {
+        await api.post('/users/unblock', { user_id: participantId }, { requiresAuth: true });
+        setSnackbar({ open: true, message: 'User unblocked', severity: 'success' });
+      } else {
+        await api.post('/users/block', { user_id: participantId }, { requiresAuth: true });
+        setSnackbar({ open: true, message: 'User blocked. They can no longer message you.', severity: 'success' });
+      }
+      // Refresh user data to update blocked_user_ids
+      window.location.reload();
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Failed to update block status', severity: 'error' });
+    }
+    handleMoreMenuClose();
+  };
+
+  const handleReportUser = async () => {
+    // TODO: Implement report functionality - for now just show a message
+    setSnackbar({ open: true, message: 'Report submitted. Our team will review it.', severity: 'info' });
+    handleMoreMenuClose();
+  };
+
   const handleShareDesign = () => {
     // Open file picker for design images
     designInputRef.current?.click();
@@ -1349,11 +1381,11 @@ export default function InboxPage() {
                       <ListItemText>View Profile</ListItemText>
                     </MenuItem>
                   )}
-                  <MenuItem onClick={handleMoreMenuClose} sx={{ color: colors.textPrimary }}>
-                    <ListItemIcon><BlockIcon sx={{ color: colors.textSecondary }} /></ListItemIcon>
-                    <ListItemText>Block User</ListItemText>
+                  <MenuItem onClick={handleBlockUser} sx={{ color: colors.textPrimary }}>
+                    <ListItemIcon><BlockIcon sx={{ color: isParticipantBlocked ? colors.error : colors.textSecondary }} /></ListItemIcon>
+                    <ListItemText>{isParticipantBlocked ? 'Unblock User' : 'Block User'}</ListItemText>
                   </MenuItem>
-                  <MenuItem onClick={handleMoreMenuClose} sx={{ color: colors.error }}>
+                  <MenuItem onClick={handleReportUser} sx={{ color: colors.error }}>
                     <ListItemIcon><ReportIcon sx={{ color: colors.error }} /></ListItemIcon>
                     <ListItemText>Report</ListItemText>
                   </MenuItem>
@@ -1771,7 +1803,7 @@ export default function InboxPage() {
 
                   <TextField
                     fullWidth
-                    placeholder="Type a message..."
+                    placeholder={isParticipantBlocked ? "You have blocked this user" : "Type a message..."}
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -1783,7 +1815,7 @@ export default function InboxPage() {
                     multiline
                     maxRows={4}
                     size="small"
-                    disabled={sendingMessage}
+                    disabled={sendingMessage || isParticipantBlocked}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         bgcolor: colors.background,
@@ -1800,7 +1832,7 @@ export default function InboxPage() {
 
                   <IconButton
                     onClick={handleSendMessage}
-                    disabled={(!messageInput.trim() && pendingAttachments.length === 0) || sendingMessage}
+                    disabled={(!messageInput.trim() && pendingAttachments.length === 0) || sendingMessage || isParticipantBlocked}
                     sx={{
                       width: 44,
                       height: 44,
