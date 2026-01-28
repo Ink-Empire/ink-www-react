@@ -428,29 +428,30 @@ function MessageBubble({
             sx={{
               bgcolor: isSent ? 'rgba(0,0,0,0.15)' : colors.surfaceElevated,
               border: `1px solid ${isSent ? 'rgba(0,0,0,0.2)' : colors.borderLight}`,
-              borderRadius: '8px',
-              p: 2,
-              mt: 0.5,
-              maxWidth: 280,
+              borderRadius: '12px',
+              p: 3,
+              mt: 1.5,
+              minWidth: 280,
+              maxWidth: 320,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, fontWeight: 600, fontSize: '0.85rem' }}>
-              <CalendarMonthIcon sx={{ fontSize: 16, color: isSent ? colors.background : colors.success }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5, fontWeight: 600, fontSize: '0.95rem' }}>
+              <CalendarMonthIcon sx={{ fontSize: 20, color: isSent ? colors.textSecondary : colors.success }} />
               Booking Details
             </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, fontSize: '0.85rem' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.9rem' }}>
               {[
                 { label: 'Date', value: message.metadata.date },
                 { label: 'Time', value: message.metadata.time },
-                { label: 'Est. Duration', value: message.metadata.duration },
+                { label: 'Duration', value: message.metadata.duration },
                 { label: 'Deposit', value: message.metadata.deposit },
               ].map(({ label, value }) =>
                 value ? (
-                  <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography sx={{ color: colors.textSecondary, fontSize: 'inherit' }}>
+                  <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 3 }}>
+                    <Typography sx={{ color: colors.textSecondary, fontSize: 'inherit', flexShrink: 0 }}>
                       {label}
                     </Typography>
-                    <Typography sx={{ fontWeight: 500, fontSize: 'inherit' }}>{value}</Typography>
+                    <Typography sx={{ fontWeight: 500, fontSize: 'inherit', color: colors.textPrimary, textAlign: 'right' }}>{value}</Typography>
                   </Box>
                 ) : null
               )}
@@ -464,21 +465,22 @@ function MessageBubble({
             sx={{
               bgcolor: isSent ? 'rgba(0,0,0,0.15)' : colors.surfaceElevated,
               border: `1px solid ${isSent ? 'rgba(0,0,0,0.2)' : colors.borderLight}`,
-              borderRadius: '8px',
-              p: 2,
-              mt: 0.5,
-              maxWidth: 280,
+              borderRadius: '12px',
+              p: 3,
+              mt: 1.5,
+              minWidth: 280,
+              maxWidth: 320,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, fontWeight: 600, fontSize: '0.85rem' }}>
-              <AttachMoneyIcon sx={{ fontSize: 16, color: isSent ? colors.background : colors.accent }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5, fontWeight: 600, fontSize: '0.95rem' }}>
+              <AttachMoneyIcon sx={{ fontSize: 20, color: isSent ? colors.textSecondary : colors.accent }} />
               Deposit Request
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-              <Typography sx={{ color: colors.textSecondary, fontSize: 'inherit' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 3, fontSize: '0.9rem' }}>
+              <Typography sx={{ color: colors.textSecondary, fontSize: 'inherit', flexShrink: 0 }}>
                 Amount
               </Typography>
-              <Typography sx={{ fontWeight: 500, fontSize: 'inherit' }}>{message.metadata.amount}</Typography>
+              <Typography sx={{ fontWeight: 500, fontSize: 'inherit', color: colors.textPrimary, textAlign: 'right' }}>{message.metadata.amount}</Typography>
             </Box>
           </Box>
         )}
