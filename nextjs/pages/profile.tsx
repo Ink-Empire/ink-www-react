@@ -29,6 +29,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import BrandingWatermarkIcon from '@mui/icons-material/BrandingWatermark';
 import DeleteIcon from '@mui/icons-material/Delete';
+import BlockIcon from '@mui/icons-material/Block';
 import { useAuth, useUser } from '@/contexts/AuthContext';
 import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
@@ -321,6 +322,10 @@ const ProfilePage: React.FC = () => {
   const [uploadingWatermark, setUploadingWatermark] = useState(false);
   const [watermarkSaved, setWatermarkSaved] = useState(false);
 
+  // Blocked users state
+  const [blockedUsers, setBlockedUsers] = useState<Array<{ id: number; name: string; username?: string; slug?: string; image?: string }>>([]);
+  const [unblocking, setUnblocking] = useState<number | null>(null);
+
   // Track unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>(userData.styles || []);
@@ -356,6 +361,10 @@ const ProfilePage: React.FC = () => {
         postalCode: (userData as any).studio?.postal_code || ''
       });
       setSelectedStyles(userData.styles || []);
+      // Initialize blocked users from userData
+      if ((userData as any).blocked_users) {
+        setBlockedUsers((userData as any).blocked_users);
+      }
     }
   }, [userData]);
 
@@ -616,6 +625,24 @@ const ProfilePage: React.FC = () => {
       setArtistSettings(previousSettings);
       setToastMessage('Failed to update watermark settings');
       setShowToast(true);
+    }
+  };
+
+  // Handle unblock user
+  const handleUnblockUser = async (userId: number) => {
+    setUnblocking(userId);
+    try {
+      await api.post('/users/unblock', { user_id: userId }, { requiresAuth: true });
+      // Remove user from local state
+      setBlockedUsers(prev => prev.filter(u => u.id !== userId));
+      setToastMessage('User unblocked successfully');
+      setShowToast(true);
+    } catch (err) {
+      console.error('Error unblocking user:', err);
+      setToastMessage('Failed to unblock user');
+      setShowToast(true);
+    } finally {
+      setUnblocking(null);
     }
   };
 
@@ -1044,7 +1071,7 @@ const ProfilePage: React.FC = () => {
         </Box>
 
         {/* About You Section */}
-          <SettingsSection id="about" title="About You" icon={<PersonIcon sx={{ fontSize: 20 }} />}>
+          <SettingsSection id="about" title="About You" icon={<PersonIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem' }}>
             <FormGroup label="First Name">
               <TextField
@@ -1089,7 +1116,7 @@ const ProfilePage: React.FC = () => {
 
         {/* Your Studio Section (artists only) */}
           {isArtist && (
-            <SettingsSection id="studio" title="Your Studio" icon={<LocationOnIcon sx={{ fontSize: 20 }} />}>
+            <SettingsSection id="studio" title="Your Studio" icon={<LocationOnIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
             <FormGroup label="Studio Name">
               <TextField
                 fullWidth
@@ -1152,7 +1179,7 @@ const ProfilePage: React.FC = () => {
         )}
 
         {/* Your Styles Section */}
-          <SettingsSection id="styles" title="Your Styles" icon={<StarIcon sx={{ fontSize: 20 }} />}>
+          <SettingsSection id="styles" title="Your Styles" icon={<StarIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: '1rem' }}>
             {selectedStyles.map(styleId => (
               <Box
@@ -1221,7 +1248,7 @@ const ProfilePage: React.FC = () => {
 
         {/* Your Hours Section (artists only) */}
           {isArtist && (
-            <SettingsSection id="hours" title="Your Hours" icon={<AccessTimeIcon sx={{ fontSize: 20 }} />}>
+            <SettingsSection id="hours" title="Your Hours" icon={<AccessTimeIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '1rem' }}>
               <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary }}>
                 Weekly Schedule
@@ -1255,7 +1282,7 @@ const ProfilePage: React.FC = () => {
 
         {/* Booking & Rates Section (artists only) */}
           {isArtist && (
-            <SettingsSection id="booking" title="Booking & Rates" icon={<EventIcon sx={{ fontSize: 20 }} />}>
+            <SettingsSection id="booking" title="Booking & Rates" icon={<EventIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
             {/* Rates Section */}
             <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, mb: '0.75rem' }}>
               Your Rates
@@ -1433,7 +1460,7 @@ const ProfilePage: React.FC = () => {
 
           {/* Watermark Section (artists only) */}
           {isArtist && (
-            <SettingsSection id="watermark" title="Design Watermark" icon={<BrandingWatermarkIcon sx={{ fontSize: 20 }} />}>
+            <SettingsSection id="watermark" title="Design Watermark" icon={<BrandingWatermarkIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '1rem' }}>
                 <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
                   Automatically add your watermark to designs when sharing them with clients. This helps protect your work.
@@ -1640,7 +1667,7 @@ const ProfilePage: React.FC = () => {
 
           {/* Travel & Guest Spots Section (artists only) */}
           {isArtist && (
-            <SettingsSection id="travel" title="Travel & Guest Spots" icon={<PublicIcon sx={{ fontSize: 20 }} />}>
+            <SettingsSection id="travel" title="Travel & Guest Spots" icon={<PublicIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
               <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, mb: '1rem' }}>
                 Let studios know you're interested in guest artist opportunities. This feature is coming soon.
               </Typography>
@@ -1660,6 +1687,101 @@ const ProfilePage: React.FC = () => {
               </Box>
             </SettingsSection>
           )}
+
+          {/* Blocked Users Section */}
+          <SettingsSection id="blocked" title="Blocked Users" icon={<BlockIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
+            {blockedUsers.length === 0 ? (
+              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
+                You haven't blocked anyone. When you block someone, they won't be able to contact you or see your profile.
+              </Typography>
+            ) : (
+              <>
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, mb: '1rem' }}>
+                  You won't see content from these users, and they won't be able to contact you or see your profile.
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {blockedUsers.map(user => (
+                    <Box
+                      key={user.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        p: '0.75rem 1rem',
+                        bgcolor: colors.background,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: '8px',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        {/* User avatar */}
+                        <Box sx={{
+                          width: 40,
+                          height: 40,
+                          bgcolor: '#242424',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          border: `1px solid ${colors.borderLight}`,
+                        }}>
+                          {user.image ? (
+                            <Image
+                              src={user.image}
+                              alt={user.name}
+                              width={40}
+                              height={40}
+                              style={{ objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: colors.accent }}>
+                              {user.name?.substring(0, 2).toUpperCase() || 'U'}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Box>
+                          <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
+                            {user.name}
+                          </Typography>
+                          {user.username && (
+                            <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                              @{user.username}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                      <Box
+                        component="button"
+                        onClick={() => handleUnblockUser(user.id)}
+                        disabled={unblocking === user.id}
+                        sx={{
+                          px: '0.875rem',
+                          py: '0.4rem',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          border: `1px solid ${colors.borderLight}`,
+                          bgcolor: 'transparent',
+                          color: colors.textPrimary,
+                          fontFamily: 'inherit',
+                          opacity: unblocking === user.id ? 0.7 : 1,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            borderColor: colors.accent,
+                            color: colors.accent
+                          }
+                        }}
+                      >
+                        {unblocking === user.id ? 'Unblocking...' : 'Unblock'}
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </>
+            )}
+          </SettingsSection>
 
           {/* Account Section */}
           <SettingsSection id="account" title="Account" icon={<PersonIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
