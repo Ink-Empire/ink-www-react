@@ -447,7 +447,7 @@ function MessageBubble({
               ].map(({ label, value }) =>
                 value ? (
                   <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography sx={{ color: isSent ? 'rgba(0,0,0,0.6)' : colors.textMuted, fontSize: 'inherit' }}>
+                    <Typography sx={{ color: isSent ? 'rgba(0,0,0,0.75)' : colors.textSecondary, fontSize: 'inherit' }}>
                       {label}
                     </Typography>
                     <Typography sx={{ fontWeight: 500, fontSize: 'inherit' }}>{value}</Typography>
@@ -475,7 +475,7 @@ function MessageBubble({
               Deposit Request
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-              <Typography sx={{ color: isSent ? 'rgba(0,0,0,0.6)' : colors.textMuted, fontSize: 'inherit' }}>
+              <Typography sx={{ color: isSent ? 'rgba(0,0,0,0.75)' : colors.textSecondary, fontSize: 'inherit' }}>
                 Amount
               </Typography>
               <Typography sx={{ fontWeight: 500, fontSize: 'inherit' }}>{message.metadata.amount}</Typography>
