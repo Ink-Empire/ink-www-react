@@ -28,7 +28,9 @@ const AdminPage = () => {
         <title>InkedIn Admin</title>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
-      <AdminApp />
+        <Box sx={{ overflowX: 'auto', minWidth: '100vw' }}>
+            <AdminApp />
+        </Box>
     </>
   );
 };

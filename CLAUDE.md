@@ -22,6 +22,13 @@ All code changes must pass CI tests and receive an approval before merging to de
 
 Never ever run NPM commands. I will rebuild my own project.
 Always check the /ink-api/docs directory to understand the flow and update it when we make changes to a process. 
-Always use the colors.ts for our styles. 
+Always use the colors.ts for our styles.
 Always reuse components where possible.
 Always plan designs with mobile views in mind.
+
+## File Size Guidelines
+- **Keep files under 500 lines** where possible. If a file exceeds this, consider refactoring.
+- Extract reusable components into separate files (e.g., `components/dashboard/` for dashboard-specific components).
+- Use barrel exports (`index.ts`) to simplify imports from component directories.
+- Shared types should live in a `types.ts` file within the relevant component directory.
+- When a page component grows large, extract tab content or sections into separate components.

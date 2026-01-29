@@ -14,19 +14,23 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import AddIcon from '@mui/icons-material/Add';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import EditIcon from '@mui/icons-material/Edit';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import DeleteIcon from '@mui/icons-material/Delete';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CollectionsIcon from '@mui/icons-material/Collections';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import LockIcon from '@mui/icons-material/Lock';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PhoneIcon from '@mui/icons-material/Phone';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import StarIcon from '@mui/icons-material/Star';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useAuth } from '../contexts/AuthContext';
 import { useWishlist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { colors } from '@/styles/colors';
@@ -38,131 +42,38 @@ import AddArtistModal from '../components/AddArtistModal';
 import ClientDashboardContent from '../components/ClientDashboardContent';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import TattooCreateWizard from '../components/TattooCreateWizard';
-import LockIcon from '@mui/icons-material/Lock';
-import SettingsIcon from '@mui/icons-material/Settings';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import PhoneIcon from '@mui/icons-material/Phone';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import ComingSoonBadge from '../components/ui/ComingSoonBadge';
 
-// Types for dashboard data
-interface DashboardStats {
-  upcomingAppointments: number;
-  appointmentsTrend: string;
-  profileViews: number;
-  viewsTrend: string;
-  savesThisWeek: number;
-  savesTrend: string;
-  unreadMessages: number;
-}
+// Dashboard components
+import {
+  Card,
+  CardLink,
+  StatCard,
+  DashboardTab,
+  ScheduleItem,
+  ActivityItem,
+  SavedArtistCard,
+  LeadCard,
+} from '../components/dashboard';
 
-interface ScheduleItem {
-  id: number;
-  day: number;
-  month: string;
-  time: string;
-  title: string;
-  clientName: string;
-  clientInitials: string;
-  type: string;
-}
+// Dashboard types
+import type {
+  DashboardStats,
+  ScheduleItem as ScheduleItemType,
+  ActivityItem as ActivityItemType,
+  StudioArtist,
+  Announcement,
+  Tattoo,
+  Lead,
+  DashboardTabType,
+} from '../components/dashboard';
 
-interface ClientItem {
-  id: number;
-  name: string;
-  initials: string;
-  hint: string;
-  hintType: string;
-}
-
-interface ActivityItem {
-  id: number;
-  user: string;
-  action: string;
-  target: string;
-  time: string;
-  type: string;
-}
-
-interface GuestSpotStudio {
-  id: number;
-  name: string;
-  initials: string;
-  location: string;
-  viewedAgo: string;
-  rating: number;
-  reviews: number;
-  styles: string[];
-  seeking: boolean;
-}
-
-interface GuestSpotRegion {
-  region: string;
-  flag: string;
-  studioCount: number;
-  studios: GuestSpotStudio[];
-}
-
-// Default empty states
-const defaultStats: DashboardStats = {
-  upcomingAppointments: 0,
-  appointmentsTrend: '+0',
-  profileViews: 0,
-  viewsTrend: '+0%',
-  savesThisWeek: 0,
-  savesTrend: '+0',
-  unreadMessages: 0
-};
-
-type DashboardTab = 'artist' | 'studio';
-
-interface StudioArtist {
-  id: number;
-  name: string;
-  username: string;
-  image?: { uri?: string };
-  is_verified?: boolean;
-  verified_at?: string | null;
-}
-
-interface Announcement {
-  id: number;
-  title: string;
-  content: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface Tattoo {
-  id: number;
-  description?: string;
-  is_featured: boolean;
-  primary_image?: { uri?: string };
-  images?: { uri?: string }[];
-}
-
-interface LeadUser {
-  id: number;
-  name: string;
-  username: string;
-  email: string;
-  image?: { uri?: string } | string;
-  location?: string;
-}
-
-interface Lead {
-  id: number;
-  timing: string | null;
-  timing_label: string;
-  description?: string;
-  custom_themes?: string[];
-  user: LeadUser;
-}
+import { defaultStats } from '../components/dashboard';
 
 export default function Dashboard() {
   const router = useRouter();
   const { user, isAuthenticated, refreshUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<DashboardTab>('artist');
+  const [activeTab, setActiveTab] = useState<DashboardTabType>('artist');
 
   // Modal states
   const [editStudioOpen, setEditStudioOpen] = useState(false);
@@ -212,7 +123,7 @@ export default function Dashboard() {
 
   // Dashboard stats and schedule (fetched from API)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(defaultStats);
-  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [schedule, setSchedule] = useState<ScheduleItemType[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   // Saved artists (wishlist)
@@ -873,7 +784,7 @@ export default function Dashboard() {
               <Box>
                 {schedule.length > 0 ? (
                   schedule.map((item, index) => (
-                    <ScheduleItemComponent key={item.id} item={item} isLast={index === schedule.length - 1} />
+                    <ScheduleItem key={item.id} item={item} isLast={index === schedule.length - 1} />
                   ))
                 ) : (
                   <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -1270,7 +1181,7 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Guest Spot Seeking */}
-                <Card title="Guest Spot Settings">
+                <Card title="Guest Spot Settings" badge={<ComingSoonBadge size="small" />}>
                   <Box sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1721,7 +1632,7 @@ export default function Dashboard() {
                 </Card>
 
                 {/* Guest Spot Seeking Toggle */}
-                <Card title="Guest Spot Settings">
+                <Card title="Guest Spot Settings" badge={<ComingSoonBadge size="small" />}>
                   <Box sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -2145,12 +2056,13 @@ export default function Dashboard() {
           <Card
             title="Guest Spot Opportunities"
             subtitle="Studios in your saved travel regions that viewed your profile"
+            badge={<ComingSoonBadge size="small" />}
             action={<CardLink href="/travel-regions">Manage Travel Regions →</CardLink>}
           >
             <Box>
               <Box sx={{ p: 3, textAlign: 'center' }}>
                 <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
-                  Guest spot opportunities coming soon
+                  Set your travel preferences to see opportunities
                 </Typography>
               </Box>
 
@@ -2430,674 +2342,5 @@ export default function Dashboard() {
         style={{ display: 'none' }}
       />
     </Layout>
-  );
-}
-
-// Dashboard Tab Component
-function DashboardTab({ label, initials, imageUrl, isActive, onClick, accentAvatar }: {
-  label: string;
-  initials: string;
-  imageUrl?: string;
-  isActive: boolean;
-  onClick: () => void;
-  accentAvatar?: boolean;
-}) {
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        pb: 1.5,
-        px: 0.5,
-        cursor: 'pointer',
-        borderBottom: isActive ? `2px solid ${colors.accent}` : '2px solid transparent',
-        mb: '-1px',
-        transition: 'border-color 0.2s',
-        '&:hover': {
-          borderColor: isActive ? colors.accent : colors.borderLight
-        }
-      }}
-    >
-      <Avatar
-        src={imageUrl}
-        sx={{
-          width: 32,
-          height: 32,
-          bgcolor: accentAvatar ? colors.accent : colors.surface,
-          color: accentAvatar ? colors.background : colors.textSecondary,
-          fontSize: '0.75rem',
-          fontWeight: 600
-        }}
-      >
-        {initials}
-      </Avatar>
-      <Typography sx={{
-        fontSize: '0.95rem',
-        fontWeight: isActive ? 600 : 500,
-        color: isActive ? colors.textPrimary : colors.textSecondary
-      }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
-
-// Stat Card Component
-function StatCard({ icon, value, label, trend, trendUp }: {
-  icon: React.ReactNode;
-  value: string | number;
-  label: string;
-  trend?: string;
-  trendUp?: boolean;
-}) {
-  const cardShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 50px ${colors.accent}25`;
-
-  return (
-    <Box sx={{
-      bgcolor: colors.surface,
-      border: `1px solid ${colors.accent}35`,
-      borderRadius: '12px',
-      p: 2,
-      boxShadow: cardShadow,
-      transition: 'all 0.2s',
-      '&:hover': { borderColor: colors.accent }
-    }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-        <Box sx={{
-          width: 40,
-          height: 40,
-          bgcolor: `${colors.accent}26`,
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: colors.accent
-        }}>
-          {icon}
-        </Box>
-        {trend && (
-          <Typography sx={{
-            fontSize: '0.75rem',
-            fontWeight: 500,
-            color: trendUp ? colors.success : colors.textSecondary,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.25
-          }}>
-            {trendUp && <TrendingUpIcon sx={{ fontSize: 14 }} />}
-            {trend}
-          </Typography>
-        )}
-      </Box>
-      <Typography sx={{ fontSize: '1.75rem', fontWeight: 600, color: colors.textPrimary, mb: 0.25 }}>
-        {value}
-      </Typography>
-      <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
-
-// Card Component
-function Card({ title, subtitle, action, children, icon }: {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-  icon?: React.ReactNode;
-}) {
-  const cardShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 50px ${colors.accent}25`;
-
-  return (
-    <Box sx={{
-      bgcolor: colors.surface,
-      border: `1px solid ${colors.accent}35`,
-      borderRadius: '12px',
-      overflow: 'hidden',
-      boxShadow: cardShadow,
-    }}>
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        p: 2,
-        borderBottom: `1px solid ${colors.border}`
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {icon && (
-            <Box sx={{ color: colors.accent }}>
-              {icon}
-            </Box>
-          )}
-          <Box>
-            <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary }}>
-              {title}
-            </Typography>
-            {subtitle && (
-              <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted, mt: 0.25 }}>
-                {subtitle}
-              </Typography>
-            )}
-          </Box>
-        </Box>
-        {action}
-      </Box>
-      {children}
-    </Box>
-  );
-}
-
-// Card Link Component
-function CardLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link href={href} style={{ textDecoration: 'none' }}>
-      <Typography sx={{
-        fontSize: '0.85rem',
-        color: colors.accent,
-        '&:hover': { textDecoration: 'underline' }
-      }}>
-        {children}
-      </Typography>
-    </Link>
-  );
-}
-
-// Schedule Item Component
-function ScheduleItemComponent({ item, isLast }: { item: ScheduleItem; isLast: boolean }) {
-  return (
-    <Box sx={{
-      display: 'flex',
-      gap: 2,
-      p: 2,
-      borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
-      transition: 'background 0.15s',
-      '&:hover': { bgcolor: colors.background }
-    }}>
-      <Box sx={{ width: 50, textAlign: 'center', flexShrink: 0 }}>
-        <Typography sx={{ fontSize: '1.5rem', fontWeight: 600, color: colors.textPrimary, lineHeight: 1.2 }}>
-          {item.day}
-        </Typography>
-        <Typography sx={{
-          fontSize: '0.75rem',
-          color: colors.textMuted,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em'
-        }}>
-          {item.month}
-        </Typography>
-      </Box>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: '0.8rem', color: colors.accent, fontWeight: 500, mb: 0.25 }}>
-          {item.time}
-        </Typography>
-        <Typography sx={{
-          fontWeight: 500,
-          color: colors.textPrimary,
-          mb: 0.25,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }}>
-          {item.title}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Avatar sx={{
-            width: 20,
-            height: 20,
-            bgcolor: colors.background,
-            fontSize: '0.6rem',
-            color: colors.textMuted
-          }}>
-            {item.clientInitials}
-          </Avatar>
-          <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
-            {item.clientName}
-          </Typography>
-        </Box>
-      </Box>
-      <Box sx={{
-        px: 1,
-        py: 0.5,
-        borderRadius: '100px',
-        fontSize: '0.7rem',
-        fontWeight: 500,
-        flexShrink: 0,
-        alignSelf: 'flex-start',
-        bgcolor: item.type === 'appointment' ? `${colors.accent}26` : `${colors.success}26`,
-        color: item.type === 'appointment' ? colors.accent : colors.success
-      }}>
-        {item.type === 'appointment' ? 'Appointment' : 'Consultation'}
-      </Box>
-    </Box>
-  );
-}
-
-// Client Item Component
-function ClientItemComponent({ client, isLast }: { client: ClientItem; isLast: boolean }) {
-  const hintIcons: Record<string, React.ReactNode> = {
-    save: <BookmarkIcon sx={{ fontSize: 14, color: colors.accent }} />,
-    message: <ChatBubbleOutlineIcon sx={{ fontSize: 14, color: colors.accent }} />,
-    view: <AccessTimeIcon sx={{ fontSize: 14, color: colors.accent }} />,
-    like: <FavoriteIcon sx={{ fontSize: 14, color: colors.accent }} />
-  };
-
-  return (
-    <Box sx={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1.5,
-      p: 2,
-      borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
-      transition: 'background 0.15s',
-      '&:hover': { bgcolor: colors.background }
-    }}>
-      <Avatar sx={{
-        width: 44,
-        height: 44,
-        bgcolor: colors.background,
-        color: colors.textSecondary,
-        fontSize: '0.9rem',
-        fontWeight: 600
-      }}>
-        {client.initials}
-      </Avatar>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 500, color: colors.textPrimary, mb: 0.15 }}>
-          {client.name}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          {hintIcons[client.hintType]}
-          <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
-            {client.hint}
-          </Typography>
-        </Box>
-      </Box>
-      <Button sx={{
-        px: 1.5,
-        py: 0.5,
-        bgcolor: `${colors.accent}26`,
-        border: `1px solid ${colors.accent}4D`,
-        borderRadius: '6px',
-        color: colors.accent,
-        fontSize: '0.8rem',
-        fontWeight: 500,
-        textTransform: 'none',
-        '&:hover': { bgcolor: colors.accent, color: colors.background }
-      }}>
-        Message
-      </Button>
-    </Box>
-  );
-}
-
-// Activity Item Component
-function ActivityItemComponent({ activity, isLast }: { activity: ActivityItem; isLast: boolean }) {
-  const activityIcons: Record<string, { icon: React.ReactNode; color: string }> = {
-    save: { icon: <BookmarkIcon sx={{ fontSize: 16 }} />, color: colors.accent },
-    like: { icon: <FavoriteIcon sx={{ fontSize: 16 }} />, color: colors.error },
-    message: { icon: <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />, color: colors.success }
-  };
-
-  const { icon, color } = activityIcons[activity.type] || activityIcons.like;
-
-  return (
-    <Box sx={{
-      display: 'flex',
-      gap: 1.5,
-      p: 2,
-      borderBottom: isLast ? 'none' : `1px solid ${colors.border}`
-    }}>
-      <Box sx={{
-        width: 32,
-        height: 32,
-        bgcolor: colors.background,
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color,
-        flexShrink: 0
-      }}>
-        {icon}
-      </Box>
-      <Box sx={{ flex: 1 }}>
-        <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary, mb: 0.15 }}>
-          <Box component="span" sx={{ fontWeight: 600 }}>{activity.user}</Box>
-          {' '}{activity.action}{activity.target ? ` "${activity.target}"` : ''}
-        </Typography>
-        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted }}>
-          {activity.time}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
-// Region Group Component
-function RegionGroup({ region, isLast }: { region: GuestSpotRegion; isLast: boolean }) {
-  return (
-    <Box sx={{
-      p: 2,
-      borderBottom: isLast ? 'none' : `1px solid ${colors.border}`
-    }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-        <Typography sx={{ fontSize: '1.5rem' }}>{region.flag}</Typography>
-        <Box>
-          <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: colors.textPrimary }}>
-            {region.region}
-          </Typography>
-          <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
-            {region.studioCount} studio{region.studioCount !== 1 ? 's' : ''} viewed your profile
-          </Typography>
-        </Box>
-      </Box>
-      <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: 'repeat(auto-fill, minmax(300px, 1fr))' },
-        gap: 2
-      }}>
-        {region.studios.map(studio => (
-          <StudioCard key={studio.id} studio={studio} />
-        ))}
-      </Box>
-    </Box>
-  );
-}
-
-// Studio Card Component
-function StudioCard({ studio }: { studio: GuestSpotStudio }) {
-  return (
-    <Box sx={{
-      bgcolor: colors.background,
-      border: `1px solid ${colors.borderLight}`,
-      borderRadius: '8px',
-      p: 2,
-      transition: 'border-color 0.2s',
-      '&:hover': { borderColor: colors.accent }
-    }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
-        <Avatar sx={{
-          width: 44,
-          height: 44,
-          bgcolor: colors.surface,
-          color: colors.textSecondary,
-          fontWeight: 600,
-          borderRadius: '6px'
-        }}>
-          {studio.initials}
-        </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: colors.textPrimary }}>
-            {studio.name}
-          </Typography>
-          <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
-            {studio.location}
-          </Typography>
-        </Box>
-        {studio.seeking && (
-          <Box sx={{
-            px: 1,
-            py: 0.5,
-            borderRadius: '100px',
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            bgcolor: `${colors.success}26`,
-            color: colors.success
-          }}>
-            Seeking Guests
-          </Box>
-        )}
-      </Box>
-      <Box sx={{ display: 'flex', gap: 2, mb: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.8rem', color: colors.textSecondary }}>
-          <VisibilityIcon sx={{ fontSize: 14, color: colors.textMuted }} />
-          Viewed {studio.viewedAgo}
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.8rem', color: colors.textSecondary }}>
-          <StarIcon sx={{ fontSize: 14, color: colors.textMuted }} />
-          {studio.rating} ({studio.reviews} reviews)
-        </Box>
-      </Box>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
-        {studio.styles.map(style => (
-          <Box key={style} sx={{
-            px: 1,
-            py: 0.5,
-            bgcolor: colors.surface,
-            borderRadius: '100px',
-            fontSize: '0.7rem',
-            color: colors.textSecondary
-          }}>
-            {style}
-          </Box>
-        ))}
-      </Box>
-      <Box sx={{ display: 'flex', gap: 1 }}>
-        <Button sx={{
-          flex: 1,
-          py: 0.75,
-          color: colors.textPrimary,
-          border: `1px solid ${colors.borderLight}`,
-          borderRadius: '6px',
-          fontSize: '0.8rem',
-          fontWeight: 500,
-          textTransform: 'none',
-          '&:hover': { borderColor: colors.accent, color: colors.accent }
-        }}>
-          View Studio
-        </Button>
-        <Button sx={{
-          flex: 2,
-          py: 0.75,
-          bgcolor: colors.accent,
-          color: colors.background,
-          borderRadius: '6px',
-          fontSize: '0.8rem',
-          fontWeight: 500,
-          textTransform: 'none',
-          '&:hover': { bgcolor: colors.accentHover }
-        }}>
-          Inquire About Guest Spot
-        </Button>
-      </Box>
-    </Box>
-  );
-}
-
-// Saved Artist Card Component
-function SavedArtistCard({ artist, onRemove }: { artist: WishlistArtist; onRemove: (id: number) => void }) {
-  const artistInitials = artist.name
-    ? artist.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : artist.username?.slice(0, 2).toUpperCase() || '??';
-
-  return (
-    <Box sx={{
-      minWidth: 140,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      p: 2,
-      bgcolor: colors.background,
-      border: `1px solid ${colors.border}`,
-      borderRadius: '10px',
-      transition: 'all 0.2s',
-      position: 'relative',
-      '&:hover': {
-        borderColor: colors.accent,
-        transform: 'translateY(-2px)',
-      }
-    }}>
-      {/* Remove button */}
-      <IconButton
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onRemove(artist.id);
-        }}
-        sx={{
-          position: 'absolute',
-          top: 4,
-          right: 4,
-          p: 0.5,
-          color: colors.textMuted,
-          opacity: 0.6,
-          '&:hover': { color: colors.error, opacity: 1, bgcolor: `${colors.error}15` }
-        }}
-        size="small"
-      >
-        <DeleteIcon sx={{ fontSize: 14 }} />
-      </IconButton>
-
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
-        <Avatar
-          src={artist.image?.uri}
-          sx={{
-            width: 56,
-            height: 56,
-            bgcolor: colors.accent,
-            color: colors.background,
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            mb: 1,
-          }}
-        >
-          {artistInitials}
-        </Avatar>
-      </Link>
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
-        <Typography sx={{
-          fontSize: '0.85rem',
-          fontWeight: 600,
-          color: colors.textPrimary,
-          textAlign: 'center',
-          cursor: 'pointer',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          maxWidth: 120,
-          '&:hover': { color: colors.accent }
-        }}>
-          {artist.name || artist.username}
-        </Typography>
-      </Link>
-      <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1 }}>
-        @{artist.username}
-      </Typography>
-      {artist.books_open ? (
-        <Box sx={{
-          px: 1.5,
-          py: 0.25,
-          bgcolor: `${colors.success}20`,
-          borderRadius: '100px',
-          fontSize: '0.65rem',
-          fontWeight: 500,
-          color: colors.success,
-        }}>
-          Books Open
-        </Box>
-      ) : (
-        <Box sx={{
-          px: 1.5,
-          py: 0.25,
-          bgcolor: colors.surface,
-          borderRadius: '100px',
-          fontSize: '0.65rem',
-          color: colors.textMuted,
-        }}>
-          Books Closed
-        </Box>
-      )}
-    </Box>
-  );
-}
-
-// Lead Card Component for artist dashboard - matches SavedArtistCard style
-function LeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
-  const userInitials = lead.user.name
-    ? lead.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : lead.user.username?.slice(0, 2).toUpperCase() || '??';
-
-  const imageUrl = typeof lead.user.image === 'string' ? lead.user.image : lead.user.image?.uri;
-
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        minWidth: 140,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        p: 2,
-        bgcolor: colors.background,
-        border: `1px solid ${colors.border}`,
-        borderRadius: '10px',
-        transition: 'all 0.2s',
-        cursor: 'pointer',
-        '&:hover': {
-          borderColor: colors.accent,
-          transform: 'translateY(-2px)',
-        }
-      }}
-    >
-      <Avatar
-        src={imageUrl}
-        sx={{
-          width: 56,
-          height: 56,
-          bgcolor: colors.accent,
-          color: colors.background,
-          fontSize: '1rem',
-          fontWeight: 600,
-          mb: 1,
-        }}
-      >
-        {userInitials}
-      </Avatar>
-
-      <Typography sx={{
-        fontSize: '0.85rem',
-        fontWeight: 600,
-        color: colors.textPrimary,
-        textAlign: 'center',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        maxWidth: 120,
-      }}>
-        {lead.user.name || lead.user.username}
-      </Typography>
-
-      {lead.user.location && (
-        <Typography sx={{
-          fontSize: '0.75rem',
-          color: colors.textMuted,
-          textAlign: 'center',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          maxWidth: 120,
-          mb: 1,
-        }}>
-          {lead.user.location}
-        </Typography>
-      )}
-
-      <Box sx={{
-        px: 1.5,
-        py: 0.25,
-        bgcolor: `${colors.accent}20`,
-        borderRadius: '100px',
-        fontSize: '0.65rem',
-        fontWeight: 500,
-        color: colors.accent,
-        mt: lead.user.location ? 0 : 1,
-      }}>
-        {lead.timing_label}
-      </Box>
-    </Box>
   );
 }

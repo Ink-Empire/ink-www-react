@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { OnboardingWizard, OnboardingData } from '../components/Onboarding';
-import { removeToken } from '@/utils/auth';
+import { removeToken, setToken } from '@/utils/auth';
 import { getCsrfToken, fetchCsrfToken, api } from '@/utils/api';
 import { uploadImageToS3 } from '@/utils/s3Upload';
 import { useAuth } from '../contexts/AuthContext';
@@ -218,8 +218,19 @@ const RegisterPage: React.FC = () => {
         const result = await response.json();
         console.log('Registration successful:', result);
 
-        // TODO: Profile image and tattoo lead creation will be handled after email verification
-        // when the user completes their first login
+        // Upload profile image if provided - do this before email verification redirect
+        if (data.userDetails?.profileImage && result.user?.id) {
+          try {
+            // Set token temporarily to make authenticated request
+            if (result.token) {
+              setToken(result.token);
+            }
+            const uploadedImage = await uploadImageToS3(data.userDetails.profileImage, 'profile');
+            await api.post('/users/profile-photo', { image_id: uploadedImage.id });
+          } catch (imgErr) {
+            // Continue with registration even if image upload fails
+          }
+        }
 
         // Redirect to verify email page with email for resend functionality
         const email = encodeURIComponent(result.email || data.credentials?.email || '');
