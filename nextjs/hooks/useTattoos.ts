@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/utils/api';
 import { TattooType } from '@/models/tattoo.interface';
 import { tattooService } from '@/services/tattooService';
@@ -39,157 +39,132 @@ export async function deleteTattoo(id: number | string): Promise<{ success: bool
   return response;
 }
 
-// Hook for fetching tattoos list
+// Hook for fetching tattoos list with infinite scroll support
 export function useTattoos(searchParams?: Record<string, any>) {
   const [tattoos, setTattoos] = useState<TattooType[]>([]);
   const [unclaimedStudios, setUnclaimedStudios] = useState<UnclaimedStudio[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState<number>(1);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const { isDemoMode } = useDemoMode();
 
-  // Use JSON.stringify to compare searchParams objects, include demo mode in key
+  // Track the current search params to detect changes
   const searchParamsKey = JSON.stringify({ ...(searchParams || {}), _demoMode: isDemoMode });
+  const prevSearchParamsKey = useRef<string>(searchParamsKey);
 
+  // Reset pagination when search params change
   useEffect(() => {
-    let isMounted = true;
-    
-    // Use localStorage caching for tattoo lists to reduce initial loading time
-    const TATTOOS_CACHE_KEY = `tattoos_cache:${searchParamsKey}`;
-    
-    // Try to load from localStorage first
-    const tryLoadFromCache = () => {
-      if (typeof window !== 'undefined') {
-        try {
-          const cachedData = localStorage.getItem(TATTOOS_CACHE_KEY);
-          if (cachedData) {
-            const parsedData = JSON.parse(cachedData);
-            
-            // Check if cache is fresh (less than 5 minutes old)
-            const cacheFreshness = 5 * 60 * 1000; // 5 minutes
-            if (parsedData.timestamp && Date.now() - parsedData.timestamp < cacheFreshness) {
-              if (parsedData.tattoos && Array.isArray(parsedData.tattoos)) {
-                console.log('Using cached tattoos data:', parsedData.tattoos.length, 'tattoos');
-                setTattoos(parsedData.tattoos);
-                return true;
-              }
-            }
+    if (prevSearchParamsKey.current !== searchParamsKey) {
+      setPage(1);
+      setTattoos([]);
+      setHasMore(true);
+      prevSearchParamsKey.current = searchParamsKey;
+    }
+  }, [searchParamsKey]);
+
+  // Fetch tattoos for a specific page
+  const fetchTattoos = useCallback(async (pageNum: number, append: boolean = false) => {
+    if (pageNum === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      // Construct the request body from searchParams if provided
+      const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
+      if (requestBody.locationCoordsString) {
+        requestBody.locationCoords = requestBody.locationCoordsString;
+        delete requestBody.locationCoordsString;
+      } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
+        requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
+      }
+
+      console.log(`Fetching tattoos page ${pageNum}:`, requestBody);
+
+      const hasAuthToken = !!getToken();
+
+      type TattoosResponse = {
+        response: TattooType[];
+        unclaimed_studios?: UnclaimedStudio[];
+        total: number;
+        page: number;
+        per_page: number;
+        has_more: boolean;
+      };
+
+      const response = await api.post<TattoosResponse>('/tattoos', requestBody, {
+        headers: { 'X-Account-Type': 'user' },
+        useCache: false, // Don't cache paginated requests
+        requiresAuth: false
+      });
+
+      // Process the response
+      let tattoosData: TattooType[] = [];
+      let unclaimedStudiosData: UnclaimedStudio[] = [];
+      let totalCount = 0;
+      let hasMorePages = false;
+
+      if (response) {
+        if ('response' in response && Array.isArray(response.response)) {
+          tattoosData = response.response;
+          totalCount = response.total ?? 0;
+          hasMorePages = response.has_more ?? false;
+          if (response.unclaimed_studios && Array.isArray(response.unclaimed_studios)) {
+            unclaimedStudiosData = response.unclaimed_studios;
           }
-        } catch (e) {
-          console.warn('Error reading tattoos from cache', e);
+        } else if (Array.isArray(response)) {
+          tattoosData = response as unknown as TattooType[];
+          totalCount = tattoosData.length;
         }
+        console.log(`Tattoos page ${pageNum} fetched:`, tattoosData.length, 'of', totalCount, 'total, hasMore:', hasMorePages);
       }
-      return false;
-    };
-    
-    // Save to localStorage
-    const saveToCache = (tattoosData: TattooType[]) => {
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(TATTOOS_CACHE_KEY, JSON.stringify({
-            tattoos: tattoosData,
-            timestamp: Date.now()
-          }));
-        } catch (e) {
-          console.warn('Error saving tattoos to cache', e);
-        }
-      }
-    };
-    
-    const fetchTattoos = async () => {
-      // If we successfully loaded from cache, don't show loading state
-      // but still fetch fresh data in the background
-      const loadedFromCache = tryLoadFromCache();
-      if (loadedFromCache) {
-        setLoading(false); // Dismiss loading immediately when using cached data
+
+      if (append) {
+        setTattoos(prev => [...prev, ...tattoosData]);
       } else {
-        setLoading(true);
-      }
-
-      try {
-        // Construct the request body from searchParams if provided
-        // Convert locationCoords object to string format for API
-        const requestBody = { ...searchParams };
-        if (requestBody.locationCoordsString) {
-          requestBody.locationCoords = requestBody.locationCoordsString;
-          delete requestBody.locationCoordsString;
-        } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
-          // Fallback: convert object to string if locationCoordsString wasn't set
-          requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
-        }
-
-        console.log('Fetching tattoos with search params:', requestBody);
-        
-        // Check if user is logged in by looking for auth token
-        const hasAuthToken = !!getToken();
-        console.log('Auth token available:', hasAuthToken);
-        
-        // Explicitly use POST method, passing searchParams in the request body
-        // Enable caching for search results
-        // Response could be array directly or wrapped in { data: [...] }
-        type TattoosResponse = TattooType[] | { data: TattooType[] };
-        const response = await api.post<TattoosResponse>('/tattoos', requestBody, {
-          headers: { 'X-Account-Type': 'user' },
-          useCache: true, // Enable caching for this POST request as it's idempotent
-          cacheTTL: 5 * 60 * 1000, // 5 minute cache for tattoo searches
-          requiresAuth: false // Don't require auth, but token will be sent if available
-        });
-
-        if (!isMounted) return;
-
-        // Process the response - handle array, { data: [...] }, and { response: [...] } formats
-        let tattoosData: TattooType[] = [];
-        let unclaimedStudiosData: UnclaimedStudio[] = [];
-        let totalCount = 0;
-
-        if (response) {
-          if (Array.isArray(response)) {
-            tattoosData = response;
-            totalCount = response.length;
-          } else if ('response' in response && Array.isArray((response as any).response)) {
-            tattoosData = (response as any).response;
-            totalCount = (response as any).total ?? tattoosData.length;
-            // Also check for unclaimed_studios in the response
-            if ('unclaimed_studios' in response && Array.isArray((response as any).unclaimed_studios)) {
-              unclaimedStudiosData = (response as any).unclaimed_studios;
-            }
-          } else if ('data' in response && Array.isArray((response as any).data)) {
-            tattoosData = (response as any).data;
-            totalCount = (response as any).total ?? tattoosData.length;
-          }
-          console.log('Tattoos fetched successfully via POST:', tattoosData.length, 'of', totalCount, 'total');
-          if (unclaimedStudiosData.length > 0) {
-            console.log('Unclaimed studios fetched:', unclaimedStudiosData.length);
-          }
-        }
         setTattoos(tattoosData);
         setUnclaimedStudios(unclaimedStudiosData);
-        setTotal(totalCount);
-        saveToCache(tattoosData);
-        setError(null);
-      } catch (err) {
-        if (!isMounted) return;
-        
-        // Only set error if we didn't load from cache
-        if (!loadedFromCache) {
-          console.error('Error fetching tattoos:', err);
-          setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
       }
-    };
+      setTotal(totalCount);
+      setHasMore(hasMorePages);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching tattoos:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [searchParams]);
 
-    fetchTattoos();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [searchParamsKey]); // Use the stringified version for dependency tracking
+  // Initial fetch when search params change
+  useEffect(() => {
+    fetchTattoos(1, false);
+  }, [searchParamsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { tattoos, unclaimedStudios, total, loading, error };
+  // Load more function for infinite scroll
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchTattoos(nextPage, true);
+    }
+  }, [loadingMore, hasMore, page, fetchTattoos]);
+
+  return {
+    tattoos,
+    unclaimedStudios,
+    total,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    loadMore
+  };
 }
 
 // Hook for fetching a single tattoo by ID
@@ -206,7 +181,7 @@ export function useTattoo(id: string | null) {
 
     let isMounted = true;
     const TATTOO_CACHE_KEY = `tattoo_cache:${id}`;
-    
+
     // Try to load from cache first
     const tryLoadFromCache = () => {
       if (typeof window !== 'undefined') {
@@ -229,7 +204,7 @@ export function useTattoo(id: string | null) {
       }
       return false;
     };
-    
+
     // Save to cache
     const saveToCache = (tattooData: TattooType) => {
       if (typeof window !== 'undefined') {
@@ -283,7 +258,7 @@ export function useTattoo(id: string | null) {
     };
 
     fetchTattoo();
-    
+
     return () => {
       isMounted = false;
     };
@@ -306,7 +281,7 @@ export function useTattoosByArtist(artistId: string | null) {
 
     let isMounted = true;
     const CACHE_KEY = `artist_tattoos_cache:${artistId}`;
-    
+
     // Try to load from cache first
     const tryLoadFromCache = () => {
       if (typeof window !== 'undefined') {
@@ -329,7 +304,7 @@ export function useTattoosByArtist(artistId: string | null) {
       }
       return false;
     };
-    
+
     // Save to cache
     const saveToCache = (tattoosData: TattooType[]) => {
       if (typeof window !== 'undefined') {
@@ -355,19 +330,19 @@ export function useTattoosByArtist(artistId: string | null) {
       try {
         // Check if user is logged in
         const hasAuthToken = !!getToken();
-        
+
         // Use a POST request to fetch an artist's tattoos
-        const data = await api.post<TattooType[]>(`/tattoos`, 
+        const data = await api.post<TattooType[]>(`/tattoos`,
           { artist_id: artistId },
-          { 
+          {
             headers: { 'X-Account-Type': 'user' },
             useCache: true,
             requiresAuth: hasAuthToken // Only include auth token if user is logged in
           }
         );
-        
+
         if (!isMounted) return;
-        
+
         setTattoos(data);
         saveToCache(data);
         setError(null);
@@ -385,7 +360,7 @@ export function useTattoosByArtist(artistId: string | null) {
     };
 
     fetchArtistTattoos();
-    
+
     return () => {
       isMounted = false;
     };
