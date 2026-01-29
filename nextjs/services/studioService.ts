@@ -31,7 +31,8 @@ export const studioService = {
 
   // Get studio's gallery/tattoos (public access)
   getGallery: async (studioIdOrSlug: number | string): Promise<any[]> => {
-    return api.get<any[]>(`/studios/${studioIdOrSlug}/gallery`);
+    const response = await api.get<{ gallery: any[]; meta: any }>(`/studios/${studioIdOrSlug}/gallery`);
+    return response.gallery || [];
   },
 
   // Get studio's reviews (public access)
