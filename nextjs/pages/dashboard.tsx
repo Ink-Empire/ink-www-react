@@ -38,6 +38,7 @@ import AddArtistModal from '../components/AddArtistModal';
 import ClientDashboardContent from '../components/ClientDashboardContent';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import TattooCreateWizard from '../components/TattooCreateWizard';
+import StudioInvitations from '../components/StudioInvitations';
 import LockIcon from '@mui/icons-material/Lock';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -123,6 +124,7 @@ interface StudioArtist {
   image?: { uri?: string };
   is_verified?: boolean;
   verified_at?: string | null;
+  initiated_by?: 'artist' | 'studio';
 }
 
 interface Announcement {
@@ -788,6 +790,11 @@ export default function Dashboard() {
           </Box>
         )}
 
+        {/* Studio Invitations - only show for artists on their artist tab */}
+        {activeTab === 'artist' && !isStudioAccount && (
+          <StudioInvitations />
+        )}
+
         {/* Stats Row */}
         <Box sx={{
           display: 'grid',
@@ -981,28 +988,40 @@ export default function Dashboard() {
                         <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.85rem', mb: 0.25 }}>
                           {artist.name || artist.username}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1.5 }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 0.5 }}>
                           @{artist.username}
                         </Typography>
+                        {/* Status indicator */}
+                        <Typography sx={{
+                          fontSize: '0.65rem',
+                          color: artist.initiated_by === 'artist' ? colors.accent : colors.warning || '#f5a623',
+                          mb: 1,
+                          fontWeight: 500,
+                        }}>
+                          {artist.initiated_by === 'artist' ? 'Requested to join' : 'Invitation pending'}
+                        </Typography>
                         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                          <Button
-                            onClick={() => handleVerifyArtist(artist.id)}
-                            size="small"
-                            sx={{
-                              px: 1.5,
-                              py: 0.5,
-                              bgcolor: colors.success,
-                              color: colors.background,
-                              fontSize: '0.7rem',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              borderRadius: '6px',
-                              minWidth: 'auto',
-                              '&:hover': { bgcolor: colors.success, opacity: 0.9 }
-                            }}
-                          >
-                            Verify
-                          </Button>
+                          {/* Only show Approve button if artist requested to join */}
+                          {artist.initiated_by === 'artist' && (
+                            <Button
+                              onClick={() => handleVerifyArtist(artist.id)}
+                              size="small"
+                              sx={{
+                                px: 1.5,
+                                py: 0.5,
+                                bgcolor: colors.success,
+                                color: colors.background,
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                minWidth: 'auto',
+                                '&:hover': { bgcolor: colors.success, opacity: 0.9 }
+                              }}
+                            >
+                              Approve
+                            </Button>
+                          )}
                           <Button
                             onClick={() => handleRemoveArtist(artist.id)}
                             size="small"
@@ -1020,7 +1039,7 @@ export default function Dashboard() {
                               '&:hover': { borderColor: colors.error, color: colors.error }
                             }}
                           >
-                            Reject
+                            {artist.initiated_by === 'artist' ? 'Decline' : 'Cancel Invite'}
                           </Button>
                         </Box>
                       </Box>

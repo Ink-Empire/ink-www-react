@@ -44,8 +44,34 @@ export const artistService = {
   
   // Set artist working hours (requires auth)
   setWorkingHours: async (artistId: number | string, workingHours: any[]): Promise<any> => {
-    return api.post<any>(`/artists/${artistId}/working-hours`, { availability: workingHours }, { 
-      requiresAuth: true 
+    return api.post<any>(`/artists/${artistId}/working-hours`, { availability: workingHours }, {
+      requiresAuth: true
     });
-  }
+  },
+
+  // Get pending studio invitations for the current artist (requires auth)
+  getStudioInvitations: async (): Promise<any[]> => {
+    const response = await api.get<{ invitations: any[] }>('/artists/me/studio-invitations', {
+      requiresAuth: true,
+    });
+    return response.invitations || [];
+  },
+
+  // Accept a studio invitation (requires auth)
+  acceptStudioInvitation: async (studioId: number): Promise<{ success: boolean; message: string }> => {
+    return api.post<{ success: boolean; message: string }>(
+      `/artists/me/studio-invitations/${studioId}/accept`,
+      {},
+      { requiresAuth: true }
+    );
+  },
+
+  // Decline a studio invitation (requires auth)
+  declineStudioInvitation: async (studioId: number): Promise<{ success: boolean; message: string }> => {
+    return api.post<{ success: boolean; message: string }>(
+      `/artists/me/studio-invitations/${studioId}/decline`,
+      {},
+      { requiresAuth: true }
+    );
+  },
 };
