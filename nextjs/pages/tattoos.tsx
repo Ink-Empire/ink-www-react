@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { Box, Typography, Select, MenuItem, FormControl, Button } from "@mui/material";
+import { Box, Typography, Select, MenuItem, FormControl, Button, CircularProgress } from "@mui/material";
 import { useTheme, useMediaQuery } from "@mui/material";
 import FilterListIcon from '@mui/icons-material/FilterList';
 import TattooCard from "../components/TattooCard";
@@ -184,7 +184,28 @@ export default function TattoosPage() {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   // Fetch tattoos based on search params
-  const { tattoos, unclaimedStudios, total, loading, error } = useTattoos(searchParams);
+  const { tattoos, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useTattoos(searchParams);
+
+  // Ref for infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, loadMore]);
 
   const getInterleavedResults = () => {
     if (!tattoos || !unclaimedStudios || unclaimedStudios.length === 0) {
@@ -736,6 +757,29 @@ export default function TattoosPage() {
                 />
               )
             ))}
+          </Box>
+        )}
+
+        {/* Infinite scroll sentinel and loading indicator */}
+        {!loading && tattoos.length > 0 && (
+          <Box
+            ref={sentinelRef}
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              py: 4,
+              minHeight: 80,
+            }}
+          >
+            {loadingMore && (
+              <CircularProgress size={32} sx={{ color: colors.accent }} />
+            )}
+            {!hasMore && tattoos.length > 25 && (
+              <Typography sx={{ color: colors.textMuted, fontSize: '0.875rem' }}>
+                You've seen all {total} results
+              </Typography>
+            )}
           </Box>
         )}
       </Box>
