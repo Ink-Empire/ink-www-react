@@ -170,6 +170,12 @@ export default function Dashboard() {
   const [seekingGuests, setSeekingGuests] = useState(false);
   const [guestSpotDetails, setGuestSpotDetails] = useState('');
   const [isSavingGuestDetails, setIsSavingGuestDetails] = useState(false);
+  const [studioStats, setStudioStats] = useState<{
+    page_views: { count: number; trend: number; trend_label: string };
+    bookings: { count: number; trend: number; trend_label: string };
+    inquiries: { count: number; trend: number; trend_label: string };
+    artists_count: number;
+  } | null>(null);
 
   // Artist data states
   const [artistSeekingSpots, setArtistSeekingSpots] = useState(false);
@@ -205,29 +211,87 @@ export default function Dashboard() {
   const studioInitials = ownedStudio?.name
     ? ownedStudio.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'ST';
-  const hasStudio = user?.is_studio_admin && ownedStudio;
   // type_id: 1 = client/enthusiast, 2 = artist, 3 = studio
   const isClient = user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client';
+  const isStudioAccount = user?.type_id === 3 || user?.type_id === '3' || user?.type === 'studio';
+  const hasStudio = (user?.is_studio_admin && ownedStudio) || isStudioAccount;
 
 
-  // Load studio data when tab switches to studio
+  // Set default tab to 'studio' for pure studio accounts
+  useEffect(() => {
+    if (isStudioAccount) {
+      setActiveTab('studio');
+    }
+  }, [isStudioAccount]);
+
+  // Create studio from pending data for newly verified studio accounts
+  useEffect(() => {
+    const createPendingStudio = async () => {
+      // Only run for studio accounts without an existing owned_studio
+      if (!isStudioAccount || ownedStudio || !user?.id) return;
+
+      // Check for pending studio data from registration
+      const pendingDataStr = localStorage.getItem('pendingStudioData');
+      if (!pendingDataStr) return;
+
+      try {
+        const pendingData = JSON.parse(pendingDataStr);
+        console.log('Creating studio from pending data...');
+
+        // Generate slug from username or name
+        const generateSlug = (text: string) => {
+          return text.toLowerCase()
+            .replace(/[^a-z0-9]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+        };
+
+        const studioPayload = {
+          name: pendingData.name || '',
+          slug: generateSlug(pendingData.username || pendingData.name || ''),
+          about: pendingData.bio || '',
+          location: pendingData.location || '',
+          location_lat_long: pendingData.locationLatLong || '',
+          owner_id: user.id,
+          email: pendingData.email || undefined,
+          phone: pendingData.phone || undefined,
+        };
+
+        await api.post('/studios', studioPayload);
+        console.log('Studio created successfully');
+
+        // Clear pending data
+        localStorage.removeItem('pendingStudioData');
+
+        // Refresh user to get the owned_studio
+        await refreshUser();
+      } catch (err) {
+        console.error('Failed to create studio from pending data:', err);
+        // Don't remove pending data on error so it can be retried
+      }
+    };
+
+    createPendingStudio();
+  }, [isStudioAccount, ownedStudio, user?.id, refreshUser]);
+
+  // Load studio data when tab switches to studio (or on mount for studio accounts)
   useEffect(() => {
     if (hasStudio && activeTab === 'studio' && ownedStudio?.id) {
       loadStudioData();
     }
   }, [activeTab, hasStudio, ownedStudio?.id]);
 
-  // Load artist tattoos on mount
+  // Load artist tattoos on mount (only for artists, not studio accounts)
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !isStudioAccount) {
       loadArtistTattoos();
     }
-  }, [user?.id]);
+  }, [user?.id, isStudioAccount]);
 
-  // Load leads for artists
+  // Load leads for artists (not for studio accounts or clients)
   useEffect(() => {
     const loadLeads = async () => {
-      if (!user?.id || isClient) return;
+      if (!user?.id || isClient || isStudioAccount) return;
       setIsLoadingLeads(true);
       try {
         const response = await api.get<{ leads: Lead[] }>('/leads/for-artists', { requiresAuth: true });
@@ -239,12 +303,12 @@ export default function Dashboard() {
       }
     };
     loadLeads();
-  }, [user?.id, isClient]);
+  }, [user?.id, isClient, isStudioAccount]);
 
-  // Load dashboard stats and schedule
+  // Load dashboard stats and schedule (only for artists, not studio accounts)
   useEffect(() => {
     const loadDashboardData = async () => {
-      if (!user?.id) return;
+      if (!user?.id || isStudioAccount) return;
 
       setIsLoadingStats(true);
       try {
@@ -290,10 +354,10 @@ export default function Dashboard() {
       }
     };
 
-    if (user?.id) {
+    if (user?.id && !isStudioAccount) {
       loadDashboardData();
     }
-  }, [user?.id]);
+  }, [user?.id, isStudioAccount]);
 
   const loadArtistTattoos = async () => {
     if (!user?.slug) return;
@@ -311,10 +375,11 @@ export default function Dashboard() {
   const loadStudioData = async () => {
     if (!ownedStudio?.id) return;
     try {
-      const [studioRes, artistsRes, announcementsRes] = await Promise.all([
+      const [studioRes, artistsRes, announcementsRes, statsRes] = await Promise.all([
         api.get<StudioType | { studio: StudioType }>(`/studios/${ownedStudio.id}`),
         api.get<any[] | { artists: any[] }>(`/studios/${ownedStudio.id}/artists`),
         api.get<any[] | { announcements: any[] }>(`/studios/${ownedStudio.id}/announcements`),
+        api.get<any>(`/studios/${ownedStudio.id}/dashboard-stats`, { requiresAuth: true }).catch(() => null),
       ]);
       const studio = (studioRes as any).studio || studioRes;
       setStudioData(studio);
@@ -322,6 +387,9 @@ export default function Dashboard() {
       setAnnouncements((announcementsRes as any).announcements || announcementsRes || []);
       setSeekingGuests(studio?.seeking_guest_artists || false);
       setGuestSpotDetails(studio?.guest_spot_details || '');
+      if (statsRes) {
+        setStudioStats(statsRes);
+      }
     } catch (err) {
       console.error('Failed to load studio data:', err);
     }
@@ -457,7 +525,7 @@ export default function Dashboard() {
               color: colors.textPrimary,
               mb: 0.25
             }}>
-              Welcome back {userName}
+              Welcome back {isStudioAccount ? ownedStudio?.name : userName}
             </Typography>
             <Typography sx={{ color: colors.textSecondary, fontSize: '0.95rem' }}>
               Here's what's happening this week
@@ -466,8 +534,8 @@ export default function Dashboard() {
           <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap' }}>
             <Button
               component={Link}
-              href={activeTab === 'studio' && ownedStudio?.slug
-                ? `/studios/${ownedStudio.slug}`
+              href={isStudioAccount || (activeTab === 'studio' && ownedStudio?.slug)
+                ? `/studios/${ownedStudio?.slug}`
                 : (user?.slug ? `/artists/${user.slug}` : '#')}
               sx={{
                 flex: { xs: 1, md: 'none' },
@@ -483,8 +551,10 @@ export default function Dashboard() {
               }}
               startIcon={<VisibilityIcon sx={{ fontSize: 18 }} />}
             >
-              View Public Profile
+              {isStudioAccount ? 'View Studio Page' : 'View Public Profile'}
             </Button>
+            {/* Upload button - only show for artists, not pure studio accounts */}
+            {!isStudioAccount && (
             <Button
               onClick={(e) => setUploadMenuAnchor(e.currentTarget)}
               sx={{
@@ -504,6 +574,7 @@ export default function Dashboard() {
             >
               Upload
             </Button>
+            )}
             <Menu
               anchorEl={uploadMenuAnchor}
               open={Boolean(uploadMenuAnchor)}
@@ -565,8 +636,8 @@ export default function Dashboard() {
           </Box>
         </Box>
 
-        {/* Dashboard Tabs - only show if user has a studio */}
-        {hasStudio && (
+        {/* Dashboard Tabs - only show if user has a studio AND is not a pure studio account */}
+        {hasStudio && !isStudioAccount && (
           <Box sx={{
             display: 'flex',
             gap: 3,
@@ -633,29 +704,29 @@ export default function Dashboard() {
             <>
               <StatCard
                 icon={<CalendarMonthIcon />}
-                value={24}
+                value={studioStats?.bookings?.count ?? 0}
                 label="Studio Bookings This Week"
-                trend="+5"
-                trendUp
+                trend={studioStats?.bookings?.trend_label || ''}
+                trendUp={(studioStats?.bookings?.trend ?? 0) >= 0}
               />
               <StatCard
                 icon={<VisibilityIcon />}
-                value="3,842"
+                value={studioStats?.page_views?.count ?? 0}
                 label="Studio Page Views"
-                trend="+22%"
-                trendUp
+                trend={studioStats?.page_views?.trend_label || ''}
+                trendUp={(studioStats?.page_views?.trend ?? 0) >= 0}
               />
               <StatCard
                 icon={<StarIcon />}
-                value={studioArtists.length + 1}
+                value={studioStats?.artists_count ?? studioArtists.length}
                 label="Artists at Studio"
                 trend=""
               />
               <StatCard
                 icon={<ChatBubbleOutlineIcon />}
-                value={12}
+                value={studioStats?.inquiries?.count ?? 0}
                 label="Studio Inquiries"
-                trend="New"
+                trend={studioStats?.inquiries?.trend_label || ''}
               />
             </>
           )}

@@ -18,6 +18,8 @@ import {
   MyLocation as MyLocationIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
+  Visibility,
+  VisibilityOff,
 } from '@mui/icons-material';
 import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
@@ -36,6 +38,9 @@ interface StudioDetailsData {
   email?: string;
   phone?: string;
   existingStudioId?: number; // If claiming an existing unclaimed studio
+  // Account credentials (only for new studio accounts)
+  password?: string;
+  password_confirmation?: string;
 }
 
 interface StudioDetailsProps {
@@ -45,6 +50,10 @@ interface StudioDetailsProps {
   onCreateStudio?: (payload: StudioCreationPayload) => Promise<{ studioId: number }>;
   // Owner ID if user was already registered
   ownerId?: number;
+  // Location from previous registration steps (for location-biased studio search)
+  userLocationLatLong?: string;
+  // Is the user already authenticated? If not, show account creation fields
+  isAuthenticated?: boolean;
 }
 
 const StudioDetails: React.FC<StudioDetailsProps> = ({
@@ -52,11 +61,16 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   onBack,
   onCreateStudio,
   ownerId,
+  userLocationLatLong,
+  isAuthenticated = false,
 }) => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
@@ -82,17 +96,23 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { getCurrentPosition, getLocation } = useAppGeolocation();
 
-  // Get user's location on mount for search bias
+  // Use location from previous registration steps if available, otherwise get fresh geolocation
   useEffect(() => {
-    getCurrentPosition()
-      .then((pos) => {
-        setUserLocation(`${pos.latitude},${pos.longitude}`);
-      })
-      .catch(() => {
-        // Silently fail - location bias is optional
-      });
+    if (userLocationLatLong) {
+      // Use the location from previous registration steps
+      setUserLocation(userLocationLatLong);
+    } else {
+      // Fall back to getting fresh geolocation
+      getCurrentPosition()
+        .then((pos) => {
+          setUserLocation(`${pos.latitude},${pos.longitude}`);
+        })
+        .catch(() => {
+          // Silently fail - location bias is optional
+        });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userLocationLatLong]);
 
   // Handler for when user selects a studio from Google Places
   const handleGoogleStudioSelect = (studio: StudioOption | null) => {
@@ -183,16 +203,22 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
     setCheckingEmail(true);
     try {
-      const response = await api.post<{ available: boolean }>('/studios/check-availability', {
+      // For new accounts (not authenticated), check user email availability
+      // For authenticated users, check studio email availability
+      const endpoint = isAuthenticated ? '/studios/check-availability' : '/check-availability';
+      const response = await api.post<{ available: boolean }>(endpoint, {
         email: emailToCheck.toLowerCase(),
       });
       setEmailAvailable(response.available);
       if (!response.available) {
-        setErrors(prev => ({ ...prev, email: 'This email is already registered to another studio' }));
+        const errorMsg = isAuthenticated
+          ? 'This email is already registered to another studio'
+          : 'This email is already registered';
+        setErrors(prev => ({ ...prev, email: errorMsg }));
       } else {
         setErrors(prev => {
           const { email, ...rest } = prev;
-          if (email === 'This email is already registered to another studio') {
+          if (email?.includes('already registered')) {
             return rest;
           }
           return prev;
@@ -204,7 +230,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
     } finally {
       setCheckingEmail(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Debounced username check
   useEffect(() => {
@@ -356,12 +382,35 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       newErrors.location = 'Location is required';
     }
 
-    // Email is optional, but if provided must be valid format and available
-    if (email.trim()) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    // Email and password validation depends on authentication status
+    if (!isAuthenticated) {
+      // Email is required for new accounts
+      if (!email.trim()) {
+        newErrors.email = 'Email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
         newErrors.email = 'Please enter a valid email address';
       } else if (emailAvailable === false) {
-        newErrors.email = 'This email is already registered to another studio';
+        newErrors.email = 'This email is already registered';
+      }
+
+      // Password is required for new accounts
+      if (!password) {
+        newErrors.password = 'Password is required';
+      } else if (password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters';
+      }
+
+      if (password && password !== passwordConfirmation) {
+        newErrors.passwordConfirmation = 'Passwords do not match';
+      }
+    } else {
+      // For authenticated users, email is optional (studio contact email)
+      if (email.trim()) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+          newErrors.email = 'Please enter a valid email address';
+        } else if (emailAvailable === false) {
+          newErrors.email = 'This email is already registered to another studio';
+        }
       }
     }
 
@@ -417,6 +466,11 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       email: email.trim() || undefined,
       phone: phone.trim() || undefined,
       existingStudioId: selectedGoogleStudio?.id, // Pass existing studio ID if claiming
+      // Include password only for new accounts (not authenticated)
+      ...((!isAuthenticated && password) ? {
+        password,
+        password_confirmation: passwordConfirmation,
+      } : {}),
     };
 
     try {
@@ -707,7 +761,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             label="Studio Bio"
             name="studio_bio"
             value={bio}
-            onChange={(e) => setBio(e.target.value)}
+            onChange={(e) => setBio(e.target.value.slice(0, 500))}
             placeholder="Describe your studio's atmosphere, specialties, and what makes you unique..."
             error={!!errors.bio}
             helperText={errors.bio || `${bio.length}/500 characters`}
@@ -715,6 +769,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             multiline
             rows={4}
             required
+            inputProps={{ maxLength: 500 }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': {
@@ -736,9 +791,9 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             }}
           />
 
-          {/* Email Field (Optional) */}
+          {/* Email Field - Required for new accounts, optional for authenticated users */}
           <TextField
-            label="Studio Email (Optional)"
+            label={isAuthenticated ? "Studio Email (Optional)" : "Studio Email"}
             name="studio_email"
             value={email}
             onChange={(e) => setEmail(e.target.value.toLowerCase())}
@@ -746,9 +801,12 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             error={!!errors.email || emailAvailable === false}
             helperText={
               errors.email ||
-              (emailAvailable === true ? 'Email available!' : 'A public contact email for your studio')
+              (emailAvailable === true ? 'Email available!' :
+               isAuthenticated ? 'A public contact email for your studio' :
+               'This will be your login email')
             }
             fullWidth
+            required={!isAuthenticated}
             type="email"
             autoComplete="email"
             InputProps={{
@@ -789,6 +847,74 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
               },
             }}
           />
+
+          {/* Password Fields - Only for new accounts */}
+          {!isAuthenticated && (
+            <>
+              <TextField
+                label="Password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Create a password"
+                error={!!errors.password}
+                helperText={errors.password || 'At least 8 characters'}
+                fullWidth
+                required
+                autoComplete="new-password"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        sx={{ color: colors.textMuted }}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: 'rgba(232, 219, 197, 0.5)' },
+                    '&:hover fieldset': { borderColor: colors.textSecondary },
+                    '&.Mui-focused fieldset': { borderColor: colors.accent },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: colors.textSecondary,
+                    '&.Mui-focused': { color: colors.accent },
+                  },
+                }}
+              />
+
+              <TextField
+                label="Confirm Password"
+                name="password_confirmation"
+                type={showPassword ? 'text' : 'password'}
+                value={passwordConfirmation}
+                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                placeholder="Confirm your password"
+                error={!!errors.passwordConfirmation}
+                helperText={errors.passwordConfirmation}
+                fullWidth
+                required
+                autoComplete="new-password"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: 'rgba(232, 219, 197, 0.5)' },
+                    '&:hover fieldset': { borderColor: colors.textSecondary },
+                    '&.Mui-focused fieldset': { borderColor: colors.accent },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: colors.textSecondary,
+                    '&.Mui-focused': { color: colors.accent },
+                  },
+                }}
+              />
+            </>
+          )}
 
           {/* Phone Field (Optional) */}
           <TextField
@@ -847,7 +973,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                   mb: { xs: 1, sm: 0 }
                 }}
               >
-                {useMyLocation ? 'Using current location' : 'Enter your studio\'s address'}
+                {useMyLocation ? 'Using current location' : 'Enter your studio\'s city'}
               </Typography>
               <Button
                 variant="text"

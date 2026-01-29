@@ -127,20 +127,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     } else if (onboardingData.userType === 'artist') {
       steps = [...steps, 'Specialties', 'Profile', 'Account'];
     } else if (onboardingData.userType === 'studio') {
-      // Studios: Owner check -> (Artist styles if owner is artist) -> Your Profile -> Account -> Studio Profile
-      // Note: Studio styles are derived from artists who work there, not set during signup
-      const isOwnerArtist = onboardingData.studioOwner?.ownerType === 'artist';
+      // Simplified studio flow: check for existing account, then studio details
       const isAuthenticated = onboardingData.studioOwner?.isAuthenticated;
-
       if (isAuthenticated) {
-        // Already authenticated: Owner -> Studio Profile (skip personal profile/account steps)
-        steps = [...steps, 'Owner', 'Studio Profile'];
-      } else if (isOwnerArtist) {
-        // Artist owner: Owner -> Your Styles -> Your Profile -> Account -> Studio Profile
-        steps = [...steps, 'Owner', 'Your Styles', 'Your Profile', 'Account', 'Studio Profile'];
+        // Already linked account: just collect studio details
+        steps = [...steps, 'Link Account', 'Studio Details'];
       } else {
-        // Non-artist owner: Owner -> Your Profile -> Account -> Studio Profile
-        steps = [...steps, 'Owner', 'Your Profile', 'Account', 'Studio Profile'];
+        // New or linking account flow
+        steps = [...steps, 'Link Account', 'Studio Details'];
       }
     } else {
       // Default/undefined
@@ -214,30 +208,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   };
 
   const handleStudioDetailsComplete = async (studioDetails: OnboardingData['studioDetails']) => {
-    // If onCreateStudio callback is provided and user is registered, create the studio directly
-    if (onCreateStudio && registeredUserId) {
-      // StudioDetails will handle calling onCreateStudio internally
-      // This path is used when user was registered in the previous step
-      const completeData = {
-        ...onboardingData,
-        studioDetails,
-      };
-      onComplete(completeData);
-    } else if (onCreateStudio && onboardingData.studioOwner?.isAuthenticated && onboardingData.studioOwner?.existingAccountId) {
-      // User was already authenticated (existing account), create studio directly
-      const completeData = {
-        ...onboardingData,
-        studioDetails,
-      };
-      onComplete(completeData);
-    } else {
-      // Fallback: call onComplete with all data (legacy behavior)
-      const completeData = {
-        ...onboardingData,
-        studioDetails,
-      };
-      onComplete(completeData);
-    }
+    // Complete the onboarding with all collected data
+    const completeData = {
+      ...onboardingData,
+      studioDetails,
+    };
+    onComplete(completeData);
   };
 
   // For studio flow: register user immediately, then advance to studio details step
@@ -402,119 +378,30 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           );
       }
     } else if (isStudio) {
-      const isOwnerArtist = onboardingData.studioOwner?.ownerType === 'artist';
+      // Simplified studio flow: Link Account check -> Studio Details
       const isAuthenticated = onboardingData.studioOwner?.isAuthenticated;
 
-      if (isAuthenticated) {
-        // Already authenticated flow: Owner -> Studio Profile (skip personal profile/account)
-        switch (effectiveStep) {
-          case 1:
-            return (
-              <StudioOwnerCheck
-                onStepComplete={handleStudioOwnerComplete}
-                onBack={handleBack}
-              />
-            );
-          case 2:
-            // Studio profile - final step (skip directly to this)
-            return (
-              <StudioDetails
-                onStepComplete={handleStudioDetailsComplete}
-                onBack={handleBack}
-                onCreateStudio={onCreateStudio}
-                ownerId={onboardingData.studioOwner?.existingAccountId}
-              />
-            );
-        }
-      } else if (isOwnerArtist) {
-        // Artist owner flow: Owner -> Your Styles -> Your Profile -> Account -> Studio Profile
-        switch (effectiveStep) {
-          case 1:
-            return (
-              <StudioOwnerCheck
-                onStepComplete={handleStudioOwnerComplete}
-                onBack={handleBack}
-              />
-            );
-          case 2:
-            // Your personal artist styles
-            return (
-              <StylesSelection
-                onStepComplete={handleOwnerArtistStylesComplete}
-                onBack={handleBack}
-                userType="artist"
-                title="Your Specialty Styles"
-                subtitle="Select the tattoo styles you specialize in as an artist"
-              />
-            );
-          case 3:
-            // Owner's personal profile (they are an artist)
-            return (
-              <UserDetails
-                onStepComplete={handleUserDetailsComplete}
-                onBack={handleBack}
-                userType="artist"
-              />
-            );
-          case 4:
-            // Account credentials - then advances to studio details
-            return (
-              <AccountSetup
-                onStepComplete={handleStudioAccountSetupComplete}
-                onBack={handleBack}
-                userType="artist"
-              />
-            );
-          case 5:
-            // Studio profile - final step
-            return (
-              <StudioDetails
-                onStepComplete={handleStudioDetailsComplete}
-                onBack={handleBack}
-                onCreateStudio={onCreateStudio}
-                ownerId={registeredUserId || undefined}
-              />
-            );
-        }
-      } else {
-        // Non-artist owner flow: Owner -> Your Profile -> Account -> Studio Profile
-        switch (effectiveStep) {
-          case 1:
-            return (
-              <StudioOwnerCheck
-                onStepComplete={handleStudioOwnerComplete}
-                onBack={handleBack}
-              />
-            );
-          case 2:
-            // Owner's personal profile (they are a regular user)
-            return (
-              <UserDetails
-                onStepComplete={handleUserDetailsComplete}
-                onBack={handleBack}
-                userType="client"
-              />
-            );
-          case 3:
-            // Account credentials - then advances to studio details
-            return (
-              <AccountSetup
-                onStepComplete={handleStudioAccountSetupComplete}
-                onBack={handleBack}
-                userType="client"
-              />
-            );
-          case 4:
-            // Studio profile - final step
-            return (
-              <StudioDetails
-                onStepComplete={handleStudioDetailsComplete}
-                onBack={handleBack}
-                onCreateStudio={onCreateStudio}
-                ownerId={registeredUserId || undefined}
-              />
-            );
-        }
+      switch (effectiveStep) {
+        case 1:
+          // Check if user has existing account to link
+          return (
+            <StudioOwnerCheck
+              onStepComplete={handleStudioOwnerComplete}
+              onBack={handleBack}
+              simplified={true}
+            />
+          );
+        case 2:
+          // Studio details - includes account fields if not authenticated
+          return (
+            <StudioDetails
+              onStepComplete={handleStudioDetailsComplete}
+              onBack={handleBack}
+              onCreateStudio={onCreateStudio}
+              ownerId={isAuthenticated ? onboardingData.studioOwner?.existingAccountId : undefined}
+              isAuthenticated={isAuthenticated}
+            />
+          );
       }
     }
 

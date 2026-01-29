@@ -25,3 +25,5 @@
 - All test methods should be prefixed with "test"; this is required in the latest version of PHPUnit
 
 All code changes must pass CI tests and receive an approval before merging to develop.
+
+Never ever run NPM commands. I will rebuild my own project. 

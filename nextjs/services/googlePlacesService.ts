@@ -262,6 +262,13 @@ export const preloadGoogleMaps = (): void => {
  * @param query - Search query
  * @param location - Optional location to search near (lat,lng format or {lat, lng} object)
  * @param radiusMeters - Radius in meters for search (default 80467 = ~50 miles)
+ *
+ * TODO: Optimize by searching our studios database first before hitting Google API.
+ * - Add a /api/studios/search endpoint that searches our studios table by name
+ * - Search our DB first, show those results
+ * - Only call Google Places API if we need more results or user explicitly requests it
+ * - This will reduce Google API costs and improve results for studios already in our system
+ * - The backend already has `lookupOrCreate` which caches Google results - we should leverage this cache
  */
 export const searchEstablishments = async (
   query: string,

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { OnboardingWizard, OnboardingData, UserRegistrationPayload, StudioCreationPayload } from '../components/Onboarding';
-import { setToken, removeToken } from '@/utils/auth';
+import { OnboardingWizard, OnboardingData } from '../components/Onboarding';
+import { removeToken } from '@/utils/auth';
 import { getCsrfToken, fetchCsrfToken, api } from '@/utils/api';
 import { uploadImageToS3 } from '@/utils/s3Upload';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,11 +11,9 @@ import { colors } from '@/styles/colors';
 
 const RegisterPage: React.FC = () => {
   const router = useRouter();
-  const { refreshUser, logout, setUserDirectly } = useAuth();
+  const { refreshUser } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [isClearing, setIsClearing] = useState(true);
-  // Track if user was already registered via early registration flow
-  const [earlyRegisteredUserId, setEarlyRegisteredUserId] = useState<number | null>(null);
 
   // Clear any existing auth state when visiting the register page
   // This ensures new registrations start with a clean slate
@@ -76,164 +74,6 @@ const RegisterPage: React.FC = () => {
       .replace(/^-|-$/g, '');
   }, []);
 
-  // Early registration callback - called after AccountSetup for studios
-  // This registers the user immediately so the final step is just creating the studio
-  const handleRegisterUser = useCallback(async (payload: UserRegistrationPayload): Promise<{ userId: number; token: string }> => {
-    console.log('Early registration: Creating user account...', payload);
-
-    // Get CSRF token for the request
-    await fetchCsrfToken();
-    const csrfToken = getCsrfToken();
-
-    const ownerType = payload.studioOwner?.ownerType || 'user';
-    const isArtistOwner = ownerType === 'artist';
-
-    const registrationPayload = {
-      name: payload.userDetails?.name || '',
-      username: payload.userDetails?.username || '',
-      slug: generateSlug(payload.userDetails?.username || ''),
-      email: payload.credentials?.email || '',
-      password: payload.credentials?.password || '',
-      password_confirmation: payload.credentials?.password_confirmation || '',
-      about: payload.userDetails?.bio || '',
-      location: payload.userDetails?.location || '',
-      location_lat_long: payload.userDetails?.locationLatLong || '',
-      type: ownerType,
-      selected_styles: isArtistOwner ? (payload.studioOwner?.artistStyles || []) : [],
-      preferred_styles: [],
-      is_studio_owner: true,
-    };
-
-    const response = await fetch('/api/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-XSRF-TOKEN': csrfToken || '',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      credentials: 'include',
-      body: JSON.stringify(registrationPayload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to create account');
-    }
-
-    const result = await response.json();
-    console.log('Early registration: User created successfully', result);
-
-    // Set the authentication token and user
-    if (result.token) {
-      setToken(result.token);
-      api.clearUserCache();
-
-      if (result.user && result.user.id) {
-        setUserDirectly(result.user);
-        console.log('Early registration: User set in context');
-      }
-    }
-
-    // Handle owner profile image upload if provided - use presigned URLs for speed
-    if (payload.userDetails?.profileImage && result.user?.id) {
-      try {
-        console.log('Early registration: Uploading profile image via presigned URL...');
-        const uploadedImage = await uploadImageToS3(payload.userDetails.profileImage, 'profile');
-        // Associate the uploaded image with the user
-        await api.post('/users/profile-photo', { image_id: uploadedImage.id });
-        console.log('Early registration: Profile image uploaded via presigned URL');
-      } catch (imgErr) {
-        console.error('Early registration: Failed to upload profile image:', imgErr);
-      }
-    }
-
-    setEarlyRegisteredUserId(result.user?.id);
-
-    return {
-      userId: result.user?.id,
-      token: result.token,
-    };
-  }, [generateSlug, setUserDirectly]);
-
-  // Studio creation callback - called from StudioDetails
-  const handleCreateStudio = useCallback(async (payload: StudioCreationPayload): Promise<{ studioId: number }> => {
-    console.log('Creating/claiming studio...', payload);
-
-    let studioId: number | undefined;
-
-    // Check if we're claiming an existing unclaimed studio
-    if (payload.studioDetails?.existingStudioId) {
-      console.log('Claiming existing studio:', payload.studioDetails.existingStudioId);
-
-      // Claim the existing studio
-      const claimPayload: Record<string, unknown> = {
-        owner_id: payload.ownerId,
-        name: payload.studioDetails?.name || '',
-        slug: generateSlug(payload.studioDetails?.username || payload.studioDetails?.name || ''),
-        about: payload.studioDetails?.bio || '',
-        location: payload.studioDetails?.location || '',
-        location_lat_long: payload.studioDetails?.locationLatLong || '',
-      };
-
-      if (payload.studioDetails?.email) {
-        claimPayload.email = payload.studioDetails.email;
-      }
-
-      if (payload.studioDetails?.phone) {
-        claimPayload.phone = payload.studioDetails.phone;
-      }
-
-      const claimResponse = await api.post(`/studios/${payload.studioDetails.existingStudioId}/claim`, claimPayload) as { studio?: { id?: number } };
-      console.log('Studio claimed:', claimResponse);
-      studioId = claimResponse?.studio?.id;
-    } else {
-      // Create a new studio
-      const studioPayload: Record<string, unknown> = {
-        name: payload.studioDetails?.name || '',
-        slug: generateSlug(payload.studioDetails?.username || payload.studioDetails?.name || ''),
-        about: payload.studioDetails?.bio || '',
-        location: payload.studioDetails?.location || '',
-        location_lat_long: payload.studioDetails?.locationLatLong || '',
-        owner_id: payload.ownerId,
-      };
-
-      if (payload.studioDetails?.email) {
-        studioPayload.email = payload.studioDetails.email;
-      }
-
-      if (payload.studioDetails?.phone) {
-        studioPayload.phone = payload.studioDetails.phone;
-      }
-
-      const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
-      console.log('Studio created:', studioResponse);
-      studioId = studioResponse?.studio?.id;
-    }
-
-    // Handle studio image upload if provided - use presigned URLs for speed
-    if (payload.studioDetails?.profileImage && studioId) {
-      try {
-        console.log('Uploading studio image via presigned URL...');
-        const uploadedImage = await uploadImageToS3(payload.studioDetails.profileImage, 'studio');
-        // Associate the uploaded image with the studio
-        await api.post(`/studios/${studioId}/image`, { image_id: uploadedImage.id });
-        console.log('Studio image uploaded via presigned URL');
-      } catch (imgErr) {
-        console.error('Failed to upload studio image:', imgErr);
-      }
-    }
-
-    // Refresh user to get studio relationship
-    try {
-      await refreshUser();
-      console.log('User refreshed with studio data');
-    } catch (e) {
-      console.error('Failed to refresh user:', e);
-    }
-
-    return { studioId: studioId || 0 };
-  }, [generateSlug, refreshUser]);
-
   const handleRegistrationComplete = async (data: OnboardingData) => {
     try {
       setIsRegistering(true);
@@ -243,26 +83,100 @@ const RegisterPage: React.FC = () => {
       await fetchCsrfToken();
       const csrfToken = getCsrfToken();
 
-      // Handle studio registration
+      // Handle studio registration - simplified flow
       if (data.userType === 'studio') {
-        // If user was already registered via early registration AND studio was created,
-        // redirect to verify email
-        if (earlyRegisteredUserId) {
-          console.log('Studio flow complete - user and studio already created, redirecting to verify email...');
-          router.push('/verify-email');
-          return;
-        }
-
-        // If user logged in with existing account AND studio was created, redirect to dashboard
-        // (existing users are already verified)
+        // If user logged in with existing account, create studio and redirect to dashboard
         if (data.studioOwner?.isAuthenticated && data.studioOwner?.existingAccountId) {
-          console.log('Studio flow complete - existing user, studio created, redirecting...');
+          console.log('Studio flow: existing user creating studio...');
+
+          // Create the studio for the authenticated user
+          const studioPayload: Record<string, unknown> = {
+            name: data.studioDetails?.name || '',
+            slug: generateSlug(data.studioDetails?.username || data.studioDetails?.name || ''),
+            about: data.studioDetails?.bio || '',
+            location: data.studioDetails?.location || '',
+            location_lat_long: data.studioDetails?.locationLatLong || '',
+            owner_id: data.studioOwner.existingAccountId,
+          };
+
+          if (data.studioDetails?.email) {
+            studioPayload.email = data.studioDetails.email;
+          }
+          if (data.studioDetails?.phone) {
+            studioPayload.phone = data.studioDetails.phone;
+          }
+
+          const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
+          console.log('Studio created:', studioResponse);
+
+          // Handle studio image upload
+          const studioId = studioResponse?.studio?.id;
+          if (data.studioDetails?.profileImage && studioId) {
+            try {
+              const uploadedImage = await uploadImageToS3(data.studioDetails.profileImage, 'studio');
+              await api.post(`/studios/${studioId}/image`, { image_id: uploadedImage.id });
+              console.log('Studio image uploaded');
+            } catch (imgErr) {
+              console.error('Failed to upload studio image:', imgErr);
+            }
+          }
+
+          // Refresh user and redirect to dashboard
+          await refreshUser();
           router.push('/dashboard');
           return;
         }
 
-        // Fallback to legacy flow (shouldn't happen with new callbacks)
-        await handleStudioRegistration(data, generateSlug, csrfToken);
+        // New user creating studio - register user and create studio
+        console.log('Studio flow: new user registration with studio...');
+
+        // Register the user account
+        const registrationPayload = {
+          name: data.studioDetails?.name || '', // Use studio name as account name
+          username: data.studioDetails?.username || '',
+          slug: generateSlug(data.studioDetails?.username || ''),
+          email: data.studioDetails?.email || '',
+          password: data.studioDetails?.password || '',
+          password_confirmation: data.studioDetails?.password_confirmation || '',
+          about: data.studioDetails?.bio || '',
+          location: data.studioDetails?.location || '',
+          location_lat_long: data.studioDetails?.locationLatLong || '',
+          type: 'studio',
+        };
+
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': csrfToken || '',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'include',
+          body: JSON.stringify(registrationPayload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to create account');
+        }
+
+        const result = await response.json();
+        console.log('Registration result:', result);
+
+        // Store pending studio data for after email verification
+        if (data.studioDetails) {
+          localStorage.setItem('pendingStudioData', JSON.stringify({
+            ...data.studioDetails,
+            // Don't store password
+            password: undefined,
+            password_confirmation: undefined,
+          }));
+          console.log('Stored pending studio data for after email verification');
+        }
+
+        // Redirect to verify email
+        const email = result.email || data.studioDetails?.email || '';
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
         return;
       }
 
@@ -323,176 +237,6 @@ const RegisterPage: React.FC = () => {
       setIsRegistering(false);
     }
   };
-
-  // Handle studio registration - creates owner account first, then studio
-  const handleStudioRegistration = async (
-    data: OnboardingData,
-    generateSlug: (username: string) => string,
-    csrfToken: string | null
-  ) => {
-    try {
-      const studioOwner = data.studioOwner;
-      let ownerId: number | undefined;
-
-      // Step 1: Create or identify the owner account
-      if (studioOwner?.isAuthenticated && studioOwner.existingAccountId) {
-        // User is already logged in from the StudioOwnerCheck step
-        // No need to create an account or log them in again
-        ownerId = studioOwner.existingAccountId;
-        console.log('User already authenticated, using existing account as owner:', ownerId);
-      } else if (studioOwner?.hasExistingAccount && studioOwner.existingAccountId) {
-        // Legacy flow - user has existing account but not authenticated
-        // This shouldn't happen with the new flow, but keeping for safety
-        ownerId = studioOwner.existingAccountId;
-        console.log('Using existing account as owner (legacy):', ownerId);
-      } else {
-        // Create a new user account for the owner using their personal profile info
-        const ownerType = studioOwner?.ownerType || 'user';
-        const isArtistOwner = ownerType === 'artist';
-
-        // userDetails now contains the owner's personal info
-        const ownerPayload = {
-          name: data.userDetails?.name || '',
-          username: data.userDetails?.username || '',
-          slug: generateSlug(data.userDetails?.username || ''),
-          email: data.credentials?.email || '',
-          password: data.credentials?.password || '',
-          password_confirmation: data.credentials?.password_confirmation || '',
-          about: data.userDetails?.bio || '',
-          location: data.userDetails?.location || '',
-          location_lat_long: data.userDetails?.locationLatLong || '',
-          type: ownerType, // 'artist' or 'user' based on their selection
-          // Artist-specific fields from the styles selection step
-          selected_styles: isArtistOwner ? (studioOwner?.artistStyles || []) : [],
-          preferred_styles: [],
-          is_studio_owner: true, // Flag to indicate this user owns a studio
-        };
-
-        console.log('Creating owner account with payload:', ownerPayload);
-
-        const ownerResponse = await fetch('/api/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-XSRF-TOKEN': csrfToken || '',
-            'X-Requested-With': 'XMLHttpRequest',
-          },
-          credentials: 'include',
-          body: JSON.stringify(ownerPayload),
-        });
-
-        if (!ownerResponse.ok) {
-          const errorData = await ownerResponse.json();
-          throw new Error(errorData.message || 'Failed to create owner account');
-        }
-
-        const ownerResult = await ownerResponse.json();
-        console.log('Owner account created:', ownerResult);
-        ownerId = ownerResult.user?.id;
-
-        // Set the authentication token and user
-        if (ownerResult.token) {
-          setToken(ownerResult.token);
-          api.clearUserCache();
-
-          // Set user directly from registration response
-          if (ownerResult.user && ownerResult.user.id) {
-            setUserDirectly(ownerResult.user);
-            console.log('Owner user set directly from registration response');
-          }
-        }
-
-        // Handle owner profile image upload if provided - use presigned URLs for speed
-        if (data.userDetails?.profileImage && ownerId) {
-          try {
-            console.log('Uploading owner profile image via presigned URL...');
-            const uploadedImage = await uploadImageToS3(data.userDetails.profileImage, 'profile');
-            await api.post('/users/profile-photo', { image_id: uploadedImage.id });
-            console.log('Owner profile image uploaded via presigned URL');
-          } catch (imgErr) {
-            console.error('Failed to upload owner profile image:', imgErr);
-          }
-        }
-      }
-
-      // Step 2: Create the studio with the owner_id
-      // studioDetails contains the studio-specific info
-      const studioPayload: Record<string, unknown> = {
-        name: data.studioDetails?.name || '',
-        slug: generateSlug(data.studioDetails?.username || data.studioDetails?.name || ''),
-        about: data.studioDetails?.bio || '',
-        location: data.studioDetails?.location || '',
-        location_lat_long: data.studioDetails?.locationLatLong || '',
-        owner_id: ownerId,
-      };
-
-      // Add optional email if provided
-      if (data.studioDetails?.email) {
-        studioPayload.email = data.studioDetails.email;
-      }
-
-      // Add optional phone if provided
-      if (data.studioDetails?.phone) {
-        studioPayload.phone = data.studioDetails.phone;
-      }
-
-      console.log('Creating studio with payload:', studioPayload);
-
-      const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
-      console.log('Studio created:', studioResponse);
-
-      // Handle studio image upload if provided - use presigned URLs for speed
-      const studioId = studioResponse?.studio?.id;
-      if (data.studioDetails?.profileImage && studioId) {
-        try {
-          console.log('Uploading studio image via presigned URL...');
-          const uploadedImage = await uploadImageToS3(data.studioDetails.profileImage, 'studio');
-          await api.post(`/studios/${studioId}/image`, { image_id: uploadedImage.id });
-          console.log('Studio image uploaded via presigned URL');
-        } catch (imgErr) {
-          console.error('Failed to upload studio image:', imgErr);
-        }
-      }
-
-      // Refresh user data to get complete user info including any uploaded images
-      // and the newly created studio relationship
-      try {
-        await refreshUser();
-        console.log('User refreshed with complete data including images');
-      } catch (e) {
-        console.error('Failed to refresh user:', e);
-        // Fallback: manually update the user data with studio info
-        const currentUser = localStorage.getItem('user');
-        if (currentUser) {
-          try {
-            const userData = JSON.parse(currentUser);
-            const updatedUser = {
-              ...userData,
-              is_studio_admin: true,
-              studio_id: studioId,
-              owned_studio: {
-                id: studioId,
-                name: data.studioDetails?.name || '',
-                slug: generateSlug(data.studioDetails?.username || data.studioDetails?.name || ''),
-              },
-            };
-            setUserDirectly(updatedUser);
-            console.log('User updated with studio admin info (fallback)');
-          } catch (parseErr) {
-            console.error('Failed to update user with studio info:', parseErr);
-          }
-        }
-      }
-
-      // Redirect to verify email page (new users need to verify)
-      router.push('/verify-email');
-
-    } catch (error) {
-      console.error('Error during studio registration:', error);
-      throw error;
-    }
-  };
-
   const handleRegistrationCancel = () => {
     router.push('/');
   };
@@ -532,8 +276,6 @@ const RegisterPage: React.FC = () => {
       <OnboardingWizard
         onComplete={handleRegistrationComplete}
         onCancel={handleRegistrationCancel}
-        onRegisterUser={handleRegisterUser}
-        onCreateStudio={handleCreateStudio}
       />
 
       {/* Loading Backdrop */}

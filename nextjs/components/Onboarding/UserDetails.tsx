@@ -572,7 +572,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                   mb: { xs: 1, sm: 0 }
                 }}
               >
-                {useMyLocation ? 'Using your current location' : 'Enter your location manually'}
+                {useMyLocation ? 'Using your current location' : 'Enter your city manually'}
               </Typography>
               <Button
                 variant="text"

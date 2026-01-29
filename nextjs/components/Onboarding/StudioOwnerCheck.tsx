@@ -36,9 +36,11 @@ interface StudioOwnerCheckProps {
     isAuthenticated?: boolean;
   }) => void;
   onBack: () => void;
+  // Simplified mode: skip the "are you an artist" question
+  simplified?: boolean;
 }
 
-const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onBack }) => {
+const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onBack, simplified = false }) => {
   const { refreshUser } = useAuth();
   const [step, setStep] = useState<'initial' | 'login' | 'select-type'>('initial');
   const [email, setEmail] = useState('');
@@ -53,7 +55,15 @@ const StudioOwnerCheck: React.FC<StudioOwnerCheckProps> = ({ onStepComplete, onB
   };
 
   const handleNoAccount = () => {
-    setStep('select-type');
+    if (simplified) {
+      // Skip the artist question, go directly to studio details
+      onStepComplete({
+        hasExistingAccount: false,
+        ownerType: 'user', // Default to user for simplified flow
+      });
+    } else {
+      setStep('select-type');
+    }
   };
 
   const handleLogin = async () => {
