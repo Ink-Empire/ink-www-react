@@ -44,9 +44,9 @@ export const studioService = {
     return api.get<any[]>(`/studios/${studioIdOrSlug}/opportunities`);
   },
 
-  // Get studio's hours (public access)
+  // Get studio's working hours (public access)
   getHours: async (studioIdOrSlug: number | string): Promise<any[]> => {
-    return api.get<any[]>(`/studios/${studioIdOrSlug}/hours`);
+    return api.get<any[]>(`/studios/${studioIdOrSlug}/working-hours`);
   },
 
   // Create a new studio (requires auth)

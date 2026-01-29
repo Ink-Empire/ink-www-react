@@ -21,6 +21,7 @@ export interface StudioType {
   // Location
   location?: string;
   address?: string;
+  address2?: string;
   city?: string;
   state?: string;
   postal_code?: string;

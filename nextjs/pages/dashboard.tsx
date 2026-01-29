@@ -33,11 +33,17 @@ import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
 import { StudioType } from '@/models/studio.interface';
 import EditStudioModal from '../components/EditStudioModal';
+import WorkingHoursModal, { WorkingHour } from '../components/WorkingHoursModal';
 import AddArtistModal from '../components/AddArtistModal';
 import ClientDashboardContent from '../components/ClientDashboardContent';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import TattooCreateWizard from '../components/TattooCreateWizard';
 import LockIcon from '@mui/icons-material/Lock';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PhoneIcon from '@mui/icons-material/Phone';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 
 // Types for dashboard data
 interface DashboardStats {
@@ -115,6 +121,8 @@ interface StudioArtist {
   name: string;
   username: string;
   image?: { uri?: string };
+  is_verified?: boolean;
+  verified_at?: string | null;
 }
 
 interface Announcement {
@@ -162,6 +170,7 @@ export default function Dashboard() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [uploadTattooOpen, setUploadTattooOpen] = useState(false);
   const [uploadMenuAnchor, setUploadMenuAnchor] = useState<null | HTMLElement>(null);
+  const [workingHoursOpen, setWorkingHoursOpen] = useState(false);
 
   // Studio data states
   const [studioData, setStudioData] = useState<any>(null);
@@ -176,6 +185,19 @@ export default function Dashboard() {
     inquiries: { count: number; trend: number; trend_label: string };
     artists_count: number;
   } | null>(null);
+  const [studioWorkingHours, setStudioWorkingHours] = useState<WorkingHour[]>([]);
+
+  // Studio contact info editing
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    address: '',
+    address2: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    phone: '',
+  });
+  const [isSavingContact, setIsSavingContact] = useState(false);
 
   // Artist data states
   const [artistSeekingSpots, setArtistSeekingSpots] = useState(false);
@@ -224,7 +246,7 @@ export default function Dashboard() {
     }
   }, [isStudioAccount]);
 
-  // Create studio from pending data for newly verified studio accounts
+  // Create or claim studio from pending data for newly verified studio accounts
   useEffect(() => {
     const createPendingStudio = async () => {
       // Only run for studio accounts without an existing owned_studio
@@ -236,7 +258,7 @@ export default function Dashboard() {
 
       try {
         const pendingData = JSON.parse(pendingDataStr);
-        console.log('Creating studio from pending data...');
+        console.log('Processing pending studio data...', pendingData);
 
         // Generate slug from username or name
         const generateSlug = (text: string) => {
@@ -257,8 +279,18 @@ export default function Dashboard() {
           phone: pendingData.phone || undefined,
         };
 
-        await api.post('/studios', studioPayload);
-        console.log('Studio created successfully');
+        // Check if this is claiming an existing studio or creating a new one
+        if (pendingData.existingStudioId) {
+          // Claim existing Google Places studio
+          console.log('Claiming existing studio:', pendingData.existingStudioId);
+          await api.post(`/studios/${pendingData.existingStudioId}/claim`, studioPayload);
+          console.log('Studio claimed successfully');
+        } else {
+          // Create new studio
+          console.log('Creating new studio...');
+          await api.post('/studios', studioPayload);
+          console.log('Studio created successfully');
+        }
 
         // Clear pending data
         localStorage.removeItem('pendingStudioData');
@@ -266,7 +298,7 @@ export default function Dashboard() {
         // Refresh user to get the owned_studio
         await refreshUser();
       } catch (err) {
-        console.error('Failed to create studio from pending data:', err);
+        console.error('Failed to create/claim studio from pending data:', err);
         // Don't remove pending data on error so it can be retried
       }
     };
@@ -375,11 +407,12 @@ export default function Dashboard() {
   const loadStudioData = async () => {
     if (!ownedStudio?.id) return;
     try {
-      const [studioRes, artistsRes, announcementsRes, statsRes] = await Promise.all([
+      const [studioRes, artistsRes, announcementsRes, statsRes, workingHoursRes] = await Promise.all([
         api.get<StudioType | { studio: StudioType }>(`/studios/${ownedStudio.id}`),
         api.get<any[] | { artists: any[] }>(`/studios/${ownedStudio.id}/artists`),
         api.get<any[] | { announcements: any[] }>(`/studios/${ownedStudio.id}/announcements`),
         api.get<any>(`/studios/${ownedStudio.id}/dashboard-stats`, { requiresAuth: true }).catch(() => null),
+        api.get<WorkingHour[]>(`/studios/${ownedStudio.id}/working-hours`).catch(() => []),
       ]);
       const studio = (studioRes as any).studio || studioRes;
       setStudioData(studio);
@@ -387,9 +420,21 @@ export default function Dashboard() {
       setAnnouncements((announcementsRes as any).announcements || announcementsRes || []);
       setSeekingGuests(studio?.seeking_guest_artists || false);
       setGuestSpotDetails(studio?.guest_spot_details || '');
+      // Initialize contact form with current studio data
+      setContactForm({
+        address: studio?.address || '',
+        address2: studio?.address2 || '',
+        city: studio?.city || '',
+        state: studio?.state || '',
+        postal_code: studio?.postal_code || '',
+        phone: studio?.phone || '',
+      });
       if (statsRes) {
         setStudioStats(statsRes);
       }
+      // Set working hours from API response
+      const hours = Array.isArray(workingHoursRes) ? workingHoursRes : (workingHoursRes as any)?.data || [];
+      setStudioWorkingHours(hours);
     } catch (err) {
       console.error('Failed to load studio data:', err);
     }
@@ -419,6 +464,48 @@ export default function Dashboard() {
     }
   };
 
+  const handleSaveContactInfo = async () => {
+    if (!ownedStudio?.id) return;
+    setIsSavingContact(true);
+    try {
+      const response = await api.put(`/studios/studio/${ownedStudio.id}`, contactForm);
+      const updatedStudio = (response as any).studio || response;
+      setStudioData((prev: any) => ({ ...prev, ...contactForm }));
+      setIsEditingContact(false);
+    } catch (err) {
+      console.error('Failed to save contact info:', err);
+    } finally {
+      setIsSavingContact(false);
+    }
+  };
+
+  const handleCancelContactEdit = () => {
+    // Reset form to current studio data
+    setContactForm({
+      address: studioData?.address || '',
+      address2: studioData?.address2 || '',
+      city: studioData?.city || '',
+      state: studioData?.state || '',
+      postal_code: studioData?.postal_code || '',
+      phone: studioData?.phone || '',
+    });
+    setIsEditingContact(false);
+  };
+
+  const handleSaveBusinessHours = async (hours: WorkingHour[]) => {
+    if (!ownedStudio?.id) return;
+    try {
+      // Save all working hours to the API (same format as artists)
+      await api.post(`/studios/${ownedStudio.id}/working-hours`, {
+        availability: hours
+      });
+      // Reload studio data to get updated hours
+      loadStudioData();
+    } catch (err) {
+      console.error('Failed to save business hours:', err);
+    }
+  };
+
   const handleRemoveArtist = async (artistId: number) => {
     if (!ownedStudio?.id) return;
     try {
@@ -426,6 +513,30 @@ export default function Dashboard() {
       setStudioArtists(prev => prev.filter(a => a.id !== artistId));
     } catch (err) {
       console.error('Failed to remove artist:', err);
+    }
+  };
+
+  const handleVerifyArtist = async (artistId: number) => {
+    if (!ownedStudio?.id) return;
+    try {
+      await api.post(`/studios/${ownedStudio.id}/artists/${artistId}/verify`);
+      setStudioArtists(prev => prev.map(a =>
+        a.id === artistId ? { ...a, is_verified: true, verified_at: new Date().toISOString() } : a
+      ));
+    } catch (err) {
+      console.error('Failed to verify artist:', err);
+    }
+  };
+
+  const handleUnverifyArtist = async (artistId: number) => {
+    if (!ownedStudio?.id) return;
+    try {
+      await api.post(`/studios/${ownedStudio.id}/artists/${artistId}/unverify`);
+      setStudioArtists(prev => prev.map(a =>
+        a.id === artistId ? { ...a, is_verified: false, verified_at: null } : a
+      ));
+    } catch (err) {
+      console.error('Failed to unverify artist:', err);
     }
   };
 
@@ -534,8 +645,8 @@ export default function Dashboard() {
           <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap' }}>
             <Button
               component={Link}
-              href={isStudioAccount || (activeTab === 'studio' && ownedStudio?.slug)
-                ? `/studios/${ownedStudio?.slug}`
+              href={isStudioAccount || (activeTab === 'studio' && (studioData?.slug || ownedStudio?.slug))
+                ? `/studios/${studioData?.slug || ownedStudio?.slug}`
                 : (user?.slug ? `/artists/${user.slug}` : '#')}
               sx={{
                 flex: { xs: 1, md: 'none' },
@@ -553,6 +664,20 @@ export default function Dashboard() {
             >
               {isStudioAccount ? 'View Studio Page' : 'View Public Profile'}
             </Button>
+            {/* Settings button for studios */}
+            {isStudioAccount && (
+              <IconButton
+                onClick={() => setEditStudioOpen(true)}
+                sx={{
+                  color: colors.textPrimary,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: '6px',
+                  '&:hover': { borderColor: colors.accent, color: colors.accent }
+                }}
+              >
+                <SettingsIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            )}
             {/* Upload button - only show for artists, not pure studio accounts */}
             {!isStudioAccount && (
             <Button
@@ -801,6 +926,163 @@ export default function Dashboard() {
                       Check back soon for people looking for tattoos
                     </Typography>
                   </Box>
+                )}
+              </Card>
+            )}
+
+            {/* Artists to Verify - Studio Tab */}
+            {activeTab === 'studio' && (
+              <Card
+                title="Artists to Verify"
+                subtitle="Manage pending artist requests or add artists to your studio"
+                icon={<HourglassEmptyIcon />}
+              >
+                <Box sx={{
+                  display: 'flex',
+                  gap: 2,
+                  p: 2,
+                  overflowX: 'auto',
+                  '&::-webkit-scrollbar': { height: 6 },
+                  '&::-webkit-scrollbar-track': { bgcolor: colors.background, borderRadius: 3 },
+                  '&::-webkit-scrollbar-thumb': { bgcolor: colors.border, borderRadius: 3 },
+                }}>
+                  {/* Pending Artists */}
+                  {studioArtists.filter(a => !a.is_verified && a.id !== user?.id).map((artist) => {
+                    const artistInitials = artist.name
+                      ? artist.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                      : artist.username?.slice(0, 2).toUpperCase() || 'AR';
+                    return (
+                      <Box
+                        key={artist.id}
+                        sx={{
+                          minWidth: 140,
+                          textAlign: 'center',
+                          p: 2,
+                          bgcolor: `${colors.accent}08`,
+                          borderRadius: '12px',
+                          border: `1px solid ${colors.accent}30`,
+                        }}
+                      >
+                        <Avatar
+                          src={artist.image?.uri}
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            mx: 'auto',
+                            mb: 1,
+                            bgcolor: colors.background,
+                            color: colors.textSecondary,
+                            fontSize: '1rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          {artistInitials}
+                        </Avatar>
+                        <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.85rem', mb: 0.25 }}>
+                          {artist.name || artist.username}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1.5 }}>
+                          @{artist.username}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                          <Button
+                            onClick={() => handleVerifyArtist(artist.id)}
+                            size="small"
+                            sx={{
+                              px: 1.5,
+                              py: 0.5,
+                              bgcolor: colors.success,
+                              color: colors.background,
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              textTransform: 'none',
+                              borderRadius: '6px',
+                              minWidth: 'auto',
+                              '&:hover': { bgcolor: colors.success, opacity: 0.9 }
+                            }}
+                          >
+                            Verify
+                          </Button>
+                          <Button
+                            onClick={() => handleRemoveArtist(artist.id)}
+                            size="small"
+                            sx={{
+                              px: 1.5,
+                              py: 0.5,
+                              bgcolor: 'transparent',
+                              border: `1px solid ${colors.border}`,
+                              color: colors.textMuted,
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
+                              textTransform: 'none',
+                              borderRadius: '6px',
+                              minWidth: 'auto',
+                              '&:hover': { borderColor: colors.error, color: colors.error }
+                            }}
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+
+                  {/* Add Artist Card */}
+                  <Box
+                    onClick={() => setAddArtistOpen(true)}
+                    sx={{
+                      minWidth: 140,
+                      textAlign: 'center',
+                      p: 2,
+                      bgcolor: colors.background,
+                      borderRadius: '12px',
+                      border: `2px dashed ${colors.border}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      '&:hover': {
+                        borderColor: colors.accent,
+                        bgcolor: `${colors.accent}08`,
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: '50%',
+                        bgcolor: `${colors.accent}15`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mb: 1,
+                      }}
+                    >
+                      <PersonAddIcon sx={{ fontSize: 28, color: colors.accent }} />
+                    </Box>
+                    <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.85rem', mb: 0.25 }}>
+                      Add Artist
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted }}>
+                      By username or email
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Empty state message when no pending artists */}
+                {studioArtists.filter(a => !a.is_verified && a.id !== user?.id).length === 0 && (
+                  <Typography sx={{
+                    color: colors.textMuted,
+                    fontSize: '0.85rem',
+                    textAlign: 'center',
+                    pb: 2,
+                    mt: -1
+                  }}>
+                    No pending artist requests. Add artists to your studio using their username or email.
+                  </Typography>
                 )}
               </Card>
             )}
@@ -1141,26 +1423,302 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                {/* Studio Management Actions */}
-                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                  <Button
-                    onClick={() => setEditStudioOpen(true)}
-                    sx={{
-                      flex: 1,
-                      py: 1,
-                      color: colors.textPrimary,
-                      border: `1px solid ${colors.border}`,
-                      borderRadius: '6px',
-                      textTransform: 'none',
-                      fontWeight: 500,
-                      fontSize: '0.85rem',
-                      '&:hover': { borderColor: colors.accent, color: colors.accent }
-                    }}
-                    startIcon={<EditIcon sx={{ fontSize: 18 }} />}
-                  >
-                    Edit Studio
-                  </Button>
-                </Box>
+                {/* Contact Information Card - Inline Editing */}
+                <Card
+                  title="Contact Information"
+                  action={
+                    !isEditingContact ? (
+                      <Button
+                        onClick={() => setIsEditingContact(true)}
+                        sx={{
+                          px: 1.5,
+                          py: 0.5,
+                          color: colors.accent,
+                          fontSize: '0.8rem',
+                          fontWeight: 500,
+                          textTransform: 'none',
+                          '&:hover': { bgcolor: `${colors.accent}15` }
+                        }}
+                        startIcon={<EditIcon sx={{ fontSize: 16 }} />}
+                      >
+                        Edit
+                      </Button>
+                    ) : null
+                  }
+                >
+                  <Box sx={{ p: 2 }}>
+                    {isEditingContact ? (
+                      // Editing Mode
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <TextField
+                          label="Street Address"
+                          value={contactForm.address}
+                          onChange={(e) => setContactForm(prev => ({ ...prev, address: e.target.value }))}
+                          fullWidth
+                          size="small"
+                          placeholder="123 Main Street"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              bgcolor: colors.background,
+                              color: colors.textPrimary,
+                              '& fieldset': { borderColor: colors.border },
+                              '&:hover fieldset': { borderColor: colors.borderLight },
+                              '&.Mui-focused fieldset': { borderColor: colors.accent },
+                            },
+                            '& .MuiInputLabel-root': { color: colors.textSecondary },
+                            '& .MuiInputLabel-root.Mui-focused': { color: colors.accent },
+                          }}
+                        />
+                        <TextField
+                          label="Address Line 2 (optional)"
+                          value={contactForm.address2}
+                          onChange={(e) => setContactForm(prev => ({ ...prev, address2: e.target.value }))}
+                          fullWidth
+                          size="small"
+                          placeholder="Suite 100"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              bgcolor: colors.background,
+                              color: colors.textPrimary,
+                              '& fieldset': { borderColor: colors.border },
+                              '&:hover fieldset': { borderColor: colors.borderLight },
+                              '&.Mui-focused fieldset': { borderColor: colors.accent },
+                            },
+                            '& .MuiInputLabel-root': { color: colors.textSecondary },
+                            '& .MuiInputLabel-root.Mui-focused': { color: colors.accent },
+                          }}
+                        />
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <TextField
+                            label="City"
+                            value={contactForm.city}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, city: e.target.value }))}
+                            fullWidth
+                            size="small"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                bgcolor: colors.background,
+                                color: colors.textPrimary,
+                                '& fieldset': { borderColor: colors.border },
+                                '&:hover fieldset': { borderColor: colors.borderLight },
+                                '&.Mui-focused fieldset': { borderColor: colors.accent },
+                              },
+                              '& .MuiInputLabel-root': { color: colors.textSecondary },
+                              '& .MuiInputLabel-root.Mui-focused': { color: colors.accent },
+                            }}
+                          />
+                          <TextField
+                            label="State"
+                            value={contactForm.state}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, state: e.target.value }))}
+                            size="small"
+                            placeholder="TX"
+                            sx={{
+                              width: 100,
+                              '& .MuiOutlinedInput-root': {
+                                bgcolor: colors.background,
+                                color: colors.textPrimary,
+                                '& fieldset': { borderColor: colors.border },
+                                '&:hover fieldset': { borderColor: colors.borderLight },
+                                '&.Mui-focused fieldset': { borderColor: colors.accent },
+                              },
+                              '& .MuiInputLabel-root': { color: colors.textSecondary },
+                              '& .MuiInputLabel-root.Mui-focused': { color: colors.accent },
+                            }}
+                          />
+                          <TextField
+                            label="ZIP"
+                            value={contactForm.postal_code}
+                            onChange={(e) => setContactForm(prev => ({ ...prev, postal_code: e.target.value }))}
+                            size="small"
+                            sx={{
+                              width: 100,
+                              '& .MuiOutlinedInput-root': {
+                                bgcolor: colors.background,
+                                color: colors.textPrimary,
+                                '& fieldset': { borderColor: colors.border },
+                                '&:hover fieldset': { borderColor: colors.borderLight },
+                                '&.Mui-focused fieldset': { borderColor: colors.accent },
+                              },
+                              '& .MuiInputLabel-root': { color: colors.textSecondary },
+                              '& .MuiInputLabel-root.Mui-focused': { color: colors.accent },
+                            }}
+                          />
+                        </Box>
+                        <TextField
+                          label="Phone"
+                          value={contactForm.phone}
+                          onChange={(e) => setContactForm(prev => ({ ...prev, phone: e.target.value }))}
+                          fullWidth
+                          size="small"
+                          placeholder="(555) 555-5555"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              bgcolor: colors.background,
+                              color: colors.textPrimary,
+                              '& fieldset': { borderColor: colors.border },
+                              '&:hover fieldset': { borderColor: colors.borderLight },
+                              '&.Mui-focused fieldset': { borderColor: colors.accent },
+                            },
+                            '& .MuiInputLabel-root': { color: colors.textSecondary },
+                            '& .MuiInputLabel-root.Mui-focused': { color: colors.accent },
+                          }}
+                        />
+                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                          <Button
+                            onClick={handleCancelContactEdit}
+                            sx={{
+                              px: 2,
+                              py: 0.75,
+                              color: colors.textPrimary,
+                              border: `1px solid ${colors.border}`,
+                              borderRadius: '6px',
+                              textTransform: 'none',
+                              fontWeight: 500,
+                              fontSize: '0.85rem',
+                              '&:hover': { borderColor: colors.accent, color: colors.accent }
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleSaveContactInfo}
+                            disabled={isSavingContact}
+                            sx={{
+                              px: 2,
+                              py: 0.75,
+                              bgcolor: colors.accent,
+                              color: colors.background,
+                              borderRadius: '6px',
+                              textTransform: 'none',
+                              fontWeight: 500,
+                              fontSize: '0.85rem',
+                              '&:hover': { bgcolor: colors.accentHover },
+                              '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+                            }}
+                            startIcon={isSavingContact ? <CircularProgress size={16} sx={{ color: colors.textMuted }} /> : null}
+                          >
+                            {isSavingContact ? 'Saving...' : 'Save'}
+                          </Button>
+                        </Box>
+                      </Box>
+                    ) : (
+                      // Display Mode
+                      <>
+                        {/* Address */}
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2 }}>
+                          <LocationOnIcon sx={{ color: colors.accent, fontSize: 20, mt: 0.25 }} />
+                          <Box>
+                            <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem', mb: 0.25 }}>
+                              Address
+                            </Typography>
+                            {(studioData?.address || studioData?.city) ? (
+                              <>
+                                {studioData?.address && (
+                                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+                                    {studioData.address}
+                                  </Typography>
+                                )}
+                                {studioData?.address2 && (
+                                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+                                    {studioData.address2}
+                                  </Typography>
+                                )}
+                                {(studioData?.city || studioData?.state || studioData?.postal_code) && (
+                                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+                                    {[studioData?.city, studioData?.state].filter(Boolean).join(', ')} {studioData?.postal_code}
+                                  </Typography>
+                                )}
+                              </>
+                            ) : (
+                              <Typography sx={{ color: colors.textMuted, fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                No address set — click Edit to add
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+
+                        {/* Phone */}
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                          <PhoneIcon sx={{ color: colors.accent, fontSize: 20, mt: 0.25 }} />
+                          <Box>
+                            <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem', mb: 0.25 }}>
+                              Phone
+                            </Typography>
+                            {studioData?.phone ? (
+                              <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+                                {studioData.phone}
+                              </Typography>
+                            ) : (
+                              <Typography sx={{ color: colors.textMuted, fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                No phone number set — click Edit to add
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </>
+                    )}
+                  </Box>
+                </Card>
+
+                {/* Business Hours Card */}
+                <Card
+                  title="Business Hours"
+                  action={
+                    <Button
+                      onClick={() => setWorkingHoursOpen(true)}
+                      sx={{
+                        px: 1.5,
+                        py: 0.5,
+                        color: colors.accent,
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        '&:hover': { bgcolor: `${colors.accent}15` }
+                      }}
+                      startIcon={<EditIcon sx={{ fontSize: 16 }} />}
+                    >
+                      Edit
+                    </Button>
+                  }
+                >
+                  <Box sx={{ p: 2 }}>
+                    {studioWorkingHours && studioWorkingHours.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, dayIndex) => {
+                          const dayHours = studioWorkingHours.find(h => h.day_of_week === dayIndex);
+                          const isClosed = !dayHours || dayHours.is_day_off;
+                          const formatTime = (time: string) => {
+                            const [hours, minutes] = time.split(':');
+                            const h = parseInt(hours);
+                            const ampm = h >= 12 ? 'PM' : 'AM';
+                            const displayHour = h % 12 || 12;
+                            return `${displayHour}:${minutes} ${ampm}`;
+                          };
+                          const hoursDisplay = isClosed ? 'Closed' : `${formatTime(dayHours.start_time)} - ${formatTime(dayHours.end_time)}`;
+                          return (
+                            <Box key={dayName} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem', minWidth: 100 }}>
+                                {dayName}
+                              </Typography>
+                              <Typography sx={{
+                                color: isClosed ? colors.textMuted : colors.textPrimary,
+                                fontSize: '0.85rem',
+                                fontWeight: isClosed ? 400 : 500,
+                              }}>
+                                {hoursDisplay}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    ) : (
+                      <Typography sx={{ color: colors.textMuted, fontSize: '0.85rem', fontStyle: 'italic' }}>
+                        No hours set — click Edit to add your business hours
+                      </Typography>
+                    )}
+                  </Box>
+                </Card>
 
                 {/* Guest Spot Seeking Toggle */}
                 <Card title="Guest Spot Settings">
@@ -1317,6 +1875,7 @@ export default function Dashboard() {
                       const artistInitials = artist.name
                         ? artist.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
                         : artist.username?.slice(0, 2).toUpperCase() || 'AR';
+                      const isVerified = artist.is_verified;
                       return (
                         <Box key={artist.id} sx={{
                           display: 'flex',
@@ -1324,6 +1883,7 @@ export default function Dashboard() {
                           gap: 1.5,
                           p: 2,
                           borderBottom: index === arr.length - 1 ? 'none' : `1px solid ${colors.border}`,
+                          bgcolor: !isVerified ? `${colors.accent}08` : 'transparent',
                         }}>
                           <Avatar
                             src={artist.image?.uri}
@@ -1339,13 +1899,77 @@ export default function Dashboard() {
                             {artistInitials}
                           </Avatar>
                           <Box sx={{ flex: 1 }}>
-                            <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
-                              {artist.name || artist.username}
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
-                              @{artist.username}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography sx={{ fontWeight: 500, color: colors.textPrimary }}>
+                                {artist.name || artist.username}
+                              </Typography>
+                              {isVerified && (
+                                <CheckCircleIcon sx={{ fontSize: 16, color: colors.success }} />
+                              )}
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+                                @{artist.username}
+                              </Typography>
+                              {!isVerified && (
+                                <Box sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  px: 0.75,
+                                  py: 0.25,
+                                  bgcolor: `${colors.accent}20`,
+                                  borderRadius: '4px',
+                                }}>
+                                  <HourglassEmptyIcon sx={{ fontSize: 12, color: colors.accent }} />
+                                  <Typography sx={{ fontSize: '0.7rem', color: colors.accent, fontWeight: 500 }}>
+                                    Pending
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
                           </Box>
+                          {/* Verify/Unverify button */}
+                          {!isVerified ? (
+                            <Button
+                              onClick={() => handleVerifyArtist(artist.id)}
+                              size="small"
+                              sx={{
+                                px: 1.5,
+                                py: 0.5,
+                                bgcolor: colors.success,
+                                color: colors.background,
+                                fontSize: '0.75rem',
+                                fontWeight: 500,
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                minWidth: 'auto',
+                                '&:hover': { bgcolor: colors.success, opacity: 0.9 }
+                              }}
+                            >
+                              Verify
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleUnverifyArtist(artist.id)}
+                              size="small"
+                              sx={{
+                                px: 1.5,
+                                py: 0.5,
+                                bgcolor: 'transparent',
+                                border: `1px solid ${colors.border}`,
+                                color: colors.textMuted,
+                                fontSize: '0.75rem',
+                                fontWeight: 500,
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                minWidth: 'auto',
+                                '&:hover': { borderColor: colors.textMuted }
+                              }}
+                            >
+                              Unverify
+                            </Button>
+                          )}
                           <IconButton
                             onClick={() => handleRemoveArtist(artist.id)}
                             sx={{
@@ -1593,12 +2217,23 @@ export default function Dashboard() {
         }}
       />
 
+      <WorkingHoursModal
+        isOpen={workingHoursOpen}
+        onClose={() => setWorkingHoursOpen(false)}
+        onSave={handleSaveBusinessHours}
+        studioId={ownedStudio?.id}
+        title="Business Hours"
+        infoText="Set your studio's business hours. Clients will see these on your profile."
+        initialWorkingHours={studioWorkingHours}
+      />
+
       <AddArtistModal
         isOpen={addArtistOpen}
         onClose={() => setAddArtistOpen(false)}
         studioId={ownedStudio?.id || 0}
         onArtistAdded={(artist) => {
-          setStudioArtists(prev => [...prev, artist]);
+          // Add with is_verified: false so they appear in pending section
+          setStudioArtists(prev => [...prev, { ...artist, is_verified: false }]);
         }}
         currentArtists={studioArtists}
       />

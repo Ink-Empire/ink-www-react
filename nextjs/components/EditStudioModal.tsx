@@ -10,9 +10,6 @@ interface StudioData {
   name: string;
   slug?: string;
   about?: string;
-  location?: string;
-  location_lat_long?: string;
-  phone?: string;
   email?: string;
   image?: { uri?: string };
 }
@@ -40,8 +37,6 @@ const EditStudioModal: React.FC<EditStudioModalProps> = ({ isOpen, onClose, stud
   const [formData, setFormData] = useState({
     name: '',
     about: '',
-    location: '',
-    phone: '',
     email: '',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -55,8 +50,6 @@ const EditStudioModal: React.FC<EditStudioModalProps> = ({ isOpen, onClose, stud
       setFormData({
         name: studio.name || '',
         about: studio.about || '',
-        location: studio.location || '',
-        phone: studio.phone || '',
         email: studio.email || '',
       });
       setImagePreview(studio.image?.uri || null);
@@ -93,7 +86,7 @@ const EditStudioModal: React.FC<EditStudioModalProps> = ({ isOpen, onClose, stud
 
     try {
       // Update studio info
-      const updateResponse = await api.put(`/studios/studio/${studio.id}`, formData);
+      await api.put(`/studios/studio/${studio.id}`, formData);
 
       // Upload image if changed
       if (imageFile) {
@@ -226,29 +219,9 @@ const EditStudioModal: React.FC<EditStudioModalProps> = ({ isOpen, onClose, stud
               onChange={handleChange('about')}
               fullWidth
               multiline
-              rows={3}
+              rows={4}
               size="small"
               sx={inputStyles}
-            />
-
-            <TextField
-              label="Location"
-              value={formData.location}
-              onChange={handleChange('location')}
-              fullWidth
-              size="small"
-              sx={inputStyles}
-              placeholder="City, State"
-            />
-
-            <TextField
-              label="Phone"
-              value={formData.phone}
-              onChange={handleChange('phone')}
-              fullWidth
-              size="small"
-              sx={inputStyles}
-              placeholder="(555) 555-5555"
             />
 
             <TextField

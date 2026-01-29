@@ -4,19 +4,13 @@
 - Never use hardcoded data when fulfilling prompts. We will get data from the API and generate test data in the API.
 
 ## Code Style Guidelines
-- **Framework**: Laravel PHP (PSR standards)
-- **PHP Version**: 8.2+
-- **Formatting**: Laravel Pint (preset: laravel)
+- **Framework**: NextJs, ReactNative
 - **Namespacing**: PSR-4 with App\\ namespace
-- **Models**: Located in app/Models with appropriate relationships
-- **Folder Structure**: Follow Laravel conventions (Controllers, Services, Jobs, etc.)
-- **Error Handling**: Use Laravel exceptions and proper try/catch blocks
-- **Testing**: PHPUnit for backend, Laravel Dusk for frontend
+- **Folder Structure**: Follow React and NextJs best practices
+- **Error Handling**: Use exceptions and proper try/catch blocks
+- **Testing**: Playwright
 - **Documentation**: DocBlocks on classes and complex methods
-- **Git Flow**: Create branches from develop, request code review before merging
-- Protected methods are often not needed. This is not an SDK for others to use, this is our internal code. Focus on writing very clear, testable code, rather than adhering to old-school PHP patterns.
-- Do not create protected or private methods in a class unless absolutely necessary. this is not public code and does not need to be overly controlled.
-- Don't automatically perform any git operations; I'll handle git and version control
+- **Git Flow**: Don't automatically perform any git operations; I'll handle git and version control
 
 ## Testing Guidelines
 - All tests should follow Laravel testing conventions
@@ -26,4 +20,8 @@
 
 All code changes must pass CI tests and receive an approval before merging to develop.
 
-Never ever run NPM commands. I will rebuild my own project. 
+Never ever run NPM commands. I will rebuild my own project.
+Always check the /ink-api/docs directory to understand the flow and update it when we make changes to a process. 
+Always use the colors.ts for our styles. 
+Always reuse components where possible.
+Always plan designs with mobile views in mind.

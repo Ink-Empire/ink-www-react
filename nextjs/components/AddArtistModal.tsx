@@ -141,12 +141,12 @@ const AddArtistModal: React.FC<AddArtistModalProps> = ({
         {/* Content */}
         <Box sx={{ p: 3 }}>
           <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem', mb: 2 }}>
-            Enter the username of the artist you want to add to your studio. They must have an existing artist account on InkedIn.
+            Enter the username or email of the artist you want to add to your studio. They must have an existing artist account on InkedIn.
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
-              placeholder="Enter artist username"
+              placeholder="Username or email"
               value={username}
               onChange={(e) => {
                 setUsername(e.target.value);
