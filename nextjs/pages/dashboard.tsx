@@ -931,10 +931,10 @@ export default function Dashboard() {
             )}
 
             {/* Artists to Verify - Studio Tab */}
-            {activeTab === 'studio' && studioArtists.filter(a => !a.is_verified && a.id !== user?.id).length > 0 && (
+            {activeTab === 'studio' && (
               <Card
                 title="Artists to Verify"
-                subtitle="These artists claim to work at your studio"
+                subtitle="Manage pending artist requests or add artists to your studio"
                 icon={<HourglassEmptyIcon />}
               >
                 <Box sx={{
@@ -946,6 +946,7 @@ export default function Dashboard() {
                   '&::-webkit-scrollbar-track': { bgcolor: colors.background, borderRadius: 3 },
                   '&::-webkit-scrollbar-thumb': { bgcolor: colors.border, borderRadius: 3 },
                 }}>
+                  {/* Pending Artists */}
                   {studioArtists.filter(a => !a.is_verified && a.id !== user?.id).map((artist) => {
                     const artistInitials = artist.name
                       ? artist.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -1025,7 +1026,64 @@ export default function Dashboard() {
                       </Box>
                     );
                   })}
+
+                  {/* Add Artist Card */}
+                  <Box
+                    onClick={() => setAddArtistOpen(true)}
+                    sx={{
+                      minWidth: 140,
+                      textAlign: 'center',
+                      p: 2,
+                      bgcolor: colors.background,
+                      borderRadius: '12px',
+                      border: `2px dashed ${colors.border}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      '&:hover': {
+                        borderColor: colors.accent,
+                        bgcolor: `${colors.accent}08`,
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: '50%',
+                        bgcolor: `${colors.accent}15`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mb: 1,
+                      }}
+                    >
+                      <PersonAddIcon sx={{ fontSize: 28, color: colors.accent }} />
+                    </Box>
+                    <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.85rem', mb: 0.25 }}>
+                      Add Artist
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted }}>
+                      By username or email
+                    </Typography>
+                  </Box>
                 </Box>
+
+                {/* Empty state message when no pending artists */}
+                {studioArtists.filter(a => !a.is_verified && a.id !== user?.id).length === 0 && (
+                  <Typography sx={{
+                    color: colors.textMuted,
+                    fontSize: '0.85rem',
+                    textAlign: 'center',
+                    pb: 2,
+                    mt: -1
+                  }}>
+                    No pending artist requests. Add artists to your studio using their username or email.
+                  </Typography>
+                )}
               </Card>
             )}
 
@@ -2174,7 +2232,8 @@ export default function Dashboard() {
         onClose={() => setAddArtistOpen(false)}
         studioId={ownedStudio?.id || 0}
         onArtistAdded={(artist) => {
-          setStudioArtists(prev => [...prev, artist]);
+          // Add with is_verified: false so they appear in pending section
+          setStudioArtists(prev => [...prev, { ...artist, is_verified: false }]);
         }}
         currentArtists={studioArtists}
       />
