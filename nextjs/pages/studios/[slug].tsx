@@ -24,7 +24,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
-import { useStudio, useStudioArtists, useStudioGallery } from '../../hooks/useStudios';
+import { useStudio, useStudioArtists, useStudioGallery, useStudioHours } from '../../hooks/useStudios';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooModal from '@/components/TattooModal';
 import { colors } from '@/styles/colors';
@@ -35,6 +35,7 @@ export default function StudioDetail() {
   const { studio, loading: studioLoading, error: studioError } = useStudio(slug as string);
   const { artists } = useStudioArtists(slug as string);
   const { gallery } = useStudioGallery(slug as string);
+  const { hours: workingHours } = useStudioHours(slug as string);
   const { user, isAuthenticated } = useAuth();
 
   const [activeTab, setActiveTab] = useState(0);
@@ -44,8 +45,10 @@ export default function StudioDetail() {
   const [isSaved, setIsSaved] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Check if studio is verified/claimed
-  const isVerified = studio?.is_verified || studio?.verified || false;
+  // Check if studio is verified/claimed or if the current user owns it
+  const isOwner = isAuthenticated && user && studio?.owner_id === user.id;
+  const isClaimed = studio?.is_claimed || isOwner;
+  const isVerified = studio?.is_verified || studio?.verified || isClaimed || false;
 
   // Get unique styles from studio or gallery
   const studioStyles = useMemo(() => {
@@ -393,23 +396,33 @@ export default function StudioDetail() {
                 <AccessTimeIcon sx={{ color: colors.accent }} />
                 Hours
               </Typography>
-              {studio.hours && studio.hours.length > 0 ? (
+              {workingHours && workingHours.length > 0 ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  {studio.hours.map((item: any) => {
-                    const isToday = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()] === item.day;
+                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, dayIndex) => {
+                    const dayHours = workingHours.find((h: any) => h.day_of_week === dayIndex);
+                    const isClosed = !dayHours || dayHours.is_day_off;
+                    const isToday = new Date().getDay() === dayIndex;
+                    const formatTime = (time: string) => {
+                      const [hours, minutes] = time.split(':');
+                      const h = parseInt(hours);
+                      const ampm = h >= 12 ? 'PM' : 'AM';
+                      const displayHour = h % 12 || 12;
+                      return `${displayHour}:${minutes} ${ampm}`;
+                    };
+                    const hoursDisplay = isClosed ? 'Closed' : `${formatTime(dayHours.start_time)} - ${formatTime(dayHours.end_time)}`;
                     return (
-                      <Box key={item.day} sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                      <Box key={dayName} sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                         <Typography sx={{
                           color: isToday ? colors.accent : colors.textSecondary,
                           fontWeight: isToday ? 500 : 400
                         }}>
-                          {item.day}
+                          {dayName}
                         </Typography>
                         <Typography sx={{
-                          color: isToday ? colors.accent : colors.textPrimary,
+                          color: isToday ? colors.accent : (isClosed ? colors.textMuted : colors.textPrimary),
                           fontWeight: isToday ? 500 : 400
                         }}>
-                          {item.hours || 'Closed'}
+                          {hoursDisplay}
                         </Typography>
                       </Box>
                     );
@@ -1338,24 +1351,33 @@ export default function StudioDetail() {
                 <AccessTimeIcon sx={{ color: colors.accent }} />
                 Hours
               </Typography>
-              {studio.hours && studio.hours.length > 0 ? (
+              {workingHours && workingHours.length > 0 ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                  {studio.hours.map((item: any) => {
-                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                    const isToday = days[new Date().getDay()] === item.day;
+                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, dayIndex) => {
+                    const dayHours = workingHours.find((h: any) => h.day_of_week === dayIndex);
+                    const isClosed = !dayHours || dayHours.is_day_off;
+                    const isToday = new Date().getDay() === dayIndex;
+                    const formatTime = (time: string) => {
+                      const [hours, minutes] = time.split(':');
+                      const h = parseInt(hours);
+                      const ampm = h >= 12 ? 'PM' : 'AM';
+                      const displayHour = h % 12 || 12;
+                      return `${displayHour}:${minutes} ${ampm}`;
+                    };
+                    const hoursDisplay = isClosed ? 'Closed' : `${formatTime(dayHours.start_time)} - ${formatTime(dayHours.end_time)}`;
                     return (
-                      <Box key={item.day} sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                      <Box key={dayName} sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                         <Typography sx={{
                           color: isToday ? colors.accent : colors.textSecondary,
                           fontWeight: isToday ? 500 : 400
                         }}>
-                          {item.day}
+                          {dayName}
                         </Typography>
                         <Typography sx={{
-                          color: isToday ? colors.accent : colors.textPrimary,
+                          color: isToday ? colors.accent : (isClosed ? colors.textMuted : colors.textPrimary),
                           fontWeight: isToday ? 500 : 400
                         }}>
-                          {item.hours || 'Closed'}
+                          {hoursDisplay}
                         </Typography>
                       </Box>
                     );

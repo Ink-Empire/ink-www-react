@@ -344,11 +344,13 @@ export function useStudioHours(studioIdOrSlug: string | null) {
     const fetchHours = async () => {
       try {
         setLoading(true);
-        const data = await studioService.getHours(studioIdOrSlug);
+        const response = await studioService.getHours(studioIdOrSlug);
 
         if (!isMounted) return;
 
-        setHours(data);
+        // Handle Laravel Resource collection wrapper
+        const hoursData = Array.isArray(response) ? response : (response as any)?.data || [];
+        setHours(hoursData);
         setError(null);
       } catch (err) {
         if (!isMounted) return;
