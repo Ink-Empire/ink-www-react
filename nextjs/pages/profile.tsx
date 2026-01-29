@@ -7,14 +7,13 @@ import AccountModal from '../components/AccountModal';
 import StyleModal from '../components/StyleModal';
 import WorkingHoursModal from '../components/WorkingHoursModal';
 import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
-import { Box, Typography, TextField, IconButton, Switch } from '@mui/material';
+import { Box, Typography, TextField, IconButton } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StarIcon from '@mui/icons-material/Star';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -38,206 +37,13 @@ import { withAuth } from '@/components/WithAuth';
 import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
 import { uploadImageToS3 } from '@/utils/s3Upload';
-
-// Navigation items for sidebar
-const navItems = [
-  { id: 'photo', label: 'Photo', icon: CameraAltIcon },
-  { id: 'about', label: 'About', icon: PersonIcon },
-  { id: 'studio', label: 'Studio', icon: LocationOnIcon },
-  { id: 'styles', label: 'Styles', icon: StarIcon },
-  { id: 'hours', label: 'Hours', icon: AccessTimeIcon },
-  { id: 'booking', label: 'Booking & Rates', icon: EventIcon },
-  { id: 'watermark', label: 'Watermark', icon: BrandingWatermarkIcon },
-  { id: 'travel', label: 'Travel', icon: PublicIcon },
-];
-
-// Collapsible Settings Section Component
-interface SettingsSectionProps {
-  id?: string;
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  defaultExpanded?: boolean;
-}
-
-const SettingsSection: React.FC<SettingsSectionProps> = ({
-  id,
-  title,
-  icon,
-  children,
-  defaultExpanded = true
-}) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-
-  return (
-    <Box
-      id={id}
-      sx={{
-        bgcolor: colors.surface,
-        borderRadius: '12px',
-        border: `1px solid ${colors.border}`,
-        mb: '1.5rem',
-        overflow: 'hidden'
-      }}
-    >
-      {/* Section Header */}
-      <Box
-        onClick={() => setIsExpanded(!isExpanded)}
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          p: '1rem 1.25rem',
-          cursor: 'pointer',
-          userSelect: 'none',
-          transition: 'background 0.15s ease',
-          '&:hover': { bgcolor: '#242424' }
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Box sx={{ color: colors.accent, display: 'flex' }}>
-            {icon}
-          </Box>
-          <Typography sx={{ fontSize: '1rem', fontWeight: 600, color: colors.textPrimary }}>
-            {title}
-          </Typography>
-        </Box>
-        <Box sx={{
-          color: colors.textSecondary,
-          transition: 'transform 0.2s ease',
-          transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-          display: 'flex'
-        }}>
-          <ExpandMoreIcon sx={{ fontSize: 20 }} />
-        </Box>
-      </Box>
-
-      {/* Content */}
-      {isExpanded && (
-        <>
-          <Box sx={{ height: '1px', bgcolor: colors.border, mx: '1.25rem' }} />
-          <Box sx={{ p: '1.25rem' }}>
-            {children}
-          </Box>
-        </>
-      )}
-    </Box>
-  );
-};
-
-// Form Group Component
-interface FormGroupProps {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}
-
-const FormGroup: React.FC<FormGroupProps> = ({ label, hint, children }) => (
-  <Box sx={{ mb: '1.25rem', '&:last-child': { mb: 0 } }}>
-    <Typography sx={{
-      fontSize: '0.85rem',
-      fontWeight: 500,
-      color: colors.textSecondary,
-      mb: '0.5rem'
-    }}>
-      {label}
-    </Typography>
-    {children}
-    {hint && (
-      <Typography sx={{
-        fontSize: '0.8rem',
-        color: colors.textSecondary,
-        mt: '0.35rem',
-        opacity: 0.7
-      }}>
-        {hint}
-      </Typography>
-    )}
-  </Box>
-);
-
-// Booking Option Component
-interface BookingOptionProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  checked: boolean;
-  onChange: () => void;
-  disabled?: boolean;
-}
-
-const BookingOption: React.FC<BookingOptionProps> = ({
-  icon,
-  title,
-  description,
-  checked,
-  onChange,
-  disabled = false
-}) => (
-  <Box sx={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    p: '1rem 1.25rem',
-    bgcolor: colors.background,
-    border: `1px solid ${colors.border}`,
-    borderRadius: '8px',
-    transition: 'border-color 0.2s ease',
-    '&:hover': { borderColor: colors.borderLight }
-  }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-      <Box sx={{
-        width: 40,
-        height: 40,
-        bgcolor: checked ? `${colors.accent}26` : colors.surface,
-        borderRadius: '6px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: checked ? colors.accent : colors.textSecondary
-      }}>
-        {icon}
-      </Box>
-      <Box>
-        <Typography sx={{ fontSize: '0.95rem', fontWeight: 500, color: colors.textPrimary, mb: '0.15rem' }}>
-          {title}
-        </Typography>
-        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-          {description}
-        </Typography>
-      </Box>
-    </Box>
-    <Switch
-      checked={checked}
-      onChange={onChange}
-      disabled={disabled}
-      sx={{
-        '& .MuiSwitch-switchBase': {
-          '&.Mui-checked': {
-            color: colors.accent,
-            '& + .MuiSwitch-track': { bgcolor: colors.accent }
-          }
-        },
-        '& .MuiSwitch-track': { bgcolor: '#242424' }
-      }}
-    />
-  </Box>
-);
-
-// Text Input Styles
-const inputStyles = {
-  '& .MuiOutlinedInput-root': {
-    bgcolor: colors.background,
-    '& fieldset': { borderColor: `${colors.textPrimary}1A` },
-    '&:hover fieldset': { borderColor: `${colors.textPrimary}1A` },
-    '&.Mui-focused fieldset': { borderColor: colors.accent }
-  },
-  '& .MuiInputBase-input': {
-    fontSize: '0.95rem',
-    color: colors.textPrimary,
-    '&::placeholder': { color: colors.textSecondary, opacity: 1 }
-  }
-};
+import {
+  navItems,
+  inputStyles,
+  SettingsSection,
+  FormGroup,
+  BookingOption,
+} from '../components/profile';
 
 const ProfilePage: React.FC = () => {
   const router = useRouter();

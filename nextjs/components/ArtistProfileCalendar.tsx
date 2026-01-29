@@ -15,6 +15,7 @@ import { useArtistAppointments, useWorkingHours, useMobile } from '@/hooks';
 import { colors } from '@/styles/colors';
 import WorkingHoursModal from './WorkingHoursModal';
 import { ResponsiveModal } from './ui/ResponsiveModal';
+import { LoginRequiredModal, BookingConfirmModal } from './calendar';
 import {
   ExternalCalendarEvent,
   WorkingHour,
@@ -65,6 +66,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
 
   // Books toggle state for own profile
   const [isTogglingBooks, setIsTogglingBooks] = useState(false);
+  const booksOpenLocalUpdate = React.useRef<number | null>(null); // Track local updates to prevent ES overwrite
 
   // Working hours modal state
   const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
@@ -211,7 +213,12 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
           settings?.books_open === 1
         );
 
-        setBooksOpen(booksAreOpen);
+        // Only update booksOpen from API if we haven't made a local update recently
+        // This prevents stale Elasticsearch data from overwriting optimistic updates
+        const recentLocalUpdate = booksOpenLocalUpdate.current && (Date.now() - booksOpenLocalUpdate.current) < 5000;
+        if (!recentLocalUpdate) {
+          setBooksOpen(booksAreOpen);
+        }
 
         // Populate booking settings from artist data (don't show 0 as value)
         if (settings) {
@@ -240,7 +247,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       } catch (error) {
         console.error('Error fetching artist data or working hours:', error);
         setWorkingHours([]);
-        setBooksOpen(false);
+        // Only reset booksOpen if no recent local update
+        const recentLocalUpdate = booksOpenLocalUpdate.current && (Date.now() - booksOpenLocalUpdate.current) < 5000;
+        if (!recentLocalUpdate) {
+          setBooksOpen(false);
+        }
       } finally {
         setWorkingHoursLoading(false);
       }
@@ -312,8 +323,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     const newValue = !booksOpen;
     const previousValue = booksOpen;
 
-    // Optimistic update
+    // Optimistic update - mark timestamp to prevent ES data from overwriting
     setBooksOpen(newValue);
+    booksOpenLocalUpdate.current = Date.now();
     setIsTogglingBooks(true);
 
     try {
@@ -1489,167 +1501,21 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       </Box>
 
       {/* Booking Modal */}
-      <ResponsiveModal
+      <BookingConfirmModal
         open={modalOpen}
         onClose={closeModal}
-        title={selectedDay ? formatDateForDisplay(selectedDay) : ''}
-        subtitle={
-          <Box sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.5,
-            bgcolor: `${colors.accent}1A`,
-            color: colors.accent,
-            px: 1,
-            py: 0.5,
-            borderRadius: '100px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.03em',
-            mt: 0.5
-          }}>
-            {config.title}
-          </Box>
-        }
-        maxWidth={440}
-      >
-        <Typography sx={{ color: colors.textSecondary, fontSize: { xs: '0.875rem', sm: '0.95rem' }, lineHeight: 1.6, mb: 2 }}>
-          {config.modalDescription(artistName)}
-        </Typography>
-
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 1.5,
-          bgcolor: colors.background,
-          borderRadius: '10px',
-          p: 1.5,
-          mb: 2
-        }}>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, textTransform: 'uppercase', mb: 0.5 }}>
-              Duration
-            </Typography>
-            <Typography sx={{ fontSize: { xs: '1rem', sm: '1.1rem' }, fontWeight: 600, color: colors.textPrimary }}>
-              {config.modalDuration}
-            </Typography>
-          </Box>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary, textTransform: 'uppercase', mb: 0.5 }}>
-              Cost
-            </Typography>
-            <Typography sx={{ fontSize: { xs: '1rem', sm: '1.1rem' }, fontWeight: 600, color: colors.accent }}>
-              {config.modalCost}
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
-          <Button
-            onClick={closeModal}
-            sx={{
-              flex: 1,
-              py: { xs: 1.5, sm: 1.25 },
-              minHeight: { xs: 48, sm: 'auto' },
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontSize: { xs: '0.95rem', sm: '0.9rem' },
-              fontWeight: 600,
-              color: colors.textPrimary,
-              border: `1px solid ${colors.border}`,
-              '&:hover': { borderColor: colors.textSecondary }
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={confirmBooking}
-            sx={{
-              flex: 1,
-              py: { xs: 1.5, sm: 1.25 },
-              minHeight: { xs: 48, sm: 'auto' },
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontSize: { xs: '0.95rem', sm: '0.9rem' },
-              fontWeight: 600,
-              bgcolor: colors.accent,
-              color: colors.background,
-              '&:hover': { bgcolor: colors.accentHover }
-            }}
-          >
-            Request Booking
-          </Button>
-        </Box>
-      </ResponsiveModal>
+        onConfirm={confirmBooking}
+        selectedDate={selectedDay}
+        artistName={artistName}
+        config={config}
+        formatDateForDisplay={formatDateForDisplay}
+      />
 
       {/* Login Required Modal */}
-      <ResponsiveModal
+      <LoginRequiredModal
         open={loginModalOpen}
         onClose={closeLoginModal}
-        title="Account Required"
-        maxWidth={400}
-      >
-        <Typography sx={{ color: colors.textSecondary, fontSize: { xs: '0.875rem', sm: '0.95rem' }, lineHeight: 1.6, mb: 3 }}>
-          Please log in or create an account to book appointments with this artist.
-        </Typography>
-
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5 }}>
-          <Button
-            onClick={closeLoginModal}
-            sx={{
-              flex: 1,
-              py: { xs: 1.5, sm: 1.25 },
-              minHeight: { xs: 48, sm: 'auto' },
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontSize: { xs: '0.95rem', sm: '0.9rem' },
-              fontWeight: 600,
-              color: colors.textPrimary,
-              border: `1px solid ${colors.border}`,
-              '&:hover': { borderColor: colors.textSecondary }
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            component={Link}
-            href="/login"
-            sx={{
-              flex: 1,
-              py: { xs: 1.5, sm: 1.25 },
-              minHeight: { xs: 48, sm: 'auto' },
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontSize: { xs: '0.95rem', sm: '0.9rem' },
-              fontWeight: 600,
-              color: colors.textPrimary,
-              border: `1px solid ${colors.border}`,
-              '&:hover': { borderColor: colors.accent, color: colors.accent }
-            }}
-          >
-            Log In
-          </Button>
-          <Button
-            component={Link}
-            href="/register"
-            sx={{
-              flex: 1,
-              py: { xs: 1.5, sm: 1.25 },
-              minHeight: { xs: 48, sm: 'auto' },
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontSize: { xs: '0.95rem', sm: '0.9rem' },
-              fontWeight: 600,
-              bgcolor: colors.accent,
-              color: colors.background,
-              '&:hover': { bgcolor: colors.accentHover }
-            }}
-          >
-            Sign Up
-          </Button>
-        </Box>
-      </ResponsiveModal>
+      />
 
       {/* Working Hours Modal */}
       {isOwnProfile && (
