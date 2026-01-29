@@ -22,8 +22,14 @@ import {
   NumberInput,
   FormDataConsumer,
   Labeled,
+  useRefresh,
+  useNotify,
+  Button,
 } from 'react-admin';
 import { Box, Typography, Divider } from '@mui/material';
+import LockResetIcon from '@mui/icons-material/LockReset';
+import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
+import { api } from '@/utils/api';
 
 const userTypeChoices = [
   { id: 1, name: 'Client' },
@@ -54,6 +60,66 @@ const ListActions = () => (
   </TopToolbar>
 );
 
+const SendPasswordResetButton = () => {
+  const record = useRecordContext();
+  const refresh = useRefresh();
+  const notify = useNotify();
+
+  if (!record) return null;
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Send password reset email to ${record.email}?`)) return;
+    try {
+      await api.post(`/admin/users/${record.id}/send-password-reset`, {});
+      notify('Password reset email sent', { type: 'success' });
+      refresh();
+    } catch {
+      notify('Failed to send password reset email', { type: 'error' });
+    }
+  };
+
+  return (
+    <Button label="Reset PW" onClick={handleClick}>
+      <LockResetIcon />
+    </Button>
+  );
+};
+
+const ResendVerificationButton = () => {
+  const record = useRecordContext();
+  const refresh = useRefresh();
+  const notify = useNotify();
+
+  if (!record) return null;
+
+  const isVerified = !!record.email_verified_at;
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isVerified) return;
+    if (!confirm(`Resend verification email to ${record.email}?`)) return;
+    try {
+      await api.post(`/admin/users/${record.id}/resend-verification`, {});
+      notify('Verification email sent', { type: 'success' });
+      refresh();
+    } catch {
+      notify('Failed to send verification email', { type: 'error' });
+    }
+  };
+
+  return (
+    <Button
+      label="Verify Email"
+      onClick={handleClick}
+      disabled={isVerified}
+      sx={isVerified ? { opacity: 0.4, pointerEvents: 'none' } : {}}
+    >
+      <MarkEmailReadIcon />
+    </Button>
+  );
+};
+
 export const UserList = () => (
   <List
     filters={userFilters}
@@ -71,6 +137,8 @@ export const UserList = () => (
       <BooleanField source="is_demo" label="Demo" />
       <TextField source="location" />
       <DateField source="created_at" label="Created" />
+      <SendPasswordResetButton />
+      <ResendVerificationButton />
       <EditButton />
       <DeleteButton />
     </Datagrid>
