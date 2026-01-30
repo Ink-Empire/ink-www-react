@@ -43,6 +43,7 @@ import ClientDashboardContent from '../components/ClientDashboardContent';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import TattooCreateWizard from '../components/TattooCreateWizard';
 import ComingSoonBadge from '../components/ui/ComingSoonBadge';
+import StudioInvitations from '../components/StudioInvitations';
 
 // Dashboard components
 import {
@@ -697,6 +698,11 @@ export default function Dashboard() {
               onClick={() => setActiveTab('studio')}
             />
           </Box>
+        )}
+
+        {/* Studio Invitations - Only for artists, not studio accounts */}
+        {!isStudioAccount && activeTab === 'artist' && (
+          <StudioInvitations onInvitationAccepted={refreshUser} />
         )}
 
         {/* Stats Row */}
