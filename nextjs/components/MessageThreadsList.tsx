@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import ChatBubbleIcon from '@mui/icons-material/ChatBubble';
 import { formatDistanceToNow } from 'date-fns';
-import { api } from '../utils/api';
+import { messageService } from '@/services/messageService';
 import { colors } from '@/styles/colors';
 
 interface AppointmentWithMessages {
@@ -64,8 +64,8 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/messages/inbox');
-      setThreads(response.appointments || []);
+      const response = await messageService.getInbox() as any;
+      setThreads(response.appointments || response || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load message threads');
     } finally {

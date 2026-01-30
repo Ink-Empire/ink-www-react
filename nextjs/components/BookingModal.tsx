@@ -3,7 +3,7 @@ import { Modal, Paper, Typography, FormControl, InputLabel, Select, MenuItem, Te
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
-import { api } from '../utils/api';
+import { appointmentService } from '@/services/appointmentService';
 import { colors } from '@/styles/colors';
 import { formatTimeSlotWithClientTime, getClientTimezone, getTimezoneLabel, areTimezonesEqual } from '../utils/timezone';
 
@@ -147,9 +147,7 @@ export default function BookingModal({
       };
 
       // Make API request to create appointment
-      await api.post('/appointments/create', appointmentData, {
-        requiresAuth: true
-      });
+      await appointmentService.create(appointmentData);
 
       // Close the modal and reset form
       handleClose();

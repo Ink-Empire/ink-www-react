@@ -10,7 +10,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import SendIcon from '@mui/icons-material/Send';
 import ReplyIcon from '@mui/icons-material/Reply';
 import CloseIcon from '@mui/icons-material/Close';
-import { api } from '../utils/api';
+import { messageService } from '@/services/messageService';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '@/styles/colors';
 
@@ -92,11 +92,11 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
   const loadMessages = async () => {
     if (messages.length > 0) return; // Already loaded
-    
+
     setLoadingMessages(true);
     try {
-      const response = await api.get<{ messages?: Message[] }>(`/messages/appointment/${appointment.id}`);
-      setMessages(response.messages || []);
+      const response = await messageService.getByAppointment(appointment.id) as any;
+      setMessages(response.messages || response || []);
     } catch (error) {
       console.error('Failed to load messages:', error);
     } finally {
@@ -112,15 +112,14 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     try {
       // Default to replying to the last message if no specific message is selected
       const defaultParentId = replyingTo?.id || (messages.length > 0 ? messages[messages.length - 1].id : null);
-      
-      const response = await api.post<{ message?: Message }>('/messages/send', {
+
+      const response = await messageService.send({
         appointment_id: appointment.id,
         content: newMessage.trim(),
-        parent_message_id: defaultParentId
-      });
+      }) as any;
 
-      if (response?.message) {
-        setMessages(prev => [...prev, response.message]);
+      if (response?.message || response) {
+        setMessages(prev => [...prev, response.message || response]);
         setNewMessage('');
         setReplyingTo(null);
       }
@@ -143,12 +142,12 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
   const markMessageAsRead = async (messageId: number) => {
     try {
-      await api.put(`/messages/${messageId}/read`, {});
-      
+      await messageService.markAsRead(messageId);
+
       // Update the local state to mark message as read
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === messageId 
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId
             ? { ...msg, read_at: new Date().toISOString() }
             : msg
         )

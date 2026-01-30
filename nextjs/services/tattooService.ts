@@ -59,9 +59,34 @@ export const tattooService = {
 
   // Delete a tattoo (requires auth)
   delete: async (id: number | string): Promise<void> => {
-    return api.delete<void>(`/tattoos/${id}`, { 
+    return api.delete<void>(`/tattoos/${id}`, {
       requiresAuth: true, // Always require auth for deletes
       headers: { 'X-Account-Type': 'user' }
     });
-  }
+  },
+
+  // Toggle featured status for a tattoo (requires auth)
+  toggleFeatured: async (id: number | string): Promise<any> => {
+    return api.put(`/tattoos/${id}/featured`, {}, { requiresAuth: true });
+  },
+
+  // Add tags to a tattoo (requires auth)
+  addTags: async (id: number | string, tags: string[]): Promise<any> => {
+    return api.post(`/tattoos/${id}/tags/add`, { tags }, { requiresAuth: true });
+  },
+
+  // Remove tags from a tattoo (requires auth)
+  removeTags: async (id: number | string, tagIds: number[]): Promise<any> => {
+    return api.post(`/tattoos/${id}/tags/remove`, { tag_ids: tagIds }, { requiresAuth: true });
+  },
+
+  // Get tattoo with full details including tags (public access)
+  getWithTags: async (id: number | string): Promise<TattooType & { tags: any[] }> => {
+    const hasAuthToken = !!getToken();
+    const response = await api.get<{ tattoo: TattooType & { tags: any[] } }>(`/tattoos/${id}`, {
+      headers: { 'X-Account-Type': 'user' },
+      requiresAuth: hasAuthToken
+    });
+    return response.tattoo;
+  },
 };

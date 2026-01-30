@@ -20,7 +20,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import LockIcon from '@mui/icons-material/Lock';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { userService } from '@/services/userService';
 
 const PASSWORD_REQUIREMENTS = {
   minLength: { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -69,11 +69,11 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen, onClo
     setIsLoading(true);
 
     try {
-      await api.put('/users/password', {
+      await userService.changePassword({
         current_password: currentPassword,
         password: newPassword,
         password_confirmation: confirmPassword,
-      }, { requiresAuth: true });
+      });
       setSuccess(true);
     } catch (err: any) {
       if (err.status === 422) {
