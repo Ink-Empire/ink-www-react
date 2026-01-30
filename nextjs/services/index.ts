@@ -4,7 +4,9 @@
 export { artistService } from './artistService';
 export { appointmentService } from './appointmentService';
 export { authService } from './authService';
+export { bulkUploadService } from './bulkUploadService';
 export { calendarService } from './calendarService';
+export { clientService } from './clientService';
 export { feedbackService } from './feedbackService';
 export { googlePlacesService } from './googlePlacesService';
 export { leadService } from './leadService';
@@ -59,3 +61,16 @@ export type {
   UpdateProfileData,
   ChangePasswordData,
 } from './userService';
+
+export type {
+  BulkUpload,
+  BulkUploadItem,
+  ItemsResponse,
+} from './bulkUploadService';
+
+export type {
+  DashboardAppointment,
+  SuggestedArtist,
+  WishlistArtist,
+  ClientDashboardResponse,
+} from './clientService';

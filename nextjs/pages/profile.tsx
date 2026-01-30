@@ -35,7 +35,8 @@ import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
 import { withAuth } from '@/components/WithAuth';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { artistService } from '@/services/artistService';
+import { userService } from '@/services/userService';
 import { uploadImageToS3 } from '@/utils/s3Upload';
 import {
   navItems,
@@ -183,9 +184,7 @@ const ProfilePage: React.FC = () => {
 
   const fetchArtistSettings = async (id: number) => {
     try {
-      const response = await api.get<{ data: any }>(`/artists/${id}/settings`, {
-        requiresAuth: true
-      });
+      const response = await artistService.getSettings(id);
       if (response?.data) {
         // Convert 0 or null to empty string so placeholders show
         const toDisplayValue = (val: any) => (val && val !== 0) ? String(val) : '';
@@ -230,9 +229,7 @@ const ProfilePage: React.FC = () => {
 
     try {
       setSavingSettings(true);
-      await api.put(`/artists/${artistId}/settings`, {
-        [key]: newValue
-      }, { requiresAuth: true });
+      await artistService.updateSettings(artistId, { [key]: newValue });
 
       setToastMessage('Settings updated successfully');
       setShowToast(true);
@@ -279,7 +276,7 @@ const ProfilePage: React.FC = () => {
 
     try {
       setSavingSettings(true);
-      const response = await api.put(`/artists/${artistId}/settings`, payload, { requiresAuth: true });
+      const response = await artistService.updateSettings(artistId, payload);
       console.log('Settings save response:', response);
 
       setHasUnsavedSettings(false);
@@ -365,9 +362,7 @@ const ProfilePage: React.FC = () => {
       const uploadedImage = await uploadImageToS3(file, 'profile');
 
       // Update artist settings with new watermark
-      await api.put(`/artists/${artistId}/settings`, {
-        watermark_image_id: uploadedImage.id,
-      }, { requiresAuth: true });
+      await artistService.updateSettings(artistId, { watermark_image_id: uploadedImage.id });
 
       setArtistSettings(prev => ({
         ...prev,
@@ -392,10 +387,10 @@ const ProfilePage: React.FC = () => {
     if (!artistId) return;
 
     try {
-      await api.put(`/artists/${artistId}/settings`, {
+      await artistService.updateSettings(artistId, {
         watermark_image_id: null,
         watermark_enabled: false,
-      }, { requiresAuth: true });
+      });
 
       setArtistSettings(prev => ({
         ...prev,
@@ -420,9 +415,7 @@ const ProfilePage: React.FC = () => {
     setArtistSettings(prev => ({ ...prev, [key]: value }));
 
     try {
-      await api.put(`/artists/${artistId}/settings`, {
-        [key]: value,
-      }, { requiresAuth: true });
+      await artistService.updateSettings(artistId, { [key]: value });
 
       // Show inline saved indicator
       setWatermarkSaved(true);
@@ -438,7 +431,7 @@ const ProfilePage: React.FC = () => {
   const handleUnblockUser = async (userId: number) => {
     setUnblocking(userId);
     try {
-      await api.post('/users/unblock', { user_id: userId }, { requiresAuth: true });
+      await userService.unblock(userId);
       // Remove user from local state
       setBlockedUsers(prev => prev.filter(u => u.id !== userId));
       setToastMessage('User unblocked successfully');

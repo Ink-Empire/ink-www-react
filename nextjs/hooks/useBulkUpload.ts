@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { api } from '@/utils/api';
+import { bulkUploadService } from '@/services/bulkUploadService';
 import { getToken } from '@/utils/auth';
 
 export interface BulkUpload {
@@ -90,11 +90,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get<{ data: BulkUpload[] }>('/bulk-uploads', {
-        requiresAuth: true,
-        useCache: false,
-      });
-      return response.data;
+      return await bulkUploadService.list();
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to list uploads');
       setError(error);
@@ -109,11 +105,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get<{ data: BulkUpload }>(`/bulk-uploads/${id}`, {
-        requiresAuth: true,
-        useCache: false, // Always fetch fresh data for status updates
-      });
-      return response.data;
+      return await bulkUploadService.getById(id);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to get upload');
       setError(error);
@@ -200,7 +192,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      await api.delete(`/bulk-uploads/${id}`, { requiresAuth: true });
+      await bulkUploadService.delete(id);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to delete upload');
       setError(error);
@@ -223,17 +215,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (options.filter) params.append('filter', options.filter);
-      if (options.page) params.append('page', options.page.toString());
-      if (options.perPage) params.append('per_page', options.perPage.toString());
-      if (options.primaryOnly !== undefined) params.append('primary_only', options.primaryOnly ? '1' : '0');
-
-      const response = await api.get<ItemsResponse>(
-        `/bulk-uploads/${uploadId}/items?${params.toString()}`,
-        { requiresAuth: true, useCache: false }
-      );
-      return response;
+      return await bulkUploadService.getItems(uploadId, options);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to get items');
       setError(error);
@@ -261,12 +243,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.put<{ data: BulkUploadItem }>(
-        `/bulk-uploads/${uploadId}/items/${itemId}`,
-        data,
-        { requiresAuth: true }
-      );
-      return response.data;
+      return await bulkUploadService.updateItem(uploadId, itemId, data);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to update item');
       setError(error);
@@ -289,12 +266,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.put<{ count: number }>(
-        `/bulk-uploads/${uploadId}/items`,
-        { item_ids: itemIds, updates },
-        { requiresAuth: true }
-      );
-      return response;
+      return await bulkUploadService.batchUpdateItems(uploadId, itemIds, updates);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to batch update items');
       setError(error);
@@ -312,12 +284,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.post<{ message: string; remaining: number }>(
-        `/bulk-uploads/${uploadId}/process-batch`,
-        { batch_size: batchSize },
-        { requiresAuth: true }
-      );
-      return response;
+      return await bulkUploadService.processBatch(uploadId, batchSize);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to process batch');
       setError(error);
@@ -336,12 +303,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.post<{ message: string }>(
-        `/bulk-uploads/${uploadId}/process-range`,
-        { from, to },
-        { requiresAuth: true }
-      );
-      return response;
+      return await bulkUploadService.processRange(uploadId, from, to);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to process range');
       setError(error);
@@ -358,12 +320,7 @@ export function useBulkUpload() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.post<{ message: string; count: number }>(
-        `/bulk-uploads/${uploadId}/publish`,
-        {},
-        { requiresAuth: true }
-      );
-      return response;
+      return await bulkUploadService.publish(uploadId);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to publish');
       setError(error);
@@ -383,11 +340,7 @@ export function useBulkUpload() {
     ready_to_publish: number;
   }> => {
     try {
-      const response = await api.get(`/bulk-uploads/${uploadId}/publish-status`, {
-        requiresAuth: true,
-        useCache: false,
-      });
-      return response as any;
+      return await bulkUploadService.getPublishStatus(uploadId);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to get status');
       setError(error);

@@ -19,31 +19,8 @@ export interface CalendarDay {
 }
 
 export const calendarService = {
-  // Get artist's working hours/availability (public access)
-  getArtistWorkingHours: async (artistIdOrSlug: number | string): Promise<WorkingHour[]> => {
-    const response = await api.get<any>(`/artists/${artistIdOrSlug}/working-hours`);
-    return response.working_hours || response || [];
-  },
-
-  // Set artist's working hours (requires auth)
-  setArtistWorkingHours: async (artistId: number | string, workingHours: WorkingHour[]): Promise<any> => {
-    return api.post(`/artists/${artistId}/working-hours`, { availability: workingHours }, {
-      requiresAuth: true,
-    });
-  },
-
-  // Get studio's working hours (public access)
-  getStudioWorkingHours: async (studioIdOrSlug: number | string): Promise<WorkingHour[]> => {
-    const response = await api.get<any>(`/studios/${studioIdOrSlug}/working-hours`);
-    return response.working_hours || response || [];
-  },
-
-  // Set studio's working hours (requires auth)
-  setStudioWorkingHours: async (studioId: number | string, workingHours: WorkingHour[]): Promise<any> => {
-    return api.post(`/studios/${studioId}/working-hours`, { availability: workingHours }, {
-      requiresAuth: true,
-    });
-  },
+  // NOTE: For working hours, use artistService.getWorkingHours/setWorkingHours
+  // or studioService.getHours/setWorkingHours instead.
 
   // Get available time slots for a specific date (public access)
   getAvailableSlots: async (artistIdOrSlug: number | string, date: string): Promise<TimeSlot[]> => {
@@ -75,19 +52,38 @@ export const calendarService = {
     });
   },
 
-  // Get artist's appointments for calendar view (requires auth)
-  getArtistAppointments: async (artistIdOrSlug: number | string): Promise<any[]> => {
-    const response = await api.get<any>(`/artists/${artistIdOrSlug}/appointments`, {
-      requiresAuth: true,
-    });
-    return response.appointments || response || [];
+  // NOTE: For appointments, use appointmentService.getByArtist or getByStudio instead.
+
+  // ============ Google Calendar Integration ============
+
+  // Get Google Calendar connection status (requires auth)
+  getGoogleCalendarStatus: async (): Promise<{
+    connected: boolean;
+    email?: string;
+    last_synced_at?: string;
+    sync_enabled?: boolean;
+    requires_reauth?: boolean;
+  }> => {
+    return api.get('/calendar/status', { requiresAuth: true, useCache: false });
   },
 
-  // Get studio's appointments for calendar view (requires auth)
-  getStudioAppointments: async (studioId: number): Promise<any[]> => {
-    const response = await api.get<any>(`/studios/${studioId}/appointments`, {
-      requiresAuth: true,
-    });
-    return response.appointments || response || [];
+  // Get Google Calendar OAuth URL (requires auth)
+  getGoogleCalendarAuthUrl: async (): Promise<{ url: string }> => {
+    return api.get('/calendar/auth-url', { requiresAuth: true });
+  },
+
+  // Disconnect Google Calendar (requires auth)
+  disconnectGoogleCalendar: async (): Promise<void> => {
+    return api.post('/calendar/disconnect', {}, { requiresAuth: true });
+  },
+
+  // Trigger manual Google Calendar sync (requires auth)
+  syncGoogleCalendar: async (): Promise<void> => {
+    return api.post('/calendar/sync', {}, { requiresAuth: true });
+  },
+
+  // Toggle Google Calendar sync on/off (requires auth)
+  toggleGoogleCalendarSync: async (): Promise<{ sync_enabled: boolean }> => {
+    return api.post('/calendar/toggle-sync', {}, { requiresAuth: true });
   },
 };

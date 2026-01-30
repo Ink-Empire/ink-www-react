@@ -32,7 +32,7 @@ import {
   Check as CheckIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../utils/api';
+import { tattooService } from '../services/tattooService';
 import { stylesService } from '../services/stylesService';
 import { useRouter } from 'next/router';
 import { colors } from '@/styles/colors';
@@ -269,9 +269,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
 
     setAddingTag(tag.id);
     try {
-      await api.post(`/tattoos/${createdTattooId}/tags/add`, {
-        tag_id: tag.id
-      }, { requiresAuth: true });
+      await tattooService.addTagById(createdTattooId, tag.id);
 
       setAddedSuggestions(prev => new Set([...prev, tag.id]));
     } catch (error) {

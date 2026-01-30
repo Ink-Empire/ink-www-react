@@ -15,7 +15,7 @@ import { colors } from '@/styles/colors';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { setToken } from '@/utils/auth';
-import { api } from '@/utils/api';
+import { authService } from '@/services/authService';
 
 type Status = 'pending' | 'verifying' | 'verified' | 'already_verified' | 'error';
 
@@ -101,7 +101,7 @@ export default function VerifyEmailPage() {
     }
     setResendLoading(true);
     try {
-      await api.post('/email/verification-notification', { email: emailToUse });
+      await authService.sendVerificationNotification(emailToUse);
       alert('Verification email sent! Please check your inbox.');
     } catch (error: any) {
       alert(error.message || 'Failed to resend verification email.');

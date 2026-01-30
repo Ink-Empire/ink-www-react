@@ -22,13 +22,20 @@ export const tattooService = {
     return response.tattoo;
   },
 
-  // Search tattoos
-  search: async (params: Record<string, any>): Promise<TattooType[]> => {
-    const hasAuthToken = !!getToken();
+  // Search tattoos with pagination
+  search: async (params: Record<string, any>): Promise<{
+    response: TattooType[];
+    unclaimed_studios?: any[];
+    total: number;
+    page: number;
+    per_page: number;
+    has_more: boolean;
+  }> => {
     // Use POST with params in request body
-    return api.post<TattooType[]>('/tattoos', params, {
+    return api.post('/tattoos', params, {
       headers: { 'X-Account-Type': 'user' },
-      requiresAuth: hasAuthToken // Only include token if user is logged in
+      useCache: false, // Don't cache paginated requests
+      requiresAuth: false,
     });
   },
 
@@ -58,8 +65,8 @@ export const tattooService = {
   },
 
   // Delete a tattoo (requires auth)
-  delete: async (id: number | string): Promise<void> => {
-    return api.delete<void>(`/tattoos/${id}`, {
+  delete: async (id: number | string): Promise<{ success: boolean; message: string; images_deleted: number }> => {
+    return api.delete(`/tattoos/${id}`, {
       requiresAuth: true, // Always require auth for deletes
       headers: { 'X-Account-Type': 'user' }
     });
@@ -70,9 +77,14 @@ export const tattooService = {
     return api.put(`/tattoos/${id}/featured`, {}, { requiresAuth: true });
   },
 
-  // Add tags to a tattoo (requires auth)
+  // Add tags to a tattoo by name (requires auth)
   addTags: async (id: number | string, tags: string[]): Promise<any> => {
     return api.post(`/tattoos/${id}/tags/add`, { tags }, { requiresAuth: true });
+  },
+
+  // Add a single tag to a tattoo by ID (requires auth)
+  addTagById: async (tattooId: number | string, tagId: number): Promise<any> => {
+    return api.post(`/tattoos/${tattooId}/tags/add`, { tag_id: tagId }, { requiresAuth: true });
   },
 
   // Remove tags from a tattoo (requires auth)

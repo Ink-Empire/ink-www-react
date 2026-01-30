@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import StudioCalendar from '@/components/StudioCalendar';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/utils/api';
+import { studioService } from '@/services/studioService';
 import { Box, Typography, Button, Avatar } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { colors } from '@/styles/colors';
@@ -46,8 +46,8 @@ const StudioCalendarPage: React.FC = () => {
 
       setLoadingArtists(true);
       try {
-        const response = await api.get(`/studios/${ownedStudio.id}/artists`) as any;
-        const studioArtists = response.artists || [];
+        const response = await studioService.getArtists(ownedStudio.id);
+        const studioArtists = Array.isArray(response) ? response : [];
 
         // Include the owner as an artist if not already in the list
         const ownerInList = studioArtists.some((a: Artist) => a.id === user?.id);

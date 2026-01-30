@@ -34,7 +34,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useAuth } from '../contexts/AuthContext';
 import { useWishlist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { studioService } from '@/services/studioService';
+import { artistService } from '@/services/artistService';
+import { leadService } from '@/services/leadService';
+import { userService } from '@/services/userService';
+import { tattooService } from '@/services/tattooService';
 import { StudioType } from '@/models/studio.interface';
 import EditStudioModal from '../components/EditStudioModal';
 import WorkingHoursModal, { WorkingHour } from '../components/WorkingHoursModal';
@@ -195,12 +199,12 @@ export default function Dashboard() {
         if (pendingData.existingStudioId) {
           // Claim existing Google Places studio
           console.log('Claiming existing studio:', pendingData.existingStudioId);
-          await api.post(`/studios/${pendingData.existingStudioId}/claim`, studioPayload);
+          await studioService.claim(pendingData.existingStudioId, studioPayload);
           console.log('Studio claimed successfully');
         } else {
           // Create new studio
           console.log('Creating new studio...');
-          await api.post('/studios', studioPayload);
+          await studioService.create(studioPayload);
           console.log('Studio created successfully');
         }
 
@@ -238,7 +242,7 @@ export default function Dashboard() {
       if (!user?.id || isClient || isStudioAccount) return;
       setIsLoadingLeads(true);
       try {
-        const response = await api.get<{ leads: Lead[] }>('/leads/for-artists', { requiresAuth: true });
+        const response = await leadService.getForArtists();
         setLeads(response.leads || []);
       } catch (err) {
         console.error('Failed to load leads:', err);
@@ -268,8 +272,8 @@ export default function Dashboard() {
 
         // Fetch stats and schedule in parallel
         const [statsRes, scheduleRes] = await Promise.all([
-          api.get<DashboardStatsResponse>(`/artists/${user.id}/dashboard-stats`, { requiresAuth: true }).catch(() => null),
-          api.get<any[]>(`/artists/${user.id}/upcoming-schedule`, { requiresAuth: true }).catch(() => null)
+          artistService.getDashboardStats(user.id).catch(() => null),
+          artistService.getUpcomingSchedule(user.id).catch(() => null)
         ]);
 
         if (statsRes) {
@@ -307,7 +311,7 @@ export default function Dashboard() {
     if (!user?.slug) return;
     setIsLoadingTattoos(true);
     try {
-      const response = await api.get(`/artists/${user.slug}`) as { artist?: { tattoos?: Tattoo[] } };
+      const response = await artistService.getBySlug(user.slug);
       setArtistTattoos(response.artist?.tattoos || []);
     } catch (err) {
       console.error('Failed to load tattoos:', err);
@@ -320,16 +324,16 @@ export default function Dashboard() {
     if (!ownedStudio?.id) return;
     try {
       const [studioRes, artistsRes, announcementsRes, statsRes, workingHoursRes] = await Promise.all([
-        api.get<StudioType | { studio: StudioType }>(`/studios/${ownedStudio.id}`),
-        api.get<any[] | { artists: any[] }>(`/studios/${ownedStudio.id}/artists`),
-        api.get<any[] | { announcements: any[] }>(`/studios/${ownedStudio.id}/announcements`),
-        api.get<any>(`/studios/${ownedStudio.id}/dashboard-stats`, { requiresAuth: true }).catch(() => null),
-        api.get<WorkingHour[]>(`/studios/${ownedStudio.id}/working-hours`).catch(() => []),
+        studioService.getById(ownedStudio.id),
+        studioService.getArtists(ownedStudio.id),
+        studioService.getAnnouncements(ownedStudio.id),
+        studioService.getDashboardStats(ownedStudio.id).catch(() => null),
+        studioService.getHours(ownedStudio.id).catch(() => []),
       ]);
       const studio = (studioRes as any).studio || studioRes;
       setStudioData(studio);
-      setStudioArtists((artistsRes as any).artists || artistsRes || []);
-      setAnnouncements((announcementsRes as any).announcements || announcementsRes || []);
+      setStudioArtists(Array.isArray(artistsRes) ? artistsRes : []);
+      setAnnouncements(Array.isArray(announcementsRes) ? announcementsRes : []);
       setSeekingGuests(studio?.seeking_guest_artists || false);
       setGuestSpotDetails(studio?.guest_spot_details || '');
       // Initialize contact form with current studio data
@@ -357,7 +361,7 @@ export default function Dashboard() {
     const newValue = !seekingGuests;
     setSeekingGuests(newValue);
     try {
-      await api.put(`/studios/studio/${ownedStudio.id}`, { seeking_guest_artists: newValue });
+      await studioService.updateDetails(ownedStudio.id, { seeking_guest_artists: newValue });
     } catch (err) {
       setSeekingGuests(!newValue); // Revert on error
       console.error('Failed to update seeking status:', err);
@@ -368,7 +372,7 @@ export default function Dashboard() {
     if (!ownedStudio?.id) return;
     setIsSavingGuestDetails(true);
     try {
-      await api.put(`/studios/studio/${ownedStudio.id}`, { guest_spot_details: guestSpotDetails });
+      await studioService.updateDetails(ownedStudio.id, { guest_spot_details: guestSpotDetails });
     } catch (err) {
       console.error('Failed to save guest spot details:', err);
     } finally {
@@ -380,8 +384,7 @@ export default function Dashboard() {
     if (!ownedStudio?.id) return;
     setIsSavingContact(true);
     try {
-      const response = await api.put(`/studios/studio/${ownedStudio.id}`, contactForm);
-      const updatedStudio = (response as any).studio || response;
+      await studioService.updateDetails(ownedStudio.id, contactForm);
       setStudioData((prev: any) => ({ ...prev, ...contactForm }));
       setIsEditingContact(false);
     } catch (err) {
@@ -408,9 +411,7 @@ export default function Dashboard() {
     if (!ownedStudio?.id) return;
     try {
       // Save all working hours to the API (same format as artists)
-      await api.post(`/studios/${ownedStudio.id}/working-hours`, {
-        availability: hours
-      });
+      await studioService.setWorkingHours(ownedStudio.id, hours);
       // Reload studio data to get updated hours
       loadStudioData();
     } catch (err) {
@@ -421,7 +422,7 @@ export default function Dashboard() {
   const handleRemoveArtist = async (artistId: number) => {
     if (!ownedStudio?.id) return;
     try {
-      await api.delete(`/studios/${ownedStudio.id}/artists/${artistId}`);
+      await studioService.removeArtist(ownedStudio.id, artistId);
       setStudioArtists(prev => prev.filter(a => a.id !== artistId));
     } catch (err) {
       console.error('Failed to remove artist:', err);
@@ -431,7 +432,7 @@ export default function Dashboard() {
   const handleVerifyArtist = async (artistId: number) => {
     if (!ownedStudio?.id) return;
     try {
-      await api.post(`/studios/${ownedStudio.id}/artists/${artistId}/verify`);
+      await studioService.verifyArtist(ownedStudio.id, artistId);
       setStudioArtists(prev => prev.map(a =>
         a.id === artistId ? { ...a, is_verified: true, verified_at: new Date().toISOString() } : a
       ));
@@ -443,7 +444,7 @@ export default function Dashboard() {
   const handleUnverifyArtist = async (artistId: number) => {
     if (!ownedStudio?.id) return;
     try {
-      await api.post(`/studios/${ownedStudio.id}/artists/${artistId}/unverify`);
+      await studioService.unverifyArtist(ownedStudio.id, artistId);
       setStudioArtists(prev => prev.map(a =>
         a.id === artistId ? { ...a, is_verified: false, verified_at: null } : a
       ));
@@ -456,7 +457,7 @@ export default function Dashboard() {
     if (!ownedStudio?.id || !newAnnouncement.title || !newAnnouncement.content) return;
     setIsAddingAnnouncement(true);
     try {
-      const res = await api.post<any>(`/studios/${ownedStudio.id}/announcements`, newAnnouncement);
+      const res = await studioService.createAnnouncement(ownedStudio.id, newAnnouncement);
       setAnnouncements(prev => [(res as any).announcement || res, ...prev]);
       setNewAnnouncement({ title: '', content: '' });
     } catch (err) {
@@ -469,7 +470,7 @@ export default function Dashboard() {
   const handleDeleteAnnouncement = async (announcementId: number) => {
     if (!ownedStudio?.id) return;
     try {
-      await api.delete(`/studios/${ownedStudio.id}/announcements/${announcementId}`);
+      await studioService.deleteAnnouncement(ownedStudio.id, announcementId);
       setAnnouncements(prev => prev.filter(a => a.id !== announcementId));
     } catch (err) {
       console.error('Failed to delete announcement:', err);
@@ -484,7 +485,7 @@ export default function Dashboard() {
     try {
       const formData = new FormData();
       formData.append('profile_photo', file);
-      await api.post('/users/profile-photo', formData);
+      await userService.uploadProfilePhoto(formData);
       await refreshUser();
     } catch (err) {
       console.error('Failed to upload avatar:', err);
@@ -499,7 +500,7 @@ export default function Dashboard() {
       t.id === tattooId ? { ...t, is_featured: !t.is_featured } : t
     ));
     try {
-      await api.put(`/tattoos/${tattooId}/featured`, {});
+      await tattooService.toggleFeatured(tattooId);
     } catch (err) {
       // Revert on error
       setArtistTattoos(prev => prev.map(t =>

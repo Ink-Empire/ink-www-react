@@ -11,9 +11,8 @@ import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useAuth } from '@/contexts/AuthContext';
 import { artistService } from '@/services/artistService';
-import { calendarService } from '@/services/calendarService';
 import { appointmentService } from '@/services/appointmentService';
-import { api } from '@/utils/api';
+import { leadService } from '@/services/leadService';
 import { useArtistAppointments, useWorkingHours, useMobile } from '@/hooks';
 import { colors } from '@/styles/colors';
 import WorkingHoursModal from './WorkingHoursModal';
@@ -229,7 +228,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         }
 
         if (booksAreOpen) {
-          const workingHoursData = await calendarService.getArtistWorkingHours(artist.slug);
+          const workingHoursData = await artistService.getWorkingHours(artist.slug);
           setWorkingHours(workingHoursData || []);
         } else {
           setWorkingHours([]);
@@ -288,10 +287,10 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
 
     setNotifySignupLoading(true);
     try {
-      await api.post('/client/wishlist', {
+      await leadService.addToWishlist({
         artist_id: resolvedArtistId,
         notify_booking_open: true
-      }, { requiresAuth: true });
+      });
 
       setOnWishlist(true);
     } catch (error: any) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '@/utils/api';
+import { artistService } from '@/services/artistService';
 import { WorkingHour } from '@/components/WorkingHoursModal';
 
 export const useWorkingHours = (artistId?: number | string | null) => {
@@ -19,18 +19,7 @@ export const useWorkingHours = (artistId?: number | string | null) => {
     
     try {
       const artistIdNum = typeof id === 'string' ? parseInt(id) : id;
-      // Response could be array or wrapped object
-      type WorkingHoursResponse = WorkingHour[] | {
-        workingHours?: WorkingHour[];
-        hours?: WorkingHour[];
-        data?: WorkingHour[];
-        availability?: WorkingHour[];
-      };
-
-      const data = await api.get<WorkingHoursResponse>(`/artists/${artistIdNum}/working-hours`, {
-        requiresAuth: true,
-        useCache: false,
-      });
+      const data = await artistService.getWorkingHours(artistIdNum);
 
       console.log(`Working Hours API Response for artist ${artistIdNum}:`, {
         data,
@@ -45,7 +34,7 @@ export const useWorkingHours = (artistId?: number | string | null) => {
         setWorkingHours(data);
       } else if (data && typeof data === 'object') {
         // Try to handle if data is wrapped in an object
-        const hoursArray = data.workingHours || data.hours || data.data || data.availability;
+        const hoursArray = (data as any).workingHours || (data as any).hours || (data as any).data || (data as any).availability;
         if (Array.isArray(hoursArray)) {
           console.log('Found hours array in data object:', hoursArray);
           setWorkingHours(hoursArray);
@@ -78,16 +67,13 @@ export const useWorkingHours = (artistId?: number | string | null) => {
     };
     
     try {
-      // Using the same endpoint pattern for consistency
-      await api.post(`/artists/${artistId}/working-hours`, body, {
-        requiresAuth: true,
-      });
-      
+      await artistService.setWorkingHours(artistId, hours);
+
       console.log(`Saved working hours for artist ${artistId}:`, {
-        hoursPayload: body,
+        hoursPayload: hours,
         endpoint: `/artists/${artistId}/working-hours`
       });
-      
+
       setWorkingHours(hours);
       return true;
     } catch (err) {

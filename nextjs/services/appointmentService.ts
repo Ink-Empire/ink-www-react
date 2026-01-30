@@ -31,8 +31,8 @@ export interface CalendarEventData {
 }
 
 export interface AppointmentResponse {
-  status: 'accepted' | 'declined' | 'rescheduled';
-  message?: string;
+  action: 'accept' | 'decline' | 'reschedule';
+  reason?: string;
   proposed_date?: string;
   proposed_time?: string;
 }
@@ -99,5 +99,55 @@ export const appointmentService = {
       requiresAuth: true,
     });
     return response.appointments || response || [];
+  },
+
+  // Get inbox (pending appointments) for a user (requires auth)
+  getInbox: async (userId: number): Promise<{ data: any[] }> => {
+    return api.post('/appointments/inbox', {
+      user_id: userId,
+      status: 'pending'
+    }, { requiresAuth: true });
+  },
+
+  // Get appointment history for a user (requires auth)
+  getHistory: async (userId: number, page: number = 1): Promise<{
+    data: any[];
+    meta: {
+      current_page: number;
+      last_page: number;
+      per_page: number;
+      total: number;
+      from: number;
+      to: number;
+    };
+  }> => {
+    return api.post('/appointments/history', {
+      user_id: userId,
+      page
+    }, { requiresAuth: true });
+  },
+
+  // Update appointment status (requires auth)
+  updateStatus: async (appointmentId: number, status: string): Promise<any> => {
+    return api.put(`/appointments/${appointmentId}`, { status }, { requiresAuth: true });
+  },
+
+  // Get artist appointments with filters (public)
+  getArtistAppointments: async (params: {
+    artist_id: number | string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+  }): Promise<any[]> => {
+    const response = await api.post<{ data: any[] } | any[]>('/artists/appointments', params, {
+      requiresAuth: false,
+      useCache: false,
+    });
+    return Array.isArray(response) ? response : (response as any).data || [];
+  },
+
+  // Delete an appointment (requires auth)
+  delete: async (appointmentId: number | string): Promise<void> => {
+    return api.delete(`/appointments/${appointmentId}`, { requiresAuth: true });
   },
 };

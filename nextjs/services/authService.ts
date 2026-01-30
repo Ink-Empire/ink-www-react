@@ -66,4 +66,9 @@ export const authService = {
   resendVerification: async (email: string): Promise<void> => {
     return api.post('/email/resend', { email });
   },
+
+  // Send verification notification (for re-sending verification email)
+  sendVerificationNotification: async (email: string): Promise<void> => {
+    return api.post('/email/verification-notification', { email });
+  },
 };

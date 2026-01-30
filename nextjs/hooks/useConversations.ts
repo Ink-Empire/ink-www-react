@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../utils/api';
+import { messageService, ConversationType } from '../services/messageService';
 
-// Types that match the API response
-export type ConversationType = 'booking' | 'consultation' | 'guest-spot' | 'design';
+// Re-export ConversationType for external use
+export type { ConversationType } from '../services/messageService';
 
 export interface Participant {
   id: number;
@@ -168,19 +168,12 @@ export function useConversations(): UseConversationsReturn {
       setLoading(true);
       setError(null);
 
-      const queryParams = new URLSearchParams();
-      if (params?.type) queryParams.append('type', params.type);
-      if (params?.unread) queryParams.append('unread', '1');
-      if (params?.search) queryParams.append('search', params.search);
-      if (params?.page) queryParams.append('page', params.page.toString());
-      if (params?.limit) queryParams.append('limit', params.limit.toString());
-
-      const queryString = queryParams.toString();
-      const endpoint = `/conversations${queryString ? `?${queryString}` : ''}`;
-
-      const response = await api.get<ConversationsResponse>(endpoint, {
-        requiresAuth: true,
-        useCache: false,
+      const response = await messageService.getConversations({
+        type: params?.type,
+        unread: params?.unread,
+        search: params?.search,
+        page: params?.page,
+        limit: params?.limit,
       });
 
       setConversations(response.conversations || []);
@@ -224,10 +217,7 @@ export function useConversation(conversationId?: number): UseConversationReturn 
       setLoading(true);
       setError(null);
 
-      const response = await api.get<ConversationDetailResponse>(`/conversations/${id}`, {
-        requiresAuth: true,
-        useCache: false,
-      });
+      const response = await messageService.getConversation(id);
 
       setConversation(response.conversation);
       setMessages(response.messages || []);
@@ -246,14 +236,7 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     if (!conversationId) return;
 
     try {
-      const endpoint = before
-        ? `/conversations/${conversationId}/messages?before=${before}`
-        : `/conversations/${conversationId}/messages`;
-
-      const response = await api.get<MessagesResponse>(endpoint, {
-        requiresAuth: true,
-        useCache: false,
-      });
+      const response = await messageService.getConversationMessages(conversationId, before);
 
       if (before) {
         // Prepend older messages
@@ -276,15 +259,12 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     if (!conversationId) return null;
 
     try {
-      const response = await api.post<{ message: ApiMessage }>(
-        `/conversations/${conversationId}/messages`,
-        {
-          content,
-          type,
-          metadata,
-          attachment_ids: attachmentIds,
-        },
-        { requiresAuth: true }
+      const response = await messageService.sendConversationMessage(
+        conversationId,
+        content,
+        type,
+        metadata,
+        attachmentIds
       );
 
       const newMessage = response.message;
@@ -305,15 +285,12 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     if (!conversationId) return null;
 
     try {
-      const response = await api.post<{ message: ApiMessage }>(
-        `/conversations/${conversationId}/messages/booking-card`,
-        {
-          date,
-          time,
-          duration,
-          deposit_amount: depositAmount,
-        },
-        { requiresAuth: true }
+      const response = await messageService.sendBookingCard(
+        conversationId,
+        date,
+        time,
+        duration,
+        depositAmount
       );
 
       const newMessage = response.message;
@@ -332,14 +309,7 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     if (!conversationId) return null;
 
     try {
-      const response = await api.post<{ message: ApiMessage }>(
-        `/conversations/${conversationId}/messages/deposit-request`,
-        {
-          amount,
-          appointment_id: appointmentId,
-        },
-        { requiresAuth: true }
-      );
+      const response = await messageService.sendDepositRequest(conversationId, amount, appointmentId);
 
       const newMessage = response.message;
       setMessages((prev) => [...prev, newMessage]);
@@ -354,7 +324,7 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     if (!conversationId) return;
 
     try {
-      await api.put(`/conversations/${conversationId}/read`, {}, { requiresAuth: true });
+      await messageService.markConversationRead(conversationId);
     } catch (err) {
       console.error('Error marking conversation as read:', err);
     }
@@ -405,10 +375,7 @@ export function useUnreadConversationCount(): UseUnreadCountReturn {
       setLoading(true);
       setError(null);
 
-      const response = await api.get<{ unread_count: number }>('/conversations/unread-count', {
-        requiresAuth: true,
-        useCache: false,
-      });
+      const response = await messageService.getUnreadConversationCount();
 
       setUnreadCount(response.unread_count || 0);
     } catch (err) {
@@ -444,15 +411,11 @@ export async function createConversation(
   appointmentId?: number
 ): Promise<ApiConversation | null> {
   try {
-    const response = await api.post<{ conversation: ApiConversation }>(
-      '/conversations',
-      {
-        participant_id: participantId,
-        type,
-        initial_message: initialMessage,
-        appointment_id: appointmentId,
-      },
-      { requiresAuth: true }
+    const response = await messageService.createConversation(
+      participantId,
+      type,
+      initialMessage,
+      appointmentId
     );
 
     return response.conversation;

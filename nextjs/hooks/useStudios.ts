@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { studioService } from '../services/studioService';
 import { StudioType } from '../models/studio.interface';
-import { api } from '../utils/api';
 
 // Hook for fetching studios list with caching
 export function useStudios(searchParams?: Record<string, any>) {

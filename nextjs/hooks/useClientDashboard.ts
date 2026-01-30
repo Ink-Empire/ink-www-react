@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '@/utils/api';
+import { clientService } from '@/services/clientService';
 import { ApiConversation } from './useConversations';
 
 export interface DashboardAppointment {
@@ -70,10 +70,7 @@ export function useClientDashboard(): UseClientDashboardReturn {
       setLoading(true);
       setError(null);
 
-      const response = await api.get<ClientDashboardResponse>('/client/dashboard', {
-        requiresAuth: true,
-        useCache: false,
-      });
+      const response = await clientService.getDashboard();
 
       setAppointments(response.appointments || []);
       setConversations(response.conversations || []);
@@ -128,10 +125,7 @@ export function useWishlist(): UseWishlistReturn {
       setError(null);
 
       // Call /client/favorites which queries users_artists table (bookmarked artists)
-      const response = await api.get<{ favorites: WishlistArtist[] }>('/client/favorites', {
-        requiresAuth: true,
-        useCache: false,
-      });
+      const response = await clientService.getFavorites();
 
       console.log('[useWishlist] Response:', response);
       setWishlist(response.favorites || []);
@@ -149,10 +143,7 @@ export function useWishlist(): UseWishlistReturn {
 
   const addToWishlist = useCallback(async (artistId: number, notifyBookingOpen: boolean = true): Promise<boolean> => {
     try {
-      await api.post('/users/favorites/artist', {
-        ids: artistId,
-        action: 'add'
-      }, { requiresAuth: true });
+      await clientService.addFavorite(artistId);
 
       await fetchWishlist();
       return true;
@@ -164,10 +155,7 @@ export function useWishlist(): UseWishlistReturn {
 
   const removeFromWishlist = useCallback(async (artistId: number): Promise<boolean> => {
     try {
-      await api.post('/users/favorites/artist', {
-        ids: artistId,
-        action: 'remove'
-      }, { requiresAuth: true });
+      await clientService.removeFavorite(artistId);
 
       setWishlist((prev) => prev.filter((artist) => artist.id !== artistId));
       return true;
@@ -179,9 +167,7 @@ export function useWishlist(): UseWishlistReturn {
 
   const updateNotification = useCallback(async (artistId: number, notifyBookingOpen: boolean): Promise<boolean> => {
     try {
-      await api.put(`/client/wishlist/${artistId}`, {
-        notify_booking_open: notifyBookingOpen,
-      }, { requiresAuth: true });
+      await clientService.updateWishlistNotification(artistId, notifyBookingOpen);
 
       setWishlist((prev) =>
         prev.map((artist) =>
@@ -229,13 +215,7 @@ export function useSuggestedArtists(limit: number = 6): UseSuggestedArtistsRetur
       setLoading(true);
       setError(null);
 
-      const response = await api.get<{ artists: SuggestedArtist[] }>(
-        `/client/suggested-artists?limit=${limit}`,
-        {
-          requiresAuth: true,
-          useCache: false,
-        }
-      );
+      const response = await clientService.getSuggestedArtists(limit);
 
       setArtists(response.artists || []);
     } catch (err) {

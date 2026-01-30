@@ -4,7 +4,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { studioService } from '@/services/studioService';
 
 interface Artist {
   id: number;
@@ -65,7 +65,7 @@ const AddArtistModal: React.FC<AddArtistModalProps> = ({
     setSuccess(null);
 
     try {
-      const response = await api.post(`/studios/${studioId}/artists`, { username: username.trim() }) as { artist?: Artist };
+      const response = await studioService.addArtist(studioId, username.trim());
       const artist = response.artist || response as unknown as Artist;
 
       setSuccess(`${artist.name || username} has been added to your studio!`);

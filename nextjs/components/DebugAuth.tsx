@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../utils/api';
+import { userService } from '../services/userService';
 
 export const DebugAuth: React.FC = () => {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -11,7 +11,7 @@ export const DebugAuth: React.FC = () => {
     const testApi = async () => {
       try {
         console.log('Testing /users/me endpoint...');
-        const response = await api.get('/users/me');
+        const response = await userService.getMe();
         console.log('API Response:', response);
         setApiResponse(response);
       } catch (error: any) {

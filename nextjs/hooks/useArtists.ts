@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { artistService } from '@/services/artistService';
 import { ArtistType } from '@/models/artist.interface';
-import { api } from '@/utils/api';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 
 // Unclaimed studio type
@@ -60,20 +59,7 @@ export function useArtists(searchParams?: Record<string, any>) {
 
       console.log(`Fetching artists page ${pageNum}:`, requestBody);
 
-      type ArtistsResponse = {
-        response: ArtistType[];
-        unclaimed_studios?: UnclaimedStudio[];
-        total: number;
-        page: number;
-        per_page: number;
-        has_more: boolean;
-      };
-
-      const response = await api.post<ArtistsResponse>('/artists', requestBody, {
-        headers: { 'X-Account-Type': 'artist' },
-        useCache: false, // Don't cache paginated requests
-        requiresAuth: false
-      });
+      const response = await artistService.search(requestBody);
 
       // Process the response
       let artistsData: ArtistType[] = [];

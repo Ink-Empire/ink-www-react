@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useStyles } from '../contexts/StyleContext';
-import { api } from '../utils/api';
+import { tattooService } from '../services/tattooService';
 import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
 import { colors } from '@/styles/colors';
 import TagsAutocomplete, { Tag } from './TagsAutocomplete';
@@ -455,9 +455,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
 
     setAddingTag(tag.id);
     try {
-      await api.post(`/tattoos/${createdTattooId}/tags/add`, {
-        tag_id: tag.id
-      }, { requiresAuth: true });
+      await tattooService.addTagById(createdTattooId, tag.id);
 
       setAddedSuggestions(prev => new Set([...prev, tag.id]));
     } catch (error) {
