@@ -11,6 +11,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import StarIcon from '@mui/icons-material/Star';
 import { withAuth } from '@/components/WithAuth';
 import { colors } from '@/styles/colors';
+import ComingSoonBadge from '@/components/ui/ComingSoonBadge';
 
 // Types
 interface Destination {
@@ -115,15 +116,17 @@ const TravelRegionsPage: React.FC = () => {
               Back to Settings
             </Box>
           </Link>
-          <Typography sx={{
-            fontFamily: '"Cormorant Garamond", Georgia, serif',
-            fontSize: '2rem',
-            fontWeight: 600,
-            color: colors.textPrimary,
-            mb: 0.5
-          }}>
-            Travel Destinations
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+            <Typography sx={{
+              fontFamily: '"Cormorant Garamond", Georgia, serif',
+              fontSize: '2rem',
+              fontWeight: 600,
+              color: colors.textPrimary,
+            }}>
+              Travel Destinations
+            </Typography>
+            <ComingSoonBadge />
+          </Box>
           <Typography sx={{ color: colors.textSecondary, fontSize: '1rem', maxWidth: 600 }}>
             Select regions where you'd like to work as a guest artist. Studios in these areas will be notified when you're looking for guest spots.
           </Typography>

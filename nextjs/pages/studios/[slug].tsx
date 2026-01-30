@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
-import { Box, Button, Avatar, Typography, IconButton } from '@mui/material';
+import { Box, Button, Avatar, Typography, IconButton, Tooltip } from '@mui/material';
 import ImageIcon from '@mui/icons-material/Image';
 import InfoIcon from '@mui/icons-material/Info';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -49,6 +49,7 @@ export default function StudioDetail() {
   const isOwner = isAuthenticated && user && studio?.owner_id === user.id;
   const isClaimed = studio?.is_claimed || isOwner;
   const isVerified = studio?.is_verified || studio?.verified || isClaimed || false;
+  const canContact = !!studio?.owner_id;
 
   // Get unique styles from studio or gallery
   const studioStyles = useMemo(() => {
@@ -115,7 +116,9 @@ export default function StudioDetail() {
       router.push('/login');
       return;
     }
-    // TODO: Implement contact functionality
+    if (studio?.owner_id) {
+      router.push(`/inbox?artistId=${studio.owner_id}`);
+    }
   };
 
   const handleSaveStudio = () => {
@@ -657,24 +660,36 @@ export default function StudioDetail() {
             justifyContent: 'center',
             width: { xs: '100%', md: 'auto' }
           }}>
-            <Button
-              onClick={handleContactStudio}
-              sx={{
-                minWidth: 180,
-                py: 1,
-                bgcolor: colors.accent,
-                color: colors.background,
-                textTransform: 'none',
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-                '&:hover': { bgcolor: colors.accentHover }
-              }}
+            <Tooltip
+              title={canContact ? '' : 'This studio hasn\'t been claimed yet'}
+              arrow
             >
-              <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
-              Contact Studio
-            </Button>
+              <span>
+                <Button
+                  onClick={handleContactStudio}
+                  disabled={!canContact}
+                  sx={{
+                    minWidth: 180,
+                    py: 1,
+                    bgcolor: canContact ? colors.accent : colors.backgroundLight,
+                    color: canContact ? colors.background : colors.textMuted,
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    '&:hover': { bgcolor: canContact ? colors.accentHover : colors.backgroundLight },
+                    '&.Mui-disabled': {
+                      bgcolor: colors.backgroundLight,
+                      color: colors.textMuted,
+                    }
+                  }}
+                >
+                  <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
+                  Contact Studio
+                </Button>
+              </span>
+            </Tooltip>
             <Button
               onClick={handleSaveStudio}
               sx={{
@@ -1252,33 +1267,35 @@ export default function StudioDetail() {
                   Quick Actions
                 </Typography>
                 {[
-                  { icon: <ChatBubbleOutlineIcon sx={{ fontSize: '1.25rem' }} />, label: 'Contact Studio', onClick: handleContactStudio },
-                  { icon: <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: isSaved ? 'Saved' : 'Save Studio', onClick: handleSaveStudio },
-                  { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: copied ? 'Copied!' : 'Share Profile', onClick: handleShare }
+                  { icon: <ChatBubbleOutlineIcon sx={{ fontSize: '1.25rem' }} />, label: 'Contact Studio', onClick: handleContactStudio, disabled: !canContact, tooltip: canContact ? '' : 'This studio hasn\'t been claimed yet' },
+                  { icon: <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: isSaved ? 'Saved' : 'Save Studio', onClick: handleSaveStudio, disabled: false, tooltip: '' },
+                  { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: copied ? 'Copied!' : 'Share Profile', onClick: handleShare, disabled: false, tooltip: '' }
                 ].map((action, idx) => (
-                  <Box
-                    key={idx}
-                    onClick={action.onClick}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      p: 1.25,
-                      bgcolor: colors.background,
-                      border: `1px solid ${colors.border}`,
-                      borderRadius: '8px',
-                      color: colors.textPrimary,
-                      fontSize: '0.9rem',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      mb: idx < 2 ? 1 : 0,
-                      transition: 'all 0.2s',
-                      '&:hover': { borderColor: colors.accent, color: colors.accent }
-                    }}
-                  >
-                    <Box sx={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{action.icon}</Box>
-                    {action.label}
-                  </Box>
+                  <Tooltip key={idx} title={action.tooltip} arrow>
+                    <Box
+                      onClick={action.disabled ? undefined : action.onClick}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        p: 1.25,
+                        bgcolor: colors.background,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: '8px',
+                        color: action.disabled ? colors.textMuted : colors.textPrimary,
+                        fontSize: '0.9rem',
+                        fontWeight: 500,
+                        cursor: action.disabled ? 'not-allowed' : 'pointer',
+                        mb: idx < 2 ? 1 : 0,
+                        transition: 'all 0.2s',
+                        opacity: action.disabled ? 0.6 : 1,
+                        '&:hover': action.disabled ? {} : { borderColor: colors.accent, color: colors.accent }
+                      }}
+                    >
+                      <Box sx={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{action.icon}</Box>
+                      {action.label}
+                    </Box>
+                  </Tooltip>
                 ))}
               </Box>
             </Box>

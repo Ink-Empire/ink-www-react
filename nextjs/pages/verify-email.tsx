@@ -50,12 +50,12 @@ export default function VerifyEmailPage() {
     setErrorMessage(null);
 
     try {
-      // The verifyUrl is the full API URL, call it directly
       const response = await fetch(verifyUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
         },
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -88,7 +88,6 @@ export default function VerifyEmailPage() {
         setStatus('verified');
       }
     } catch (error: any) {
-      console.error('Verification error:', error);
       setStatus('error');
       setErrorMessage('Something went wrong. Please try again or contact support.');
     }
