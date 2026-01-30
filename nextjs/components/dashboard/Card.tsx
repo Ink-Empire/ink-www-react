@@ -24,8 +24,10 @@ export function Card({ title, subtitle, action, children, icon, badge }: CardPro
     }}>
       <Box sx={{
         display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: { xs: 'flex-start', sm: 'flex-start' },
+        gap: { xs: 1, sm: 0 },
         p: 2,
         borderBottom: `1px solid ${colors.border}`
       }}>

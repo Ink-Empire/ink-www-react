@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   List,
   Datagrid,
@@ -29,6 +30,7 @@ import {
 import { Box, Typography, Divider } from '@mui/material';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
+import AutoModeIcon from '@mui/icons-material/AutoMode';
 import { api } from '@/utils/api';
 
 const userTypeChoices = [
@@ -40,6 +42,38 @@ const UserTypeField = () => {
   const record = useRecordContext();
   if (!record) return null;
   return <span>{record.type_id === 2 ? 'Artist' : 'Client'}</span>;
+};
+
+const RebuildUserButton = () => {
+  const record = useRecordContext();
+  const refresh = useRefresh();
+  const notify = useNotify();
+
+  if (!record) return null;
+
+  // Only show for artists (type_id: 2)
+  if (record.type_id !== 2) return null;
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Rebuild artist in Elasticsearch?`)) return;
+    try {
+      await api.post(`/admin/elastic/rebuild-bypass`, {
+        ids: [record.id],
+        model: 'artist'
+      });
+      notify('Rebuild request sent', { type: 'success' });
+      refresh();
+    } catch {
+      notify('Unable to rebuild artist', { type: 'error' });
+    }
+  };
+
+  return (
+    <Button label="Rebuild" onClick={handleClick}>
+      <AutoModeIcon />
+    </Button>
+  );
 };
 
 const userFilters = [
@@ -137,6 +171,7 @@ export const UserList = () => (
       <BooleanField source="is_demo" label="Demo" />
       <TextField source="location" />
       <DateField source="created_at" label="Created" />
+      <RebuildUserButton />
       <SendPasswordResetButton />
       <ResendVerificationButton />
       <EditButton />

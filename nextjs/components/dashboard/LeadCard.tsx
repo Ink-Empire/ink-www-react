@@ -19,7 +19,7 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
     <Box
       onClick={onClick}
       sx={{
-        minWidth: 140,
+        minWidth: { xs: 120, sm: 140 },
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

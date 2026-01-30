@@ -17,7 +17,7 @@ export function SavedArtistCard({ artist, onRemove }: SavedArtistCardProps) {
 
   return (
     <Box sx={{
-      minWidth: 140,
+      minWidth: { xs: 120, sm: 140 },
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',

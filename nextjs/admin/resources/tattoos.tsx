@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import React, {useState} from 'react';
 import {
     List,
     Datagrid,
@@ -17,9 +17,14 @@ import {
     Toolbar,
     SelectInput,
     SelectArrayInput,
+    useRefresh,
+    useNotify,
+    Button,
 } from 'react-admin';
 import {Box, Chip, Typography, CircularProgress} from '@mui/material';
+import AutoModeIcon from '@mui/icons-material/AutoMode';
 import {useStyles} from '@/contexts/StyleContext';
+import {api} from '@/utils/api';
 
 const tattooFilters = [
     <SearchInput source="q" alwaysOn key="search" placeholder="Search descriptions..."/>,
@@ -91,6 +96,35 @@ const StylesDisplay = () => {
     );
 };
 
+const RebuildTattooButton = () => {
+    const record = useRecordContext();
+    const refresh = useRefresh();
+    const notify = useNotify();
+
+    if (!record) return null;
+
+    const handleClick = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm(`Rebuild tattoo in Elasticsearch?`)) return;
+        try {
+            await api.post(`/admin/elastic/rebuild-bypass`, {
+                ids: [record.id],
+                model: 'tattoo'
+            });
+            notify('Rebuild request sent', {type: 'success'});
+            refresh();
+        } catch {
+            notify('Unable to rebuild tattoo', {type: 'error'});
+        }
+    };
+
+    return (
+        <Button label="Rebuild" onClick={handleClick}>
+            <AutoModeIcon/>
+        </Button>
+    );
+};
+
 export const TattooList = () => (
     <List
         filters={tattooFilters}
@@ -119,6 +153,7 @@ export const TattooList = () => (
             <StylesDisplay label="Styles"/>
             <TagsDisplay label="Tags"/>
             <DateField source="created_at" label="Created"/>
+            <RebuildTattooButton/>
             <EditButton/>
         </Datagrid>
     </List>

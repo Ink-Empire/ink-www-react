@@ -777,7 +777,7 @@ export default function Dashboard() {
         {/* Main Grid */}
         <Box sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' },
+          gridTemplateColumns: { xs: '1fr', md: '1fr 340px', lg: '1fr 380px' },
           gap: 2
         }}>
           {/* Main Column */}
@@ -1229,7 +1229,7 @@ export default function Dashboard() {
                     ) : artistTattoos.length > 0 ? (
                       <Box sx={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
                         gap: 1,
                       }}>
                         {artistTattoos.slice(0, 12).map((tattoo) => {
@@ -1431,7 +1431,7 @@ export default function Dashboard() {
                             size="small"
                             placeholder="TX"
                             sx={{
-                              width: 100,
+                              width: { xs: 70, sm: 100 },
                               '& .MuiOutlinedInput-root': {
                                 bgcolor: colors.background,
                                 color: colors.textPrimary,
@@ -1449,7 +1449,7 @@ export default function Dashboard() {
                             onChange={(e) => setContactForm(prev => ({ ...prev, postal_code: e.target.value }))}
                             size="small"
                             sx={{
-                              width: 100,
+                              width: { xs: 80, sm: 100 },
                               '& .MuiOutlinedInput-root': {
                                 bgcolor: colors.background,
                                 color: colors.textPrimary,

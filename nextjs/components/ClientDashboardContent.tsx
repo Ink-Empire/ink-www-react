@@ -962,18 +962,18 @@ function WishlistRow({ artist, onRemove, isLast }: {
     <Box sx={{
       display: 'flex',
       alignItems: 'center',
-      gap: 1.5,
-      p: 2,
+      gap: { xs: 1, sm: 1.5 },
+      p: { xs: 1.5, sm: 2 },
       borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
       transition: 'background 0.15s',
       '&:hover': { bgcolor: colors.background }
     }}>
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
+      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
         <Avatar
           src={artist.image?.uri}
           sx={{
-            width: 40,
-            height: 40,
+            width: { xs: 36, sm: 40 },
+            height: { xs: 36, sm: 40 },
             bgcolor: colors.accent,
             color: colors.background,
             fontSize: '0.85rem',
@@ -984,19 +984,28 @@ function WishlistRow({ artist, onRemove, isLast }: {
           {artistInitials}
         </Avatar>
       </Link>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
         <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
           <Typography sx={{
             fontWeight: 500,
             color: colors.textPrimary,
-            fontSize: '0.9rem',
+            fontSize: { xs: '0.8rem', sm: '0.9rem' },
             cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
             '&:hover': { color: colors.accent }
           }}>
             @{artist.username}
           </Typography>
         </Link>
-        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted }}>
+        <Typography sx={{
+          fontSize: { xs: '0.7rem', sm: '0.75rem' },
+          color: colors.textMuted,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}>
           {artist.studio?.name || 'Independent'}
         </Typography>
       </Box>
@@ -1005,14 +1014,16 @@ function WishlistRow({ artist, onRemove, isLast }: {
           component={Link}
           href={`/artists/${artist.username}`}
           sx={{
-            px: 1.5,
+            px: { xs: 1, sm: 1.5 },
             py: 0.5,
             bgcolor: colors.success,
             color: colors.background,
             borderRadius: '6px',
             textTransform: 'none',
             fontWeight: 500,
-            fontSize: '0.75rem',
+            fontSize: { xs: '0.65rem', sm: '0.75rem' },
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
             '&:hover': { bgcolor: colors.success }
           }}
         >
@@ -1020,12 +1031,14 @@ function WishlistRow({ artist, onRemove, isLast }: {
         </Button>
       ) : (
         <Typography sx={{
-          px: 1.5,
+          px: { xs: 1, sm: 1.5 },
           py: 0.5,
           bgcolor: colors.background,
           borderRadius: '6px',
-          fontSize: '0.75rem',
+          fontSize: { xs: '0.65rem', sm: '0.75rem' },
           color: colors.textMuted,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
         }}>
           Books Closed
         </Typography>
@@ -1034,12 +1047,13 @@ function WishlistRow({ artist, onRemove, isLast }: {
         onClick={() => onRemove(artist.id)}
         sx={{
           minWidth: 0,
-          p: 0.75,
+          p: { xs: 0.5, sm: 0.75 },
+          flexShrink: 0,
           color: colors.textMuted,
           '&:hover': { color: colors.error, bgcolor: `${colors.error}15` }
         }}
       >
-        <DeleteIcon sx={{ fontSize: 18 }} />
+        <DeleteIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
       </Button>
     </Box>
   );
