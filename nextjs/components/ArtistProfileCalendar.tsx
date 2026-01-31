@@ -10,6 +10,7 @@ import EventBusyIcon from '@mui/icons-material/EventBusy';
 import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/utils/api';
 import { artistService } from '@/services/artistService';
 import { appointmentService } from '@/services/appointmentService';
 import { leadService } from '@/services/leadService';

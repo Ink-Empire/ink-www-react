@@ -1168,9 +1168,10 @@ export default function ArtistDetail() {
             <TattooCreateWizard
                 open={uploadModalOpen}
                 onClose={handleCloseUploadModal}
-                onSuccess={() => {
+                onSuccess={(newTattoo) => {
                     handleCloseUploadModal();
-                    refetch();
+                    // Delay refetch slightly to allow Elasticsearch to index the new tattoo
+                    setTimeout(() => refetch(), 1500);
                 }}
             />
 

@@ -789,7 +789,7 @@ export default function TattoosPage() {
         <TattooCreateWizard
           open={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
-          onSuccess={() => {
+          onSuccess={(newTattoo) => {
             setIsCreateModalOpen(false);
             // Navigate to artist's portfolio to show the new tattoo
             if (me?.slug) {

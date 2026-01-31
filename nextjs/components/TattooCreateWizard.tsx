@@ -46,7 +46,7 @@ interface Placement {
 interface TattooCreateWizardProps {
   open: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (tattoo?: any) => void;
 }
 
 const steps = ['Upload', 'Details', 'Description', 'Review'];
@@ -107,6 +107,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   const [aiSuggestions, setAiSuggestions] = useState<Tag[]>([]);
   const [addedSuggestions, setAddedSuggestions] = useState<Set<number>>(new Set());
   const [createdTattooId, setCreatedTattooId] = useState<number | null>(null);
+  const [createdTattoo, setCreatedTattoo] = useState<any | null>(null);
   const [addingTag, setAddingTag] = useState<number | null>(null);
 
   // Cleanup on close
@@ -176,6 +177,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     setAiSuggestions([]);
     setAddedSuggestions(new Set());
     setCreatedTattooId(null);
+    setCreatedTattoo(null);
   };
 
   // Drag and drop handlers
@@ -449,7 +451,9 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
 
       // AI tags are now generated in the background
       // The response includes ai_tags_pending: true to indicate this
-      setCreatedTattooId(response.tattoo?.id || null);
+      const newTattoo = response.tattoo;
+      setCreatedTattooId(newTattoo?.id || null);
+      setCreatedTattoo(newTattoo);
 
       // Check if we have any AI suggestions already (usually empty now)
       const suggestions = response.ai_suggested_tags || [];
@@ -459,9 +463,9 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         setShowSuggestionsModal(true);
       } else {
         // No immediate suggestions - AI is processing in background
-        // Just close and show success
+        // Just close and show success, passing the created tattoo for optimistic updates
         if (onSuccess) {
-          onSuccess();
+          onSuccess(newTattoo);
         }
         onClose();
       }
@@ -495,7 +499,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   const handleCloseSuggestions = () => {
     setShowSuggestionsModal(false);
     if (onSuccess) {
-      onSuccess();
+      onSuccess(createdTattoo);
     }
     onClose();
   };

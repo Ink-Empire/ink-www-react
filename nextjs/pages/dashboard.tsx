@@ -2166,7 +2166,7 @@ export default function Dashboard() {
       <TattooCreateWizard
         open={uploadTattooOpen}
         onClose={() => setUploadTattooOpen(false)}
-        onSuccess={() => {
+        onSuccess={(newTattoo) => {
           setUploadTattooOpen(false);
           // Navigate to portfolio page to show the new tattoo
           if (user?.slug) {

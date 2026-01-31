@@ -47,7 +47,7 @@ export const artistService = {
 
   // Update artist profile (requires auth)
   updateProfile: async (idOrSlug: number | string, data: Partial<IArtist>): Promise<IArtist> => {
-    return api.put<IArtist>(`/artist/${idOrSlug}`, data, { requiresAuth: true });
+    return api.put<IArtist>(`/artists/${idOrSlug}`, data, { requiresAuth: true });
   },
   
   // Set artist working hours (requires auth)
