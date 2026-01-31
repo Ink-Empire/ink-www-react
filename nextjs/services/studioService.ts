@@ -96,5 +96,112 @@ export const studioService = {
       requiresAuth: true,
       headers: { 'X-Account-Type': 'studio' }
     });
-  }
+  },
+
+  // Claim an existing studio (requires auth)
+  claim: async (studioId: number, data: Record<string, any>): Promise<any> => {
+    return api.post(`/studios/${studioId}/claim`, data, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Update studio details via /studios/studio endpoint (requires auth)
+  updateDetails: async (studioId: number, data: Record<string, any>): Promise<any> => {
+    return api.put(`/studios/studio/${studioId}`, data, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Set studio working hours (requires auth)
+  setWorkingHours: async (studioId: number, workingHours: any[]): Promise<any> => {
+    return api.post(`/studios/${studioId}/working-hours`, { availability: workingHours }, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Remove artist from studio (requires auth)
+  removeArtist: async (studioId: number, artistId: number): Promise<void> => {
+    return api.delete(`/studios/${studioId}/artists/${artistId}`, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Verify an artist at a studio (requires auth)
+  verifyArtist: async (studioId: number, artistId: number): Promise<any> => {
+    return api.post(`/studios/${studioId}/artists/${artistId}/verify`, {}, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Unverify an artist at a studio (requires auth)
+  unverifyArtist: async (studioId: number, artistId: number): Promise<any> => {
+    return api.post(`/studios/${studioId}/artists/${artistId}/unverify`, {}, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Delete studio announcement (requires auth)
+  deleteAnnouncement: async (studioId: number, announcementId: number): Promise<void> => {
+    return api.delete(`/studios/${studioId}/announcements/${announcementId}`, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Upload studio image by image ID (requires auth)
+  uploadImage: async (studioId: number, imageId: number): Promise<any> => {
+    return api.post(`/studios/${studioId}/image`, { image_id: imageId }, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Upload studio image file directly (requires auth)
+  uploadImageFile: async (studioId: number, formData: FormData): Promise<any> => {
+    return api.post(`/studios/${studioId}/image`, formData, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Invite artist to studio (requires auth)
+  inviteArtist: async (studioId: number, data: { email?: string; artist_id?: number }): Promise<any> => {
+    return api.post(`/studios/${studioId}/artists/invite`, data, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Add artist to studio by username (requires auth)
+  addArtist: async (studioId: number, username: string): Promise<any> => {
+    return api.post(`/studios/${studioId}/artists`, { username }, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Create studio announcement (requires auth)
+  createAnnouncement: async (studioId: number, data: { title: string; content: string }): Promise<any> => {
+    return api.post(`/studios/${studioId}/announcements`, data, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Get studio announcements (public access)
+  getAnnouncements: async (studioIdOrSlug: number | string): Promise<any[]> => {
+    const response = await api.get<any[] | { announcements: any[] }>(`/studios/${studioIdOrSlug}/announcements`);
+    return (response as any).announcements || response || [];
+  },
+
+  // Get studio dashboard stats (requires auth)
+  getDashboardStats: async (studioId: number): Promise<any> => {
+    return api.get(`/studios/${studioId}/dashboard-stats`, { requiresAuth: true });
+  },
 };

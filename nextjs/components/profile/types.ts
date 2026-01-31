@@ -16,5 +16,5 @@ export const navItems = [
   { id: 'hours', label: 'Hours', icon: AccessTimeIcon },
   { id: 'booking', label: 'Booking & Rates', icon: EventIcon },
   { id: 'watermark', label: 'Watermark', icon: BrandingWatermarkIcon },
-  { id: 'travel', label: 'Travel', icon: PublicIcon },
+  { id: 'travel', label: 'Travel', icon: PublicIcon, badge: 'Coming Soon' },
 ];

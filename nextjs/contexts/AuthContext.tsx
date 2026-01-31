@@ -189,7 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return null;
     } catch (err: any) {
       console.log('fetchUser error:', err?.message || err);
-      if (err?.message?.includes('401') || err?.message?.includes('Unauthenticated')) {
+      if (err?.status === 401 || err?.message?.includes('Unauthenticated')) {
         setUser(null);
         saveUser(null);
       }
@@ -247,8 +247,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoginLoading?.(true);
     setErrors?.([]);
 
-    // Clear any existing token before login to prevent stale token from wrong user
+    // Clear ALL auth data before login to prevent any stale data from previous user
+    // This is critical to avoid using wrong user's token or session
     removeToken();
+    clearStorage();
+    api.clearCache?.();
 
     try {
       await csrf();
@@ -257,7 +260,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Store the token from the login response
       if (loginResponse.token) {
         setToken(loginResponse.token);
-        console.log('Auth token stored');
+        console.log('Auth token stored for user:', loginResponse.user?.email || loginResponse.user?.id);
+      } else {
+        console.error('WARNING: No token returned from login API!');
       }
 
       // Get user data from the login response or fetch separately

@@ -32,7 +32,8 @@ import {
   Check as CheckIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../utils/api';
+import { tattooService } from '../services/tattooService';
+import { stylesService } from '../services/stylesService';
 import { useRouter } from 'next/router';
 import { colors } from '@/styles/colors';
 import TagsAutocomplete, { Tag } from './TagsAutocomplete';
@@ -85,9 +86,9 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
   const loadStyles = async () => {
     try {
       setLoadingStyles(true);
-      const response = await api.get<any>('/styles');
+      const response = await stylesService.getAll();
       // API returns { styles: [...] }
-      const stylesData = response.styles || response.data || response || [];
+      const stylesData = response.styles || [];
       setStyles(Array.isArray(stylesData) ? stylesData : []);
     } catch (error) {
       console.error('Failed to load styles:', error);
@@ -268,9 +269,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
 
     setAddingTag(tag.id);
     try {
-      await api.post(`/tattoos/${createdTattooId}/tags/add`, {
-        tag_id: tag.id
-      }, { requiresAuth: true });
+      await tattooService.addTagById(createdTattooId, tag.id);
 
       setAddedSuggestions(prev => new Set([...prev, tag.id]));
     } catch (error) {

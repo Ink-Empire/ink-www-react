@@ -3,7 +3,7 @@ import { Box, Typography, TextField, Button, IconButton, Avatar, CircularProgres
 import CloseIcon from '@mui/icons-material/Close';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { studioService } from '@/services/studioService';
 
 interface StudioData {
   id: number;
@@ -86,17 +86,17 @@ const EditStudioModal: React.FC<EditStudioModalProps> = ({ isOpen, onClose, stud
 
     try {
       // Update studio info
-      await api.put(`/studios/studio/${studio.id}`, formData);
+      await studioService.updateDetails(studio.id, formData);
 
       // Upload image if changed
       if (imageFile) {
         const imageFormData = new FormData();
         imageFormData.append('image', imageFile);
-        await api.post(`/studios/${studio.id}/image`, imageFormData);
+        await studioService.uploadImageFile(studio.id, imageFormData);
       }
 
       // Fetch updated studio data
-      const studioResponse = await api.get(`/studios/${studio.id}`) as { studio?: StudioData };
+      const studioResponse = await studioService.getById(studio.id);
       onSave(studioResponse.studio || studioResponse as unknown as StudioData);
       onClose();
     } catch (err: any) {

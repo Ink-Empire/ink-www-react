@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '@/utils/api';
+import { calendarService } from '@/services/calendarService';
 
 interface CalendarStatus {
   connected: boolean;
@@ -29,10 +29,7 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
   // Fetch calendar status
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await api.get<CalendarStatus>('/calendar/status', {
-        requiresAuth: true,
-        useCache: false
-      });
+      const response = await calendarService.getGoogleCalendarStatus();
       setStatus(response);
       setError(null);
     } catch (err) {
@@ -52,9 +49,7 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
   const connect = useCallback(async () => {
     try {
       setError(null);
-      const response = await api.get<{ url: string }>('/calendar/auth-url', {
-        requiresAuth: true
-      });
+      const response = await calendarService.getGoogleCalendarAuthUrl();
 
       if (response.url) {
         // Redirect to Google OAuth
@@ -70,7 +65,7 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
   const disconnect = useCallback(async () => {
     try {
       setError(null);
-      await api.post('/calendar/disconnect', {}, { requiresAuth: true });
+      await calendarService.disconnectGoogleCalendar();
       setStatus({ connected: false });
     } catch (err: any) {
       setError(err.message || 'Failed to disconnect from Google Calendar');
@@ -85,7 +80,7 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
     try {
       setIsSyncing(true);
       setError(null);
-      await api.post('/calendar/sync', {}, { requiresAuth: true });
+      await calendarService.syncGoogleCalendar();
       // Refresh status after sync
       await fetchStatus();
     } catch (err: any) {
@@ -102,9 +97,7 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
 
     try {
       setError(null);
-      const response = await api.post<{ sync_enabled: boolean }>('/calendar/toggle-sync', {}, {
-        requiresAuth: true
-      });
+      const response = await calendarService.toggleGoogleCalendarSync();
       setStatus(prev => prev ? { ...prev, sync_enabled: response.sync_enabled } : null);
     } catch (err: any) {
       setError(err.message || 'Failed to toggle sync');

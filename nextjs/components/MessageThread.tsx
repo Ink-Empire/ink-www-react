@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import { formatDistanceToNow } from 'date-fns';
-import { api } from '../utils/api';
+import { messageService } from '@/services/messageService';
 import { colors } from '@/styles/colors';
 
 interface Message {
@@ -77,8 +77,8 @@ const MessageThread: React.FC<MessageThreadProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(`/messages/appointment/${appointmentId}`);
-      setMessages(response.messages || []);
+      const response = await messageService.getByAppointment(appointmentId) as any;
+      setMessages(response.messages || response || []);
       setAppointment(response.appointment);
     } catch (err: any) {
       setError(err.message || 'Failed to load messages');
@@ -92,13 +92,13 @@ const MessageThread: React.FC<MessageThreadProps> = ({
 
     try {
       setSending(true);
-      const response = await api.post('/messages/send', {
+      const response = await messageService.send({
         appointment_id: appointmentId,
         content: newMessage.trim()
-      });
+      }) as any;
 
       // Add new message to the list
-      setMessages(prev => [...prev, response.message]);
+      setMessages(prev => [...prev, response.message || response]);
       setNewMessage('');
     } catch (err: any) {
       setError(err.message || 'Failed to send message');

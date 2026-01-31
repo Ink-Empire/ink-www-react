@@ -21,7 +21,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { colors } from '@/styles/colors';
 import { useClientDashboard, useWishlist, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { ApiConversation } from '@/hooks/useConversations';
-import { api } from '@/utils/api';
+import { leadService } from '@/services/leadService';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 import { useStyles } from '@/contexts/StyleContext';
 import { useUser } from '@/contexts/AuthContext';
@@ -83,7 +83,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   useEffect(() => {
     const fetchLeadStatus = async () => {
       try {
-        const response = await api.get<{ has_lead: boolean; is_active: boolean; artists_notified: number }>('/leads/status');
+        const response = await leadService.getStatus();
         setLeadActive(response.is_active || false);
         setArtistsNotified(response.artists_notified || 0);
       } catch (err) {
@@ -103,7 +103,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
       // Turning OFF - set is_active to false
       setLeadToggling(true);
       try {
-        await api.put('/leads', { is_active: false });
+        await leadService.deactivate();
         setLeadActive(false);
       } catch (err) {
         console.error('Failed to deactivate lead:', err);
@@ -116,7 +116,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const handleIntentSubmit = async (intentData: TattooIntentData) => {
     setLeadToggling(true);
     try {
-      await api.post('/leads', {
+      await leadService.create({
         timing: intentData.timing,
         allow_artist_contact: intentData.allowArtistContact,
         tag_ids: intentData.selectedTags,

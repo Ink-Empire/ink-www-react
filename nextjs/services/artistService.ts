@@ -18,12 +18,20 @@ export const artistService = {
     return response.artist;
   },
 
-  // Search artists (public access, but sends auth if available for block filtering)
-  search: async (params: Record<string, any>): Promise<IArtist[]> => {
+  // Search artists with pagination (public access, but sends auth if available for block filtering)
+  search: async (params: Record<string, any>): Promise<{
+    response: IArtist[];
+    unclaimed_studios?: any[];
+    total: number;
+    page: number;
+    per_page: number;
+    has_more: boolean;
+  }> => {
     // Use POST with params in request body
-    return api.post<IArtist[]>('/artists', params, {
+    return api.post('/artists', params, {
       headers: { 'X-Account-Type': 'artist' },
-      requiresAuth: true, // Send token if available to filter blocked artists
+      useCache: false, // Don't cache paginated requests
+      requiresAuth: false,
     });
   },
 
@@ -73,5 +81,30 @@ export const artistService = {
       {},
       { requiresAuth: true }
     );
+  },
+
+  // Get artist settings (public - for booking info display)
+  getSettings: async (artistId: number | string): Promise<{ data: any }> => {
+    return api.get(`/artists/${artistId}/settings`, { useCache: false });
+  },
+
+  // Update artist settings (requires auth)
+  updateSettings: async (artistId: number | string, settings: Record<string, any>): Promise<any> => {
+    return api.put(`/artists/${artistId}/settings`, settings, { requiresAuth: true });
+  },
+
+  // Get artist by slug with full data including tattoos (public)
+  getBySlug: async (slug: string): Promise<{ artist: IArtist & { tattoos?: any[] } }> => {
+    return api.get(`/artists/${slug}`, { useCache: false });
+  },
+
+  // Get dashboard stats for an artist (requires auth)
+  getDashboardStats: async (artistId: number | string): Promise<any> => {
+    return api.get(`/artists/${artistId}/dashboard-stats`, { requiresAuth: true });
+  },
+
+  // Get upcoming schedule for an artist (requires auth)
+  getUpcomingSchedule: async (artistId: number | string): Promise<any[]> => {
+    return api.get(`/artists/${artistId}/upcoming-schedule`, { requiresAuth: true });
   },
 };

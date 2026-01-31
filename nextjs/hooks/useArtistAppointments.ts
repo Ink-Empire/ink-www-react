@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '@/utils/api';
+import { appointmentService } from '@/services/appointmentService';
 
 export interface AppointmentType {
   id: number | string;
@@ -67,20 +67,8 @@ export function useArtistAppointments(
 
       console.log('Fetching artist appointments:', requestBody);
 
-      // Call the API endpoint
-      const response = await api.post<{ data: AppointmentType[] } | AppointmentType[]>(
-        '/artists/appointments',
-        requestBody,
-        {
-          requiresAuth: false,
-          useCache: false, // Don't cache so we see updates immediately
-        }
-      );
-
-      // Handle both wrapped and unwrapped responses
-      const normalizedAppointments = Array.isArray(response)
-        ? response
-        : (response as any).data || [];
+      // Call the service
+      const normalizedAppointments = await appointmentService.getArtistAppointments(requestBody);
 
       setAppointments(normalizedAppointments);
       setError(null);
@@ -99,7 +87,7 @@ export function useArtistAppointments(
   // Function to delete an appointment
   const deleteAppointment = useCallback(async (appointmentId: number | string) => {
     try {
-      await api.delete(`/appointments/${appointmentId}`, { requiresAuth: true });
+      await appointmentService.delete(appointmentId);
       // Refresh the list after deletion
       await fetchAppointments();
       return true;

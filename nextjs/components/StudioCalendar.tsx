@@ -3,7 +3,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Box, Typography, Avatar, Switch, CircularProgress } from '@mui/material';
-import { api } from '@/utils/api';
+import { appointmentService } from '@/services/appointmentService';
 import { colors } from '@/styles/colors';
 
 interface Artist {
@@ -67,8 +67,7 @@ const StudioCalendar: React.FC<StudioCalendarProps> = ({ studioId, artists }) =>
         for (const artist of artists) {
           try {
             const slug = artist.slug || artist.id.toString();
-            const response = await api.get(`/artists/${slug}/appointments`) as any;
-            const artistAppointments = response.appointments || response || [];
+            const artistAppointments = await appointmentService.getByArtist(slug);
 
             // Add artist_id to each appointment if not present
             const appointmentsWithArtist = artistAppointments.map((apt: any) => ({

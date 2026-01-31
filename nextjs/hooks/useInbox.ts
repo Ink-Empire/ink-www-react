@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../utils/api';
+import { appointmentService } from '../services/appointmentService';
 
 interface Appointment {
   id: number;
@@ -100,12 +100,7 @@ export function useHistory(userId: number | undefined): UseHistoryReturn {
       setLoading(true);
       setError(null);
 
-      const response = await api.post<HistoryResponse>('/appointments/history', {
-        user_id: userId,
-        page
-      }, {
-        requiresAuth: true
-      });
+      const response = await appointmentService.getHistory(userId, page) as unknown as HistoryResponse;
 
       console.log('History response:', response);
 
@@ -172,13 +167,8 @@ export function useInbox(userId: number | undefined): UseInboxReturn {
       setLoading(true);
       setError(null);
 
-      // Make POST request to get pending appointments for the user using the new endpoint
-      const response = await api.post<InboxResponse>('/appointments/inbox', {
-        user_id: userId,
-        status: 'pending'
-      }, {
-        requiresAuth: true
-      });
+      // Get pending appointments for the user
+      const response = await appointmentService.getInbox(userId);
 
       console.log('Inbox response:', response);
 
@@ -198,11 +188,7 @@ export function useInbox(userId: number | undefined): UseInboxReturn {
 
   const updateAppointmentStatus = async (appointmentId: number, status: string): Promise<boolean> => {
     try {
-      await api.put(`/appointments/${appointmentId}`, {
-        status
-      }, {
-        requiresAuth: true
-      });
+      await appointmentService.updateStatus(appointmentId, status);
 
       // Refresh inbox after status update
       await refreshInbox();

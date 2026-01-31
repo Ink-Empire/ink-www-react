@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../utils/api';
+import { appointmentService } from '../services/appointmentService';
 
 interface UseInboxCountReturn {
   count: number;
@@ -23,12 +23,7 @@ export function useInboxCount(userId: number | undefined): UseInboxCountReturn {
       setLoading(true);
       setError(null);
 
-      const response = await api.post<{ data: any[] }>('/appointments/inbox', {
-        user_id: userId,
-        status: 'pending'
-      }, {
-        requiresAuth: true
-      });
+      const response = await appointmentService.getInbox(userId);
 
       setCount(response?.data?.length || 0);
     } catch (err) {

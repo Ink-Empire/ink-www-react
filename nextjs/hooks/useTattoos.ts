@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '@/utils/api';
 import { TattooType } from '@/models/tattoo.interface';
 import { tattooService } from '@/services/tattooService';
-import { getToken } from '@/utils/auth';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 
 // Unclaimed studio type (same as in useArtists)
@@ -17,9 +15,7 @@ export interface UnclaimedStudio {
 
 // Function to delete a tattoo
 export async function deleteTattoo(id: number | string): Promise<{ success: boolean; message: string; images_deleted: number }> {
-  const response = await api.delete<{ success: boolean; message: string; images_deleted: number }>(`/tattoos/${id}`, {
-    requiresAuth: true,
-  });
+  const response = await tattooService.delete(id);
 
   // Clear any cached data for this tattoo
   if (typeof window !== 'undefined') {
@@ -85,22 +81,7 @@ export function useTattoos(searchParams?: Record<string, any>) {
 
       console.log(`Fetching tattoos page ${pageNum}:`, requestBody);
 
-      const hasAuthToken = !!getToken();
-
-      type TattoosResponse = {
-        response: TattooType[];
-        unclaimed_studios?: UnclaimedStudio[];
-        total: number;
-        page: number;
-        per_page: number;
-        has_more: boolean;
-      };
-
-      const response = await api.post<TattoosResponse>('/tattoos', requestBody, {
-        headers: { 'X-Account-Type': 'user' },
-        useCache: false, // Don't cache paginated requests
-        requiresAuth: false
-      });
+      const response = await tattooService.search(requestBody);
 
       // Process the response
       let tattoosData: TattooType[] = [];
@@ -228,19 +209,11 @@ export function useTattoo(id: string | null) {
       }
 
       try {
-        // Check if user is logged in
-        const hasAuthToken = !!getToken();
-
-        // Get tattoo by ID - API returns { tattoo: {...} }
-        const response = await api.get<{ tattoo: TattooType }>(`/tattoos/${id}`, {
-          headers: { 'X-Account-Type': 'user' },
-          requiresAuth: hasAuthToken, // Only include auth token if user is logged in
-          useCache: true
-        });
+        // Get tattoo by ID
+        const data = await tattooService.getById(id);
 
         if (!isMounted) return;
 
-        const data = response.tattoo;
         setTattoo(data);
         saveToCache(data);
         setError(null);
@@ -328,18 +301,8 @@ export function useTattoosByArtist(artistId: string | null) {
       }
 
       try {
-        // Check if user is logged in
-        const hasAuthToken = !!getToken();
-
-        // Use a POST request to fetch an artist's tattoos
-        const data = await api.post<TattooType[]>(`/tattoos`,
-          { artist_id: artistId },
-          {
-            headers: { 'X-Account-Type': 'user' },
-            useCache: true,
-            requiresAuth: hasAuthToken // Only include auth token if user is logged in
-          }
-        );
+        // Fetch tattoos for the artist
+        const data = await tattooService.getByArtist(artistId);
 
         if (!isMounted) return;
 

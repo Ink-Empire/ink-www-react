@@ -9,6 +9,7 @@ interface SettingsSectionProps {
   icon: React.ReactNode;
   children: React.ReactNode;
   defaultExpanded?: boolean;
+  badge?: React.ReactNode;
 }
 
 export const SettingsSection: React.FC<SettingsSectionProps> = ({
@@ -16,7 +17,8 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
   title,
   icon,
   children,
-  defaultExpanded = true
+  defaultExpanded = true,
+  badge
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -56,6 +58,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
           }}>
             {title}
           </Typography>
+          {badge}
         </Box>
         <ExpandMoreIcon
           sx={{

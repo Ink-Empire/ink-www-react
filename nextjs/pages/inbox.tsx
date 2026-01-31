@@ -44,7 +44,8 @@ import {
   useConversation,
   createConversation,
 } from '../hooks/useConversations';
-import { api } from '../utils/api';
+import { userService } from '../services/userService';
+import { appointmentService } from '../services/appointmentService';
 import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
 import {
   FilterType,
@@ -459,10 +460,10 @@ export default function InboxPage() {
 
     try {
       if (isCurrentlyBlocked) {
-        await api.post('/users/unblock', { user_id: participantId }, { requiresAuth: true });
+        await userService.unblock(participantId);
         setSnackbar({ open: true, message: 'User unblocked', severity: 'success' });
       } else {
-        await api.post('/users/block', { user_id: participantId }, { requiresAuth: true });
+        await userService.block(participantId);
         setSnackbar({ open: true, message: 'User blocked. They can no longer message you.', severity: 'success' });
       }
       // Refresh user data to update blocked_user_ids
@@ -538,11 +539,9 @@ export default function InboxPage() {
     }
 
     try {
-      await api.post(`/appointments/${selectedConversation.appointment.id}/respond`, {
-        action,
+      await appointmentService.respond(selectedConversation.appointment.id, {
+        action: action as 'accept' | 'decline' | 'reschedule',
         reason,
-      }, {
-        requiresAuth: true,
       });
 
       setSnackbar({

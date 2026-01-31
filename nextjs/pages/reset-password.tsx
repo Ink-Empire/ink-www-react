@@ -20,7 +20,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { authService } from '@/services/authService';
 
 const PASSWORD_REQUIREMENTS = {
   minLength: { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -68,9 +68,9 @@ const ResetPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await api.post('/reset-password', {
-        token,
-        email,
+      await authService.resetPassword({
+        token: token as string,
+        email: email as string,
         password,
         password_confirmation: passwordConfirmation,
       });

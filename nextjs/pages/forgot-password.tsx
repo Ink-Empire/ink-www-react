@@ -15,7 +15,7 @@ import {
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { authService } from '@/services/authService';
 
 const ForgotPasswordPage: React.FC = () => {
   const router = useRouter();
@@ -45,7 +45,7 @@ const ForgotPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await api.post('/forgot-password', { email: email.trim() });
+      await authService.forgotPassword(email.trim());
       setSuccess(true);
     } catch (err: any) {
       // Even if the email doesn't exist, we show success for security

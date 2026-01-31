@@ -31,9 +31,10 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useStyles } from '../contexts/StyleContext';
-import { api } from '../utils/api';
+import { tattooService } from '../services/tattooService';
 import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
-import { colors } from '@/styles/colors';
+import { colors, inputStyles } from '@/styles/colors';
+import { api } from '../utils/api';
 import TagsAutocomplete, { Tag } from './TagsAutocomplete';
 
 interface Placement {
@@ -48,7 +49,7 @@ interface TattooCreateWizardProps {
   onSuccess?: () => void;
 }
 
-const steps = ['Upload', 'Details', 'Review'];
+const steps = ['Upload', 'Details', 'Description', 'Review'];
 
 const sizeOptions = [
   'Tiny (< 2 inches)',
@@ -115,6 +116,16 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     }
   }, [open]);
 
+  // Safety: Reset uploaded images if user changes to prevent using another user's images
+  const [uploadedByUserId, setUploadedByUserId] = useState<number | null>(null);
+  useEffect(() => {
+    if (uploadedImages.length > 0 && uploadedByUserId && user?.id && uploadedByUserId !== user.id) {
+      console.warn('[TattooCreate] User changed, clearing uploaded images to prevent cross-user image usage');
+      setUploadedImages([]);
+      setUploadedByUserId(null);
+    }
+  }, [user?.id, uploadedByUserId, uploadedImages.length]);
+
   // Cleanup URLs on unmount
   useEffect(() => {
     return () => {
@@ -127,8 +138,12 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     const fetchPlacements = async () => {
       try {
         const response = await api.get<{ success: boolean; data: Placement[] }>('/placements');
-        if (response.success && response.data) {
+        console.log('Placements API response:', response);
+        if (response.data && Array.isArray(response.data)) {
           setPlacements(response.data);
+        } else if (Array.isArray(response)) {
+          // Handle case where API returns array directly
+          setPlacements(response as unknown as Placement[]);
         }
       } catch (err) {
         console.error('Failed to fetch placements:', err);
@@ -157,6 +172,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     setLoadingAiSuggestions(false);
     setCreatingTag(null);
     setUploadedImages([]);
+    setUploadedByUserId(null);
     setAiSuggestions([]);
     setAddedSuggestions(new Set());
     setCreatedTattooId(null);
@@ -271,8 +287,9 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
 
       console.log('[AI Tags] S3 upload complete, got', uploaded.length, 'images');
 
-      // Store both IDs and URIs for later use
+      // Store both IDs and URIs for later use, and track which user uploaded them
       setUploadedImages(uploaded.map(img => ({ id: img.id, url: img.uri })));
+      setUploadedByUserId(user?.id || null);
       const imageUrls = uploaded.map(img => img.uri);
       console.log('[AI Tags] Image URLs:', imageUrls);
 
@@ -370,6 +387,15 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     setError(null);
     setUploadProgress(null);
 
+    // Safety check: verify we have an authenticated user
+    if (!user?.id) {
+      setError('You must be logged in to create a tattoo');
+      setSubmitting(false);
+      return;
+    }
+
+    console.log('[TattooCreate] Creating tattoo as user:', user.id, user.email);
+
     try {
       // Images should already be uploaded during the Details step
       // If not, upload them now (fallback)
@@ -455,9 +481,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
 
     setAddingTag(tag.id);
     try {
-      await api.post(`/tattoos/${createdTattooId}/tags/add`, {
-        tag_id: tag.id
-      }, { requiresAuth: true });
+      await tattooService.addTagById(createdTattooId, tag.id);
 
       setAddedSuggestions(prev => new Set([...prev, tag.id]));
     } catch (error) {
@@ -478,12 +502,13 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
 
   const isStepValid = () => {
     switch (activeStep) {
-      case 0:
+      case 0: // Upload
         return images.length > 0;
-      case 1:
-        // Only require title - styles are optional
+      case 1: // Details - only require title
         return title.trim() !== '';
-      case 2:
+      case 2: // Additional - all optional
+        return true;
+      case 3: // Review
         return true;
       default:
         return false;
@@ -623,7 +648,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     </Box>
   );
 
-  // Step 2: Details
+  // Step 2: Basic Details (Title, Description, Styles)
   const renderDetailsStep = () => (
     <Box>
       <Typography variant="h6" sx={{ mb: 1, color: colors.textPrimary, fontWeight: 600 }}>
@@ -640,16 +665,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Give your tattoo a name"
-        sx={{
-          mb: 3,
-          '& .MuiOutlinedInput-root': {
-            color: colors.textPrimary,
-            '& fieldset': { borderColor: colors.border },
-            '&:hover fieldset': { borderColor: colors.borderLight },
-            '&.Mui-focused fieldset': { borderColor: colors.accent }
-          },
-          '& .MuiInputLabel-root': { color: colors.textSecondary }
-        }}
+        sx={{ mb: 3, ...inputStyles.textField }}
       />
 
       {/* Description */}
@@ -661,20 +677,11 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Tell the story behind this piece..."
-        sx={{
-          mb: 4,
-          '& .MuiOutlinedInput-root': {
-            color: colors.textPrimary,
-            '& fieldset': { borderColor: colors.border },
-            '&:hover fieldset': { borderColor: colors.borderLight },
-            '&.Mui-focused fieldset': { borderColor: colors.accent }
-          },
-          '& .MuiInputLabel-root': { color: colors.textSecondary }
-        }}
+        sx={{ mb: 4, ...inputStyles.textField }}
       />
 
       {/* Styles */}
-      <Box sx={{ mb: 4 }}>
+      <Box>
         <Typography variant="subtitle2" sx={{ color: colors.textPrimary, mb: 2, fontWeight: 600 }}>
           Styles
         </Typography>
@@ -709,6 +716,18 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
           </Box>
         )}
       </Box>
+    </Box>
+  );
+
+  // Step 3: Description (Tags, Placement, Size, Hours)
+  const renderAdditionalStep = () => (
+    <Box>
+      <Typography variant="h6" sx={{ mb: 1, color: colors.textPrimary, fontWeight: 600 }}>
+        Description
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 4, color: colors.textSecondary }}>
+        Add more information to help categorize your work
+      </Typography>
 
       {/* Tags */}
       <Box sx={{ mb: 4 }}>
@@ -797,28 +816,13 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       {/* Placement, Size, Hours Row */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
         <FormControl fullWidth>
-          <InputLabel sx={{ color: colors.textSecondary }}>Placement</InputLabel>
+          <InputLabel sx={inputStyles.inputLabel}>Placement</InputLabel>
           <Select
             value={placement}
             onChange={(e) => setPlacement(e.target.value)}
             label="Placement"
-            sx={{
-              color: colors.textPrimary,
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
-              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.borderLight },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent }
-            }}
-            MenuProps={{
-              PaperProps: {
-                sx: {
-                  bgcolor: colors.surface,
-                  '& .MuiMenuItem-root': {
-                    color: colors.textPrimary,
-                    '&:hover': { bgcolor: colors.border }
-                  }
-                }
-              }
-            }}
+            sx={inputStyles.select}
+            MenuProps={inputStyles.selectMenuProps}
             disabled={placementsLoading}
           >
             {placementsLoading ? (
@@ -834,28 +838,13 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         </FormControl>
 
         <FormControl fullWidth>
-          <InputLabel sx={{ color: colors.textSecondary }}>Size</InputLabel>
+          <InputLabel sx={inputStyles.inputLabel}>Size</InputLabel>
           <Select
             value={size}
             onChange={(e) => setSize(e.target.value)}
             label="Size"
-            sx={{
-              color: colors.textPrimary,
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
-              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.borderLight },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.accent }
-            }}
-            MenuProps={{
-              PaperProps: {
-                sx: {
-                  bgcolor: colors.surface,
-                  '& .MuiMenuItem-root': {
-                    color: colors.textPrimary,
-                    '&:hover': { bgcolor: colors.border }
-                  }
-                }
-              }
-            }}
+            sx={inputStyles.select}
+            MenuProps={inputStyles.selectMenuProps}
           >
             {sizeOptions.map((option) => (
               <MenuItem key={option} value={option}>
@@ -872,15 +861,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
           value={hoursToComplete}
           onChange={(e) => setHoursToComplete(e.target.value ? parseInt(e.target.value) : '')}
           inputProps={{ min: 1 }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              color: colors.textPrimary,
-              '& fieldset': { borderColor: colors.border },
-              '&:hover fieldset': { borderColor: colors.borderLight },
-              '&.Mui-focused fieldset': { borderColor: colors.accent }
-            },
-            '& .MuiInputLabel-root': { color: colors.textSecondary }
-          }}
+          sx={inputStyles.textField}
         />
       </Box>
     </Box>
@@ -1119,6 +1100,8 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       case 1:
         return renderDetailsStep();
       case 2:
+        return renderAdditionalStep();
+      case 3:
         return renderReviewStep();
       default:
         return null;

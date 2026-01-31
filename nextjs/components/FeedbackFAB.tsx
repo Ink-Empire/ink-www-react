@@ -16,7 +16,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { feedbackService } from '@/services/feedbackService';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DISMISSED_KEY = 'feedback_fab_dismissed';
@@ -74,7 +74,7 @@ export default function FeedbackFAB() {
     setMessage(null);
 
     try {
-      await api.post('/feedback', { email, feedback });
+      await feedbackService.submit({ email, feedback });
       setMessage({ type: 'success', text: 'Thank you for your feedback!' });
       setFeedback('');
 

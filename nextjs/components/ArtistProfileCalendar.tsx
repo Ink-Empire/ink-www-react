@@ -10,7 +10,9 @@ import EventBusyIcon from '@mui/icons-material/EventBusy';
 import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/utils/api';
+import { artistService } from '@/services/artistService';
+import { appointmentService } from '@/services/appointmentService';
+import { leadService } from '@/services/leadService';
 import { useArtistAppointments, useWorkingHours, useMobile } from '@/hooks';
 import { colors } from '@/styles/colors';
 import WorkingHoursModal from './WorkingHoursModal';
@@ -193,12 +195,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       setWorkingHoursLoading(true);
 
       try {
-        const artistData = await api.get<{ data: any }>(`/artists/${artist.slug}`, {
-          requiresAuth: false
-        });
-
-        const artistInfo = artistData?.data || artistData;
-        const artistRecord = artistInfo?.artist || artistInfo;
+        const artistRecord = await artistService.getById(artist.slug, { useCache: false });
 
         // Capture the artist ID for wishlist operations
         if (artistRecord?.id && !resolvedArtistId) {
@@ -231,16 +228,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         }
 
         if (booksAreOpen) {
-          const data = await api.get<{ data: WorkingHour[] }>(
-            `/artists/${artist.slug}/working-hours`,
-            { requiresAuth: false }
-          );
-
-          if (data && typeof data === 'object' && 'data' in data) {
-            setWorkingHours(data.data);
-          } else {
-            setWorkingHours([]);
-          }
+          const workingHoursData = await artistService.getWorkingHours(artist.slug);
+          setWorkingHours(workingHoursData || []);
         } else {
           setWorkingHours([]);
         }
@@ -298,15 +287,15 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
 
     setNotifySignupLoading(true);
     try {
-      await api.post('/client/wishlist', {
+      await leadService.addToWishlist({
         artist_id: resolvedArtistId,
         notify_booking_open: true
-      }, { requiresAuth: true });
+      });
 
       setOnWishlist(true);
     } catch (error: any) {
-      // If already on wishlist (409), just mark as on wishlist
-      if (error?.message?.includes('409') || error?.message?.includes('already')) {
+      // If already on wishlist (409 Conflict), just mark as on wishlist
+      if (error?.status === 409 || error?.message?.includes('already')) {
         setOnWishlist(true);
       } else {
         console.error('Error adding to wishlist:', error);
@@ -329,7 +318,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     setIsTogglingBooks(true);
 
     try {
-      await api.put(`/artists/${resolvedArtistId}/settings`, { books_open: newValue }, { requiresAuth: true });
+      await artistService.updateProfile(resolvedArtistId, { books_open: newValue } as any);
     } catch (err) {
       console.error('Failed to update books status:', err);
       // Revert on error
@@ -361,12 +350,12 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     if (!resolvedArtistId) return;
     setSavingSettings(true);
     try {
-      await api.put(`/artists/${resolvedArtistId}/settings`, {
+      await artistService.updateProfile(resolvedArtistId, {
         hourly_rate: bookingSettings.hourly_rate ? parseFloat(bookingSettings.hourly_rate) : 0,
         deposit_amount: bookingSettings.deposit_amount ? parseFloat(bookingSettings.deposit_amount) : 0,
         consultation_fee: bookingSettings.consultation_fee ? parseFloat(bookingSettings.consultation_fee) : 0,
         minimum_session: bookingSettings.minimum_session ? parseFloat(bookingSettings.minimum_session) : 0
-      }, { requiresAuth: true });
+      } as any);
     } catch (err) {
       console.error('Failed to save booking settings:', err);
     } finally {
@@ -560,14 +549,13 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
 
     setSendingInvite(true);
     try {
-      await api.post('/appointments/invite', {
+      await appointmentService.invite({
         artist_id: resolvedArtistId,
         date: selectedDay,
-        type: inviteType,
-        guest_email: guestEmail,
-        guest_name: guestName,
-        note: inviteNote
-      }, { requiresAuth: true });
+        time: '09:00', // Default time, can be customized
+        notes: inviteNote,
+        email: guestEmail,
+      });
 
       closeArtistDayModal();
     } catch (err) {
@@ -586,16 +574,14 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       // Create event title based on type if not provided
       const title = eventTitle || (eventType === 'other' ? 'Busy' : eventType.charAt(0).toUpperCase() + eventType.slice(1));
 
-      await api.post('/appointments/event', {
+      await appointmentService.createEvent({
         artist_id: resolvedArtistId,
         title,
-        type: eventType,
-        start: `${selectedDay}T${eventStartTime}:00`,
-        end: `${selectedDay}T${eventEndTime}:00`,
-        description: eventDescription,
-        status: 'booked',
-        sync_to_google: true
-      }, { requiresAuth: true });
+        date: selectedDay,
+        time: eventStartTime,
+        notes: eventDescription,
+        type: eventType as 'blocked' | 'personal' | 'other',
+      });
 
       // Refresh appointments and external events to show the new event
       refreshAppointments();

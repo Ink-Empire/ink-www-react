@@ -29,14 +29,17 @@ import CheckIcon from '@mui/icons-material/Check';
 import BrandingWatermarkIcon from '@mui/icons-material/BrandingWatermark';
 import DeleteIcon from '@mui/icons-material/Delete';
 import BlockIcon from '@mui/icons-material/Block';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useAuth, useUser } from '@/contexts/AuthContext';
 import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
 import { withAuth } from '@/components/WithAuth';
 import { colors } from '@/styles/colors';
-import { api } from '@/utils/api';
+import { artistService } from '@/services/artistService';
+import { userService } from '@/services/userService';
 import { uploadImageToS3 } from '@/utils/s3Upload';
+import ComingSoonBadge from '@/components/ui/ComingSoonBadge';
 import {
   navItems,
   inputStyles,
@@ -183,9 +186,7 @@ const ProfilePage: React.FC = () => {
 
   const fetchArtistSettings = async (id: number) => {
     try {
-      const response = await api.get<{ data: any }>(`/artists/${id}/settings`, {
-        requiresAuth: true
-      });
+      const response = await artistService.getSettings(id);
       if (response?.data) {
         // Convert 0 or null to empty string so placeholders show
         const toDisplayValue = (val: any) => (val && val !== 0) ? String(val) : '';
@@ -230,9 +231,7 @@ const ProfilePage: React.FC = () => {
 
     try {
       setSavingSettings(true);
-      await api.put(`/artists/${artistId}/settings`, {
-        [key]: newValue
-      }, { requiresAuth: true });
+      await artistService.updateSettings(artistId, { [key]: newValue });
 
       setToastMessage('Settings updated successfully');
       setShowToast(true);
@@ -279,7 +278,7 @@ const ProfilePage: React.FC = () => {
 
     try {
       setSavingSettings(true);
-      const response = await api.put(`/artists/${artistId}/settings`, payload, { requiresAuth: true });
+      const response = await artistService.updateSettings(artistId, payload);
       console.log('Settings save response:', response);
 
       setHasUnsavedSettings(false);
@@ -365,9 +364,7 @@ const ProfilePage: React.FC = () => {
       const uploadedImage = await uploadImageToS3(file, 'profile');
 
       // Update artist settings with new watermark
-      await api.put(`/artists/${artistId}/settings`, {
-        watermark_image_id: uploadedImage.id,
-      }, { requiresAuth: true });
+      await artistService.updateSettings(artistId, { watermark_image_id: uploadedImage.id });
 
       setArtistSettings(prev => ({
         ...prev,
@@ -392,10 +389,10 @@ const ProfilePage: React.FC = () => {
     if (!artistId) return;
 
     try {
-      await api.put(`/artists/${artistId}/settings`, {
+      await artistService.updateSettings(artistId, {
         watermark_image_id: null,
         watermark_enabled: false,
-      }, { requiresAuth: true });
+      });
 
       setArtistSettings(prev => ({
         ...prev,
@@ -420,9 +417,7 @@ const ProfilePage: React.FC = () => {
     setArtistSettings(prev => ({ ...prev, [key]: value }));
 
     try {
-      await api.put(`/artists/${artistId}/settings`, {
-        [key]: value,
-      }, { requiresAuth: true });
+      await artistService.updateSettings(artistId, { [key]: value });
 
       // Show inline saved indicator
       setWatermarkSaved(true);
@@ -438,7 +433,7 @@ const ProfilePage: React.FC = () => {
   const handleUnblockUser = async (userId: number) => {
     setUnblocking(userId);
     try {
-      await api.post('/users/unblock', { user_id: userId }, { requiresAuth: true });
+      await userService.unblock(userId);
       // Remove user from local state
       setBlockedUsers(prev => prev.filter(u => u.id !== userId));
       setToastMessage('User unblocked successfully');
@@ -624,16 +619,29 @@ const ProfilePage: React.FC = () => {
                     }}
                   >
                     <Icon sx={{ fontSize: 24, flexShrink: 0 }} />
-                    <Typography
-                      className="nav-label"
-                      sx={{
-                        fontSize: '0.95rem',
-                        opacity: 0,
-                        transition: 'opacity 0.15s ease'
-                      }}
-                    >
-                      {item.label}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography
+                        className="nav-label"
+                        sx={{
+                          fontSize: '0.95rem',
+                          opacity: 0,
+                          transition: 'opacity 0.15s ease'
+                        }}
+                      >
+                        {item.label}
+                      </Typography>
+                      {(item as any).badge && (
+                        <Box
+                          className="nav-label"
+                          sx={{
+                            opacity: 0,
+                            transition: 'opacity 0.15s ease',
+                          }}
+                        >
+                          <ComingSoonBadge size="small" />
+                        </Box>
+                      )}
+                    </Box>
                   </Box>
                 );
               })}
@@ -1473,7 +1481,13 @@ const ProfilePage: React.FC = () => {
 
           {/* Travel & Guest Spots Section (artists only) */}
           {isArtist && (
-            <SettingsSection id="travel" title="Travel & Guest Spots" icon={<PublicIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
+            <SettingsSection
+              id="travel"
+              title="Travel & Guest Spots"
+              icon={<PublicIcon sx={{ fontSize: 20 }} />}
+              defaultExpanded={false}
+              badge={<ComingSoonBadge size="small" />}
+            >
               <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, mb: '1rem' }}>
                 Let studios know you're interested in guest artist opportunities. This feature is coming soon.
               </Typography>
@@ -1630,7 +1644,7 @@ const ProfilePage: React.FC = () => {
             </Box>
             <Box
               component={Link}
-              href="/support"
+              href="/contact"
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',

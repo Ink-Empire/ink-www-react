@@ -3,7 +3,9 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { OnboardingWizard, OnboardingData } from '../components/Onboarding';
 import { removeToken, setToken } from '@/utils/auth';
-import { getCsrfToken, fetchCsrfToken, api } from '@/utils/api';
+import { getCsrfToken, fetchCsrfToken } from '@/utils/api';
+import { studioService } from '@/services/studioService';
+import { userService } from '@/services/userService';
 import { uploadImageToS3 } from '@/utils/s3Upload';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
@@ -106,7 +108,7 @@ const RegisterPage: React.FC = () => {
             studioPayload.phone = data.studioDetails.phone;
           }
 
-          const studioResponse = await api.post('/studios', studioPayload) as { studio?: { id?: number } };
+          const studioResponse = await studioService.create(studioPayload) as { studio?: { id?: number } };
           console.log('Studio created:', studioResponse);
 
           // Handle studio image upload
@@ -114,7 +116,7 @@ const RegisterPage: React.FC = () => {
           if (data.studioDetails?.profileImage && studioId) {
             try {
               const uploadedImage = await uploadImageToS3(data.studioDetails.profileImage, 'studio');
-              await api.post(`/studios/${studioId}/image`, { image_id: uploadedImage.id });
+              await studioService.uploadImage(studioId, uploadedImage.id);
               console.log('Studio image uploaded');
             } catch (imgErr) {
               console.error('Failed to upload studio image:', imgErr);
@@ -226,7 +228,7 @@ const RegisterPage: React.FC = () => {
               setToken(result.token);
             }
             const uploadedImage = await uploadImageToS3(data.userDetails.profileImage, 'profile');
-            await api.post('/users/profile-photo', { image_id: uploadedImage.id });
+            await userService.uploadProfilePhoto({ image_id: uploadedImage.id });
           } catch (imgErr) {
             // Continue with registration even if image upload fails
           }

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '../utils/api';
+import { stylesService } from '../services/stylesService';
 
 // Define interface for style data
 interface Style {
@@ -82,10 +82,7 @@ export const StyleProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       
       try {
         // Get styles with caching enabled
-        const response = await api.get<{ styles: Style[] }>('/styles', {
-          useCache: true,
-          cacheTTL: 24 * 60 * 60 * 1000 // 24 hours TTL (styles rarely change)
-        });
+        const response = await stylesService.getAll();
         
         if (!isMounted) return;
         
