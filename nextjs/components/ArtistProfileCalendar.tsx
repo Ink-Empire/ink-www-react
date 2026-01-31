@@ -319,7 +319,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     setIsTogglingBooks(true);
 
     try {
-      await artistService.updateProfile(resolvedArtistId, { books_open: newValue } as any);
+      await artistService.updateSettings(resolvedArtistId, { books_open: newValue });
     } catch (err) {
       console.error('Failed to update books status:', err);
       // Revert on error
@@ -351,12 +351,12 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     if (!resolvedArtistId) return;
     setSavingSettings(true);
     try {
-      await artistService.updateProfile(resolvedArtistId, {
+      await artistService.updateSettings(resolvedArtistId, {
         hourly_rate: bookingSettings.hourly_rate ? parseFloat(bookingSettings.hourly_rate) : 0,
         deposit_amount: bookingSettings.deposit_amount ? parseFloat(bookingSettings.deposit_amount) : 0,
         consultation_fee: bookingSettings.consultation_fee ? parseFloat(bookingSettings.consultation_fee) : 0,
         minimum_session: bookingSettings.minimum_session ? parseFloat(bookingSettings.minimum_session) : 0
-      } as any);
+      });
     } catch (err) {
       console.error('Failed to save booking settings:', err);
     } finally {
