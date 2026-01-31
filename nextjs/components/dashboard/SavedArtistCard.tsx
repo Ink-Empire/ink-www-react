@@ -53,7 +53,7 @@ export function SavedArtistCard({ artist, onRemove }: SavedArtistCardProps) {
         <DeleteIcon sx={{ fontSize: 14 }} />
       </IconButton>
 
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
+      <Link href={`/artists/${artist.slug}`} style={{ textDecoration: 'none' }}>
         <Avatar
           src={artist.image?.uri}
           sx={{
@@ -70,7 +70,7 @@ export function SavedArtistCard({ artist, onRemove }: SavedArtistCardProps) {
           {artistInitials}
         </Avatar>
       </Link>
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
+      <Link href={`/artists/${artist.slug}`} style={{ textDecoration: 'none' }}>
         <Typography sx={{
           fontSize: '0.85rem',
           fontWeight: 600,

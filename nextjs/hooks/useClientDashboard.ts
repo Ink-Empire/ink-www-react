@@ -27,6 +27,7 @@ export interface SuggestedArtist {
   id: number;
   name: string | null;
   username: string;
+  slug: string;
   image: { id: number; uri: string } | null;
   studio: { id: number; name: string } | null;
   styles: { id: number; name: string }[];
@@ -119,7 +120,6 @@ export function useWishlist(): UseWishlistReturn {
   const [error, setError] = useState<string | null>(null);
 
   const fetchWishlist = useCallback(async () => {
-    console.log('[useWishlist] Fetching favorites...');
     try {
       setLoading(true);
       setError(null);
@@ -127,7 +127,6 @@ export function useWishlist(): UseWishlistReturn {
       // Call /client/favorites which queries users_artists table (bookmarked artists)
       const response = await clientService.getFavorites();
 
-      console.log('[useWishlist] Response:', response);
       setWishlist(response.favorites || []);
     } catch (err) {
       console.error('[useWishlist] Error fetching favorites:', err);
