@@ -16,6 +16,7 @@ import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { setToken } from '@/utils/auth';
 import { authService } from '@/services/authService';
+import { api } from '@/utils/api';
 
 type Status = 'pending' | 'verifying' | 'verified' | 'already_verified' | 'error';
 
