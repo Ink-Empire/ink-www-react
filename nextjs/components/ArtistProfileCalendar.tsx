@@ -230,8 +230,12 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         }
 
         if (booksAreOpen) {
-          const workingHoursData = await artistService.getWorkingHours(artist.slug);
-          setWorkingHours(workingHoursData || []);
+          const workingHoursResponse = await artistService.getWorkingHours(artist.slug);
+          // Handle both array and { data: [...] } response formats
+          const workingHoursData = Array.isArray(workingHoursResponse)
+            ? workingHoursResponse
+            : (workingHoursResponse?.data || []);
+          setWorkingHours(workingHoursData);
         } else {
           setWorkingHours([]);
         }
