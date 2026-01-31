@@ -1,5 +1,9 @@
 # ink-api Development Guide
 
+## Production URLs
+- **Frontend**: https://getinked.in (NOT inkedin.com)
+- **API**: https://api.getinked.in
+
 ## Code Completion Guidelines
 - Never use hardcoded data when fulfilling prompts. We will get data from the API and generate test data in the API.
 

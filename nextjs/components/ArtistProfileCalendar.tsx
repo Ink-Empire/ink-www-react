@@ -203,8 +203,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
           setResolvedArtistId(artistRecord.id);
         }
 
-        // Check artist_settings (the correct field name from API)
-        const settings = artistRecord?.settings || artistRecord?.settings;
+        // Fetch settings directly from database (not ES) to ensure fresh data
+        const settingsResponse = await artistService.getSettings(artistRecord.id);
+        const settings = settingsResponse?.data;
         const hasSettingsData = settings && Object.keys(settings).length > 0;
         const booksAreOpen = hasSettingsData && (
           settings?.books_open === true ||
@@ -212,13 +213,13 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         );
 
         // Only update booksOpen from API if we haven't made a local update recently
-        // This prevents stale Elasticsearch data from overwriting optimistic updates
+        // This prevents stale data from overwriting optimistic updates
         const recentLocalUpdate = booksOpenLocalUpdate.current && (Date.now() - booksOpenLocalUpdate.current) < 5000;
         if (!recentLocalUpdate) {
           setBooksOpen(booksAreOpen);
         }
 
-        // Populate booking settings from artist data (don't show 0 as value)
+        // Populate booking settings from fresh data (don't show 0 as value)
         if (settings) {
           setBookingSettings({
             hourly_rate: settings.hourly_rate && settings.hourly_rate > 0 ? settings.hourly_rate.toString() : '',
