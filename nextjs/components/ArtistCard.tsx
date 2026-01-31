@@ -66,8 +66,8 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
         return artist.name.substring(0, 2).toUpperCase();
     };
 
-    // Get featured image (first tattoo or primary/regular image)
-    const featuredImage = artist.tattoos?.[0]?.primary_image?.uri || artist.image?.uri || artist.primary_image?.uri;
+    // Get featured image (primary image or regular image)
+    const featuredImage = artist.primary_image?.uri || artist.image?.uri;
 
     // Determine availability status
     const getAvailability = () => {
