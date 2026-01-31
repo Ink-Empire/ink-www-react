@@ -32,6 +32,7 @@ import {
   Check as CheckIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../utils/api';
 import { tattooService } from '../services/tattooService';
 import { stylesService } from '../services/stylesService';
 import { useRouter } from 'next/router';
