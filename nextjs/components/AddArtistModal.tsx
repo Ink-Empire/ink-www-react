@@ -78,7 +78,7 @@ const AddArtistModal: React.FC<AddArtistModalProps> = ({
         setSuccess(null);
       }, 1500);
     } catch (err: any) {
-      if (err.message?.includes('404') || err.message?.includes('not found')) {
+      if (err.status === 404 || err.message?.includes('not found')) {
         setError('No artist found with that username. Make sure they have an artist account.');
       } else {
         setError(err.message || 'Failed to add artist');

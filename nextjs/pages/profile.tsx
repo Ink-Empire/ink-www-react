@@ -29,6 +29,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import BrandingWatermarkIcon from '@mui/icons-material/BrandingWatermark';
 import DeleteIcon from '@mui/icons-material/Delete';
 import BlockIcon from '@mui/icons-material/Block';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useAuth, useUser } from '@/contexts/AuthContext';
 import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
@@ -38,6 +39,7 @@ import { colors } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
 import { userService } from '@/services/userService';
 import { uploadImageToS3 } from '@/utils/s3Upload';
+import ComingSoonBadge from '@/components/ui/ComingSoonBadge';
 import {
   navItems,
   inputStyles,
@@ -617,16 +619,29 @@ const ProfilePage: React.FC = () => {
                     }}
                   >
                     <Icon sx={{ fontSize: 24, flexShrink: 0 }} />
-                    <Typography
-                      className="nav-label"
-                      sx={{
-                        fontSize: '0.95rem',
-                        opacity: 0,
-                        transition: 'opacity 0.15s ease'
-                      }}
-                    >
-                      {item.label}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography
+                        className="nav-label"
+                        sx={{
+                          fontSize: '0.95rem',
+                          opacity: 0,
+                          transition: 'opacity 0.15s ease'
+                        }}
+                      >
+                        {item.label}
+                      </Typography>
+                      {(item as any).badge && (
+                        <Box
+                          className="nav-label"
+                          sx={{
+                            opacity: 0,
+                            transition: 'opacity 0.15s ease',
+                          }}
+                        >
+                          <ComingSoonBadge size="small" />
+                        </Box>
+                      )}
+                    </Box>
                   </Box>
                 );
               })}
@@ -1466,7 +1481,13 @@ const ProfilePage: React.FC = () => {
 
           {/* Travel & Guest Spots Section (artists only) */}
           {isArtist && (
-            <SettingsSection id="travel" title="Travel & Guest Spots" icon={<PublicIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
+            <SettingsSection
+              id="travel"
+              title="Travel & Guest Spots"
+              icon={<PublicIcon sx={{ fontSize: 20 }} />}
+              defaultExpanded={false}
+              badge={<ComingSoonBadge size="small" />}
+            >
               <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, mb: '1rem' }}>
                 Let studios know you're interested in guest artist opportunities. This feature is coming soon.
               </Typography>
@@ -1623,7 +1644,7 @@ const ProfilePage: React.FC = () => {
             </Box>
             <Box
               component={Link}
-              href="/support"
+              href="/contact"
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',

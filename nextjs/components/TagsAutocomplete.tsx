@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import AddIcon from '@mui/icons-material/Add';
-import { colors } from '@/styles/colors';
+import { colors, inputStyles } from '@/styles/colors';
 import { api } from '@/utils/api';
 
 export interface Tag {
@@ -239,26 +239,9 @@ const TagsAutocomplete: React.FC<TagsAutocompleteProps> = ({
               ),
             }}
             sx={{
-              '& .MuiOutlinedInput-root': {
-                color: 'white',
-                '& fieldset': {
-                  borderColor: '#444',
-                },
-                '&:hover fieldset': {
-                  borderColor: colors.accent,
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: colors.accent,
-                },
-              },
-              '& .MuiInputLabel-root': {
-                color: '#888',
-                '&.Mui-focused': {
-                  color: colors.accent,
-                },
-              },
+              ...inputStyles.textField,
               '& .MuiFormHelperText-root': {
-                color: '#888',
+                color: colors.textMuted,
               },
             }}
           />
@@ -275,16 +258,16 @@ const TagsAutocomplete: React.FC<TagsAutocompleteProps> = ({
                 size="small"
                 sx={{
                   bgcolor: isPending ? 'transparent' : colors.accent,
-                  color: isPending ? colors.accent : 'white',
+                  color: isPending ? colors.accent : colors.background,
                   border: isPending ? `1px dashed ${colors.accent}` : 'none',
                   '& .MuiChip-deleteIcon': {
-                    color: isPending ? colors.accent : 'rgba(255, 255, 255, 0.7)',
+                    color: isPending ? colors.accent : 'rgba(0, 0, 0, 0.6)',
                     '&:hover': {
-                      color: isPending ? colors.accentHover : 'white',
+                      color: isPending ? colors.accentHover : colors.background,
                     },
                   },
                   '& .MuiChip-icon': {
-                    color: isPending ? colors.accent : 'rgba(255, 255, 255, 0.9)',
+                    color: isPending ? colors.accent : 'rgba(0, 0, 0, 0.7)',
                   },
                 }}
               />
@@ -299,7 +282,7 @@ const TagsAutocomplete: React.FC<TagsAutocompleteProps> = ({
                 <Typography component="span">
                   Add "<strong>{option.inputValue}</strong>"
                 </Typography>
-                <Typography component="span" sx={{ ml: 1, color: '#888', fontSize: '0.8em' }}>
+                <Typography component="span" sx={{ ml: 1, color: colors.textMuted, fontSize: '0.8em' }}>
                   (pending approval)
                 </Typography>
               </>
@@ -320,27 +303,27 @@ const TagsAutocomplete: React.FC<TagsAutocompleteProps> = ({
           '& .MuiAutocomplete-listbox': {
             backgroundColor: colors.surface,
             '& li': {
-              color: 'white',
+              color: colors.textPrimary,
               '&:hover': {
-                backgroundColor: 'rgba(51, 153, 137, 0.1)',
+                backgroundColor: colors.surfaceHover,
               },
               '&[aria-selected="true"]': {
-                backgroundColor: 'rgba(51, 153, 137, 0.2)',
+                backgroundColor: colors.accentDim,
               },
             },
           },
           '& .MuiAutocomplete-paper': {
             backgroundColor: colors.surface,
-            border: '1px solid #444',
+            border: `1px solid ${colors.inputBorder}`,
           },
           '& .MuiAutocomplete-noOptions': {
-            color: '#888',
+            color: colors.textMuted,
             backgroundColor: colors.surface,
           },
         }}
       />
       {value.some(t => t.is_pending) && (
-        <Typography sx={{ mt: 0.5, fontSize: '0.75rem', color: '#888', fontStyle: 'italic' }}>
+        <Typography sx={{ mt: 0.5, fontSize: '0.75rem', color: colors.textMuted, fontStyle: 'italic' }}>
           Tags with dotted borders are pending approval and won't be visible until reviewed.
         </Typography>
       )}

@@ -83,9 +83,9 @@ export const artistService = {
     );
   },
 
-  // Get artist settings (requires auth)
+  // Get artist settings (public - for booking info display)
   getSettings: async (artistId: number | string): Promise<{ data: any }> => {
-    return api.get(`/artists/${artistId}/settings`, { requiresAuth: true });
+    return api.get(`/artists/${artistId}/settings`, { useCache: false });
   },
 
   // Update artist settings (requires auth)

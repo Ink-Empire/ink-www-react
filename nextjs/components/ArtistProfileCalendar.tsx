@@ -294,8 +294,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
 
       setOnWishlist(true);
     } catch (error: any) {
-      // If already on wishlist (409), just mark as on wishlist
-      if (error?.message?.includes('409') || error?.message?.includes('already')) {
+      // If already on wishlist (409 Conflict), just mark as on wishlist
+      if (error?.status === 409 || error?.message?.includes('already')) {
         setOnWishlist(true);
       } else {
         console.error('Error adding to wishlist:', error);

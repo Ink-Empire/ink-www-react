@@ -49,6 +49,11 @@ export const colors = {
   borderLight: '#3A3A3A',
   borderSubtle: 'rgba(245, 244, 240, 0.06)',
 
+  // Input-specific (higher contrast for form fields)
+  inputBorder: '#4A4A4A',
+  inputBorderHover: '#5A5A5A',
+  inputBackground: '#1A1A1A',
+
   // Calendar/Availability (using success green)
   available: '#4A9B7F',
   todayHighlight: '#C9A962',
@@ -105,5 +110,80 @@ export const cssVars = {
   secondaryLight: 'var(--secondary-light)',
   secondaryDark: 'var(--secondary-dark)',
 } as const;
+
+// Reusable input styles for consistent form fields across the site
+export const inputStyles = {
+  // TextField styles
+  textField: {
+    '& .MuiOutlinedInput-root': {
+      color: colors.textPrimary,
+      backgroundColor: colors.inputBackground,
+      '& fieldset': {
+        borderColor: colors.inputBorder,
+        borderWidth: '1px',
+      },
+      '&:hover fieldset': {
+        borderColor: colors.inputBorderHover,
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: colors.accent,
+        borderWidth: '1px',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: colors.textSecondary,
+      '&.Mui-focused': {
+        color: colors.accent,
+      },
+    },
+    '& .MuiInputBase-input::placeholder': {
+      color: colors.textMuted,
+      opacity: 1,
+    },
+  },
+  // Select styles
+  select: {
+    color: colors.textPrimary,
+    backgroundColor: colors.inputBackground,
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: colors.inputBorder,
+      borderWidth: '1px',
+    },
+    '&:hover .MuiOutlinedInput-notchedOutline': {
+      borderColor: colors.inputBorderHover,
+    },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+      borderColor: colors.accent,
+      borderWidth: '1px',
+    },
+    '& .MuiSelect-icon': {
+      color: colors.textSecondary,
+    },
+  },
+  // Select menu props
+  selectMenuProps: {
+    PaperProps: {
+      sx: {
+        bgcolor: colors.surface,
+        border: `1px solid ${colors.inputBorder}`,
+        '& .MuiMenuItem-root': {
+          color: colors.textPrimary,
+          '&:hover': { bgcolor: colors.surfaceHover },
+          '&.Mui-selected': {
+            bgcolor: colors.accentDim,
+            '&:hover': { bgcolor: colors.accentDim },
+          },
+        },
+      },
+    },
+  },
+  // InputLabel styles
+  inputLabel: {
+    color: colors.textSecondary,
+    '&.Mui-focused': {
+      color: colors.accent,
+    },
+  },
+};
 
 export default colors;
