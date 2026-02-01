@@ -27,11 +27,21 @@ interface User {
   // Studio admin fields
   is_studio_admin?: boolean;
   studio_id?: number;
+  // Primary studio (for backwards compatibility)
   studio?: {
     id: number;
     name: string;
     slug: string;
-  };
+    image?: { id: number; uri: string } | null;
+  } | null;
+  // All verified studio affiliations
+  studios_affiliated?: {
+    id: number;
+    name: string;
+    slug: string;
+    image?: { id: number; uri: string } | null;
+    is_primary: boolean;
+  }[];
   owned_studio?: {
     id: number;
     name: string;
