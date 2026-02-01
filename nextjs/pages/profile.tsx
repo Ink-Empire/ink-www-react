@@ -11,6 +11,10 @@ import { Box, Typography, TextField, IconButton } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StarIcon from '@mui/icons-material/Star';
+import ShareIcon from '@mui/icons-material/Share';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import XIcon from '@mui/icons-material/X';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
@@ -135,6 +139,17 @@ const ProfilePage: React.FC = () => {
   const [blockedUsers, setBlockedUsers] = useState<Array<{ id: number; name: string; username?: string; slug?: string; image?: string }>>([]);
   const [unblocking, setUnblocking] = useState<number | null>(null);
 
+  // Social media links state
+  const [socialMediaLinks, setSocialMediaLinks] = useState<Record<string, string>>({
+    instagram: '',
+    facebook: '',
+    bluesky: '',
+    x: '',
+    tiktok: '',
+  });
+  const [hasUnsavedSocialLinks, setHasUnsavedSocialLinks] = useState(false);
+  const [savingSocialLinks, setSavingSocialLinks] = useState(false);
+
   // Track unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>(userData.styles || []);
@@ -173,6 +188,22 @@ const ProfilePage: React.FC = () => {
       // Initialize blocked users from userData
       if ((userData as any).blocked_users) {
         setBlockedUsers((userData as any).blocked_users);
+      }
+      // Initialize social media links from userData
+      if ((userData as any).social_media_links) {
+        const links: Record<string, string> = {
+          instagram: '',
+          facebook: '',
+          bluesky: '',
+          x: '',
+          tiktok: '',
+        };
+        (userData as any).social_media_links.forEach((link: { platform: string; username: string }) => {
+          if (links.hasOwnProperty(link.platform)) {
+            links[link.platform] = link.username;
+          }
+        });
+        setSocialMediaLinks(links);
       }
     }
   }, [userData]);
@@ -447,6 +478,37 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  // Handle social media link change
+  const handleSocialMediaChange = (platform: string, value: string) => {
+    setSocialMediaLinks(prev => ({ ...prev, [platform]: value }));
+    setHasUnsavedSocialLinks(true);
+  };
+
+  // Save social media links
+  const handleSaveSocialLinks = async () => {
+    setSavingSocialLinks(true);
+    try {
+      // Build array of non-empty links
+      const links = Object.entries(socialMediaLinks)
+        .filter(([_, username]) => username.trim() !== '')
+        .map(([platform, username]) => ({
+          platform: platform as 'instagram' | 'facebook' | 'bluesky' | 'x' | 'tiktok',
+          username: username.trim().replace(/^@/, ''), // Remove @ if user included it
+        }));
+
+      await userService.updateSocialMediaLinks(links);
+      setHasUnsavedSocialLinks(false);
+      setToastMessage('Social media links updated');
+      setShowToast(true);
+    } catch (err) {
+      console.error('Error saving social media links:', err);
+      setToastMessage('Failed to save social media links');
+      setShowToast(true);
+    } finally {
+      setSavingSocialLinks(false);
+    }
+  };
+
   // Open styles modal
   const openStylesModal = () => {
     setStyleModalOpen(true);
@@ -592,7 +654,7 @@ const ProfilePage: React.FC = () => {
             {navItems
               .filter(item => {
                 // Filter out artist-only sections for non-artists
-                if (!isArtist && ['studio', 'hours', 'booking', 'watermark', 'travel'].includes(item.id)) {
+                if (!isArtist && ['studio', 'social', 'hours', 'booking', 'watermark', 'travel'].includes(item.id)) {
                   return false;
                 }
                 return true;
@@ -989,6 +1051,140 @@ const ProfilePage: React.FC = () => {
                 />
               </FormGroup>
             </Box>
+          </SettingsSection>
+        )}
+
+        {/* Social Media Section (artists only) */}
+        {isArtist && (
+          <SettingsSection id="social" title="Social Media" icon={<ShareIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
+            <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, mb: '1rem' }}>
+              Add your social media accounts to display on your public profile. Enter just your username, not the full URL.
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <FormGroup label="Instagram">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="username"
+                  value={socialMediaLinks.instagram}
+                  onChange={(e) => handleSocialMediaChange('instagram', e.target.value)}
+                  InputProps={{
+                    startAdornment: <InstagramIcon sx={{ fontSize: 20, color: colors.textSecondary, mr: 1 }} />,
+                  }}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+              <FormGroup label="Facebook">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="username"
+                  value={socialMediaLinks.facebook}
+                  onChange={(e) => handleSocialMediaChange('facebook', e.target.value)}
+                  InputProps={{
+                    startAdornment: <FacebookIcon sx={{ fontSize: 20, color: colors.textSecondary, mr: 1 }} />,
+                  }}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+              <FormGroup label="X (Twitter)">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="username"
+                  value={socialMediaLinks.x}
+                  onChange={(e) => handleSocialMediaChange('x', e.target.value)}
+                  InputProps={{
+                    startAdornment: <XIcon sx={{ fontSize: 20, color: colors.textSecondary, mr: 1 }} />,
+                  }}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+              <FormGroup label="Bluesky">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="username.bsky.social"
+                  value={socialMediaLinks.bluesky}
+                  onChange={(e) => handleSocialMediaChange('bluesky', e.target.value)}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+              <FormGroup label="TikTok">
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="username"
+                  value={socialMediaLinks.tiktok}
+                  onChange={(e) => handleSocialMediaChange('tiktok', e.target.value)}
+                  sx={inputStyles}
+                />
+              </FormGroup>
+            </Box>
+
+            {/* Save Social Links Button */}
+            {hasUnsavedSocialLinks && (
+              <Box sx={{ display: 'flex', gap: '0.75rem', mt: '1.5rem' }}>
+                <Box
+                  component="button"
+                  onClick={() => {
+                    // Re-initialize from userData
+                    if ((userData as any).social_media_links) {
+                      const links: Record<string, string> = {
+                        instagram: '',
+                        facebook: '',
+                        bluesky: '',
+                        x: '',
+                        tiktok: '',
+                      };
+                      (userData as any).social_media_links.forEach((link: { platform: string; username: string }) => {
+                        if (links.hasOwnProperty(link.platform)) {
+                          links[link.platform] = link.username;
+                        }
+                      });
+                      setSocialMediaLinks(links);
+                    }
+                    setHasUnsavedSocialLinks(false);
+                  }}
+                  sx={{
+                    px: '1rem',
+                    py: '0.5rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: `1px solid ${colors.borderLight}`,
+                    bgcolor: 'transparent',
+                    color: colors.textPrimary,
+                    fontFamily: 'inherit',
+                    '&:hover': { borderColor: colors.accent, color: colors.accent }
+                  }}
+                >
+                  Discard
+                </Box>
+                <Box
+                  component="button"
+                  onClick={handleSaveSocialLinks}
+                  disabled={savingSocialLinks}
+                  sx={{
+                    px: '1rem',
+                    py: '0.5rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: 'none',
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    fontFamily: 'inherit',
+                    opacity: savingSocialLinks ? 0.7 : 1,
+                    '&:hover': { bgcolor: colors.accentHover }
+                  }}
+                >
+                  {savingSocialLinks ? 'Saving...' : 'Save Social Links'}
+                </Box>
+              </Box>
+            )}
           </SettingsSection>
         )}
 
@@ -1703,7 +1899,7 @@ const ProfilePage: React.FC = () => {
           {navItems
             .filter(item => {
               // Filter out artist-only sections for non-artists
-              if (!isArtist && ['studio', 'hours', 'booking', 'watermark', 'travel'].includes(item.id)) {
+              if (!isArtist && ['studio', 'social', 'hours', 'booking', 'watermark', 'travel'].includes(item.id)) {
                 return false;
               }
               return true;

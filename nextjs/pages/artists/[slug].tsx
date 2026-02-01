@@ -26,6 +26,7 @@ import ArtistProfileCalendar from '@/components/ArtistProfileCalendar';
 import BookingModal from '@/components/BookingModal';
 import { colors } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
+import SocialMediaIcons from '@/components/SocialMediaIcons';
 
 export default function ArtistDetail() {
     const router = useRouter();
@@ -519,6 +520,7 @@ export default function ArtistDetail() {
                                 ))}
                             </Box>
                         )}
+
                     </Box>
 
                     {/* Artist Actions */}
@@ -862,6 +864,13 @@ export default function ArtistDetail() {
                                         </Box>
                                     ))}
                                 </Box>
+
+                                {/* Social Media Links */}
+                                {artist?.social_media_links && artist.social_media_links.length > 0 && (
+                                    <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${colors.border}` }}>
+                                        <SocialMediaIcons links={artist.social_media_links} size="large" />
+                                    </Box>
+                                )}
                             </Box>
 
                             {/* Info Card */}

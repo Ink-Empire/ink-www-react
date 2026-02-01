@@ -15,6 +15,12 @@ export interface ChangePasswordData {
   password_confirmation: string;
 }
 
+export interface SocialMediaLink {
+  platform: 'instagram' | 'facebook' | 'bluesky' | 'x' | 'tiktok';
+  username: string;
+  url?: string;
+}
+
 export const userService = {
   // Get current user profile (requires auth)
   getMe: async (): Promise<any> => {
@@ -60,5 +66,15 @@ export const userService = {
   // Get user by ID (public for artists, requires auth for full profile)
   getById: async (userId: number): Promise<any> => {
     return api.get(`/users/${userId}`);
+  },
+
+  // Update social media links (requires auth)
+  updateSocialMediaLinks: async (links: SocialMediaLink[]): Promise<any> => {
+    return api.post('/users/me/social-links', { links }, { requiresAuth: true });
+  },
+
+  // Delete a social media link (requires auth)
+  deleteSocialMediaLink: async (platform: string): Promise<any> => {
+    return api.delete(`/users/me/social-links/${platform}`, { requiresAuth: true });
   },
 };
