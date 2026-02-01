@@ -30,6 +30,30 @@ const isDemoModeEnabled = (): boolean => {
   }
 };
 
+// Sanitize error messages to never expose technical details to users
+const sanitizeErrorMessage = (message: string | undefined): string => {
+  if (!message) return 'Something went wrong. Please try again.';
+
+  const technicalIndicators = [
+    'SQLSTATE',
+    'Connection',
+    'Exception',
+    'Stack trace',
+    'vendor/',
+    'at line',
+    'Column not found',
+    'Duplicate entry',
+    'foreign key constraint',
+    'Query:',
+  ];
+
+  const isTechnicalError = technicalIndicators.some(indicator =>
+    message.toLowerCase().includes(indicator.toLowerCase())
+  );
+
+  return isTechnicalError ? 'Something went wrong. Please try again.' : message;
+};
+
 // Function to get CSRF token from cookies or localStorage
 export const getCsrfToken = (): string | null => {
   if (typeof document === 'undefined') return null; // SSR check
@@ -257,10 +281,12 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
       responseData = await response.json();
 
       if (!response.ok) {
-        // Create error with full response data for proper error handling
-        const error = new Error(responseData.message || 'API request failed') as any;
+        // Create error with sanitized message - never expose technical details
+        const error = new Error(sanitizeErrorMessage(responseData.message)) as any;
         error.status = response.status;
         error.data = responseData;
+        // Keep original message for logging but don't expose to UI
+        error.originalMessage = responseData.message;
         throw error;
       }
     } else {
