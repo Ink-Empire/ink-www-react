@@ -220,17 +220,15 @@ const StudioInvitations: React.FC<StudioInvitationsProps> = ({ onInvitationAccep
                       </Typography>
                     </Box>
                   )}
-                  {invitation.owner && (
-                    <Typography
-                      sx={{
-                        color: colors.textSecondary,
-                        fontSize: '0.75rem',
-                        mt: 0.5,
-                      }}
-                    >
-                      Invited by {invitation.owner.name}
-                    </Typography>
-                  )}
+                  <Typography
+                    sx={{
+                      color: colors.textSecondary,
+                      fontSize: '0.75rem',
+                      mt: 0.5,
+                    }}
+                  >
+                    Accept to confirm you work here
+                  </Typography>
                 </Box>
               </Link>
 

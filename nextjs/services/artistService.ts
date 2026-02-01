@@ -18,6 +18,13 @@ export const artistService = {
     return response.artist;
   },
 
+  // Lookup artist by username or email (validates they exist)
+  lookupByIdentifier: async (identifier: string): Promise<{ artist: { id: number; name: string; username: string; slug?: string; image?: any } }> => {
+    return api.post('/artists/lookup', { username: identifier }, {
+      requiresAuth: true,
+    });
+  },
+
   // Search artists with pagination (public access, but sends auth if available for block filtering)
   search: async (params: Record<string, any>): Promise<{
     response: IArtist[];
@@ -78,6 +85,23 @@ export const artistService = {
   declineStudioInvitation: async (studioId: number): Promise<{ success: boolean; message: string }> => {
     return api.post<{ success: boolean; message: string }>(
       `/artists/me/studio-invitations/${studioId}/decline`,
+      {},
+      { requiresAuth: true }
+    );
+  },
+
+  // Leave/remove studio affiliation (requires auth)
+  leaveStudio: async (studioId: number): Promise<{ success: boolean; message: string }> => {
+    return api.delete<{ success: boolean; message: string }>(
+      `/artists/me/studio/${studioId}`,
+      { requiresAuth: true }
+    );
+  },
+
+  // Set a studio as primary (requires auth)
+  setPrimaryStudio: async (studioId: number): Promise<{ success: boolean; message: string }> => {
+    return api.post<{ success: boolean; message: string }>(
+      `/artists/me/studio/${studioId}/primary`,
       {},
       { requiresAuth: true }
     );

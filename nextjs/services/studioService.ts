@@ -26,7 +26,8 @@ export const studioService = {
 
   // Get studio's artists (public access)
   getArtists: async (studioIdOrSlug: number | string): Promise<any[]> => {
-    return api.get<any[]>(`/studios/${studioIdOrSlug}/artists`);
+    const response = await api.get<any[] | { artists: any[] }>(`/studios/${studioIdOrSlug}/artists`);
+    return (response as any).artists || response || [];
   },
 
   // Get studio's gallery/tattoos (public access)
