@@ -51,6 +51,7 @@ export type {
 export type {
   CreateLeadData,
   WishlistItem,
+  LeadStatusResponse,
 } from './leadService';
 
 export type {

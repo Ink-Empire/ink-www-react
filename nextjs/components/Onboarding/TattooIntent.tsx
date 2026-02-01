@@ -43,6 +43,13 @@ interface TattooIntentProps {
   onBack: () => void;
   selectedStyles: number[]; // From previous step, to show relevant tags
   isModalMode?: boolean; // When true, hides "Not right now" option and contact toggle
+  initialData?: {
+    timing?: 'week' | 'month' | 'year' | null;
+    tag_ids?: number[];
+    custom_themes?: string[];
+    description?: string;
+    allow_artist_contact?: boolean;
+  };
 }
 
 const timingOptions = [
@@ -57,12 +64,14 @@ const TattooIntent: React.FC<TattooIntentProps> = ({
   onBack,
   selectedStyles,
   isModalMode = false,
+  initialData,
 }) => {
-  const [timing, setTiming] = useState<'week' | 'month' | 'year' | null>(null);
-  const [showFollowUp, setShowFollowUp] = useState(false);
+  const [timing, setTiming] = useState<'week' | 'month' | 'year' | null>(initialData?.timing ?? null);
+  const [showFollowUp, setShowFollowUp] = useState(!!initialData?.timing);
   const [selectedThemes, setSelectedThemes] = useState<ThemeItem[]>([]);
-  const [description, setDescription] = useState('');
-  const [allowArtistContact, setAllowArtistContact] = useState(true);
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [allowArtistContact, setAllowArtistContact] = useState(initialData?.allow_artist_contact ?? true);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const modalTitle = isModalMode ? "When are you planning to get a tattoo?" : "Are you planning to get a tattoo?";
 
   // Tag search state
@@ -70,6 +79,41 @@ const TattooIntent: React.FC<TattooIntentProps> = ({
   const [tagOptions, setTagOptions] = useState<Tag[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load initial data (tags by ID and custom themes)
+  useEffect(() => {
+    if (initialDataLoaded || !initialData) return;
+
+    const loadInitialThemes = async () => {
+      const themes: ThemeItem[] = [];
+
+      // Add custom themes
+      if (initialData.custom_themes?.length) {
+        initialData.custom_themes.forEach(name => {
+          themes.push({ id: null, name, isCustom: true });
+        });
+      }
+
+      // Fetch tags by IDs
+      if (initialData.tag_ids?.length) {
+        try {
+          const response = await api.get<{ success: boolean; data: Tag[] }>(
+            `/tags?ids=${initialData.tag_ids.join(',')}`
+          );
+          if (response.data) {
+            themes.push(...response.data);
+          }
+        } catch (err) {
+          console.error('Error fetching tags:', err);
+        }
+      }
+
+      setSelectedThemes(themes);
+      setInitialDataLoaded(true);
+    };
+
+    loadInitialThemes();
+  }, [initialData, initialDataLoaded]);
 
   // Search tags as user types
   const searchTags = useCallback(async (query: string) => {
@@ -318,6 +362,38 @@ const TattooIntent: React.FC<TattooIntentProps> = ({
                     ? option === value
                     : option.id === value.id
                 }
+                renderOption={(props, option) => (
+                  <Box
+                    component="li"
+                    {...props}
+                    key={typeof option === 'string' ? option : option.id}
+                    sx={{
+                      p: '8px 12px !important',
+                      '&:hover': { bgcolor: `${colors.accent}15 !important` },
+                    }}
+                  >
+                    <Chip
+                      label={typeof option === 'string' ? option : option.name}
+                      size="small"
+                      sx={{
+                        bgcolor: `${colors.accent}20`,
+                        color: colors.accent,
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: `${colors.accent}30` },
+                      }}
+                    />
+                    <Typography
+                      sx={{
+                        ml: 1.5,
+                        fontSize: '0.75rem',
+                        color: colors.textMuted,
+                      }}
+                    >
+                      Click to add
+                    </Typography>
+                  </Box>
+                )}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -347,29 +423,73 @@ const TattooIntent: React.FC<TattooIntentProps> = ({
                 )}
                 noOptionsText={
                   tagSearchValue.length < 2
-                    ? 'Type at least 2 characters'
-                    : `Press Enter to add "${tagSearchValue}"`
+                    ? (
+                      <Typography sx={{ color: colors.textMuted, fontSize: '0.875rem' }}>
+                        Type at least 2 characters to search
+                      </Typography>
+                    )
+                    : (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip
+                          label={`Add "${tagSearchValue}"`}
+                          size="small"
+                          sx={{
+                            bgcolor: `${colors.textSecondary}20`,
+                            color: colors.textSecondary,
+                            fontWeight: 500,
+                          }}
+                        />
+                        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted }}>
+                          Press Enter
+                        </Typography>
+                      </Box>
+                    )
                 }
+                slotProps={{
+                  paper: {
+                    sx: {
+                      bgcolor: colors.surface,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: '8px',
+                      mt: 0.5,
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                    }
+                  },
+                  listbox: {
+                    sx: {
+                      py: 1,
+                      '& .MuiAutocomplete-option': {
+                        minHeight: 'auto',
+                      }
+                    }
+                  }
+                }}
               />
 
               {/* Selected Themes (tags and custom) */}
               {selectedThemes.length > 0 && (
-                <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {selectedThemes.map((theme, index) => (
-                    <Chip
-                      key={'isCustom' in theme ? `custom-${theme.name}` : theme.id}
-                      label={theme.name}
-                      onDelete={() => handleThemeRemove(theme)}
-                      sx={{
-                        backgroundColor: 'isCustom' in theme ? `${colors.textSecondary}20` : `${colors.accent}20`,
-                        color: 'isCustom' in theme ? colors.textSecondary : colors.accent,
-                        '& .MuiChip-deleteIcon': {
+                <Box sx={{ mt: 2 }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Selected themes
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {selectedThemes.map((theme) => (
+                      <Chip
+                        key={'isCustom' in theme ? `custom-${theme.name}` : theme.id}
+                        label={theme.name}
+                        onDelete={() => handleThemeRemove(theme)}
+                        sx={{
+                          backgroundColor: 'isCustom' in theme ? `${colors.textSecondary}20` : `${colors.accent}20`,
                           color: 'isCustom' in theme ? colors.textSecondary : colors.accent,
-                          '&:hover': { color: 'isCustom' in theme ? colors.textPrimary : colors.accentDark },
-                        },
-                      }}
-                    />
-                  ))}
+                          fontWeight: 500,
+                          '& .MuiChip-deleteIcon': {
+                            color: 'isCustom' in theme ? colors.textSecondary : colors.accent,
+                            '&:hover': { color: 'isCustom' in theme ? colors.textPrimary : colors.accentDark },
+                          },
+                        }}
+                      />
+                    ))}
+                  </Box>
                 </Box>
               )}
 

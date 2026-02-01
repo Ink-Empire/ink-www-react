@@ -32,13 +32,26 @@ interface ClientDashboardContentProps {
   userId: number;
 }
 
+interface LeadData {
+  id: number;
+  timing: 'week' | 'month' | 'year' | null;
+  allow_artist_contact: boolean;
+  style_ids: number[];
+  tag_ids: number[];
+  custom_themes: string[];
+  description: string;
+  is_active: boolean;
+}
+
 export default function ClientDashboardContent({ userName, userId }: ClientDashboardContentProps) {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [leadActive, setLeadActive] = useState(false);
+  const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [leadLoading, setLeadLoading] = useState(true);
   const [leadToggling, setLeadToggling] = useState(false);
   const [artistsNotified, setArtistsNotified] = useState(0);
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
+  const [isEditingLead, setIsEditingLead] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
   const [beaconSnackbarOpen, setBeaconSnackbarOpen] = useState(false);
@@ -86,6 +99,9 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         const response = await leadService.getStatus();
         setLeadActive(response.is_active || false);
         setArtistsNotified(response.artists_notified || 0);
+        if (response.lead) {
+          setLeadData(response.lead);
+        }
       } catch (err) {
         console.error('Failed to fetch lead status:', err);
       } finally {
@@ -116,16 +132,33 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const handleIntentSubmit = async (intentData: TattooIntentData) => {
     setLeadToggling(true);
     try {
-      await leadService.create({
+      const payload = {
         timing: intentData.timing,
         allow_artist_contact: intentData.allowArtistContact,
         tag_ids: intentData.selectedTags,
         custom_themes: intentData.customThemes || [],
         description: intentData.description || '',
-      });
-      setLeadActive(true);
+      };
+
+      if (isEditingLead && leadData) {
+        // Update existing lead
+        await leadService.update(payload);
+      } else {
+        // Create new lead
+        await leadService.create(payload);
+        setBeaconSnackbarOpen(true);
+      }
+
+      // Refresh lead data
+      const response = await leadService.getStatus();
+      setLeadActive(response.is_active || false);
+      setArtistsNotified(response.artists_notified || 0);
+      if (response.lead) {
+        setLeadData(response.lead);
+      }
+
       setIntentDialogOpen(false);
-      setBeaconSnackbarOpen(true);
+      setIsEditingLead(false);
     } catch (err) {
       console.error('Failed to save lead preferences:', err);
     } finally {
@@ -133,8 +166,14 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
     }
   };
 
+  const handleEditLead = () => {
+    setIsEditingLead(true);
+    setIntentDialogOpen(true);
+  };
+
   const handleIntentDialogClose = () => {
     setIntentDialogOpen(false);
+    setIsEditingLead(false);
   };
 
   const {
@@ -288,22 +327,47 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             {leadLoading ? (
               <CircularProgress size={24} sx={{ color: colors.accent }} />
             ) : (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {leadToggling && <CircularProgress size={16} sx={{ color: colors.accent }} />}
-                <Switch
-                  checked={leadActive}
-                  onChange={handleLeadToggle}
-                  disabled={leadToggling}
-                  sx={{
-                    '& .MuiSwitch-switchBase.Mui-checked': {
+              <>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {leadToggling && <CircularProgress size={16} sx={{ color: colors.accent }} />}
+                  <Switch
+                    checked={leadActive}
+                    onChange={handleLeadToggle}
+                    disabled={leadToggling}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: colors.accent,
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                        backgroundColor: colors.accent,
+                      },
+                    }}
+                  />
+                </Box>
+                {leadActive && leadData && (
+                  <Button
+                    onClick={handleEditLead}
+                    size="small"
+                    sx={{
+                      mt: 1.5,
+                      px: 2,
+                      py: 0.5,
                       color: colors.accent,
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                      backgroundColor: colors.accent,
-                    },
-                  }}
-                />
-              </Box>
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      textTransform: 'none',
+                      border: `1px solid ${colors.accent}`,
+                      borderRadius: '6px',
+                      '&:hover': {
+                        bgcolor: colors.accent,
+                        color: colors.background,
+                      }
+                    }}
+                  >
+                    Edit My Idea
+                  </Button>
+                )}
+              </>
             )}
           </Box>
         </Card>
@@ -591,7 +655,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           borderBottom: `1px solid ${colors.border}`,
         }}>
           <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.textPrimary }}>
-            Tell us about your tattoo plans
+            {isEditingLead ? 'Edit your tattoo idea' : 'Tell us about your tattoo plans'}
           </Typography>
           <IconButton
             onClick={handleIntentDialogClose}
@@ -603,10 +667,18 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         <DialogContent sx={{ p: 0 }}>
           <Box sx={{ p: { xs: 2, sm: 3 } }}>
             <TattooIntent
+              key={isEditingLead ? 'edit' : 'create'}
               onStepComplete={handleIntentSubmit}
               onBack={handleIntentDialogClose}
               selectedStyles={[]}
               isModalMode
+              initialData={isEditingLead && leadData ? {
+                timing: leadData.timing,
+                tag_ids: leadData.tag_ids,
+                custom_themes: leadData.custom_themes,
+                description: leadData.description,
+                allow_artist_contact: leadData.allow_artist_contact,
+              } : undefined}
             />
           </Box>
         </DialogContent>

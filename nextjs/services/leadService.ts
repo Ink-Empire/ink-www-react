@@ -20,10 +20,27 @@ export interface WishlistItem {
   notify_booking_open?: boolean;
 }
 
+export interface LeadStatusResponse {
+  has_lead: boolean;
+  is_active: boolean;
+  artists_notified: number;
+  lead?: {
+    id: number;
+    timing: 'week' | 'month' | 'year' | null;
+    interested_by: string | null;
+    allow_artist_contact: boolean;
+    style_ids: number[];
+    tag_ids: number[];
+    custom_themes: string[];
+    description: string;
+    is_active: boolean;
+  };
+}
+
 export const leadService = {
   // Get lead status for current client (requires auth)
-  getStatus: async (): Promise<{ has_lead: boolean; is_active: boolean; artists_notified: number }> => {
-    return api.get('/leads/status', { requiresAuth: true });
+  getStatus: async (): Promise<LeadStatusResponse> => {
+    return api.get('/leads/status', { requiresAuth: true, useCache: false });
   },
 
   // Create a new lead (requires auth)
