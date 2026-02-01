@@ -7,6 +7,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
 import BrandingWatermarkIcon from '@mui/icons-material/BrandingWatermark';
 import PublicIcon from '@mui/icons-material/Public';
+import ShareIcon from '@mui/icons-material/Share';
 
 // Navigation items for sidebar
 export const navItems = [
@@ -14,6 +15,7 @@ export const navItems = [
   { id: 'about', label: 'About', icon: PersonIcon },
   { id: 'location', label: 'Location', icon: HomeIcon },
   { id: 'studio', label: 'Studio', icon: LocationOnIcon },
+  { id: 'social', label: 'Social', icon: ShareIcon },
   { id: 'styles', label: 'Styles', icon: StarIcon },
   { id: 'hours', label: 'Hours', icon: AccessTimeIcon },
   { id: 'booking', label: 'Booking & Rates', icon: EventIcon },
