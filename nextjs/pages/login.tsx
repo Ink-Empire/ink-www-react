@@ -72,7 +72,13 @@ const LoginPage: React.FC = () => {
         router.push(`/verify-email?email=${email}`);
         return;
       }
-      setError(err.message || 'Login failed. Please try again.');
+      // Never show technical errors to users
+      const message = err.message || '';
+      const isTechnicalError = message.includes('SQLSTATE') ||
+        message.includes('Connection') ||
+        message.includes('Exception') ||
+        message.includes('Error:');
+      setError(isTechnicalError ? 'Something went wrong. Please try again later.' : (message || 'Login failed. Please try again.'));
     }
   };
 

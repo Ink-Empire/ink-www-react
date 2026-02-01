@@ -13,6 +13,7 @@ import ShareIcon from '@mui/icons-material/Share';
 export const navItems = [
   { id: 'photo', label: 'Photo', icon: CameraAltIcon },
   { id: 'about', label: 'About', icon: PersonIcon },
+  { id: 'location', label: 'Location', icon: HomeIcon },
   { id: 'studio', label: 'Studio', icon: LocationOnIcon },
   { id: 'social', label: 'Social', icon: ShareIcon },
   { id: 'styles', label: 'Styles', icon: StarIcon },

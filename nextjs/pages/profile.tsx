@@ -34,7 +34,9 @@ import BrandingWatermarkIcon from '@mui/icons-material/BrandingWatermark';
 import DeleteIcon from '@mui/icons-material/Delete';
 import BlockIcon from '@mui/icons-material/Block';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import HomeIcon from '@mui/icons-material/Home';
 import { useAuth, useUser } from '@/contexts/AuthContext';
+import LocationAutocomplete from '@/components/LocationAutocomplete';
 import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
@@ -158,6 +160,12 @@ const ProfilePage: React.FC = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
 
+  // Location state for all users
+  const [userLocation, setUserLocation] = useState('');
+  const [userLocationLatLong, setUserLocationLatLong] = useState('');
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
+
   // Extract artist ID safely - ensure it's always a number or null
   const artistId = React.useMemo(() => {
     if (!userData?.id) return null;
@@ -205,6 +213,9 @@ const ProfilePage: React.FC = () => {
         });
         setSocialMediaLinks(links);
       }
+      // Initialize location from userData
+      setUserLocation((userData as any).location || '');
+      setUserLocationLatLong((userData as any).location_lat_long || '');
     }
   }, [userData]);
 
@@ -352,6 +363,32 @@ const ProfilePage: React.FC = () => {
     } catch (err) {
       setToastMessage('Failed to save changes');
       setShowToast(true);
+    }
+  };
+
+  // Handle location change
+  const handleLocationChange = (location: string, latLong: string) => {
+    setUserLocation(location);
+    setUserLocationLatLong(latLong);
+  };
+
+  // Save location
+  const handleSaveLocation = async (): Promise<boolean> => {
+    try {
+      setSavingLocation(true);
+      await updateUser({
+        location: userLocation,
+        location_lat_long: userLocationLatLong,
+      });
+      setToastMessage('Location updated successfully');
+      setShowToast(true);
+      return true;
+    } catch (err) {
+      setToastMessage('Failed to update location');
+      setShowToast(true);
+      return false;
+    } finally {
+      setSavingLocation(false);
     }
   };
 
@@ -988,6 +1025,108 @@ const ProfilePage: React.FC = () => {
               sx={inputStyles}
             />
           </FormGroup>
+        </SettingsSection>
+
+        {/* Your Location Section (all users) */}
+        <SettingsSection id="location" title="Your Location" icon={<HomeIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
+          <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, mb: '1rem' }}>
+            {isArtist
+              ? 'Set your home location for travel notifications and local search visibility.'
+              : 'Set your home location to find artists near you.'}
+          </Typography>
+
+          {!editingLocation ? (
+            // Display mode - show current location with edit button
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                p: '0.75rem 1rem',
+                bgcolor: colors.background,
+                border: `1px solid ${colors.border}`,
+                borderRadius: '8px',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <LocationOnIcon sx={{ fontSize: 20, color: colors.accent }} />
+                <Typography sx={{ fontSize: '0.95rem', color: userLocation ? colors.textPrimary : colors.textSecondary }}>
+                  {userLocation || 'No location set'}
+                </Typography>
+              </Box>
+              <IconButton
+                onClick={() => setEditingLocation(true)}
+                sx={{
+                  p: '0.5rem',
+                  color: colors.textSecondary,
+                  '&:hover': { color: colors.accent, bgcolor: 'transparent' }
+                }}
+              >
+                <EditIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Box>
+          ) : (
+            // Edit mode - show autocomplete with save/cancel
+            <>
+              <FormGroup label="Home Location">
+                <LocationAutocomplete
+                  value={userLocation}
+                  onChange={handleLocationChange}
+                  label=""
+                  placeholder="Search for your city..."
+                />
+              </FormGroup>
+              <Box sx={{ display: 'flex', gap: '0.75rem', mt: '1rem' }}>
+                <Box
+                  component="button"
+                  onClick={() => {
+                    setUserLocation((userData as any)?.location || '');
+                    setUserLocationLatLong((userData as any)?.location_lat_long || '');
+                    setEditingLocation(false);
+                  }}
+                  sx={{
+                    px: '1rem',
+                    py: '0.5rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: `1px solid ${colors.borderLight}`,
+                    bgcolor: 'transparent',
+                    color: colors.textPrimary,
+                    fontFamily: 'inherit',
+                    '&:hover': { borderColor: colors.accent, color: colors.accent }
+                  }}
+                >
+                  Cancel
+                </Box>
+                <Box
+                  component="button"
+                  onClick={async () => {
+                    const success = await handleSaveLocation();
+                    if (success) setEditingLocation(false);
+                  }}
+                  disabled={savingLocation}
+                  sx={{
+                    px: '1rem',
+                    py: '0.5rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: 'none',
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    fontFamily: 'inherit',
+                    opacity: savingLocation ? 0.7 : 1,
+                    '&:hover': { bgcolor: colors.accentHover }
+                  }}
+                >
+                  {savingLocation ? 'Saving...' : 'Save Location'}
+                </Box>
+              </Box>
+            </>
+          )}
         </SettingsSection>
 
         {/* Your Studio Section (artists only) */}
