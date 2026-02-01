@@ -7,7 +7,7 @@ import AccountModal from '../components/AccountModal';
 import StyleModal from '../components/StyleModal';
 import WorkingHoursModal from '../components/WorkingHoursModal';
 import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
-import { Box, Typography, TextField, IconButton } from '@mui/material';
+import { Box, Typography, TextField, IconButton, Switch } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StarIcon from '@mui/icons-material/Star';
