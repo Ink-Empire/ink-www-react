@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
-import {Box, Typography, Button, Avatar, Switch, TextField, IconButton, CircularProgress, Divider, Menu, MenuItem, ListItemIcon, ListItemText, Dialog, DialogContent, DialogTitle} from '@mui/material';
+import {Box, Typography, Button, Avatar, Switch, TextField, IconButton, CircularProgress, Divider, Menu, MenuItem, ListItemIcon, ListItemText, Dialog, DialogContent, DialogTitle, Tooltip} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EmailIcon from '@mui/icons-material/Email';
 import ScheduleIcon from '@mui/icons-material/Schedule';
@@ -453,6 +453,32 @@ export default function Dashboard() {
     }
   };
 
+  const [leavingStudioId, setLeavingStudioId] = useState<number | null>(null);
+  const handleLeaveStudio = async (studioId: number) => {
+    setLeavingStudioId(studioId);
+    try {
+      await artistService.leaveStudio(studioId);
+      await refreshUser();
+    } catch (err) {
+      console.error('Failed to leave studio:', err);
+    } finally {
+      setLeavingStudioId(null);
+    }
+  };
+
+  const [settingPrimaryStudioId, setSettingPrimaryStudioId] = useState<number | null>(null);
+  const handleSetPrimaryStudio = async (studioId: number) => {
+    setSettingPrimaryStudioId(studioId);
+    try {
+      await artistService.setPrimaryStudio(studioId);
+      await refreshUser();
+    } catch (err) {
+      console.error('Failed to set primary studio:', err);
+    } finally {
+      setSettingPrimaryStudioId(null);
+    }
+  };
+
   const handleAddAnnouncement = async () => {
     if (!ownedStudio?.id || !newAnnouncement.title || !newAnnouncement.content) return;
     setIsAddingAnnouncement(true);
@@ -848,10 +874,10 @@ export default function Dashboard() {
               </Card>
             )}
 
-            {/* Artists to Verify - Studio Tab */}
+            {/* Artists not yet verified -- Studio Tab */}
             {activeTab === 'studio' && (
               <Card
-                title="Artists to Verify"
+                title="Studio Artists"
                 subtitle="Manage pending artist requests or add artists to your studio"
                 icon={<HourglassEmptyIcon />}
               >
@@ -869,6 +895,7 @@ export default function Dashboard() {
                     const artistInitials = artist.name
                       ? artist.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
                       : artist.username?.slice(0, 2).toUpperCase() || 'AR';
+                    const isStudioInvite = artist.initiated_by === 'studio';
                     return (
                       <Box
                         key={artist.id}
@@ -899,48 +926,77 @@ export default function Dashboard() {
                         <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.85rem', mb: 0.25 }}>
                           {artist.name || artist.username}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1.5 }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: isStudioInvite ? 0.5 : 1.5 }}>
                           @{artist.username}
                         </Typography>
-                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                          <Button
-                            onClick={() => handleVerifyArtist(artist.id)}
-                            size="small"
-                            sx={{
-                              px: 1.5,
-                              py: 0.5,
-                              bgcolor: colors.success,
-                              color: colors.background,
-                              fontSize: '0.7rem',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              borderRadius: '6px',
-                              minWidth: 'auto',
-                              '&:hover': { bgcolor: colors.success, opacity: 0.9 }
-                            }}
-                          >
-                            Verify
-                          </Button>
-                          <Button
-                            onClick={() => handleRemoveArtist(artist.id)}
-                            size="small"
-                            sx={{
-                              px: 1.5,
-                              py: 0.5,
-                              bgcolor: 'transparent',
-                              border: `1px solid ${colors.border}`,
-                              color: colors.textMuted,
-                              fontSize: '0.7rem',
-                              fontWeight: 500,
-                              textTransform: 'none',
-                              borderRadius: '6px',
-                              minWidth: 'auto',
-                              '&:hover': { borderColor: colors.error, color: colors.error }
-                            }}
-                          >
-                            Reject
-                          </Button>
-                        </Box>
+                        {isStudioInvite ? (
+                          /* Studio invited this artist - waiting for them to accept */
+                          <>
+                            <Typography sx={{ fontSize: '0.75rem', color: colors.accent, fontWeight: 500, mb: 1.5 }}>
+                              Invitation pending
+                            </Typography>
+                            <Button
+                              onClick={() => handleRemoveArtist(artist.id)}
+                              size="small"
+                              sx={{
+                                px: 1.5,
+                                py: 0.5,
+                                bgcolor: 'transparent',
+                                border: `1px solid ${colors.border}`,
+                                color: colors.textMuted,
+                                fontSize: '0.7rem',
+                                fontWeight: 500,
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                minWidth: 'auto',
+                                '&:hover': { borderColor: colors.error, color: colors.error }
+                              }}
+                            >
+                              Cancel Invite
+                            </Button>
+                          </>
+                        ) : (
+                          /* Artist requested to join - studio can verify/reject */
+                          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                            <Button
+                              onClick={() => handleVerifyArtist(artist.id)}
+                              size="small"
+                              sx={{
+                                px: 1.5,
+                                py: 0.5,
+                                bgcolor: colors.success,
+                                color: colors.background,
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                minWidth: 'auto',
+                                '&:hover': { bgcolor: colors.success, opacity: 0.9 }
+                              }}
+                            >
+                              Verify
+                            </Button>
+                            <Button
+                              onClick={() => handleRemoveArtist(artist.id)}
+                              size="small"
+                              sx={{
+                                px: 1.5,
+                                py: 0.5,
+                                bgcolor: 'transparent',
+                                border: `1px solid ${colors.border}`,
+                                color: colors.textMuted,
+                                fontSize: '0.7rem',
+                                fontWeight: 500,
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                minWidth: 'auto',
+                                '&:hover': { borderColor: colors.error, color: colors.error }
+                              }}
+                            >
+                              Reject
+                            </Button>
+                          </Box>
+                        )}
                       </Box>
                     );
                   })}
@@ -1135,6 +1191,137 @@ export default function Dashboard() {
                       </Typography>
                     </Box>
                   </Box>
+
+                  {/* Studio Affiliations */}
+                  {user?.studios_affiliated && user.studios_affiliated.length > 0 && (
+                    <>
+                      <Divider sx={{ borderColor: colors.border }} />
+                      <Box sx={{ p: 2 }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1, fontWeight: 500 }}>
+                          Your Studios
+                        </Typography>
+                        {user.studios_affiliated.map((studio) => (
+                          <Box
+                            key={studio.id}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1.5,
+                              py: 1,
+                              '&:not(:last-child)': { borderBottom: `1px solid ${colors.border}` },
+                            }}
+                          >
+                            <Link
+                              href={`/studios/${studio.slug}`}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                flex: 1,
+                                minWidth: 0,
+                                textDecoration: 'none',
+                                color: 'inherit',
+                              }}
+                            >
+                              <Avatar
+                                src={studio.image?.uri}
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  bgcolor: colors.accent,
+                                  fontSize: '0.75rem',
+                                }}
+                              >
+                                {studio.name?.charAt(0) || 'S'}
+                              </Avatar>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography sx={{
+                                  fontWeight: 500,
+                                  color: colors.textPrimary,
+                                  fontSize: '0.85rem',
+                                  '&:hover': { color: colors.accent },
+                                  transition: 'color 0.2s ease',
+                                }}>
+                                  {studio.name}
+                                </Typography>
+                              </Box>
+                            </Link>
+                            {studio.is_primary ? (
+                              <Tooltip title="Primary studio" arrow>
+                                <Box sx={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '8px',
+                                  bgcolor: `${colors.accent}20`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}>
+                                  <StarIcon sx={{ fontSize: 18, color: colors.accent }} />
+                                </Box>
+                              </Tooltip>
+                            ) : user.studios_affiliated && user.studios_affiliated.length > 1 ? (
+                              <Tooltip title="Set as primary" arrow>
+                                <Box
+                                  onClick={() => !settingPrimaryStudioId && handleSetPrimaryStudio(studio.id)}
+                                  sx={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '8px',
+                                    bgcolor: colors.surface,
+                                    border: `1px solid ${colors.border}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                      bgcolor: `${colors.accent}15`,
+                                      borderColor: colors.accent,
+                                    },
+                                  }}
+                                >
+                                  {settingPrimaryStudioId === studio.id ? (
+                                    <CircularProgress size={14} sx={{ color: colors.accent }} />
+                                  ) : (
+                                    <StarBorderIcon sx={{ fontSize: 18, color: colors.textMuted }} />
+                                  )}
+                                </Box>
+                              </Tooltip>
+                            ) : null}
+                            <Tooltip title="Remove studio" arrow>
+                              <Box
+                                onClick={() => !leavingStudioId && handleLeaveStudio(studio.id)}
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '8px',
+                                  bgcolor: colors.surface,
+                                  border: `1px solid ${colors.border}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease',
+                                  '&:hover': {
+                                    bgcolor: `${colors.error}15`,
+                                    borderColor: colors.error,
+                                    '& svg': { color: colors.error },
+                                  },
+                                }}
+                              >
+                                {leavingStudioId === studio.id ? (
+                                  <CircularProgress size={14} sx={{ color: colors.textMuted }} />
+                                ) : (
+                                  <CloseIcon sx={{ fontSize: 18, color: colors.textMuted }} />
+                                )}
+                              </Box>
+                            </Tooltip>
+                          </Box>
+                        ))}
+                      </Box>
+                    </>
+                  )}
                 </Card>
 
                 {/* Security Settings */}
@@ -1847,8 +2034,8 @@ export default function Dashboard() {
                               )}
                             </Box>
                           </Box>
-                          {/* Verify/Unverify button */}
-                          {!isVerified ? (
+                          {/* Verify/Unverify button - only show Verify if artist requested to join (not studio invite) */}
+                          {!isVerified && artist.initiated_by !== 'studio' && (
                             <Button
                               onClick={() => handleVerifyArtist(artist.id)}
                               size="small"
@@ -1867,7 +2054,8 @@ export default function Dashboard() {
                             >
                               Verify
                             </Button>
-                          ) : (
+                          )}
+                          {isVerified && (
                             <Button
                               onClick={() => handleUnverifyArtist(artist.id)}
                               size="small"
@@ -2151,8 +2339,8 @@ export default function Dashboard() {
         onClose={() => setAddArtistOpen(false)}
         studioId={ownedStudio?.id || 0}
         onArtistAdded={(artist) => {
-          // Add with is_verified: false so they appear in pending section
-          setStudioArtists(prev => [...prev, { ...artist, is_verified: false }]);
+          // Add with is_verified: false and initiated_by: 'studio' so they appear as pending invite
+          setStudioArtists(prev => [...prev, { ...artist, is_verified: false, initiated_by: 'studio' }]);
         }}
         currentArtists={studioArtists}
       />

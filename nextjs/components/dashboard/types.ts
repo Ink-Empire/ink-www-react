@@ -64,6 +64,7 @@ export interface StudioArtist {
   image?: { uri?: string };
   is_verified?: boolean;
   verified_at?: string | null;
+  initiated_by?: 'studio' | 'artist';  // 'studio' = invitation, 'artist' = request to join
 }
 
 export interface Announcement {

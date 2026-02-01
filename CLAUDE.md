@@ -197,3 +197,4 @@ Always plan designs with mobile views in mind.
 - Use barrel exports (`index.ts`) to simplify imports from component directories.
 - Shared types should live in a `types.ts` file within the relevant component directory.
 - When a page component grows large, extract tab content or sections into separate components.
+- Keep comments to a minimum and never put emojis into this project
