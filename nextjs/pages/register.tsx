@@ -234,6 +234,32 @@ const RegisterPage: React.FC = () => {
           }
         }
 
+        // Create tattoo lead for clients if they provided intent data
+        if (data.userType === 'client' && data.tattooIntent?.timing && result.token) {
+          try {
+            // Set token to make authenticated request
+            setToken(result.token);
+            await fetch('/api/tattoo-leads', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${result.token}`,
+              },
+              body: JSON.stringify({
+                timing: data.tattooIntent.timing,
+                allow_artist_contact: data.tattooIntent.allowArtistContact,
+                style_ids: data.selectedStyles,
+                tag_ids: data.tattooIntent.selectedTags,
+                custom_themes: data.tattooIntent.customThemes,
+                description: data.tattooIntent.description,
+              }),
+            });
+          } catch (leadErr) {
+            console.error('Failed to create tattoo lead:', leadErr);
+            // Continue with registration even if lead creation fails
+          }
+        }
+
         // Redirect to verify email page with email for resend functionality
         const email = encodeURIComponent(result.email || data.credentials?.email || '');
         router.push(`/verify-email?email=${email}`);
