@@ -6,6 +6,7 @@ import { removeToken, setToken } from '@/utils/auth';
 import { getCsrfToken, fetchCsrfToken } from '@/utils/api';
 import { studioService } from '@/services/studioService';
 import { userService } from '@/services/userService';
+import { leadService } from '@/services/leadService';
 import { uploadImageToS3 } from '@/utils/s3Upload';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
@@ -239,20 +240,13 @@ const RegisterPage: React.FC = () => {
           try {
             // Set token to make authenticated request
             setToken(result.token);
-            await fetch('/api/tattoo-leads', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${result.token}`,
-              },
-              body: JSON.stringify({
-                timing: data.tattooIntent.timing,
-                allow_artist_contact: data.tattooIntent.allowArtistContact,
-                style_ids: data.selectedStyles,
-                tag_ids: data.tattooIntent.selectedTags,
-                custom_themes: data.tattooIntent.customThemes,
-                description: data.tattooIntent.description,
-              }),
+            await leadService.create({
+              timing: data.tattooIntent.timing,
+              allow_artist_contact: data.tattooIntent.allowArtistContact,
+              style_ids: data.selectedStyles,
+              tag_ids: data.tattooIntent.selectedTags,
+              custom_themes: data.tattooIntent.customThemes,
+              description: data.tattooIntent.description,
             });
           } catch (leadErr) {
             console.error('Failed to create tattoo lead:', leadErr);
