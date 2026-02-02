@@ -468,15 +468,29 @@ export default function ArtistDetail() {
                             {artist.name}
                         </Typography>
 
-                        {artist.studio_name && (
-                            <Typography sx={{
-                                color: colors.accent,
-                                fontSize: '1rem',
-                                fontWeight: 500,
-                                mb: 0.25
-                            }}>
-                                {artist.studio_name}
-                            </Typography>
+                        {(artist.studio?.name || artist.studio_name) && (
+                            artist.studio?.slug ? (
+                                <Link href={`/studios/${artist.studio.slug}`} style={{ textDecoration: 'none' }}>
+                                    <Typography sx={{
+                                        color: colors.accent,
+                                        fontSize: '1rem',
+                                        fontWeight: 500,
+                                        mb: 0.25,
+                                        '&:hover': { textDecoration: 'underline' }
+                                    }}>
+                                        {artist.studio?.name || artist.studio_name}
+                                    </Typography>
+                                </Link>
+                            ) : (
+                                <Typography sx={{
+                                    color: colors.accent,
+                                    fontSize: '1rem',
+                                    fontWeight: 500,
+                                    mb: 0.25
+                                }}>
+                                    {artist.studio_name}
+                                </Typography>
+                            )
                         )}
 
                         {artist.location && (

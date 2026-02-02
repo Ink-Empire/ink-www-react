@@ -150,17 +150,37 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                         }}>
                             {artist.name}
                         </Typography>
-                        {artist.studio_name && (
-                            <Typography sx={{
-                                fontSize: '0.8rem',
-                                color: colors.accent,
-                                mb: '0.1rem',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                            }}>
-                                {artist.studio_name}
-                            </Typography>
+                        {(artist.studio?.name || artist.studio_name) && (
+                            artist.studio?.slug ? (
+                                <Link
+                                    href={`/studios/${artist.studio.slug}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ textDecoration: 'none' }}
+                                >
+                                    <Typography sx={{
+                                        fontSize: '0.8rem',
+                                        color: colors.accent,
+                                        mb: '0.1rem',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        '&:hover': { textDecoration: 'underline' }
+                                    }}>
+                                        {artist.studio?.name || artist.studio_name}
+                                    </Typography>
+                                </Link>
+                            ) : (
+                                <Typography sx={{
+                                    fontSize: '0.8rem',
+                                    color: colors.accent,
+                                    mb: '0.1rem',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                }}>
+                                    {artist.studio_name}
+                                </Typography>
+                            )
                         )}
                         {artist.location && (
                             <Typography sx={{

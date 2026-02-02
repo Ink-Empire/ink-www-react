@@ -527,9 +527,28 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   >
                     {artistName || tattoo?.artist_name || 'Unknown Artist'}
                   </Typography>
-                  {getArtistLocation() && (
+                  {tattoo?.studio?.name && (
+                    tattoo.studio.slug ? (
+                      <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                        <Typography
+                          sx={{
+                            fontSize: '0.8rem',
+                            color: colors.accent,
+                            '&:hover': { textDecoration: 'underline' }
+                          }}
+                        >
+                          {tattoo.studio.name}
+                        </Typography>
+                      </Link>
+                    ) : (
+                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                        {tattoo.studio.name}
+                      </Typography>
+                    )
+                  )}
+                  {tattoo?.studio?.location && (
                     <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                      {getArtistLocation()}
+                      {tattoo.studio.location}
                     </Typography>
                   )}
                 </Box>

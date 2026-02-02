@@ -25,6 +25,11 @@ export interface ArtistType {
     email: string;
     name?: string;
     studio_name?: string;
+    studio?: {
+        id: number;
+        name: string;
+        slug: string;
+    };
     primaryImageId?: number;
     twitter?: string;
     location?: string;

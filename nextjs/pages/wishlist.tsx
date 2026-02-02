@@ -262,18 +262,39 @@ export default function WishlistPage() {
                       >
                         {artist.name || artist.username}
                       </Typography>
-                      {artist.studio && (
-                        <Typography
-                          sx={{
-                            color: colors.textSecondary,
-                            fontSize: '0.85rem',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {artist.studio.name}
-                        </Typography>
+                      {artist.studio?.name && (
+                        artist.studio.slug ? (
+                          <Link
+                            href={`/studios/${artist.studio.slug}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ textDecoration: 'none' }}
+                          >
+                            <Typography
+                              sx={{
+                                color: colors.accent,
+                                fontSize: '0.85rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {artist.studio.name}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography
+                            sx={{
+                              color: colors.textSecondary,
+                              fontSize: '0.85rem',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {artist.studio.name}
+                          </Typography>
+                        )
                       )}
                     </Box>
                   </Box>

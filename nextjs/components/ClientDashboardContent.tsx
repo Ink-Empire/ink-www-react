@@ -1071,15 +1071,30 @@ function WishlistRow({ artist, onRemove, isLast }: {
             @{artist.username}
           </Typography>
         </Link>
-        <Typography sx={{
-          fontSize: { xs: '0.7rem', sm: '0.75rem' },
-          color: colors.textMuted,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}>
-          {artist.studio?.name || 'Independent'}
-        </Typography>
+        {artist.studio?.slug ? (
+          <Link href={`/studios/${artist.studio.slug}`} style={{ textDecoration: 'none' }}>
+            <Typography sx={{
+              fontSize: { xs: '0.7rem', sm: '0.75rem' },
+              color: colors.accent,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              '&:hover': { textDecoration: 'underline' }
+            }}>
+              {artist.studio.name}
+            </Typography>
+          </Link>
+        ) : (
+          <Typography sx={{
+            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {artist.studio?.name || 'Independent'}
+          </Typography>
+        )}
       </Box>
       {artist.books_open ? (
         <Button

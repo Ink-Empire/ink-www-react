@@ -178,23 +178,36 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         </Typography>
                     </Link>
                     {tattoo.studio?.name && (
-                        <Link
-                            href={`/tattoos?studio_id=${tattoo.studio.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ textDecoration: 'none' }}
-                        >
+                        tattoo.studio.slug ? (
+                            <Link
+                                href={`/studios/${tattoo.studio.slug}`}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ textDecoration: 'none' }}
+                            >
+                                <Typography sx={{
+                                    fontSize: '0.8rem',
+                                    color: colors.accent,
+                                    mb: '0.1rem',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    '&:hover': { textDecoration: 'underline' }
+                                }}>
+                                    {tattoo.studio.name}
+                                </Typography>
+                            </Link>
+                        ) : (
                             <Typography sx={{
                                 fontSize: '0.8rem',
                                 color: colors.accent,
                                 mb: '0.1rem',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                '&:hover': { textDecoration: 'underline' }
+                                textOverflow: 'ellipsis'
                             }}>
                                 {tattoo.studio.name}
                             </Typography>
-                        </Link>
+                        )
                     )}
                     {tattoo.studio?.location && (
                         <Typography sx={{

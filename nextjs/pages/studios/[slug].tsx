@@ -1436,7 +1436,7 @@ export default function StudioDetail() {
       {/* Tattoo Detail Modal */}
       <TattooModal
         tattooId={selectedTattooId}
-        artistName={studio.name}
+        artistName={null}
         open={isTattooModalOpen}
         onClose={handleCloseTattooModal}
         onPrevious={handlePreviousTattoo}
