@@ -57,6 +57,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const [locationLatLong, setLocationLatLong] = useState('');
   const [useMyLocation, setUseMyLocation] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  // For triggering manual city entry when geolocation returns unknown city
+  const [triggerManualEntry, setTriggerManualEntry] = useState(false);
+  const [detectedState, setDetectedState] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -170,32 +173,42 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const handleGetCurrentLocation = async () => {
     setIsGettingLocation(true);
     setErrors(prev => ({ ...prev, location: '' }));
-    
+
     try {
       const position = await getCurrentPosition();
       const lat = position.latitude;
       const lng = position.longitude;
-      setLocationLatLong(`${lat},${lng}`);
-      
+      const latLongStr = `${lat},${lng}`;
+      setLocationLatLong(latLongStr);
+
       // Use reverse geocoding to get address
       const locationData = await getLocation(lat, lng);
       console.log('Reverse geocoding result:', locationData);
-      
+
       if (locationData.items && locationData.items.length > 0) {
         const address = locationData.items[0].address;
         console.log('Address object:', address);
-        
-        const locationStr = [
-          address.city, 
-          address.state, 
-          address.countryCode
-        ].filter(Boolean).join(', ');
-        
-        console.log('Generated location string:', locationStr);
-        setLocation(locationStr || 'Current Location');
+
+        const city = address.city || '';
+        const state = address.state || '';
+
+        // Check if city is unknown or missing - trigger manual entry
+        const isUnknownCity = !city || city.toLowerCase().includes('unknown');
+
+        if (isUnknownCity) {
+          console.log('Unknown city detected, triggering manual entry');
+          setDetectedState(state);
+          setTriggerManualEntry(true);
+          setUseMyLocation(false); // Switch back to manual mode to show the autocomplete with dialog
+        } else {
+          const locationStr = [city, state, address.countryCode].filter(Boolean).join(', ');
+          console.log('Generated location string:', locationStr);
+          setLocation(locationStr);
+        }
       } else {
-        console.log('No location items found, using fallback');
-        setLocation('Current Location');
+        console.log('No location items found, triggering manual entry');
+        setTriggerManualEntry(true);
+        setUseMyLocation(false);
       }
     } catch (err) {
       console.error('Failed to get current location:', err);
@@ -626,13 +639,20 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 onChange={(newLocation, newLatLong) => {
                   console.log('[UserDetails] Location selected:', { newLocation, newLatLong });
                   setLocation(newLocation);
-                  setLocationLatLong(newLatLong);
+                  // Preserve the geolocation lat/long if we already have it
+                  if (newLatLong || !locationLatLong) {
+                    setLocationLatLong(newLatLong);
+                  }
                 }}
                 label="Your Location"
                 placeholder="Start typing a city name..."
                 error={!!errors.location}
                 helperText={errors.location}
                 required
+                triggerManualEntry={triggerManualEntry}
+                onManualEntryClose={() => setTriggerManualEntry(false)}
+                initialState={detectedState}
+                initialLatLong={locationLatLong}
               />
             )}
 
