@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Image from 'next/image';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { useStyles } from '@/contexts/StyleContext';
 import { useImageCache } from '@/contexts/ImageCacheContext';
 import { fetchCsrfToken, getCsrfToken } from '@/utils/api';
@@ -358,6 +359,7 @@ export default function UpdateTattoo() {
   const [stylesOpen, setStylesOpen] = useState(false);
 
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { showConfirm } = useDialog();
   const { styles: availableStyles } = useStyles();
   const { invalidateEntity } = useImageCache();
 
@@ -620,10 +622,11 @@ export default function UpdateTattoo() {
                     color: 'white',
                   },
                 }}
-                onClick={() => {
+                onClick={async () => {
                   const currentImage = allImages[selectedImageIndex];
                   if (allImages.length === 1) {
-                    if (confirm('This is your only image. Are you sure you want to remove it?')) {
+                    const confirmed = await showConfirm('This is your only image. Are you sure you want to remove it?', 'Remove Image');
+                    if (confirmed) {
                       if (currentImage.type === 'existing') {
                         setDeletedImageIds(prev => [...prev, currentImage.id]);
                         setExistingImages(prev => prev.filter(img => img.id !== currentImage.id));

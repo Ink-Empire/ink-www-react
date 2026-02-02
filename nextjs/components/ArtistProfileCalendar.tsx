@@ -4,12 +4,14 @@ import { Box, Typography, IconButton, Modal, Button, CircularProgress, Switch, T
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { api } from '@/utils/api';
 import { artistService } from '@/services/artistService';
 import { appointmentService } from '@/services/appointmentService';
@@ -48,6 +50,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   isOwnCalendar = false,
 }, ref) => {
   const { user, isAuthenticated } = useAuth();
+  const { showConfirm } = useDialog();
   const isMobile = useMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookingType, setBookingType] = useState<BookingType>('consultation');
@@ -580,13 +583,17 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       // Create event title based on type if not provided
       const title = eventTitle || (eventType === 'other' ? 'Busy' : eventType.charAt(0).toUpperCase() + eventType.slice(1));
 
+      // Combine date and time into datetime strings for start and end
+      const startDateTime = `${selectedDay}T${eventStartTime}:00`;
+      const endDateTime = `${selectedDay}T${eventEndTime}:00`;
+
       await appointmentService.createEvent({
         artist_id: resolvedArtistId,
         title,
-        date: selectedDay,
-        time: eventStartTime,
-        notes: eventDescription,
-        type: eventType as 'blocked' | 'personal' | 'other',
+        start: startDateTime,
+        end: endDateTime,
+        description: eventDescription,
+        type: eventType,
       });
 
       // Refresh appointments and external events to show the new event
@@ -1589,7 +1596,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                       <IconButton
                         size="small"
                         onClick={async () => {
-                          if (window.confirm('Are you sure you want to delete this appointment?')) {
+                          const confirmed = await showConfirm('Are you sure you want to delete this appointment?', 'Delete Appointment');
+                          if (confirmed) {
                             try {
                               await deleteAppointment(apt.id);
                             } catch (err) {
@@ -1603,7 +1611,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                           ml: 1
                         }}
                       >
-                        <CloseIcon fontSize="small" />
+                        <DeleteOutlineIcon fontSize="small" />
                       </IconButton>
                     </Box>
                   </Box>

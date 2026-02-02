@@ -14,6 +14,7 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import { colors } from '@/styles/colors';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { setToken } from '@/utils/auth';
 import { authService } from '@/services/authService';
 import { api } from '@/utils/api';
@@ -23,6 +24,7 @@ type Status = 'pending' | 'verifying' | 'verified' | 'already_verified' | 'error
 export default function VerifyEmailPage() {
   const router = useRouter();
   const { user, refreshUser, setUserDirectly } = useAuth();
+  const { showSuccess, showError } = useDialog();
   const [status, setStatus] = useState<Status>('pending');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string>('/dashboard');
@@ -97,15 +99,15 @@ export default function VerifyEmailPage() {
   const handleResendEmail = async () => {
     const emailToUse = user?.email || resendEmail;
     if (!emailToUse || !emailToUse.trim()) {
-      alert('Unable to resend email. Please try registering again or contact support.');
+      showError('Unable to resend email. Please try registering again or contact support.');
       return;
     }
     setResendLoading(true);
     try {
       await authService.sendVerificationNotification(emailToUse);
-      alert('Verification email sent! Please check your inbox.');
+      showSuccess('Verification email sent! Please check your inbox.', 'Email Sent');
     } catch (error: any) {
-      alert(error.message || 'Failed to resend verification email.');
+      showError(error.message || 'Failed to resend verification email.');
     } finally {
       setResendLoading(false);
     }

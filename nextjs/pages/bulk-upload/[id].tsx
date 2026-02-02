@@ -21,6 +21,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PublishIcon from '@mui/icons-material/Publish';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { useBulkUpload, BulkUpload, BulkUploadItem, ItemsResponse } from '@/hooks/useBulkUpload';
 import { colors } from '@/styles/colors';
 import BatchProgress from '@/components/BulkUpload/BatchProgress';
@@ -33,6 +34,7 @@ export default function BulkUploadReviewPage() {
   const router = useRouter();
   const { id } = router.query;
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { showConfirm } = useDialog();
   const {
     getUpload,
     getItems,
@@ -154,7 +156,8 @@ export default function BulkUploadReviewPage() {
   const handlePublish = async () => {
     if (!upload) return;
     const count = upload.ready_count;
-    if (!confirm(`Publish ${count} tattoo${count !== 1 ? 's' : ''} to your portfolio?`)) return;
+    const confirmed = await showConfirm(`Publish ${count} tattoo${count !== 1 ? 's' : ''} to your portfolio?`, 'Publish Tattoos');
+    if (!confirmed) return;
 
     setPublishing(true);
     setError(null);

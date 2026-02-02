@@ -22,12 +22,12 @@ export interface AppointmentInviteData {
 
 export interface CalendarEventData {
   artist_id: number;
-  title: string;
-  date: string;
-  time: string;
-  duration?: number;
-  notes?: string;
-  type?: 'blocked' | 'personal' | 'other';
+  title?: string;
+  start: string;
+  end: string;
+  description?: string;
+  type: 'consultation' | 'appointment' | 'other';
+  sync_to_google?: boolean;
 }
 
 export interface AppointmentResponse {

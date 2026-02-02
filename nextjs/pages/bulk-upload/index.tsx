@@ -22,6 +22,7 @@ import FolderZipIcon from '@mui/icons-material/FolderZip';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { useBulkUpload, BulkUpload } from '@/hooks/useBulkUpload';
 import { colors } from '@/styles/colors';
 import UploadDropzone from '@/components/BulkUpload/UploadDropzone';
@@ -31,6 +32,7 @@ export default function BulkUploadPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { showConfirm } = useDialog();
   const { listUploads, uploadZip, deleteUpload, loading } = useBulkUpload();
 
   const [uploads, setUploads] = useState<BulkUpload[]>([]);
@@ -101,7 +103,8 @@ export default function BulkUploadPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this upload? This cannot be undone.')) {
+    const confirmed = await showConfirm('Are you sure you want to delete this upload? This cannot be undone.', 'Delete Upload');
+    if (!confirmed) {
       return;
     }
 
