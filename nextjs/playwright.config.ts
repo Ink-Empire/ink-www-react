@@ -12,6 +12,9 @@ dotenv.config({ path: path.resolve(__dirname, 'tests/e2e/.env.test') });
 export default defineConfig({
   testDir: './tests/e2e',
 
+  // Pull fixtures from S3 before running tests
+  globalSetup: './tests/e2e/global-setup.ts',
+
   // Run tests in parallel
   fullyParallel: true,
 
@@ -62,13 +65,13 @@ export default defineConfig({
     // },
   ],
 
-  // Run local dev server before starting the tests (optional)
-  // Uncomment if you want Playwright to start the server
-  // webServer: {
-  //   command: 'npm run dev',
-  //   url: 'http://localhost:4000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  // Run local dev server before starting the tests
+  webServer: {
+    command: process.env.CI ? 'npm run start' : 'npm run dev',
+    url: 'http://localhost:4000',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+  },
 
   // Global timeout for each test
   timeout: 5 * 60 * 1000, // 5 minutes for upload tests
