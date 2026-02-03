@@ -466,6 +466,7 @@ type UseUserReturn = {
   updateUser: (data: Partial<User>) => Promise<void>;
   updateStyles: (styles: number[]) => Promise<void>;
   toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number) => Promise<void>;
+  refreshUser: () => Promise<User | null>;
   logout: () => Promise<void>;
 };
 
@@ -479,6 +480,7 @@ export const useUser = (): UseUserReturn => {
     updateUser: auth.updateUser,
     updateStyles: auth.updateStyles,
     toggleFavorite: auth.toggleFavorite,
+    refreshUser: auth.refreshUser,
     logout: auth.logout,
   };
 };

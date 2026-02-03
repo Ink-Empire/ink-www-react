@@ -56,10 +56,13 @@ import {
 
 const ProfilePage: React.FC = () => {
   const router = useRouter();
-  const { userData, updateUser, updateStyles, loading, error } = useUser();
+  const { userData, updateUser, updateStyles, refreshUser, loading, error } = useUser();
   const { user: authUser, logout: authLogout } = useAuth();
   const { styles, getStyleName } = useStyles();
-  const { profilePhoto, takeProfilePhoto, deleteProfilePhoto } = useProfilePhoto();
+  const { profilePhoto, takeProfilePhoto, deleteProfilePhoto } = useProfilePhoto({
+    onSuccess: refreshUser,
+    updateUser
+  });
 
   // Only fetch working hours for artists
   const isArtist = userData?.type === 'artist';
@@ -758,7 +761,7 @@ const ProfilePage: React.FC = () => {
           <Box sx={{
             maxWidth: '720px',
             width: '100%',
-            p: { xs: '1.5rem 1rem 6rem', md: '2rem 1.5rem 4rem' }
+            p: { xs: '1.5rem 1rem 10rem', md: '2rem 1.5rem 4rem' }
           }}>
           {/* Page Header */}
           <Box sx={{ mb: '2rem' }}>
@@ -2076,12 +2079,13 @@ const ProfilePage: React.FC = () => {
       {/* Save Bar */}
       <Box sx={{
         position: 'fixed',
-        bottom: { xs: 60, md: 0 },
+        bottom: 0,
         left: 0,
         right: 0,
         bgcolor: colors.surface,
         borderTop: `1px solid ${colors.border}`,
         p: { xs: '1rem', md: '1rem 2rem' },
+        pb: { xs: 'calc(5rem + env(safe-area-inset-bottom, 0px))', md: '1rem' },
         transform: hasUnsavedChanges ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.3s ease',
         zIndex: 100
@@ -2184,7 +2188,7 @@ const ProfilePage: React.FC = () => {
       {showToast && (
         <Box sx={{
           position: 'fixed',
-          bottom: { xs: hasUnsavedChanges ? 140 : 80, md: hasUnsavedChanges ? 80 : 16 },
+          bottom: { xs: hasUnsavedChanges ? 200 : 80, md: hasUnsavedChanges ? 80 : 16 },
           right: '1rem',
           px: '1rem',
           py: '0.75rem',

@@ -42,6 +42,11 @@ export const userService = {
     return api.post('/users/profile-photo', data, { requiresAuth: true });
   },
 
+  // Delete profile photo (requires auth)
+  deleteProfilePhoto: async (): Promise<any> => {
+    return api.delete('/users/profile-photo', { requiresAuth: true });
+  },
+
   // Block a user (requires auth)
   block: async (userId: number): Promise<any> => {
     return api.post('/users/block', { user_id: userId }, { requiresAuth: true });
