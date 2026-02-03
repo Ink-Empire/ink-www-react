@@ -122,6 +122,18 @@ export const artistService = {
     return api.get(`/artists/${slug}`, { useCache: false });
   },
 
+  // Get full dashboard data for an artist (requires auth) - includes cached tattoos
+  getDashboard: async (artistId: number | string): Promise<{
+    data: {
+      artist: IArtist;
+      stats: any;
+      schedule: any[];
+      tattoos: any[];
+    };
+  }> => {
+    return api.get(`/artists/${artistId}/dashboard`, { requiresAuth: true });
+  },
+
   // Get dashboard stats for an artist (requires auth)
   getDashboardStats: async (artistId: number | string): Promise<any> => {
     return api.get(`/artists/${artistId}/dashboard-stats`, { requiresAuth: true });

@@ -235,13 +235,6 @@ export default function Dashboard() {
     }
   }, [activeTab, hasStudio, ownedStudio?.id]);
 
-  // Load artist tattoos on mount (only for artists)
-  useEffect(() => {
-    if (user?.id && isArtist) {
-      loadArtistTattoos();
-    }
-  }, [user?.id, isArtist]);
-
   // Load leads for artists (not for studio accounts or clients)
   useEffect(() => {
     const loadLeads = async () => {
@@ -259,60 +252,54 @@ export default function Dashboard() {
     loadLeads();
   }, [user?.id, isClient, isStudioAccount]);
 
-  // Load dashboard stats and schedule (only for artists)
+  // Load artist dashboard data (stats, schedule, tattoos) - single API call with caching
   useEffect(() => {
-    const loadDashboardData = async () => {
+    const loadArtistDashboard = async () => {
       if (!user?.id || !isArtist) return;
 
       setIsLoadingStats(true);
+      setIsLoadingTattoos(true);
       try {
-        // Define types for dashboard API responses
-        interface DashboardStatsResponse {
-          upcoming_appointments?: number;
-          appointments_trend?: string;
-          profile_views?: number;
-          views_trend?: string;
-          saves_this_week?: number;
-          saves_trend?: string;
-        }
+        // Single API call for all artist dashboard data (tattoos are cached on backend)
+        const response = await artistService.getDashboard(user.id);
+        const data = response?.data || response;
 
-        // Fetch stats and schedule in parallel
-        const [statsRes, scheduleRes] = await Promise.all([
-          artistService.getDashboardStats(user.id).catch(() => null),
-          artistService.getUpcomingSchedule(user.id).catch(() => null)
-        ]);
-
-        if (statsRes) {
-          // API returns { data: { ... } }, so extract the data object
-          const stats = (statsRes as any).data || statsRes;
+        // Set stats
+        if (data.stats) {
           setDashboardStats({
-            upcomingAppointments: stats.upcoming_appointments || 0,
-            appointmentsTrend: stats.appointments_trend || '+0',
-            profileViews: stats.profile_views || 0,
-            viewsTrend: stats.views_trend || '+0%',
-            savesThisWeek: stats.saves_this_week || 0,
-            savesTrend: stats.saves_trend || '+0',
-            unreadMessages: stats.unread_messages || 0
+            upcomingAppointments: data.stats.upcoming_appointments || 0,
+            appointmentsTrend: data.stats.appointments_trend || '+0',
+            profileViews: data.stats.profile_views || 0,
+            viewsTrend: data.stats.views_trend || '+0%',
+            savesThisWeek: data.stats.saves_this_week || 0,
+            savesTrend: data.stats.saves_trend || '+0',
+            unreadMessages: data.stats.unread_messages || 0
           });
         }
 
-        if (scheduleRes) {
-          // API returns { data: [...] }, so extract the data array
-          const scheduleData = (scheduleRes as any).data || scheduleRes;
-          setSchedule(Array.isArray(scheduleData) ? scheduleData : []);
+        // Set schedule
+        if (data.schedule) {
+          setSchedule(Array.isArray(data.schedule) ? data.schedule : []);
+        }
+
+        // Set tattoos (cached on backend for 5 minutes)
+        if (data.tattoos) {
+          setArtistTattoos(Array.isArray(data.tattoos) ? data.tattoos : []);
         }
       } catch (err) {
-        console.error('Failed to load dashboard data:', err);
+        console.error('Failed to load artist dashboard:', err);
       } finally {
         setIsLoadingStats(false);
+        setIsLoadingTattoos(false);
       }
     };
 
     if (user?.id && isArtist) {
-      loadDashboardData();
+      loadArtistDashboard();
     }
   }, [user?.id, isArtist]);
 
+  // Refresh tattoos after upload (bypasses cache temporarily)
   const loadArtistTattoos = async () => {
     if (!user?.slug) return;
     setIsLoadingTattoos(true);
