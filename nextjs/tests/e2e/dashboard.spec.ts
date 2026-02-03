@@ -8,6 +8,7 @@ import {
   mockTattooSearch,
   mockEmptyResponse,
   mockApiError,
+  mockCommonEndpoints,
 } from './utils/api-mocks';
 
 /**
@@ -26,6 +27,7 @@ import {
 
 test.describe('Client Dashboard', () => {
   test.beforeEach(async ({ page }) => {
+    await mockCommonEndpoints(page);
     await mockAuthenticatedUser(page);
     await mockClientDashboard(page);
   });
@@ -71,6 +73,7 @@ test.describe('Client Dashboard', () => {
 
 test.describe('Artist Search', () => {
   test.beforeEach(async ({ page }) => {
+    await mockCommonEndpoints(page);
     await mockArtistSearch(page);
   });
 
@@ -84,6 +87,7 @@ test.describe('Artist Search', () => {
 
 test.describe('Artist Profile', () => {
   test.beforeEach(async ({ page }) => {
+    await mockCommonEndpoints(page);
     await mockArtistDetail(page);
   });
 
@@ -97,6 +101,7 @@ test.describe('Artist Profile', () => {
 
 test.describe('Tattoo Search', () => {
   test.beforeEach(async ({ page }) => {
+    await mockCommonEndpoints(page);
     await mockTattooSearch(page);
   });
 

@@ -418,6 +418,52 @@ export async function mockGeolocation(page: Page) {
 }
 
 /**
+ * Mock placements endpoint (body parts for tattoos)
+ */
+export async function mockPlacements(page: Page) {
+  await page.route('**/api/placements', route => {
+    route.fulfill({
+      json: {
+        placements: [
+          { id: 1, name: 'Arm' },
+          { id: 2, name: 'Leg' },
+          { id: 3, name: 'Back' },
+          { id: 4, name: 'Chest' },
+          { id: 5, name: 'Shoulder' },
+        ],
+      },
+    });
+  });
+}
+
+/**
+ * Mock artist studio invitations
+ */
+export async function mockStudioInvitations(page: Page) {
+  await page.route('**/api/artists/me/studio-invitations', route => {
+    route.fulfill({
+      json: { invitations: [] },
+    });
+  });
+}
+
+/**
+ * Mock common endpoints that pages may call on load
+ */
+export async function mockCommonEndpoints(page: Page) {
+  await mockPlacements(page);
+  await mockStudioInvitations(page);
+  await mockStyles(page);
+
+  // Mock places config (Google API key)
+  await page.route('**/api/places/config', route => {
+    route.fulfill({
+      json: { apiKey: 'mock-api-key' },
+    });
+  });
+}
+
+/**
  * Mock all registration-related endpoints
  */
 export async function mockRegistrationFlow(page: Page) {
@@ -429,4 +475,5 @@ export async function mockRegistrationFlow(page: Page) {
   await mockCheckAvailability(page);
   await mockStudioEndpoints(page);
   await mockGeolocation(page);
+  await mockCommonEndpoints(page);
 }
