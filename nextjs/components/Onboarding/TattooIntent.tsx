@@ -80,6 +80,10 @@ const TattooIntent: React.FC<TattooIntentProps> = ({
   const [loadingTags, setLoadingTags] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Track if user typed space (ready to add custom theme)
+  const hasTrailingSpace = tagSearchValue.endsWith(' ') && tagSearchValue.trim().length > 0;
+  const pendingTheme = tagSearchValue.trim();
+
   // Load initial data (tags by ID and custom themes)
   useEffect(() => {
     if (initialDataLoaded || !initialData) return;
@@ -395,31 +399,70 @@ const TattooIntent: React.FC<TattooIntentProps> = ({
                   </Box>
                 )}
                 renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Search or add themes"
-                    placeholder="e.g., floral, geometric, memorial..."
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {loadingTags ? <CircularProgress size={20} sx={{ color: colors.accent }} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        '& fieldset': { borderColor: 'rgba(232, 219, 197, 0.5)' },
-                        '&:hover fieldset': { borderColor: colors.textSecondary },
-                        '&.Mui-focused fieldset': { borderColor: colors.accent },
-                      },
-                      '& .MuiInputLabel-root': {
-                        color: colors.textSecondary,
-                        '&.Mui-focused': { color: colors.accent },
-                      },
-                    }}
-                  />
+                  <Box sx={{ position: 'relative' }}>
+                    <TextField
+                      {...params}
+                      label="Search or add themes"
+                      placeholder="e.g., floral, geometric, memorial..."
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingTags ? <CircularProgress size={20} sx={{ color: colors.accent }} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': {
+                            borderColor: hasTrailingSpace ? colors.accent : 'rgba(232, 219, 197, 0.5)',
+                            borderWidth: hasTrailingSpace ? 2 : 1,
+                          },
+                          '&:hover fieldset': { borderColor: colors.textSecondary },
+                          '&.Mui-focused fieldset': {
+                            borderColor: colors.accent,
+                            borderWidth: 2,
+                          },
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: colors.textSecondary,
+                          '&.Mui-focused': { color: colors.accent },
+                        },
+                      }}
+                    />
+                    {/* Hint when user types space after a theme */}
+                    {hasTrailingSpace && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          bottom: -28,
+                          left: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          animation: 'fadeIn 0.2s ease-in',
+                          '@keyframes fadeIn': {
+                            from: { opacity: 0, transform: 'translateY(-4px)' },
+                            to: { opacity: 1, transform: 'translateY(0)' },
+                          },
+                        }}
+                      >
+                        <Chip
+                          label={pendingTheme}
+                          size="small"
+                          sx={{
+                            bgcolor: colors.accent,
+                            color: colors.textOnLight,
+                            fontWeight: 600,
+                          }}
+                        />
+                        <Typography sx={{ fontSize: '0.75rem', color: colors.accent, fontWeight: 500 }}>
+                          Press Enter to add
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
                 )}
                 noOptionsText={
                   tagSearchValue.length < 2
@@ -468,7 +511,7 @@ const TattooIntent: React.FC<TattooIntentProps> = ({
 
               {/* Selected Themes (tags and custom) */}
               {selectedThemes.length > 0 && (
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mt: hasTrailingSpace ? 5 : 2 }}>
                   <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Selected themes
                   </Typography>
@@ -503,7 +546,7 @@ const TattooIntent: React.FC<TattooIntentProps> = ({
                 rows={3}
                 fullWidth
                 sx={{
-                  mt: 2,
+                  mt: selectedThemes.length === 0 && hasTrailingSpace ? 5 : 2,
                   '& .MuiOutlinedInput-root': {
                     '& fieldset': { borderColor: 'rgba(232, 219, 197, 0.5)' },
                     '&:hover fieldset': { borderColor: colors.textSecondary },

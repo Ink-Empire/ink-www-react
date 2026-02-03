@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import dynamic from 'next/dynamic';
 import Layout from '../components/Layout';
 import {Box, Typography, Button, Avatar, Switch, TextField, IconButton, CircularProgress, Divider, Menu, MenuItem, ListItemIcon, ListItemText, Dialog, DialogContent, DialogTitle, Tooltip} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -40,14 +41,17 @@ import { leadService } from '@/services/leadService';
 import { userService } from '@/services/userService';
 import { tattooService } from '@/services/tattooService';
 import { StudioType } from '@/models/studio.interface';
-import EditStudioModal from '../components/EditStudioModal';
-import WorkingHoursModal, { WorkingHour } from '../components/WorkingHoursModal';
-import AddArtistModal from '../components/AddArtistModal';
-import ClientDashboardContent from '../components/ClientDashboardContent';
-import ChangePasswordModal from '../components/ChangePasswordModal';
-import TattooCreateWizard from '../components/TattooCreateWizard';
+import type { WorkingHour } from '../components/WorkingHoursModal';
 import ComingSoonBadge from '../components/ui/ComingSoonBadge';
-import StudioInvitations from '../components/StudioInvitations';
+
+// Lazy load heavy modals - only loaded when needed
+const EditStudioModal = dynamic(() => import('../components/EditStudioModal'), { ssr: false });
+const WorkingHoursModal = dynamic(() => import('../components/WorkingHoursModal'), { ssr: false });
+const AddArtistModal = dynamic(() => import('../components/AddArtistModal'), { ssr: false });
+const ClientDashboardContent = dynamic(() => import('../components/ClientDashboardContent'), { ssr: false });
+const ChangePasswordModal = dynamic(() => import('../components/ChangePasswordModal'), { ssr: false });
+const TattooCreateWizard = dynamic(() => import('../components/TattooCreateWizard'), { ssr: false });
+const StudioInvitations = dynamic(() => import('../components/StudioInvitations'), { ssr: false });
 
 // Dashboard components
 import {
@@ -325,17 +329,13 @@ export default function Dashboard() {
   const loadStudioData = async () => {
     if (!ownedStudio?.id) return;
     try {
-      const [studioRes, artistsRes, announcementsRes, statsRes, workingHoursRes] = await Promise.all([
-        studioService.getById(ownedStudio.id),
-        studioService.getArtists(ownedStudio.id),
-        studioService.getAnnouncements(ownedStudio.id),
-        studioService.getDashboardStats(ownedStudio.id).catch(() => null),
-        studioService.getHours(ownedStudio.id).catch(() => []),
-      ]);
-      const studio = (studioRes as any).studio || studioRes;
+      // Use combined dashboard endpoint - single API call instead of 5
+      const dashboardData = await studioService.getDashboard(ownedStudio.id);
+
+      const studio = (dashboardData.studio as any)?.data || dashboardData.studio;
       setStudioData(studio);
-      setStudioArtists(Array.isArray(artistsRes) ? artistsRes : []);
-      setAnnouncements(Array.isArray(announcementsRes) ? announcementsRes : []);
+      setStudioArtists(Array.isArray(dashboardData.artists) ? dashboardData.artists : []);
+      setAnnouncements(Array.isArray(dashboardData.announcements) ? dashboardData.announcements : []);
       setSeekingGuests(studio?.seeking_guest_artists || false);
       setGuestSpotDetails(studio?.guest_spot_details || '');
       // Initialize contact form with current studio data
@@ -347,11 +347,11 @@ export default function Dashboard() {
         postal_code: studio?.postal_code || '',
         phone: studio?.phone || '',
       });
-      if (statsRes) {
-        setStudioStats(statsRes);
+      if (dashboardData.stats) {
+        setStudioStats(dashboardData.stats);
       }
       // Set working hours from API response
-      const hours = Array.isArray(workingHoursRes) ? workingHoursRes : (workingHoursRes as any)?.data || [];
+      const hours = Array.isArray(dashboardData.working_hours) ? dashboardData.working_hours : [];
       setStudioWorkingHours(hours);
     } catch (err) {
       console.error('Failed to load studio data:', err);

@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Box, Typography, Button, Avatar, Skeleton, Switch, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import CloseIcon from '@mui/icons-material/Close';
 import SettingsIcon from '@mui/icons-material/Settings';
 import StarIcon from '@mui/icons-material/Star';
 import AddIcon from '@mui/icons-material/Add';
-import ChangePasswordModal from './ChangePasswordModal';
-import StyleModal from './StyleModal';
-import TattooIntent, { TattooIntentData } from './Onboarding/TattooIntent';
+
+// Lazy load heavy modals - only loaded when needed
+const ChangePasswordModal = dynamic(() => import('./ChangePasswordModal'), { ssr: false });
+const StyleModal = dynamic(() => import('./StyleModal'), { ssr: false });
+const TattooIntent = dynamic(() => import('./Onboarding/TattooIntent').then(mod => ({ default: mod.default })), { ssr: false });
+import type { TattooIntentData } from './Onboarding/TattooIntent';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -19,7 +23,8 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import { colors } from '@/styles/colors';
-import { useClientDashboard, useWishlist, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
+import { useClientDashboard, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
+import { clientService } from '@/services/clientService';
 import { ApiConversation } from '@/hooks/useConversations';
 import { leadService } from '@/services/leadService';
 import { useDemoMode } from '@/contexts/DemoModeContext';
@@ -87,10 +92,15 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const {
     appointments,
     conversations,
+    favorites,
     suggestedArtists,
     loading: dashboardLoading,
     refresh: refreshDashboard,
   } = useClientDashboard();
+
+  // Use favorites from main dashboard call (avoids separate API call)
+  const wishlist = favorites;
+  const wishlistLoading = dashboardLoading;
 
   // Fetch lead status on mount
   useEffect(() => {
@@ -176,21 +186,22 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
     setIsEditingLead(false);
   };
 
-  const {
-    wishlist,
-    loading: wishlistLoading,
-    addToWishlist,
-    removeFromWishlist,
-  } = useWishlist();
-
   const handleAddToWishlist = async (artistId: number) => {
-    await addToWishlist(artistId);
-    refreshDashboard();
+    try {
+      await clientService.addFavorite(artistId);
+      refreshDashboard();
+    } catch (err) {
+      console.error('Error adding to wishlist:', err);
+    }
   };
 
   const handleRemoveFromWishlist = async (artistId: number) => {
-    await removeFromWishlist(artistId);
-    refreshDashboard();
+    try {
+      await clientService.removeFavorite(artistId);
+      refreshDashboard();
+    } catch (err) {
+      console.error('Error removing from wishlist:', err);
+    }
   };
 
   return (
@@ -849,28 +860,36 @@ function AppointmentCard({ appointment }: { appointment: DashboardAppointment })
   const day = date.getDate();
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const time = formatTime(appointment.start_time);
+  const appointmentTitle = appointment.title || (appointment.type === 'consultation' ? 'Consultation' : 'Tattoo Session');
 
   const artistInitials = appointment.artist.name
     ? appointment.artist.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : appointment.artist.username?.slice(0, 2).toUpperCase() || '??';
 
   return (
-    <Link href={`/appointments/${appointment.id}`} style={{ textDecoration: 'none' }}>
-      <Box sx={{
-        minWidth: 180,
-        p: 2,
-        bgcolor: colors.background,
-        border: `1px solid ${colors.border}`,
-        borderRadius: '10px',
-        transition: 'all 0.2s',
-        cursor: 'pointer',
-        '&:hover': {
-          borderColor: colors.accent,
-          transform: 'translateY(-2px)',
-        }
-      }}>
+    <Link
+      href={`/appointments/${appointment.id}`}
+      style={{ textDecoration: 'none' }}
+      aria-label={`${appointmentTitle} with ${appointment.artist.name || appointment.artist.username} on ${month} ${day} at ${time}`}
+    >
+      <Box
+        component="article"
+        sx={{
+          minWidth: 180,
+          p: 2,
+          bgcolor: colors.background,
+          border: `1px solid ${colors.border}`,
+          borderRadius: '10px',
+          transition: 'all 0.2s',
+          cursor: 'pointer',
+          '&:hover': {
+            borderColor: colors.accent,
+            transform: 'translateY(-2px)',
+          }
+        }}
+      >
         <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
-          <Box sx={{ textAlign: 'center' }}>
+          <Box sx={{ textAlign: 'center' }} aria-hidden="true">
             <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: colors.textPrimary, lineHeight: 1.2 }}>
               {day}
             </Typography>
@@ -884,7 +903,7 @@ function AppointmentCard({ appointment }: { appointment: DashboardAppointment })
             </Typography>
           </Box>
           <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: colors.accent, fontWeight: 500 }}>
+            <Typography component="time" sx={{ fontSize: '0.8rem', color: colors.accent, fontWeight: 500 }}>
               {time}
             </Typography>
             <Typography sx={{
@@ -895,13 +914,14 @@ function AppointmentCard({ appointment }: { appointment: DashboardAppointment })
               overflow: 'hidden',
               textOverflow: 'ellipsis',
             }}>
-              {appointment.title || (appointment.type === 'consultation' ? 'Consultation' : 'Tattoo Session')}
+              {appointmentTitle}
             </Typography>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Avatar
             src={appointment.artist.image?.uri}
+            alt={`${appointment.artist.name || appointment.artist.username}'s profile`}
             sx={{
               width: 24,
               height: 24,
@@ -928,25 +948,31 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
   onAddToWishlist: (id: number) => void;
   isOnWishlist: boolean;
 }) {
+  const artistName = artist.name || artist.username;
   const artistInitials = artist.name
     ? artist.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : artist.username?.slice(0, 2).toUpperCase() || '??';
 
   return (
-    <Box sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      p: 2,
-      bgcolor: colors.background,
-      border: `1px solid ${colors.border}`,
-      borderRadius: '10px',
-      transition: 'border-color 0.2s',
-      '&:hover': { borderColor: colors.borderLight }
-    }}>
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
+    <Box
+      component="article"
+      aria-label={`Artist: ${artistName}`}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        p: 2,
+        bgcolor: colors.background,
+        border: `1px solid ${colors.border}`,
+        borderRadius: '10px',
+        transition: 'border-color 0.2s',
+        '&:hover': { borderColor: colors.borderLight }
+      }}
+    >
+      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }} aria-label={`View ${artistName}'s profile`}>
         <Avatar
           src={artist.image?.uri}
+          alt={`${artistName}'s profile picture`}
           sx={{
             width: 56,
             height: 56,
@@ -970,7 +996,7 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
           cursor: 'pointer',
           '&:hover': { color: colors.accent }
         }}>
-          {artist.name || artist.username}
+          {artistName}
         </Typography>
       </Link>
       <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, flex: 1 }}>
@@ -980,11 +1006,12 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
         <Button
           component={Link}
           href={`/artists/${artist.username}`}
+          aria-label={`Book appointment with ${artistName}`}
           sx={{
             width: '100%',
             py: 0.5,
             bgcolor: colors.success,
-            color: colors.background,
+            color: '#fff',
             borderRadius: '6px',
             textTransform: 'none',
             fontWeight: 500,
@@ -998,6 +1025,7 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
         <Button
           onClick={() => !isOnWishlist && onAddToWishlist(artist.id)}
           disabled={isOnWishlist}
+          aria-label={isOnWishlist ? `${artistName} is on your wishlist` : `Get notified when ${artistName} opens bookings`}
           sx={{
             width: '100%',
             py: 0.5,
@@ -1011,7 +1039,7 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
             '&:hover': isOnWishlist ? {} : { bgcolor: colors.accent, color: colors.background },
             '&:disabled': { opacity: 0.7 }
           }}
-          startIcon={isOnWishlist ? <NotificationsActiveIcon sx={{ fontSize: 14 }} /> : <NotificationsOffIcon sx={{ fontSize: 14 }} />}
+          startIcon={isOnWishlist ? <NotificationsActiveIcon sx={{ fontSize: 14 }} aria-hidden="true" /> : <NotificationsOffIcon sx={{ fontSize: 14 }} aria-hidden="true" />}
         >
           {isOnWishlist ? 'On Wishlist' : 'Notify Me'}
         </Button>
@@ -1026,23 +1054,29 @@ function WishlistRow({ artist, onRemove, isLast }: {
   onRemove: (id: number) => void;
   isLast: boolean;
 }) {
+  const artistName = artist.name || artist.username;
   const artistInitials = artist.name
     ? artist.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : artist.username?.slice(0, 2).toUpperCase() || '??';
 
   return (
-    <Box sx={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: { xs: 1, sm: 1.5 },
-      p: { xs: 1.5, sm: 2 },
-      borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
-      transition: 'background 0.15s',
-      '&:hover': { bgcolor: colors.background }
-    }}>
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+    <Box
+      component="article"
+      aria-label={`${artistName} - ${artist.books_open ? 'Now Booking' : 'Books Closed'}`}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: { xs: 1, sm: 1.5 },
+        p: { xs: 1.5, sm: 2 },
+        borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+        transition: 'background 0.15s',
+        '&:hover': { bgcolor: colors.background }
+      }}
+    >
+      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none', flexShrink: 0 }} aria-label={`View ${artistName}'s profile`}>
         <Avatar
           src={artist.image?.uri}
+          alt={`${artistName}'s profile picture`}
           sx={{
             width: { xs: 36, sm: 40 },
             height: { xs: 36, sm: 40 },
@@ -1100,11 +1134,12 @@ function WishlistRow({ artist, onRemove, isLast }: {
         <Button
           component={Link}
           href={`/artists/${artist.username}`}
+          aria-label={`Book appointment with ${artistName}`}
           sx={{
             px: { xs: 1, sm: 1.5 },
             py: 0.5,
             bgcolor: colors.success,
-            color: colors.background,
+            color: '#fff',
             borderRadius: '6px',
             textTransform: 'none',
             fontWeight: 500,
@@ -1117,21 +1152,26 @@ function WishlistRow({ artist, onRemove, isLast }: {
           Now Booking!
         </Button>
       ) : (
-        <Typography sx={{
-          px: { xs: 1, sm: 1.5 },
-          py: 0.5,
-          bgcolor: colors.background,
-          borderRadius: '6px',
-          fontSize: { xs: '0.65rem', sm: '0.75rem' },
-          color: colors.textMuted,
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-        }}>
+        <Typography
+          component="span"
+          role="status"
+          sx={{
+            px: { xs: 1, sm: 1.5 },
+            py: 0.5,
+            bgcolor: colors.background,
+            borderRadius: '6px',
+            fontSize: { xs: '0.65rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
           Books Closed
         </Typography>
       )}
       <Button
         onClick={() => onRemove(artist.id)}
+        aria-label={`Remove ${artistName} from wishlist`}
         sx={{
           minWidth: 0,
           p: { xs: 0.5, sm: 0.75 },
@@ -1140,7 +1180,7 @@ function WishlistRow({ artist, onRemove, isLast }: {
           '&:hover': { color: colors.error, bgcolor: `${colors.error}15` }
         }}
       >
-        <DeleteIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
+        <DeleteIcon sx={{ fontSize: { xs: 16, sm: 18 } }} aria-hidden="true" />
       </Button>
     </Box>
   );
@@ -1155,6 +1195,7 @@ function MessageRow({ conversation, userId, isLast }: {
   const participant = conversation.participant;
   const lastMessage = conversation.last_message;
   const isUnread = conversation.unread_count > 0;
+  const participantName = participant?.name || `@${participant?.username}`;
 
   const initials = participant?.name
     ? participant.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -1169,21 +1210,29 @@ function MessageRow({ conversation, userId, isLast }: {
   const timeAgo = lastMessage?.created_at ? getTimeAgo(lastMessage.created_at) : '';
 
   return (
-    <Link href={`/inbox?conversation=${conversation.id}`} style={{ textDecoration: 'none' }}>
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        p: 2,
-        borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
-        transition: 'background 0.15s',
-        cursor: 'pointer',
-        bgcolor: isUnread ? `${colors.accent}08` : 'transparent',
-        '&:hover': { bgcolor: colors.background }
-      }}>
+    <Link
+      href={`/inbox?conversation=${conversation.id}`}
+      style={{ textDecoration: 'none' }}
+      aria-label={`${isUnread ? 'Unread message from' : 'Message from'} ${participantName}${timeAgo ? `, ${timeAgo}` : ''}`}
+    >
+      <Box
+        component="article"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 2,
+          borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+          transition: 'background 0.15s',
+          cursor: 'pointer',
+          bgcolor: isUnread ? `${colors.accent}08` : 'transparent',
+          '&:hover': { bgcolor: colors.background }
+        }}
+      >
         <Box sx={{ position: 'relative' }}>
           <Avatar
             src={participant?.image?.uri}
+            alt={`${participantName}'s profile picture`}
             sx={{
               width: 40,
               height: 40,
@@ -1196,16 +1245,19 @@ function MessageRow({ conversation, userId, isLast }: {
             {initials}
           </Avatar>
           {isUnread && (
-            <Box sx={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: 10,
-              height: 10,
-              bgcolor: colors.accent,
-              borderRadius: '50%',
-              border: `2px solid ${colors.surface}`,
-            }} />
+            <Box
+              aria-label="Unread"
+              sx={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: 10,
+                height: 10,
+                bgcolor: colors.accent,
+                borderRadius: '50%',
+                border: `2px solid ${colors.surface}`,
+              }}
+            />
           )}
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -1215,9 +1267,9 @@ function MessageRow({ conversation, userId, isLast }: {
               color: colors.textPrimary,
               fontSize: '0.9rem',
             }}>
-              {participant?.name || `@${participant?.username}`}
+              {participantName}
             </Typography>
-            <Typography sx={{ fontSize: '0.7rem', color: colors.textMuted }}>
+            <Typography component="time" sx={{ fontSize: '0.7rem', color: colors.textMuted }}>
               {timeAgo}
             </Typography>
           </Box>

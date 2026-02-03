@@ -205,4 +205,16 @@ export const studioService = {
   getDashboardStats: async (studioId: number): Promise<any> => {
     return api.get(`/studios/${studioId}/dashboard-stats`, { requiresAuth: true });
   },
+
+  // Get all studio dashboard data in one request (requires auth)
+  // Returns: studio, artists, announcements, stats, working_hours
+  getDashboard: async (studioId: number): Promise<{
+    studio: any;
+    artists: any[];
+    announcements: any[];
+    stats: any;
+    working_hours: any[];
+  }> => {
+    return api.get(`/studios/${studioId}/dashboard`, { requiresAuth: true });
+  },
 };
