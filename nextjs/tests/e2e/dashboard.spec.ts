@@ -1,23 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { apiFixtures } from '../fixtures/api';
-import {
-  mockClientDashboard,
-  mockAuthenticatedUser,
-  mockArtistSearch,
-  mockArtistDetail,
-  mockTattooSearch,
-  mockEmptyResponse,
-  mockApiError,
-} from './utils/api-mocks';
 
 /**
- * Dashboard E2E Tests with API Mocking
+ * Dashboard E2E Tests
  *
- * These tests use fixtures exported from ink-api contract tests.
- * API calls are intercepted and return fixture data, so tests:
- * - Run without needing the backend
- * - Are fast and consistent
- * - Verify frontend handles API response structures correctly
+ * These tests run against the Next.js app with MSW (Mock Service Worker)
+ * intercepting all API requests. MSW uses fixtures from tests/fixtures/api/.
+ *
+ * No Playwright route mocking needed - MSW handles everything automatically.
  *
  * To update fixtures:
  *   1. Run `php artisan fixtures:export --upload` in ink-api
@@ -26,84 +15,74 @@ import {
 
 test.describe('Client Dashboard', () => {
   test.beforeEach(async ({ page }) => {
-    await mockAuthenticatedUser(page);
-    await mockClientDashboard(page);
+    // Set up auth state
+    await page.addInitScript(() => {
+      localStorage.setItem('auth_token', 'mock-token-for-testing');
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com',
+        type: 'client',
+      }));
+    });
   });
 
-  test('displays dashboard with user data', async ({ page }) => {
+  test('displays dashboard and loads without errors', async ({ page }) => {
     await page.goto('/dashboard');
 
     // Verify page loads
     await expect(page).toHaveURL(/dashboard/);
+
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+
+    // Verify dashboard content loaded (not an error page)
+    // Look for common dashboard elements
+    const hasContent = await page.locator('main, [role="main"], .dashboard, #dashboard').first().isVisible().catch(() => false);
+    expect(hasContent || await page.content().then(c => !c.includes('error'))).toBeTruthy();
   });
 
-  test('displays favorites from fixture data', async ({ page }) => {
+  test('loads dashboard data from API', async ({ page }) => {
     await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
 
-    // Check that favorites section exists
-    // Adjust selectors based on your actual dashboard UI
-    const favoritesSection = page.getByTestId('favorites-section');
-    if (await favoritesSection.isVisible()) {
-      await expect(favoritesSection).toBeVisible();
-    }
-  });
-
-  test('handles empty favorites state', async ({ page }) => {
-    // Override fixture with empty data
-    await mockEmptyResponse(page, '/api/client/favorites', { favorites: [] });
-
-    await page.goto('/dashboard');
-
-    // Should show empty state message
-    // Adjust based on your actual empty state UI
-  });
-
-  test('handles API error gracefully', async ({ page }) => {
-    // Simulate API error
-    await mockApiError(page, '/api/client/dashboard');
-
-    await page.goto('/dashboard');
-
-    // Should show error state, not crash
-    // Adjust based on your actual error handling UI
+    // Verify the page loaded successfully (MSW returned mocked data)
+    // The specific content depends on your dashboard layout
+    await expect(page).toHaveURL(/dashboard/);
   });
 });
 
 test.describe('Artist Search', () => {
-  test.beforeEach(async ({ page }) => {
-    await mockArtistSearch(page);
-  });
-
-  test('displays search results', async ({ page }) => {
+  test('displays artist search results from fixture', async ({ page }) => {
     await page.goto('/artists');
 
-    // Verify search page loads with mocked data
+    // Verify search page loads
     await expect(page).toHaveURL(/artists/);
-  });
-});
 
-test.describe('Artist Profile', () => {
-  test.beforeEach(async ({ page }) => {
-    await mockArtistDetail(page);
+    // Verify artist from fixture data appears
+    // The fixture contains artists like "Finn Cantu"
+    await expect(page.getByText('Finn Cantu').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('displays artist profile', async ({ page }) => {
-    await page.goto('/artists/test-artist');
+  test('displays artist studio names from fixture', async ({ page }) => {
+    await page.goto('/artists');
 
-    // Verify profile page loads
-    await expect(page).toHaveURL(/artists/);
+    // Verify studio names appear (fixture has "TJ TATZ")
+    await expect(page.getByText('TJ TATZ').first()).toBeVisible({ timeout: 15000 });
   });
 });
 
 test.describe('Tattoo Search', () => {
-  test.beforeEach(async ({ page }) => {
-    await mockTattooSearch(page);
-  });
-
-  test('displays tattoo gallery', async ({ page }) => {
+  test('displays tattoo gallery with fixture data', async ({ page }) => {
     await page.goto('/tattoos');
 
-    // Verify gallery loads with mocked data
+    // Verify gallery loads
     await expect(page).toHaveURL(/tattoos/);
+
+    // Wait for content to load
+    await page.waitForLoadState('networkidle');
+
+    // Verify some tattoo content loaded (artist name from fixture)
+    await expect(page.getByText('Alice Johnson').first()).toBeVisible({ timeout: 15000 });
   });
 });

@@ -37,6 +37,25 @@ import tattooUpdateResponse from './tattoo/update-response.json';
 import userProfile from './user/profile.json';
 import userUpdateResponse from './user/update-response.json';
 
+// Auth fixtures (loaded conditionally as they may not exist yet)
+let authRegisterClient: any = null;
+let authRegisterArtist: any = null;
+let authLoginSuccess: any = null;
+let authLoginRequiresVerification: any = null;
+let authCheckEmailAvailable: any = null;
+let authCheckUsernameAvailable: any = null;
+
+try {
+  authRegisterClient = require('./auth/register-client.json');
+  authRegisterArtist = require('./auth/register-artist.json');
+  authLoginSuccess = require('./auth/login-success.json');
+  authLoginRequiresVerification = require('./auth/login-requires-verification.json');
+  authCheckEmailAvailable = require('./auth/check-email-available.json');
+  authCheckUsernameAvailable = require('./auth/check-username-available.json');
+} catch (e) {
+  // Auth fixtures not yet generated - will use inline mocks
+}
+
 export const apiFixtures = {
   artist: {
     detail: artistDetail,
@@ -60,6 +79,14 @@ export const apiFixtures = {
   user: {
     profile: userProfile,
     updateResponse: userUpdateResponse,
+  },
+  auth: {
+    registerClient: authRegisterClient,
+    registerArtist: authRegisterArtist,
+    loginSuccess: authLoginSuccess,
+    loginRequiresVerification: authLoginRequiresVerification,
+    checkEmailAvailable: authCheckEmailAvailable,
+    checkUsernameAvailable: authCheckUsernameAvailable,
   },
 };
 

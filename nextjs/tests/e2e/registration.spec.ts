@@ -8,6 +8,9 @@ import { test, expect, Page } from '@playwright/test';
  * - Tattoo Artist
  * - Tattoo Studio
  *
+ * API requests are mocked by MSW (Mock Service Worker), which is enabled
+ * automatically when NEXT_PUBLIC_MSW_ENABLED=true.
+ *
  * Test configuration via environment variables:
  * - TEST_BASE_URL: Base URL for the app (default: http://localhost:4000)
  */
@@ -37,6 +40,8 @@ const createTestUser = (type: 'client' | 'artist' | 'studio') => ({
 
 test.describe('Registration Flow Tests', () => {
   test.beforeEach(async ({ page, context }) => {
+    // MSW handles all API mocking automatically
+
     // Grant geolocation permissions and mock location
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 40.7128, longitude: -74.0060 }); // New York
@@ -106,15 +111,9 @@ test.describe('Registration Flow Tests', () => {
       await expect(createAccountBtn).toBeEnabled({ timeout: 5000 });
       await createAccountBtn.click();
 
-      // Should redirect to verify email page OR show success state
-      // Note: In test environment, actual registration may not work due to API/backend
-      try {
-        await page.waitForURL(/verify-email/, { timeout: 15000 });
-        await expect(page.getByText(/verify|check your email/i)).toBeVisible();
-      } catch {
-        // If redirect doesn't happen, verify we're still on account page (API might be unavailable)
-        await expect(page.getByRole('button', { name: 'Create Account' })).toBeVisible();
-      }
+      // Should redirect to verify email page (API is mocked to succeed)
+      await page.waitForURL(/verify-email/, { timeout: 15000 });
+      await expect(page.getByText('Verify your email to start')).toBeVisible();
     });
 
     test('should complete experienced enthusiast registration flow', async ({ page }) => {
@@ -164,12 +163,8 @@ test.describe('Registration Flow Tests', () => {
       await expect(createAccountBtn).toBeEnabled({ timeout: 5000 });
       await createAccountBtn.click();
 
-      try {
-        await page.waitForURL(/verify-email/, { timeout: 15000 });
-      } catch {
-        // API might be unavailable in test environment
-        await expect(page.getByRole('button', { name: 'Create Account' })).toBeVisible();
-      }
+      // Should redirect to verify email page (API is mocked to succeed)
+      await page.waitForURL(/verify-email/, { timeout: 15000 });
     });
   });
 
@@ -215,14 +210,9 @@ test.describe('Registration Flow Tests', () => {
       await expect(createAccountBtn).toBeEnabled({ timeout: 5000 });
       await createAccountBtn.click();
 
-      // Should redirect to verify email page OR stay on form (if API unavailable)
-      try {
-        await page.waitForURL(/verify-email/, { timeout: 15000 });
-        await expect(page.getByText(/verify|check your email/i)).toBeVisible();
-      } catch {
-        // API might be unavailable in test environment
-        await expect(page.getByRole('button', { name: 'Create Account' })).toBeVisible();
-      }
+      // Should redirect to verify email page (API is mocked to succeed)
+      await page.waitForURL(/verify-email/, { timeout: 15000 });
+      await expect(page.getByText('Verify your email to start')).toBeVisible();
     });
 
     test('should show artist-specific fields during registration', async ({ page }) => {
@@ -271,6 +261,15 @@ test.describe('Registration Flow Tests', () => {
       await page.getByRole('textbox', { name: 'Studio Name' }).fill(`Test Studio ${testUser.username}`);
       await page.getByRole('textbox', { name: 'Studio Username' }).fill(testUser.username);
       await page.getByRole('textbox', { name: 'Studio Bio' }).fill(testUser.bio);
+
+      // Location - use geolocation if available
+      const useMyLocationBtn = page.getByRole('button', { name: 'Use my location' });
+      if (await useMyLocationBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await useMyLocationBtn.click();
+        await expect(page.getByText(/New York/i)).toBeVisible({ timeout: 5000 });
+        await page.waitForTimeout(500);
+      }
+
       await page.getByRole('textbox', { name: 'Studio Email' }).fill(testUser.email);
 
       // Password fields (they're textboxes with toggle visibility)
@@ -284,13 +283,8 @@ test.describe('Registration Flow Tests', () => {
       await expect(createStudioBtn).toBeEnabled({ timeout: 5000 });
       await createStudioBtn.click();
 
-      // Should redirect to verify email page OR stay on form (if API unavailable)
-      try {
-        await page.waitForURL(/verify-email/, { timeout: 15000 });
-      } catch {
-        // API might be unavailable in test environment
-        await expect(page.getByRole('button', { name: 'Create Studio' })).toBeVisible();
-      }
+      // Should redirect to verify email page (API is mocked to succeed)
+      await page.waitForURL(/verify-email/, { timeout: 15000 });
     });
 
     test('should show existing account login option for studio', async ({ page }) => {
@@ -503,6 +497,8 @@ test.describe('Mobile Registration Flow', () => {
   });
 
   test('should be usable on mobile devices', async ({ page, context }) => {
+    // MSW handles all API mocking automatically
+
     // Grant geolocation permissions
     await context.grantPermissions(['geolocation']);
     await context.setGeolocation({ latitude: 40.7128, longitude: -74.0060 });
@@ -526,6 +522,8 @@ test.describe('Mobile Registration Flow', () => {
 
   test('should handle mobile keyboard for form inputs', async ({ page, context }) => {
     const testUser = createTestUser('artist');
+
+    // MSW handles all API mocking automatically
 
     // Grant geolocation permissions
     await context.grantPermissions(['geolocation']);

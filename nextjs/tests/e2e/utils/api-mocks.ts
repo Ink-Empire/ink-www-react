@@ -168,3 +168,352 @@ export async function mockEmptyResponse(page: Page, endpoint: string, emptyData:
     route.fulfill({ json: emptyData });
   });
 }
+
+/**
+ * Mock registration endpoint
+ */
+export async function mockRegistration(page: Page, options?: {
+  shouldSucceed?: boolean;
+  errorMessage?: string;
+  userType?: 'client' | 'artist' | 'studio';
+}) {
+  const { shouldSucceed = true, errorMessage, userType = 'client' } = options || {};
+
+  await page.route('**/api/register', route => {
+    if (!shouldSucceed) {
+      route.fulfill({
+        status: 422,
+        json: { message: errorMessage || 'Registration failed', errors: {} },
+      });
+      return;
+    }
+
+    // Mock successful registration response
+    route.fulfill({
+      json: {
+        token: 'mock-auth-token-for-testing',
+        user: {
+          id: 999,
+          name: 'Test User',
+          email: 'test@example.com',
+          username: 'testuser',
+          type_id: userType === 'artist' ? 2 : userType === 'studio' ? 3 : 1,
+          email_verified_at: null,
+        },
+        message: 'Registration successful. Please verify your email.',
+      },
+    });
+  });
+}
+
+/**
+ * Mock email verification endpoint
+ */
+export async function mockEmailVerification(page: Page, options?: {
+  shouldSucceed?: boolean;
+  errorMessage?: string;
+}) {
+  const { shouldSucceed = true, errorMessage } = options || {};
+
+  await page.route('**/api/verify-email', route => {
+    if (!shouldSucceed) {
+      route.fulfill({
+        status: 400,
+        json: { message: errorMessage || 'Invalid verification code' },
+      });
+      return;
+    }
+
+    route.fulfill({
+      json: {
+        token: 'mock-auth-token-verified',
+        user: {
+          id: 999,
+          name: 'Test User',
+          email: 'test@example.com',
+          email_verified_at: new Date().toISOString(),
+        },
+        message: 'Email verified successfully.',
+      },
+    });
+  });
+}
+
+/**
+ * Mock login endpoint
+ */
+export async function mockLogin(page: Page, options?: {
+  shouldSucceed?: boolean;
+  errorMessage?: string;
+  requiresVerification?: boolean;
+}) {
+  const { shouldSucceed = true, errorMessage, requiresVerification = false } = options || {};
+
+  await page.route('**/api/login', route => {
+    if (!shouldSucceed) {
+      route.fulfill({
+        status: 401,
+        json: { message: errorMessage || 'Invalid credentials' },
+      });
+      return;
+    }
+
+    if (requiresVerification) {
+      route.fulfill({
+        status: 403,
+        json: {
+          message: 'Email not verified',
+          requires_verification: true,
+          email: 'test@example.com',
+        },
+      });
+      return;
+    }
+
+    route.fulfill({
+      json: {
+        token: 'mock-auth-token',
+        user: {
+          id: 999,
+          name: 'Test User',
+          email: 'test@example.com',
+          email_verified_at: new Date().toISOString(),
+        },
+      },
+    });
+  });
+}
+
+/**
+ * Mock styles endpoint (used in registration)
+ */
+export async function mockStyles(page: Page) {
+  await page.route('**/api/styles', route => {
+    route.fulfill({
+      json: {
+        styles: [
+          { id: 1, name: 'Traditional', parent_id: null },
+          { id: 2, name: 'Japanese', parent_id: null },
+          { id: 3, name: 'Blackwork', parent_id: null },
+          { id: 4, name: 'Realism', parent_id: null },
+          { id: 5, name: 'Neo-Traditional', parent_id: null },
+        ],
+      },
+    });
+  });
+}
+
+/**
+ * Mock username availability check
+ */
+export async function mockUsernameCheck(page: Page, available = true) {
+  // Various username check endpoints
+  await page.route('**/api/check-username**', route => {
+    route.fulfill({
+      json: { available },
+    });
+  });
+
+  await page.route('**/api/username', route => {
+    route.fulfill({
+      json: { available },
+    });
+  });
+}
+
+/**
+ * Mock email availability check
+ */
+export async function mockEmailCheck(page: Page, available = true) {
+  await page.route('**/api/check-email**', route => {
+    route.fulfill({
+      json: { available },
+    });
+  });
+}
+
+/**
+ * Mock check-availability endpoint (used for email/username validation)
+ */
+export async function mockCheckAvailability(page: Page) {
+  await page.route('**/api/check-availability', route => {
+    route.fulfill({
+      json: { available: true },
+    });
+  });
+}
+
+/**
+ * Mock studio-specific endpoints
+ */
+export async function mockStudioEndpoints(page: Page) {
+  // Studio availability check
+  await page.route('**/api/studios/check-availability', route => {
+    route.fulfill({
+      json: { available: true },
+    });
+  });
+
+  // Studio lookup or create
+  await page.route('**/api/studios/lookup-or-create', route => {
+    route.fulfill({
+      json: {
+        studio: {
+          id: 999,
+          name: 'Test Studio',
+          slug: 'test-studio',
+        },
+        created: true,
+      },
+    });
+  });
+
+  // Google Places API config (used for studio location)
+  await page.route('**/api/places/config', route => {
+    route.fulfill({
+      json: { apiKey: 'mock-api-key' },
+    });
+  });
+}
+
+/**
+ * Mock Google geocoding/places APIs for location lookup
+ */
+export async function mockGeolocation(page: Page) {
+  // Google Geocoding API (reverse geocoding)
+  await page.route('**/maps.googleapis.com/maps/api/geocode/**', route => {
+    route.fulfill({
+      json: {
+        results: [{
+          formatted_address: 'New York, NY, USA',
+          address_components: [
+            { long_name: 'New York', short_name: 'NY', types: ['locality'] },
+            { long_name: 'New York', short_name: 'NY', types: ['administrative_area_level_1'] },
+            { long_name: 'United States', short_name: 'US', types: ['country'] },
+          ],
+          geometry: {
+            location: { lat: 40.7128, lng: -74.0060 },
+          },
+        }],
+        status: 'OK',
+      },
+    });
+  });
+
+  // Google Places API
+  await page.route('**/maps.googleapis.com/maps/api/place/**', route => {
+    route.fulfill({
+      json: {
+        results: [{
+          formatted_address: 'New York, NY, USA',
+          name: 'New York',
+          geometry: {
+            location: { lat: 40.7128, lng: -74.0060 },
+          },
+        }],
+        status: 'OK',
+      },
+    });
+  });
+}
+
+/**
+ * Mock placements endpoint (body parts for tattoos)
+ */
+export async function mockPlacements(page: Page) {
+  await page.route('**/api/placements', route => {
+    route.fulfill({
+      json: {
+        placements: [
+          { id: 1, name: 'Arm' },
+          { id: 2, name: 'Leg' },
+          { id: 3, name: 'Back' },
+          { id: 4, name: 'Chest' },
+          { id: 5, name: 'Shoulder' },
+        ],
+      },
+    });
+  });
+}
+
+/**
+ * Mock artist studio invitations
+ */
+export async function mockStudioInvitations(page: Page) {
+  await page.route('**/api/artists/me/studio-invitations', route => {
+    route.fulfill({
+      json: { invitations: [] },
+    });
+  });
+}
+
+/**
+ * Mock common endpoints that pages may call on load
+ */
+export async function mockCommonEndpoints(page: Page) {
+  await mockPlacements(page);
+  await mockStudioInvitations(page);
+  await mockStyles(page);
+
+  // Mock places config (Google API key)
+  await page.route('**/api/places/config', route => {
+    route.fulfill({
+      json: { apiKey: 'mock-api-key' },
+    });
+  });
+
+  // Mock Laravel Sanctum CSRF cookie endpoint
+  await page.route('**/sanctum/csrf-cookie', route => {
+    route.fulfill({
+      status: 204,
+      headers: {
+        'Set-Cookie': 'XSRF-TOKEN=mock-csrf-token; Path=/',
+      },
+    });
+  });
+
+  // Mock tags endpoint
+  await page.route('**/api/tags', route => {
+    route.fulfill({
+      json: {
+        tags: [
+          { id: 1, name: 'flower' },
+          { id: 2, name: 'skull' },
+          { id: 3, name: 'dragon' },
+          { id: 4, name: 'portrait' },
+          { id: 5, name: 'geometric' },
+        ],
+      },
+    });
+  });
+
+  // Catch-all for any unmocked API endpoints - prevents ECONNREFUSED errors
+  // This should be called last so specific mocks take precedence
+  await page.route('**/api/**', route => {
+    const url = route.request().url();
+    console.log('[mock] Catch-all handling unmocked endpoint:', url);
+    route.fulfill({
+      status: 200,
+      json: {},
+    });
+  });
+
+  await page.route('**/sanctum/**', route => {
+    route.fulfill({ status: 204 });
+  });
+}
+
+/**
+ * Mock all registration-related endpoints
+ */
+export async function mockRegistrationFlow(page: Page) {
+  await mockRegistration(page);
+  await mockEmailVerification(page);
+  await mockStyles(page);
+  await mockUsernameCheck(page);
+  await mockEmailCheck(page);
+  await mockCheckAvailability(page);
+  await mockStudioEndpoints(page);
+  await mockGeolocation(page);
+  await mockCommonEndpoints(page);
+}
