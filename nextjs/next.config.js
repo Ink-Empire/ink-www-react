@@ -4,6 +4,7 @@ const nextConfig = {
   // Allow large file uploads through API proxy
   experimental: {
     proxyTimeout: 300000, // 5 minutes
+    instrumentationHook: true, // Enable MSW instrumentation
   },
   // Transpile shared package from parent directory
   transpilePackages: ['@inkedin/shared', 'react-markdown'],
@@ -34,11 +35,17 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
+    // Disable rewrites when MSW mocking is enabled (for testing)
+    if (process.env.NEXT_PUBLIC_MSW_ENABLED === 'true') {
+      console.log('MSW enabled - API rewrites disabled');
+      return [];
+    }
+
     // Use the environment variable for API URL
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
-    
+
     console.log('API URL for rewrites:', apiUrl);
-    
+
     return [
       {
         source: '/api/:path*',

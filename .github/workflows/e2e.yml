@@ -30,8 +30,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Initialize MSW service worker
+        run: npx msw init public/ --save
+
       - name: Build Next.js app
         run: npm run build
+        env:
+          NEXT_PUBLIC_MSW_ENABLED: 'true'
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

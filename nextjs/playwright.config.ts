@@ -66,11 +66,17 @@ export default defineConfig({
   ],
 
   // Run local dev server before starting the tests
+  // MSW is enabled to mock API requests without a backend
   webServer: {
-    command: process.env.CI ? 'npm run start' : 'npm run dev',
+    command: process.env.CI
+      ? 'NEXT_PUBLIC_MSW_ENABLED=true npm run start'
+      : 'NEXT_PUBLIC_MSW_ENABLED=true npm run dev',
     url: 'http://localhost:4000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      NEXT_PUBLIC_MSW_ENABLED: 'true',
+    },
   },
 
   // Global timeout for each test

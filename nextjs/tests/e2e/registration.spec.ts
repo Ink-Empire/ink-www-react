@@ -1,9 +1,4 @@
 import { test, expect, Page } from '@playwright/test';
-import {
-  mockRegistration,
-  mockStyles,
-  mockRegistrationFlow,
-} from './utils/api-mocks';
 
 /**
  * Registration Flow E2E Tests
@@ -13,7 +8,8 @@ import {
  * - Tattoo Artist
  * - Tattoo Studio
  *
- * These tests use mocked API responses, so they run without needing the backend.
+ * API requests are mocked by MSW (Mock Service Worker), which is enabled
+ * automatically when NEXT_PUBLIC_MSW_ENABLED=true.
  *
  * Test configuration via environment variables:
  * - TEST_BASE_URL: Base URL for the app (default: http://localhost:4000)
@@ -44,8 +40,7 @@ const createTestUser = (type: 'client' | 'artist' | 'studio') => ({
 
 test.describe('Registration Flow Tests', () => {
   test.beforeEach(async ({ page, context }) => {
-    // Mock all registration-related API endpoints
-    await mockRegistrationFlow(page);
+    // MSW handles all API mocking automatically
 
     // Grant geolocation permissions and mock location
     await context.grantPermissions(['geolocation']);
@@ -502,8 +497,7 @@ test.describe('Mobile Registration Flow', () => {
   });
 
   test('should be usable on mobile devices', async ({ page, context }) => {
-    // Mock all registration-related API endpoints
-    await mockRegistrationFlow(page);
+    // MSW handles all API mocking automatically
 
     // Grant geolocation permissions
     await context.grantPermissions(['geolocation']);
@@ -529,8 +523,7 @@ test.describe('Mobile Registration Flow', () => {
   test('should handle mobile keyboard for form inputs', async ({ page, context }) => {
     const testUser = createTestUser('artist');
 
-    // Mock all registration-related API endpoints
-    await mockRegistrationFlow(page);
+    // MSW handles all API mocking automatically
 
     // Grant geolocation permissions
     await context.grantPermissions(['geolocation']);

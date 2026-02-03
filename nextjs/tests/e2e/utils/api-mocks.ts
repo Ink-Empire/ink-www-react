@@ -471,6 +471,36 @@ export async function mockCommonEndpoints(page: Page) {
       },
     });
   });
+
+  // Mock tags endpoint
+  await page.route('**/api/tags', route => {
+    route.fulfill({
+      json: {
+        tags: [
+          { id: 1, name: 'flower' },
+          { id: 2, name: 'skull' },
+          { id: 3, name: 'dragon' },
+          { id: 4, name: 'portrait' },
+          { id: 5, name: 'geometric' },
+        ],
+      },
+    });
+  });
+
+  // Catch-all for any unmocked API endpoints - prevents ECONNREFUSED errors
+  // This should be called last so specific mocks take precedence
+  await page.route('**/api/**', route => {
+    const url = route.request().url();
+    console.log('[mock] Catch-all handling unmocked endpoint:', url);
+    route.fulfill({
+      status: 200,
+      json: {},
+    });
+  });
+
+  await page.route('**/sanctum/**', route => {
+    route.fulfill({ status: 204 });
+  });
 }
 
 /**
