@@ -24,8 +24,7 @@ interface User {
     tattoos?: number[];
     studios?: number[];
   };
-  // Studio admin fields
-  is_studio_admin?: boolean;
+  // Studio fields
   studio_id?: number;
   // Primary studio (for backwards compatibility)
   studio?: {

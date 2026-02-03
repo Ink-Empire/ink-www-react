@@ -62,13 +62,13 @@ export default defineConfig({
     // },
   ],
 
-  // Run local dev server before starting the tests (optional)
-  // Uncomment if you want Playwright to start the server
-  // webServer: {
-  //   command: 'npm run dev',
-  //   url: 'http://localhost:4000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  // Run local dev server before starting the tests
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:4000',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000, // 2 minutes to start
+  },
 
   // Global timeout for each test
   timeout: 5 * 60 * 1000, // 5 minutes for upload tests

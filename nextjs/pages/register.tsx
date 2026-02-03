@@ -92,7 +92,7 @@ const RegisterPage: React.FC = () => {
         if (data.studioOwner?.isAuthenticated && data.studioOwner?.existingAccountId) {
           console.log('Studio flow: existing user creating studio...');
 
-          // Create the studio for the authenticated user
+          // Create or claim the studio for the authenticated user
           const studioPayload: Record<string, unknown> = {
             name: data.studioDetails?.name || '',
             slug: generateSlug(data.studioDetails?.username || data.studioDetails?.name || ''),
@@ -109,8 +109,14 @@ const RegisterPage: React.FC = () => {
             studioPayload.phone = data.studioDetails.phone;
           }
 
-          const studioResponse = await studioService.create(studioPayload) as { studio?: { id?: number } };
-          console.log('Studio created:', studioResponse);
+          let studioResponse: { studio?: { id?: number } };
+
+          // If claiming an existing unclaimed studio from Google Places, use claim endpoint
+          if (data.studioDetails?.existingStudioId) {
+            studioResponse = await studioService.claim(data.studioDetails.existingStudioId, studioPayload) as { studio?: { id?: number } };
+          } else {
+            studioResponse = await studioService.create(studioPayload) as { studio?: { id?: number } };
+          }
 
           // Handle studio image upload
           const studioId = studioResponse?.studio?.id;

@@ -146,16 +146,18 @@ export default function Dashboard() {
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.username?.slice(0, 2).toUpperCase() || 'U';
   const ownedStudio = user?.owned_studio || user?.studio;
+
   const studioInitials = ownedStudio?.name
     ? ownedStudio.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'ST';
   // type_id: 1 = client/enthusiast, 2 = artist, 3 = studio
   const isClient = user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client';
+  const isArtist = user?.type_id === 2 || user?.type_id === '2' || user?.type === 'artist';
   const isStudioAccount = user?.type_id === 3 || user?.type_id === '3' || user?.type === 'studio';
-  const hasStudio = (user?.is_studio_admin && ownedStudio) || isStudioAccount;
+  const hasStudio = !!ownedStudio || isStudioAccount;
 
 
-  // Set default tab to 'studio' for pure studio accounts
+  // Set default tab to 'studio' only for pure studio accounts
   useEffect(() => {
     if (isStudioAccount) {
       setActiveTab('studio');
@@ -229,12 +231,12 @@ export default function Dashboard() {
     }
   }, [activeTab, hasStudio, ownedStudio?.id]);
 
-  // Load artist tattoos on mount (only for artists, not studio accounts)
+  // Load artist tattoos on mount (only for artists)
   useEffect(() => {
-    if (user?.id && !isStudioAccount) {
+    if (user?.id && isArtist) {
       loadArtistTattoos();
     }
-  }, [user?.id, isStudioAccount]);
+  }, [user?.id, isArtist]);
 
   // Load leads for artists (not for studio accounts or clients)
   useEffect(() => {
@@ -253,10 +255,10 @@ export default function Dashboard() {
     loadLeads();
   }, [user?.id, isClient, isStudioAccount]);
 
-  // Load dashboard stats and schedule (only for artists, not studio accounts)
+  // Load dashboard stats and schedule (only for artists)
   useEffect(() => {
     const loadDashboardData = async () => {
-      if (!user?.id || isStudioAccount) return;
+      if (!user?.id || !isArtist) return;
 
       setIsLoadingStats(true);
       try {
@@ -302,10 +304,10 @@ export default function Dashboard() {
       }
     };
 
-    if (user?.id && !isStudioAccount) {
+    if (user?.id && isArtist) {
       loadDashboardData();
     }
-  }, [user?.id, isStudioAccount]);
+  }, [user?.id, isArtist]);
 
   const loadArtistTattoos = async () => {
     if (!user?.slug) return;
@@ -536,8 +538,9 @@ export default function Dashboard() {
     }
   };
 
-  // Render client dashboard for clients (type_id = 1)
-  if (isClient) {
+  // Render client dashboard for clients without a studio (type_id = 1)
+  // Clients who own a studio should see the full dashboard with studio tab
+  if (isClient && !hasStudio) {
     return (
       <Layout>
         <Head>
@@ -601,10 +604,10 @@ export default function Dashboard() {
               }}
               startIcon={<VisibilityIcon sx={{ fontSize: 18 }} />}
             >
-              {isStudioAccount ? 'View Studio Page' : 'View Public Profile'}
+              {(isStudioAccount || activeTab === 'studio') ? 'View Studio Page' : 'View Public Profile'}
             </Button>
-            {/* Settings button for studios */}
-            {isStudioAccount && (
+            {/* Settings button for studio tab (studio accounts or anyone owning a studio) */}
+            {(isStudioAccount || (hasStudio && activeTab === 'studio')) && (
               <IconButton
                 onClick={() => setEditStudioOpen(true)}
                 sx={{
@@ -617,8 +620,8 @@ export default function Dashboard() {
                 <SettingsIcon sx={{ fontSize: 20 }} />
               </IconButton>
             )}
-            {/* Upload button - only show for artists, not pure studio accounts */}
-            {!isStudioAccount && (
+            {/* Upload button - only show for artists */}
+            {isArtist && (
             <Button
               onClick={(e) => setUploadMenuAnchor(e.currentTarget)}
               sx={{
@@ -700,7 +703,7 @@ export default function Dashboard() {
           </Box>
         </Box>
 
-        {/* Dashboard Tabs - only show if user has a studio AND is not a pure studio account */}
+        {/* Dashboard Tabs - for anyone with a studio (except pure studio accounts) */}
         {hasStudio && !isStudioAccount && (
           <Box sx={{
             display: 'flex',
@@ -710,7 +713,7 @@ export default function Dashboard() {
             pb: 0
           }}>
             <DashboardTab
-              label="My Artist Profile"
+              label={isArtist ? "My Artist Profile" : "My Dashboard"}
               initials={userInitials}
               imageUrl={typeof user?.image === 'string' ? user.image : user?.image?.uri}
               isActive={activeTab === 'artist'}
@@ -727,12 +730,18 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {/* Studio Invitations - Only for artists, not studio accounts */}
-        {!isStudioAccount && activeTab === 'artist' && (
+        {/* Studio Invitations - Only for artists viewing artist tab */}
+        {isArtist && activeTab === 'artist' && (
           <StudioInvitations onInvitationAccepted={refreshUser} />
         )}
 
-        {/* Stats Row */}
+        {/* Client Dashboard Content - for clients on their dashboard tab */}
+        {isClient && activeTab === 'artist' && (
+          <ClientDashboardContent userName={userName} userId={user?.id || 0} />
+        )}
+
+        {/* Stats Row - for artists or studio tab */}
+        {(isArtist || activeTab === 'studio') && (
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
@@ -800,8 +809,10 @@ export default function Dashboard() {
             </>
           )}
         </Box>
+        )}
 
-        {/* Main Grid */}
+        {/* Main Grid - for artists or studio tab (not for clients on their dashboard tab) */}
+        {(isArtist || activeTab === 'studio') && (
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '1fr 340px', lg: '1fr 380px' },
@@ -2244,9 +2255,10 @@ export default function Dashboard() {
             )}
           </Box>
         </Box>
+        )}
 
         {/* Guest Spot Opportunities - Artist Tab Only */}
-        {activeTab === 'artist' && (
+        {isArtist && activeTab === 'artist' && (
         <Box sx={{ mt: 3 }}>
           <Card
             title="Guest Spot Opportunities"

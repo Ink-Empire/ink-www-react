@@ -25,6 +25,7 @@ import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
 import LocationAutocomplete from '../LocationAutocomplete';
 import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
+import { getPlaceDetails } from '@/services/googlePlacesService';
 import { api } from '@/utils/api';
 import type { StudioCreationPayload } from './OnboardingWizard';
 
@@ -115,7 +116,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   }, [userLocationLatLong]);
 
   // Handler for when user selects a studio from Google Places
-  const handleGoogleStudioSelect = (studio: StudioOption | null) => {
+  const handleGoogleStudioSelect = async (studio: StudioOption | null) => {
     setSelectedGoogleStudio(studio);
 
     if (studio) {
@@ -130,11 +131,24 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
       // Auto-fill the form with Google data
       setName(studio.name);
-      if (studio.location) {
+
+      // Get location details from Google Place - use city/state/country format
+      if (studio.google_place_id) {
+        const details = await getPlaceDetails(studio.google_place_id);
+        if (details) {
+          // Format as "City, State, Country" like everywhere else
+          const locationParts = [details.city, details.state, details.country].filter(Boolean);
+          setLocation(locationParts.join(', '));
+
+          if (details.lat && details.lng) {
+            setLocationLatLong(`${details.lat},${details.lng}`);
+          }
+        }
+      } else if (studio.location) {
+        // Fallback to studio.location if no place_id
         setLocation(studio.location);
-        // Extract lat/long if available from the studio
-        // (The backend sets this when creating from Google Places)
       }
+
       if (studio.phone) {
         setPhone(studio.phone);
       }
