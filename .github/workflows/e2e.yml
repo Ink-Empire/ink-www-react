@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
-    inputs:
-      fixture_branch:
-        description: 'Branch to pull fixtures from'
-        required: false
-        default: 'develop'
 
 defaults:
   run:
@@ -34,30 +29,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Cache API fixtures
-        id: fixture-cache
-        uses: actions/cache@v4
-        with:
-          path: nextjs/tests/fixtures/api
-          key: fixtures-${{ github.ref_name }}-${{ hashFiles('nextjs/tests/fixtures/api/**') }}
-          restore-keys: |
-            fixtures-${{ github.ref_name }}-
-            fixtures-develop-
-
-      - name: Configure AWS credentials
-        if: steps.fixture-cache.outputs.cache-hit != 'true'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Pull API fixtures from S3
-        if: steps.fixture-cache.outputs.cache-hit != 'true'
-        run: npm run pull:fixtures -- ${{ github.event.inputs.fixture_branch || github.ref_name }}
-        env:
-          CI: true
 
       - name: Build Next.js app
         run: npm run build
