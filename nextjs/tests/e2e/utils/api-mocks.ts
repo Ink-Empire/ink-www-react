@@ -461,6 +461,16 @@ export async function mockCommonEndpoints(page: Page) {
       json: { apiKey: 'mock-api-key' },
     });
   });
+
+  // Mock Laravel Sanctum CSRF cookie endpoint
+  await page.route('**/sanctum/csrf-cookie', route => {
+    route.fulfill({
+      status: 204,
+      headers: {
+        'Set-Cookie': 'XSRF-TOKEN=mock-csrf-token; Path=/',
+      },
+    });
+  });
 }
 
 /**
