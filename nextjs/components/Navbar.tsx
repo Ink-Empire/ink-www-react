@@ -465,33 +465,53 @@ const Navbar: React.FC = () => {
 
             {isAuthenticated ? (
               <>
+                {/* My Profile - for artists only */}
+                {user?.slug && user?.type_id !== 1 && user?.type_id !== '1' && user?.type !== 'client' && user?.type !== 'user' && (
+                  <ListItem
+                    component={Link}
+                    href={`/artists/${user.slug}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 1,
+                      '&:hover': { backgroundColor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemText primary="My Profile" />
+                  </ListItem>
+                )}
+
+                {/* Dashboard */}
                 <ListItem
                   component={Link}
-                  href={user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user' ? '/dashboard' : '/profile'}
+                  href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
                   sx={{
                     borderRadius: 1,
                     mb: 1,
+                    backgroundColor: isActiveRoute('/dashboard') ? `${colors.accent}33` : 'transparent',
                     '&:hover': { backgroundColor: `${colors.accent}1A` }
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={2}>
-                    <Avatar
-                      src={avatarUrl || undefined}
-                      alt={getDisplayName()}
-                      sx={{
-                        width: 24,
-                        height: 24,
-                        bgcolor: colors.accent,
-                        color: colors.background,
-                      }}
-                    >
-                      {getInitials()}
-                    </Avatar>
-                    <ListItemText primary={getDisplayName()} />
-                  </Stack>
+                  <ListItemText primary="Dashboard" />
                 </ListItem>
 
+                {/* Settings */}
+                <ListItem
+                  component={Link}
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 1,
+                    backgroundColor: isActiveRoute('/profile') ? `${colors.accent}33` : 'transparent',
+                    '&:hover': { backgroundColor: `${colors.accent}1A` }
+                  }}
+                >
+                  <ListItemText primary="Settings" />
+                </ListItem>
+
+                {/* Log out */}
                 <ListItem
                   onClick={() => {
                     handleLogout();
