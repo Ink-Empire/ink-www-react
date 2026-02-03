@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import Image from 'next/image';
 import { Box, Typography, IconButton, Avatar } from '@mui/material';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
@@ -16,6 +17,7 @@ interface ArtistCardProps {
 }
 
 const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
+    const router = useRouter();
     const user = useUserData();
     const { isAuthenticated } = useAuth();
     const [isSaved, setIsSaved] = useState(false);
@@ -152,23 +154,25 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                         </Typography>
                         {(artist.studio?.name || artist.studio_name) && (
                             artist.studio?.slug ? (
-                                <Link
-                                    href={`/studios/${artist.studio.slug}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    style={{ textDecoration: 'none' }}
-                                >
-                                    <Typography sx={{
+                                <Typography
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        router.push(`/studios/${artist.studio!.slug}`);
+                                    }}
+                                    sx={{
                                         fontSize: '0.8rem',
                                         color: colors.accent,
                                         mb: '0.1rem',
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',
+                                        cursor: 'pointer',
                                         '&:hover': { textDecoration: 'underline' }
-                                    }}>
-                                        {artist.studio?.name || artist.studio_name}
-                                    </Typography>
-                                </Link>
+                                    }}
+                                >
+                                    {artist.studio?.name || artist.studio_name}
+                                </Typography>
                             ) : (
                                 <Typography sx={{
                                     fontSize: '0.8rem',
