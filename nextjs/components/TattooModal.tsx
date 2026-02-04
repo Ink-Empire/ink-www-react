@@ -3,12 +3,9 @@ import { Modal, Box, Typography, IconButton, Avatar, Skeleton } from '@mui/mater
 import CloseIcon from '@mui/icons-material/Close';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -29,7 +26,6 @@ interface TattooModalProps {
   hasPrevious?: boolean;
   hasNext?: boolean;
   tattooFavorite?: boolean;
-  artistFavorite?: boolean;
 }
 
 const TattooModal: React.FC<TattooModalProps> = ({
@@ -42,7 +38,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
   hasPrevious = false,
   hasNext = false,
   tattooFavorite = false,
-  artistFavorite = false
 }) => {
   const { tattoo, loading, error } = useTattoo(tattooId);
   const router = useRouter();
@@ -50,25 +45,17 @@ const TattooModal: React.FC<TattooModalProps> = ({
   const userData = useUserData();
   const { isImageCached, preloadImage } = useImageCache();
 
-  const [isTattooLiked, setIsTattooLiked] = useState(false);
   const [isTattooSaved, setIsTattooSaved] = useState(tattooFavorite);
-  const [isArtistFollowed, setIsArtistFollowed] = useState(artistFavorite);
-  const [likeCount, setLikeCount] = useState(0);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   // Sync state with props
   useEffect(() => {
     setIsTattooSaved(tattooFavorite);
-    setIsArtistFollowed(artistFavorite);
-  }, [tattooFavorite, artistFavorite]);
+  }, [tattooFavorite]);
 
-  // Initialize like count from tattoo data and reset selected image
+  // Reset to first image when tattoo changes
   useEffect(() => {
-    if (tattoo?.likes_count) {
-      setLikeCount(tattoo.likes_count);
-    }
-    // Reset to first image when tattoo changes
     setSelectedImageIndex(0);
     setImageLoaded(false);
   }, [tattoo]);
@@ -115,15 +102,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, hasPrevious, hasNext, onPrevious, onNext, onClose]);
 
-  const handleLikeTattoo = async () => {
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-    setIsTattooLiked(!isTattooLiked);
-    setLikeCount(prev => isTattooLiked ? prev - 1 : prev + 1);
-  };
-
   const handleSaveTattoo = async () => {
     if (!tattooId) return;
     if (!isAuthenticated) {
@@ -135,20 +113,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
       setIsTattooSaved(!isTattooSaved);
     } catch (error) {
       console.error('Error saving tattoo:', error);
-    }
-  };
-
-  const handleFollowArtist = async () => {
-    if (!tattoo?.artist_id) return;
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-    try {
-      await userData?.toggleFavorite('artist', tattoo.artist_id);
-      setIsArtistFollowed(!isArtistFollowed);
-    } catch (error) {
-      console.error('Error following artist:', error);
     }
   };
 
@@ -201,16 +165,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
   const getArtistInitials = () => {
     const name = tattoo?.artist_name || '';
     return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  const getUserInitials = () => {
-    if (user?.first_name && user?.last_name) {
-      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
-    }
-    if (user?.name) {
-      return user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-    }
-    return 'ME';
   };
 
   const getArtistLocation = () => {
@@ -552,31 +506,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     </Typography>
                   )}
                 </Box>
-
-                {/* Follow Button */}
-                <Box
-                  component="button"
-                  onClick={handleFollowArtist}
-                  sx={{
-                    px: '1rem',
-                    py: '0.4rem',
-                    bgcolor: isArtistFollowed ? colors.accentDim : 'transparent',
-                    border: `1px solid ${colors.accent}`,
-                    borderRadius: '100px',
-                    color: colors.accent,
-                    fontFamily: 'inherit',
-                    fontSize: '0.8rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: colors.accent,
-                      color: colors.background,
-                    },
-                  }}
-                >
-                  {isArtistFollowed ? 'Following' : 'Follow'}
-                </Box>
               </Box>
             </Box>
 
@@ -717,42 +646,11 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   flexWrap: 'wrap',
                 }}
               >
-                {/* Like Button */}
-                <Box
-                  component="button"
-                  onClick={handleLikeTattoo}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    px: '0.875rem',
-                    py: '0.5rem',
-                    bgcolor: isTattooLiked ? colors.accentDim : colors.surfaceElevated,
-                    border: `1px solid ${isTattooLiked ? colors.accent : colors.borderLight}`,
-                    borderRadius: '6px',
-                    color: isTattooLiked ? colors.accent : colors.textSecondary,
-                    fontFamily: 'inherit',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      borderColor: colors.accent,
-                      color: colors.accent,
-                    },
-                  }}
-                >
-                  {isTattooLiked ? (
-                    <FavoriteIcon sx={{ fontSize: 18 }} />
-                  ) : (
-                    <FavoriteBorderIcon sx={{ fontSize: 18 }} />
-                  )}
-                  <span>{likeCount || ''}</span>
-                </Box>
-
                 {/* Save Button */}
                 <Box
                   component="button"
                   onClick={handleSaveTattoo}
+                  title={isTattooSaved ? 'Saved to your collection' : 'Save for inspiration'}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -815,33 +713,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   <ShareIcon sx={{ fontSize: 18 }} />
                   <span>Share</span>
                 </Box>
-
-                <Box sx={{ flex: 1 }} />
-
-                {/* More Button */}
-                <Box
-                  component="button"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    px: '0.5rem',
-                    py: '0.5rem',
-                    bgcolor: colors.surfaceElevated,
-                    border: `1px solid ${colors.borderLight}`,
-                    borderRadius: '6px',
-                    color: colors.textSecondary,
-                    fontFamily: 'inherit',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      borderColor: colors.accent,
-                      color: colors.accent,
-                    },
-                  }}
-                >
-                  <MoreHorizIcon sx={{ fontSize: 18 }} />
-                </Box>
               </Box>
 
               {/* Details Section */}
@@ -878,53 +749,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 </Box>
               )}
 
-              {/* Comments Section */}
-              <Box
-                sx={{
-                  borderTop: `1px solid ${colors.borderSubtle}`,
-                  pt: '1.25rem',
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '1rem' }}>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                    {tattoo?.comments_count || 0} Comments
-                  </Typography>
-                </Box>
-
-                {/* Comment Input */}
-                <Box sx={{ display: 'flex', gap: '0.75rem', mb: '1rem' }}>
-                  <Avatar
-                    src={typeof user?.image === 'string' ? user.image : user?.image?.uri || undefined}
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      bgcolor: colors.surfaceElevated,
-                      fontSize: '0.75rem',
-                      color: colors.accent,
-                    }}
-                  >
-                    {!(typeof user?.image === 'string' ? user.image : user?.image?.uri) && getUserInitials()}
-                  </Avatar>
-                  <Box
-                    component="input"
-                    placeholder="Add a comment..."
-                    sx={{
-                      flex: 1,
-                      px: '0.875rem',
-                      py: '0.6rem',
-                      bgcolor: colors.background,
-                      border: `1px solid ${colors.borderLight}`,
-                      borderRadius: '8px',
-                      color: colors.textPrimary,
-                      fontFamily: 'inherit',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      '&::placeholder': { color: colors.textSecondary },
-                      '&:focus': { borderColor: colors.accent },
-                    }}
-                  />
-                </Box>
-              </Box>
             </Box>
           </Box>
         </Box>

@@ -168,6 +168,11 @@ When adding a new API endpoint:
 4. Use the service method in components
 5. Never call the API client directly
 
+## URL Routing Patterns
+- **Artist pages**: Always use `slug`, NOT `username` → `/artists/${artist.slug}`
+- **Studio pages**: Use `slug` → `/studios/${studio.slug}`
+- **Tattoo pages**: Use `id` → `/tattoos?id=${tattoo.id}` or open TattooModal directly
+
 ## Code Style Guidelines
 - **Framework**: NextJs, ReactNative
 - **Namespacing**: PSR-4 with App\\ namespace

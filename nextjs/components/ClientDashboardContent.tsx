@@ -438,14 +438,14 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
         gap: 3,
       }}>
-        {/* Wishlist */}
+        {/* My Saved Items */}
         <Card
-          title={`My Wishlist (${wishlistLoading ? '...' : wishlist.length})`}
-          subtitle="Artists you want to book when they open"
+          title="My Saved Items"
+          subtitle="Artists and tattoos you've saved"
           icon={<BookmarkIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
             <CardLink href="/wishlist">
-              Manage <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
+              View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
             </CardLink>
           }
         >

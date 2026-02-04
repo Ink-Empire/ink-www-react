@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Box,
   Typography,
@@ -8,17 +9,91 @@ import {
   Avatar,
   IconButton,
   Button,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import LockIcon from '@mui/icons-material/Lock';
 import Layout from '../components/Layout';
+import TattooModal from '../components/TattooModal';
 import { useWishlist } from '@/hooks/useClientDashboard';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, useUserData } from '@/contexts/AuthContext';
+import { clientService } from '@/services/clientService';
 import { colors } from '@/styles/colors';
 
 export default function WishlistPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const userData = useUserData();
   const { wishlist, loading, error, removeFromWishlist } = useWishlist();
+  const [activeTab, setActiveTab] = useState(0);
+  const [savedTattoos, setSavedTattoos] = useState<any[]>([]);
+  const [tattoosLoading, setTattoosLoading] = useState(true);
+  const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
+  const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
+
+  useEffect(() => {
+    const loadSavedTattoos = async () => {
+      if (!isAuthenticated) return;
+      setTattoosLoading(true);
+      try {
+        const response = await clientService.getSavedTattoos();
+        setSavedTattoos(response.tattoos || []);
+      } catch (err) {
+        console.error('Failed to load saved tattoos:', err);
+      } finally {
+        setTattoosLoading(false);
+      }
+    };
+    loadSavedTattoos();
+  }, [isAuthenticated]);
+
+  const handleUnsaveTattoo = async (tattooId: number) => {
+    try {
+      await userData?.toggleFavorite('tattoo', tattooId);
+      setSavedTattoos(prev => prev.filter(t => t.id !== tattooId));
+    } catch (err) {
+      console.error('Failed to unsave tattoo:', err);
+    }
+  };
+
+  const handleTattooClick = (tattooId: string) => {
+    setSelectedTattooId(tattooId);
+    setIsTattooModalOpen(true);
+  };
+
+  const handleCloseTattooModal = () => {
+    setIsTattooModalOpen(false);
+    setSelectedTattooId(null);
+  };
+
+  const getCurrentTattoo = () => {
+    if (!selectedTattooId) return null;
+    return savedTattoos.find(t => t.id.toString() === selectedTattooId);
+  };
+
+  const getCurrentTattooIndex = () => {
+    if (!selectedTattooId) return -1;
+    return savedTattoos.findIndex(t => t.id.toString() === selectedTattooId);
+  };
+
+  const handlePreviousTattoo = () => {
+    const currentIndex = getCurrentTattooIndex();
+    if (currentIndex > 0) {
+      setSelectedTattooId(savedTattoos[currentIndex - 1].id.toString());
+    }
+  };
+
+  const handleNextTattoo = () => {
+    const currentIndex = getCurrentTattooIndex();
+    if (currentIndex < savedTattoos.length - 1) {
+      setSelectedTattooId(savedTattoos[currentIndex + 1].id.toString());
+    }
+  };
+
+  const getTattooFavoriteStatus = () => {
+    if (!selectedTattooId) return false;
+    return savedTattoos.some(t => t.id.toString() === selectedTattooId);
+  };
 
   // Show loading while checking auth
   if (authLoading) {
@@ -98,8 +173,8 @@ export default function WishlistPage() {
   return (
     <Layout>
       <Head>
-        <title>Saved Artists | InkedIn</title>
-        <meta name="description" content="Your saved tattoo artists" />
+        <title>Saved | InkedIn</title>
+        <meta name="description" content="Your saved tattoo artists and tattoos" />
         <link rel="icon" href="/assets/img/logo.png" />
       </Head>
 
@@ -112,7 +187,7 @@ export default function WishlistPage() {
         }}
       >
         {/* Header */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 2 }}>
           <Typography
             sx={{
               fontSize: '1.75rem',
@@ -121,24 +196,40 @@ export default function WishlistPage() {
               mb: '0.5rem',
             }}
           >
-            Saved Artists
-          </Typography>
-          <Typography sx={{ fontSize: '0.95rem', color: colors.textSecondary }}>
-            {wishlist.length > 0 ? (
-              <>
-                <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>
-                  {wishlist.length}
-                </Box>
-                {' '}artist{wishlist.length !== 1 ? 's' : ''} saved
-              </>
-            ) : (
-              'Artists you save will appear here'
-            )}
+            Saved
           </Typography>
         </Box>
 
-        {/* Content */}
-        {loading ? (
+        {/* Tabs */}
+        <Box sx={{ borderBottom: `1px solid ${colors.border}`, mb: 3 }}>
+          <Tabs
+            value={activeTab}
+            onChange={(_, newValue) => setActiveTab(newValue)}
+            sx={{
+              '& .MuiTab-root': {
+                color: colors.textSecondary,
+                textTransform: 'none',
+                fontSize: '1rem',
+                fontWeight: 500,
+                minWidth: 100,
+                '&.Mui-selected': {
+                  color: colors.accent,
+                },
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: colors.accent,
+              },
+            }}
+          >
+            <Tab label={`Artists (${wishlist.length})`} />
+            <Tab label={`Tattoos (${savedTattoos.length})`} />
+          </Tabs>
+        </Box>
+
+        {/* Artists Tab */}
+        {activeTab === 0 && (
+          <>
+            {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress sx={{ color: colors.accent }} />
           </Box>
@@ -211,22 +302,26 @@ export default function WishlistPage() {
             }}
           >
             {wishlist.map((artist) => (
-              <Box
+              <Link
                 key={artist.id}
-                sx={{
-                  bgcolor: colors.surface,
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  border: `1px solid ${colors.border}`,
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: `0 8px 24px rgba(0, 0, 0, 0.3)`,
-                  },
-                }}
+                href={`/artists/${artist.slug}`}
+                style={{ textDecoration: 'none' }}
               >
-                {/* Card Header with Avatar */}
-                <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
+                <Box
+                  sx={{
+                    bgcolor: colors.surface,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    border: `1px solid ${colors.border}`,
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 8px 24px rgba(0, 0, 0, 0.3)`,
+                    },
+                  }}
+                >
+                  {/* Card Header with Avatar */}
                   <Box
                     sx={{
                       p: 2,
@@ -267,7 +362,7 @@ export default function WishlistPage() {
                           <Link
                             href={`/studios/${artist.studio.slug}`}
                             onClick={(e) => e.stopPropagation()}
-                            style={{ textDecoration: 'none' }}
+                            style={{ textDecoration: 'none', display: 'block' }}
                           >
                             <Typography
                               sx={{
@@ -298,9 +393,8 @@ export default function WishlistPage() {
                       )}
                     </Box>
                   </Box>
-                </Link>
 
-                {/* Styles */}
+                  {/* Styles */}
                 {artist.styles && artist.styles.length > 0 && (
                   <Box sx={{ px: 2, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {artist.styles.slice(0, 3).map((style) => (
@@ -346,7 +440,11 @@ export default function WishlistPage() {
                     {artist.books_open ? 'Books Open' : 'Books Closed'}
                   </Box>
                   <IconButton
-                    onClick={() => handleRemove(artist.id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleRemove(artist.id);
+                    }}
                     size="small"
                     sx={{
                       color: colors.accent,
@@ -358,10 +456,185 @@ export default function WishlistPage() {
                   </IconButton>
                 </Box>
               </Box>
+              </Link>
             ))}
           </Box>
         )}
+          </>
+        )}
+
+        {/* Tattoos Tab */}
+        {activeTab === 1 && (
+          <>
+            {tattoosLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                <CircularProgress sx={{ color: colors.accent }} />
+              </Box>
+            ) : savedTattoos.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <BookmarkIcon sx={{ fontSize: 64, color: colors.textSecondary, opacity: 0.5, mb: 2 }} />
+                <Typography
+                  sx={{
+                    color: colors.textPrimary,
+                    fontSize: '1.25rem',
+                    fontWeight: 500,
+                    mb: 1,
+                  }}
+                >
+                  No saved tattoos yet
+                </Typography>
+                <Typography
+                  sx={{
+                    color: colors.textSecondary,
+                    fontSize: '0.95rem',
+                    mb: 3,
+                    maxWidth: 400,
+                    mx: 'auto',
+                  }}
+                >
+                  Browse tattoos and tap the bookmark icon to save them for inspiration
+                </Typography>
+                <Button
+                  component={Link}
+                  href="/tattoos"
+                  sx={{
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    textTransform: 'none',
+                    px: 4,
+                    py: 1,
+                    fontWeight: 600,
+                    '&:hover': { bgcolor: colors.accentHover },
+                  }}
+                >
+                  Browse Tattoos
+                </Button>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: 'repeat(2, 1fr)',
+                    sm: 'repeat(3, 1fr)',
+                    md: 'repeat(4, 1fr)',
+                    lg: 'repeat(5, 1fr)',
+                  },
+                  gap: '1rem',
+                }}
+              >
+                {savedTattoos.map((tattoo) => (
+                  <Box
+                    key={tattoo.id}
+                    sx={{
+                      position: 'relative',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      bgcolor: colors.surface,
+                      border: `1px solid ${colors.border}`,
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: `0 8px 24px rgba(0, 0, 0, 0.3)`,
+                      },
+                    }}
+                    onClick={() => handleTattooClick(tattoo.id.toString())}
+                  >
+                    <Box sx={{ position: 'relative', aspectRatio: '1', bgcolor: colors.background }}>
+                      {(tattoo.primary_image?.uri || tattoo.image?.uri) ? (
+                        <Image
+                          src={tattoo.primary_image?.uri || tattoo.image?.uri}
+                          alt={tattoo.title || 'Tattoo'}
+                          fill
+                          style={{ objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: colors.textSecondary,
+                          }}
+                        >
+                          No image
+                        </Box>
+                      )}
+                    </Box>
+                    <Box sx={{ p: 1.5 }}>
+                      <Link
+                        href={`/artists/${tattoo.artist_slug || tattoo.artist_id}`}
+                        style={{ textDecoration: 'none' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Typography
+                          sx={{
+                            fontSize: '0.85rem',
+                            fontWeight: 500,
+                            color: colors.textPrimary,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            '&:hover': { color: colors.accent },
+                          }}
+                        >
+                          {tattoo.artist_name || 'Unknown Artist'}
+                        </Typography>
+                      </Link>
+                      {tattoo.primary_style && (
+                        <Typography
+                          sx={{
+                            fontSize: '0.75rem',
+                            color: colors.accent,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {tattoo.primary_style}
+                        </Typography>
+                      )}
+                    </Box>
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUnsaveTattoo(tattoo.id);
+                      }}
+                      size="small"
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        bgcolor: 'rgba(0,0,0,0.5)',
+                        color: colors.accent,
+                        '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                      }}
+                      title="Remove from saved"
+                    >
+                      <BookmarkIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </>
+        )}
       </Box>
+
+      <TattooModal
+        tattooId={selectedTattooId}
+        artistName={getCurrentTattoo()?.artist_name || null}
+        open={isTattooModalOpen}
+        onClose={handleCloseTattooModal}
+        onPrevious={handlePreviousTattoo}
+        onNext={handleNextTattoo}
+        hasPrevious={getCurrentTattooIndex() > 0}
+        hasNext={getCurrentTattooIndex() < savedTattoos.length - 1}
+        tattooFavorite={getTattooFavoriteStatus()}
+      />
     </Layout>
   );
 }

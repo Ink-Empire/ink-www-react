@@ -1059,11 +1059,11 @@ export default function Dashboard() {
               </Card>
             )}
 
-            {/* Your Saved Artists */}
+            {/* My Saved Items */}
             {activeTab === 'artist' && (
               <Card
-                title="Your Saved Artists"
-                action={<CardLink href="/artists">Browse More →</CardLink>}
+                title="My Saved Items"
+                action={<CardLink href="/wishlist">View All →</CardLink>}
                 icon={<BookmarkIcon />}
               >
                 {savedArtistsLoading ? (

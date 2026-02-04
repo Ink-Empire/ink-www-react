@@ -62,6 +62,14 @@ export const clientService = {
     });
   },
 
+  // Get client's saved tattoos (requires auth)
+  getSavedTattoos: async (): Promise<{ tattoos: any[] }> => {
+    return api.get('/client/saved-tattoos', {
+      requiresAuth: true,
+      useCache: false,
+    });
+  },
+
   // Get suggested artists for client (requires auth)
   getSuggestedArtists: async (limit: number = 6): Promise<{ artists: SuggestedArtist[] }> => {
     return api.get(`/client/suggested-artists?limit=${limit}`, {
