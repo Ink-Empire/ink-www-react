@@ -366,12 +366,14 @@ export default function ArtistList() {
                         }}>
                             Find Artists
                         </Typography>
-                        <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
-                            <Box component="strong" sx={{ color: colors.accent }}>
-                                {artistCount}
-                            </Box>
-                            {' '}artists available
-                        </Typography>
+                        {total < 25 && !loading && (
+                            <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
+                                <Box component="strong" sx={{ color: colors.accent }}>
+                                    {total}
+                                </Box>
+                                {' '}{total === 1 ? 'result' : 'results'} found
+                            </Typography>
+                        )}
                     </Box>
 
                     <Box sx={{
