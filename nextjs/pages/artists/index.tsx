@@ -7,6 +7,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import CloseIcon from '@mui/icons-material/Close';
 import ArtistCard from '../../components/ArtistCard';
 import UnclaimedStudioCard from '../../components/UnclaimedStudioCard';
+import SearchStudioCard from '../../components/SearchStudioCard';
 import SearchFilters from '../../components/SearchFilters';
 import Layout from '../../components/Layout';
 import { useArtists, UnclaimedStudio } from '@/hooks';
@@ -257,18 +258,25 @@ export default function ArtistList() {
 
     const getInterleavedResults = () => {
         if (!artists || artists.length === 0) return [];
+
+        // Map results, checking the type field from ES (artists have type='artist', studios have type='studio')
+        const mappedResults = artists.map(item => ({
+            type: item.type === 'studio' ? 'studio' as const : 'artist' as const,
+            data: item
+        }));
+
         if (!unclaimedStudios || unclaimedStudios.length === 0) {
-            return artists.map(artist => ({ type: 'artist' as const, data: artist }));
+            return mappedResults;
         }
 
-        const results: Array<{ type: 'artist' | 'unclaimed'; data: any }> = [];
+        const results: Array<{ type: 'artist' | 'studio' | 'unclaimed'; data: any }> = [];
         let unclaimedIndex = 0;
-        const insertInterval = 4; // Insert unclaimed studio after every 4 artists
+        const insertInterval = 4; // Insert unclaimed studio after every 4 results
 
-        artists.forEach((artist, index) => {
-            results.push({ type: 'artist', data: artist });
+        mappedResults.forEach((item, index) => {
+            results.push(item);
 
-            // After every insertInterval artists, add an unclaimed studio if available
+            // After every insertInterval results, add an unclaimed studio if available
             if ((index + 1) % insertInterval === 0 && unclaimedIndex < unclaimedStudios.length) {
                 results.push({ type: 'unclaimed', data: unclaimedStudios[unclaimedIndex] });
                 unclaimedIndex++;
@@ -471,7 +479,7 @@ export default function ArtistList() {
                     <Box sx={{ textAlign: 'center', py: 4 }}>
                         <Typography sx={{ color: colors.error }}>Error: {error.message}</Typography>
                     </Box>
-                ) : artistCount === 0 && !loading ? (
+                ) : artistCount === 0 && unclaimedStudios.length === 0 && !loading ? (
                     // Show "founding artists" CTA when live site is empty (no demo mode, no restrictive filters)
                     // Only count non-default filters as restrictive
                     !isDemoMode && activeFilters.filter(f => !(f as any).isDefault).length === 0 ? (
@@ -529,20 +537,31 @@ export default function ArtistList() {
                         },
                         gap: '1.25rem'
                     }}>
-                        {interleavedResults.map((item, index) => (
-                            item.type === 'artist' ? (
-                                <ArtistCard
-                                    key={`artist-${item.data.id}`}
-                                    artist={item.data}
-                                    onSaveClick={handleArtistSaveClick}
-                                />
-                            ) : (
-                                <UnclaimedStudioCard
-                                    key={`unclaimed-${item.data.id}`}
-                                    studio={item.data}
-                                />
-                            )
-                        ))}
+                        {interleavedResults.map((item, index) => {
+                            if (item.type === 'artist') {
+                                return (
+                                    <ArtistCard
+                                        key={`artist-${item.data.id}`}
+                                        artist={item.data}
+                                        onSaveClick={handleArtistSaveClick}
+                                    />
+                                );
+                            } else if (item.type === 'studio') {
+                                return (
+                                    <SearchStudioCard
+                                        key={`studio-${item.data.id}`}
+                                        studio={item.data}
+                                    />
+                                );
+                            } else {
+                                return (
+                                    <UnclaimedStudioCard
+                                        key={`unclaimed-${item.data.id}`}
+                                        studio={item.data}
+                                    />
+                                );
+                            }
+                        })}
                     </Box>
                 )}
 
