@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
 import { appointmentService } from '@/services/appointmentService';
-import { colors } from '@/styles/colors';
+import { colors, modalStyles } from '@/styles/colors';
 import { formatTimeSlotWithClientTime, getClientTimezone, getTimezoneLabel, areTimezonesEqual } from '../utils/timezone';
 
 interface ArtistSettings {
@@ -188,6 +188,7 @@ export default function BookingModal({
       onClose={handleClose}
       aria-labelledby="booking-modal"
       aria-describedby="modal-for-booking-appointments"
+      slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
     >
       <Paper
         sx={{
@@ -197,11 +198,8 @@ export default function BookingModal({
           transform: 'translate(-50%, -50%)',
           width: 400,
           maxWidth: '90%',
-          bgcolor: colors.surface,
-          boxShadow: 24,
-          borderRadius: 1,
           p: 4,
-          color: 'white'
+          ...modalStyles.paper,
         }}
       >
         {/* Show login prompt if user is not authenticated */}

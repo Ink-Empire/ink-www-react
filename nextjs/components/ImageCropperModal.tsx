@@ -16,7 +16,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import RotateRightIcon from '@mui/icons-material/RotateRight';
-import { colors } from '@/styles/colors';
+import { colors, modalStyles } from '@/styles/colors';
 import { getCroppedImage } from '@/utils/cropImage';
 
 interface ImageCropperModalProps {
@@ -97,12 +97,11 @@ const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
       maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: {
-          bgcolor: colors.background,
-          color: colors.textPrimary,
-          borderRadius: isMobile ? 0 : 2,
-        },
+        sx: isMobile
+          ? { bgcolor: colors.background, color: colors.textPrimary, borderRadius: 0 }
+          : modalStyles.paper,
       }}
+      slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
     >
       {/* Header */}
       <Box

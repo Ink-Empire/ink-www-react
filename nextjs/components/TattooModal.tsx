@@ -14,7 +14,7 @@ import { useTattoo } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserData } from '../contexts/AuthContext';
 import { useImageCache } from '../contexts/ImageCacheContext';
-import { colors } from '@/styles/colors';
+import { colors, modalStyles } from '@/styles/colors';
 
 interface TattooModalProps {
   tattooId: string | null;
@@ -190,6 +190,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
         justifyContent: 'center',
         p: '1rem',
       }}
+      slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
     >
       <Box sx={{ outline: 'none', width: '100%', maxWidth: '1100px' }}>
         {/* Close Button */}
@@ -268,15 +269,15 @@ const TattooModal: React.FC<TattooModalProps> = ({
         {/* Modal Content */}
         <Box
           sx={{
-            bgcolor: colors.surface,
+            bgcolor: colors.surfaceElevated,
             borderRadius: '12px',
-            border: `1px solid ${colors.borderSubtle}`,
+            border: `1px solid ${colors.borderLight}`,
             width: '100%',
             maxHeight: '90vh',
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
             overflow: 'hidden',
-            boxShadow: '0 24px 48px rgba(0, 0, 0, 0.4)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
           }}
         >
           {/* Image Section */}

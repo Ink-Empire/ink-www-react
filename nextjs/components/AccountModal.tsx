@@ -1,5 +1,20 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Typography,
+  IconButton,
+  InputAdornment,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useUser } from '../contexts/AuthContext';
+import { colors, modalStyles } from '@/styles/colors';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -11,85 +26,162 @@ interface AccountModalProps {
 const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, onConfirm, fieldName }) => {
   const { userData } = useUser();
   const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Focus input when modal opens
-  React.useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+  useEffect(() => {
+    if (isOpen) {
+      setInputValue('');
+      setShowPassword(false);
     }
   }, [isOpen]);
-  
+
   const handleConfirm = () => {
     const data: Record<string, string> = {};
     data[fieldName] = inputValue;
     onConfirm(data);
+    setInputValue('');
   };
 
-  if (!isOpen) return null;
-  
-  // Get placeholder based on field name
+  const handleClose = () => {
+    setInputValue('');
+    onClose();
+  };
+
+  const getTitle = () => {
+    switch (fieldName) {
+      case 'name':
+        return 'Update Name';
+      case 'email':
+        return 'Update Email';
+      case 'password':
+        return 'Update Password';
+      default:
+        return `Update ${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`;
+    }
+  };
+
   const getPlaceholder = () => {
     switch (fieldName) {
       case 'name':
-        return userData.name || 'Enter new name';
+        return userData?.name || 'Enter new name';
       case 'email':
-        return userData.email || 'Enter new email';
+        return userData?.email || 'Enter new email';
       case 'password':
-        return '••••••••';
+        return 'Enter new password';
       default:
         return '';
     }
   };
 
-  // Get input type based on field name
   const getInputType = () => {
-    switch (fieldName) {
-      case 'password':
-        return 'password';
-      case 'email':
-        return 'email';
-      default:
-        return 'text';
+    if (fieldName === 'password') {
+      return showPassword ? 'text' : 'password';
     }
+    if (fieldName === 'email') {
+      return 'email';
+    }
+    return 'text';
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-medium">
-            Update {fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}
-          </h2>
-          <button 
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            Cancel
-          </button>
-        </div>
-        
-        <div className="mb-4">
-          <input
-            ref={inputRef}
-            type={getInputType()}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder={getPlaceholder()}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-        
-        <div className="flex justify-end">
-          <button
-            onClick={handleConfirm}
-            className="ml-4 inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
+    <Dialog
+      open={isOpen}
+      onClose={handleClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{ sx: modalStyles.paper }}
+      slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
+    >
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+        <Typography variant="h6" component="span" sx={{ fontWeight: 600 }}>
+          {getTitle()}
+        </Typography>
+        <IconButton
+          onClick={handleClose}
+          sx={{ color: colors.textSecondary, '&:hover': { color: colors.textPrimary } }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent>
+        <TextField
+          autoFocus
+          fullWidth
+          type={getInputType()}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder={getPlaceholder()}
+          variant="outlined"
+          InputProps={{
+            endAdornment: fieldName === 'password' ? (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                  sx={{ color: colors.textSecondary }}
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ) : undefined,
+          }}
+          sx={{
+            mt: 1,
+            '& .MuiOutlinedInput-root': {
+              color: colors.textPrimary,
+              '& fieldset': {
+                borderColor: colors.inputBorder,
+              },
+              '&:hover fieldset': {
+                borderColor: colors.inputBorderHover,
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: colors.accent,
+              },
+              '& input::placeholder': {
+                color: colors.textMuted,
+                opacity: 1,
+              },
+            },
+          }}
+        />
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+        <Button
+          onClick={handleClose}
+          sx={{
+            px: 3,
+            py: 1,
+            color: colors.textSecondary,
+            borderRadius: '6px',
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': { bgcolor: colors.background },
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={!inputValue.trim()}
+          sx={{
+            px: 3,
+            py: 1,
+            bgcolor: colors.accent,
+            color: colors.background,
+            borderRadius: '6px',
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': { bgcolor: colors.accentHover },
+            '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+          }}
+        >
+          Confirm
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

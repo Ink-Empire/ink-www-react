@@ -82,4 +82,9 @@ export const userService = {
   deleteSocialMediaLink: async (platform: string): Promise<any> => {
     return api.delete(`/users/me/social-links/${platform}`, { requiresAuth: true });
   },
+
+  // Delete user account permanently (requires auth)
+  deleteAccount: async (): Promise<any> => {
+    return api.post('/users/me/delete', {}, { requiresAuth: true });
+  },
 };

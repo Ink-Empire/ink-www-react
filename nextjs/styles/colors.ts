@@ -111,6 +111,22 @@ export const cssVars = {
   secondaryDark: 'var(--secondary-dark)',
 } as const;
 
+// Reusable modal styles for consistent dialogs across the site
+export const modalStyles = {
+  // PaperProps.sx for MUI Dialog
+  paper: {
+    bgcolor: colors.surfaceElevated,
+    color: colors.textPrimary,
+    borderRadius: 2,
+    border: `1px solid ${colors.borderLight}`,
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+  },
+  // Backdrop styling for darker overlay
+  backdrop: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  },
+};
+
 // Reusable input styles for consistent form fields across the site
 export const inputStyles = {
   // TextField styles

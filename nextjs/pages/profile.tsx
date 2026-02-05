@@ -4,11 +4,26 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Layout from '../components/Layout';
 import AccountModal from '../components/AccountModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 import StyleModal from '../components/StyleModal';
 import WorkingHoursModal from '../components/WorkingHoursModal';
 import ImageCropperModal from '../components/ImageCropperModal';
 import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
-import { Box, Typography, TextField, IconButton, Switch } from '@mui/material';
+import {
+  Box,
+  Typography,
+  TextField,
+  IconButton,
+  Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Alert,
+  CircularProgress,
+} from '@mui/material';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StarIcon from '@mui/icons-material/Star';
@@ -42,7 +57,7 @@ import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
 import { withAuth } from '@/components/WithAuth';
-import { colors } from '@/styles/colors';
+import { colors, modalStyles } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
 import { userService } from '@/services/userService';
 import { uploadImageToS3 } from '@/utils/s3Upload';
@@ -109,9 +124,15 @@ const ProfilePage: React.FC = () => {
 
   // Modal states
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [fieldName, setFieldName] = useState('');
+
+  // Delete account state
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form states - basic profile info
   const [formData, setFormData] = useState({
@@ -613,6 +634,22 @@ const ProfilePage: React.FC = () => {
   // Logout
   const handleLogout = () => {
     authLogout();
+  };
+
+  // Delete account
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await userService.deleteAccount();
+      setDeleteAccountModalOpen(false);
+      authLogout();
+    } catch (err: any) {
+      setDeleteError('Failed to delete account. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Get public profile URL
@@ -1972,7 +2009,7 @@ const ProfilePage: React.FC = () => {
               <ExpandMoreIcon sx={{ fontSize: 20, color: colors.textSecondary, transform: 'rotate(-90deg)' }} />
             </Box>
             <Box
-              onClick={() => { setFieldName('password'); setAccountModalOpen(true); }}
+              onClick={() => setChangePasswordModalOpen(true)}
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -2024,6 +2061,27 @@ const ProfilePage: React.FC = () => {
               <Typography sx={{ fontSize: '0.9rem', color: colors.error }}>
                 Logout
               </Typography>
+            </Box>
+            <Box
+              onClick={() => setDeleteAccountModalOpen(true)}
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: '0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease',
+                '&:hover': { bgcolor: colors.background },
+                mt: 2,
+                borderTop: `1px solid ${colors.border}`,
+                pt: 2,
+              }}
+            >
+              <Typography sx={{ fontSize: '0.9rem', color: colors.error }}>
+                Delete Account
+              </Typography>
+              <ExpandMoreIcon sx={{ fontSize: 20, color: colors.textSecondary, transform: 'rotate(-90deg)' }} />
             </Box>
           </Box>
           </SettingsSection>
@@ -2174,6 +2232,12 @@ const ProfilePage: React.FC = () => {
         fieldName={fieldName}
       />
 
+      {/* Modal for changing password */}
+      <ChangePasswordModal
+        isOpen={changePasswordModalOpen}
+        onClose={() => setChangePasswordModalOpen(false)}
+      />
+
       {/* Modal for selecting styles */}
       <StyleModal
         isOpen={styleModalOpen}
@@ -2202,6 +2266,103 @@ const ProfilePage: React.FC = () => {
           onCropComplete={handleCropComplete}
         />
       )}
+
+      {/* Delete Account Confirmation Modal */}
+      <Dialog
+        open={deleteAccountModalOpen}
+        onClose={() => {
+          setDeleteAccountModalOpen(false);
+          setDeleteError(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: modalStyles.paper }}
+        slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
+          <WarningAmberIcon sx={{ color: colors.error }} />
+          <Typography variant="h6" component="span" sx={{ fontWeight: 600 }}>
+            Delete Account
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent>
+          <Alert
+            severity="warning"
+            sx={{
+              mb: 2,
+              bgcolor: `${colors.error}15`,
+              color: colors.textPrimary,
+              border: `1px solid ${colors.error}40`,
+              '& .MuiAlert-icon': {
+                color: colors.error,
+              },
+            }}
+          >
+            Are you sure? Once deleted, this account cannot be recovered.
+          </Alert>
+
+          <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
+            This will permanently delete your account and all associated data including your profile, saved tattoos, and any studio affiliations.
+          </Typography>
+
+          {deleteError && (
+            <Alert
+              severity="error"
+              sx={{
+                mt: 2,
+                bgcolor: `${colors.error}1A`,
+                color: colors.error,
+                border: `1px solid ${colors.error}40`,
+                '& .MuiAlert-icon': {
+                  color: colors.error,
+                },
+              }}
+            >
+              {deleteError}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+          <Button
+            onClick={() => {
+              setDeleteAccountModalOpen(false);
+              setDeleteError(null);
+            }}
+            disabled={isDeleting}
+            sx={{
+              px: 3,
+              py: 1,
+              color: colors.textSecondary,
+              borderRadius: '6px',
+              textTransform: 'none',
+              fontWeight: 500,
+              '&:hover': { bgcolor: colors.background },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAccount}
+            disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={20} sx={{ color: colors.textMuted }} /> : null}
+            sx={{
+              px: 3,
+              py: 1,
+              bgcolor: colors.error,
+              color: '#fff',
+              borderRadius: '6px',
+              textTransform: 'none',
+              fontWeight: 500,
+              '&:hover': { bgcolor: colors.error, opacity: 0.9 },
+              '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+            }}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete Account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Toast notification */}
       {showToast && (

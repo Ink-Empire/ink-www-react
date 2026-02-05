@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, IconButton, Modal } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import WorkingHoursEditor from './WorkingHoursEditor';
-import { colors } from '@/styles/colors';
+import { colors, modalStyles } from '@/styles/colors';
 import { WorkingHour } from '@inkedin/shared/types';
 
 // Re-export for backwards compatibility with existing imports
@@ -57,17 +57,15 @@ const WorkingHoursModal: React.FC<WorkingHoursModalProps> = ({
         justifyContent: 'center',
         p: '1rem'
       }}
+      slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
     >
       <Box sx={{
-        bgcolor: colors.surface,
-        borderRadius: '12px',
-        border: `1px solid ${colors.border}`,
+        ...modalStyles.paper,
         width: '100%',
         maxWidth: '560px',
         maxHeight: '90vh',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 24px 48px rgba(0, 0, 0, 0.4)',
         outline: 'none'
       }}>
         {/* Modal Header */}
