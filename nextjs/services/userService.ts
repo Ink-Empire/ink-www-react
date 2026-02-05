@@ -87,4 +87,9 @@ export const userService = {
   deleteAccount: async (): Promise<any> => {
     return api.post('/users/me/delete', {}, { requiresAuth: true });
   },
+
+  // Update email preferences (requires auth)
+  updateEmailPreferences: async (emailUnsubscribed: boolean): Promise<any> => {
+    return api.put('/users/me/email-preferences', { email_unsubscribed: emailUnsubscribed }, { requiresAuth: true });
+  },
 };

@@ -134,6 +134,10 @@ const ProfilePage: React.FC = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Email preferences state
+  const [emailUnsubscribed, setEmailUnsubscribed] = useState(false);
+  const [savingEmailPrefs, setSavingEmailPrefs] = useState(false);
+
   // Form states - basic profile info
   const [formData, setFormData] = useState({
     firstName: '',
@@ -249,6 +253,8 @@ const ProfilePage: React.FC = () => {
       // Initialize location from userData
       setUserLocation((userData as any).location || '');
       setUserLocationLatLong((userData as any).location_lat_long || '');
+      // Initialize email preferences
+      setEmailUnsubscribed((userData as any).email_unsubscribed || false);
     }
   }, [userData]);
 
@@ -649,6 +655,29 @@ const ProfilePage: React.FC = () => {
       setDeleteError('Failed to delete account. Please try again.');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Toggle email preferences
+  const handleToggleEmailPreferences = async () => {
+    const newValue = !emailUnsubscribed;
+    const previousValue = emailUnsubscribed;
+
+    // Optimistic update
+    setEmailUnsubscribed(newValue);
+    setSavingEmailPrefs(true);
+
+    try {
+      await userService.updateEmailPreferences(newValue);
+      setToastMessage(newValue ? 'Marketing emails disabled' : 'Marketing emails enabled');
+      setShowToast(true);
+    } catch (err) {
+      // Revert on error
+      setEmailUnsubscribed(previousValue);
+      setToastMessage('Failed to update email preferences');
+      setShowToast(true);
+    } finally {
+      setSavingEmailPrefs(false);
     }
   };
 
@@ -2045,6 +2074,41 @@ const ProfilePage: React.FC = () => {
               </Typography>
               <ExpandMoreIcon sx={{ fontSize: 20, color: colors.textSecondary, transform: 'rotate(-90deg)' }} />
             </Box>
+
+            {/* Email Preferences */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: '0.75rem',
+                borderRadius: '6px',
+                mt: 2,
+                borderTop: `1px solid ${colors.border}`,
+                pt: 2,
+              }}
+            >
+              <Box>
+                <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary }}>
+                  Marketing Emails
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary }}>
+                  Receive notifications about bookings, messages, and updates
+                </Typography>
+              </Box>
+              <Switch
+                checked={!emailUnsubscribed}
+                onChange={handleToggleEmailPreferences}
+                disabled={savingEmailPrefs}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: colors.accent,
+                    '& + .MuiSwitch-track': { bgcolor: colors.accent }
+                  }
+                }}
+              />
+            </Box>
+
             <Box
               onClick={handleLogout}
               sx={{
