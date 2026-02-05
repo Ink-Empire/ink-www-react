@@ -77,6 +77,7 @@ const ProfilePage: React.FC = () => {
   const { styles, getStyleName } = useStyles();
   const {
     profilePhoto,
+    loading: photoLoading,
     takeProfilePhoto,
     deleteProfilePhoto,
     cropperImage,
@@ -736,9 +737,9 @@ const ProfilePage: React.FC = () => {
   }, [showToast]);
 
   // Support both object format (image.uri) and string format for backwards compatibility
-  const imageUri = typeof userData?.image === 'string'
-    ? userData.image
-    : (userData?.image?.uri || profilePhoto?.webviewPath);
+  // Prioritize profilePhoto.webviewPath for optimistic updates (shows immediately after crop)
+  const imageUri = profilePhoto?.webviewPath
+    || (typeof userData?.image === 'string' ? userData.image : userData?.image?.uri);
 
   return (
     <Layout>
@@ -926,6 +927,19 @@ const ProfilePage: React.FC = () => {
                 />
               ) : (
                 getInitials()
+              )}
+              {photoLoading && (
+                <Box sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'rgba(0, 0, 0, 0.5)',
+                  borderRadius: '50%'
+                }}>
+                  <CircularProgress size={32} sx={{ color: colors.accent }} />
+                </Box>
               )}
             </Box>
             <IconButton
