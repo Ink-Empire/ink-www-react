@@ -17,6 +17,8 @@ export const useProfilePhoto = (options?: UseProfilePhotoOptions) => {
   const [profilePhoto, setProfilePhoto] = useState<ProfilePhoto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cropperImage, setCropperImage] = useState<string | null>(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
 
   // Load profile photo from local storage on mount
   useEffect(() => {
@@ -44,7 +46,6 @@ export const useProfilePhoto = (options?: UseProfilePhotoOptions) => {
   }, [profilePhoto]);
 
   const takeProfilePhoto = async () => {
-    setLoading(true);
     setError(null);
 
     try {
@@ -70,62 +71,84 @@ export const useProfilePhoto = (options?: UseProfilePhotoOptions) => {
       // Wait for file selection
       const file = await fileSelected;
       if (!file) {
-        setLoading(false);
         return;
       }
 
-      // Create a URL for the selected image for immediate preview
-      const webviewPath = URL.createObjectURL(file);
+      // Create a URL for the selected image and open the cropper
+      const imageUrl = URL.createObjectURL(file);
+      setCropperImage(imageUrl);
+      setIsCropperOpen(true);
+    } catch (err) {
+      console.error('Error selecting profile photo', err);
+      setError('Failed to select profile photo');
+    }
+  };
 
-      // Store locally first for immediate UI update
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setIsCropperOpen(false);
+    setLoading(true);
+    setError(null);
+
+    // Clean up the cropper image URL
+    if (cropperImage) {
+      URL.revokeObjectURL(cropperImage);
+      setCropperImage(null);
+    }
+
+    try {
+      // Create a file from the cropped blob
+      const croppedFile = new File([croppedBlob], 'profile.jpg', { type: 'image/jpeg' });
+
+      // Create preview URL
+      const webviewPath = URL.createObjectURL(croppedBlob);
       setProfilePhoto({
         webviewPath,
-        filepath: file.name,
+        filepath: croppedFile.name,
       });
 
-      // Upload the file to S3
-      try {
-        const uploadedImage = await uploadImageToS3(file, 'profile');
+      // Upload the cropped file to S3
+      const uploadedImage = await uploadImageToS3(croppedFile, 'profile');
 
-        // Update user profile with the new image ID
-        console.log('Setting profile photo on user...');
-        await userService.uploadProfilePhoto({ image_id: uploadedImage.id });
+      // Update user profile with the new image ID
+      await userService.uploadProfilePhoto({ image_id: uploadedImage.id });
 
-        // Update local state with server URL
-        setProfilePhoto({
+      // Update local state with server URL
+      setProfilePhoto({
+        webviewPath: uploadedImage.uri,
+        filepath: uploadedImage.filename,
+        imageId: uploadedImage.id,
+      });
+
+      // Update localStorage with server URL
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('profile_photo', JSON.stringify({
           webviewPath: uploadedImage.uri,
           filepath: uploadedImage.filename,
           imageId: uploadedImage.id,
-        });
-
-        // Update localStorage with server URL
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('profile_photo', JSON.stringify({
-            webviewPath: uploadedImage.uri,
-            filepath: uploadedImage.filename,
-            imageId: uploadedImage.id,
-          }));
-        }
-
-        // Call onSuccess callback to refresh user data
-        if (options?.onSuccess) {
-          options.onSuccess();
-        }
-      } catch (uploadErr) {
-        console.error('Error uploading profile photo:', uploadErr);
-        setError('Failed to upload profile photo');
-        // Revert local state on error
-        setProfilePhoto(null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('profile_photo');
-        }
+        }));
       }
 
-    } catch (err) {
-      console.error('Error taking profile photo', err);
-      setError('Failed to take profile photo');
+      // Call onSuccess callback to refresh user data
+      if (options?.onSuccess) {
+        options.onSuccess();
+      }
+    } catch (uploadErr) {
+      console.error('Error uploading profile photo:', uploadErr);
+      setError('Failed to upload profile photo');
+      setProfilePhoto(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('profile_photo');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCropCancel = () => {
+    setIsCropperOpen(false);
+    if (cropperImage) {
+      URL.revokeObjectURL(cropperImage);
+      setCropperImage(null);
     }
   };
 
@@ -178,5 +201,10 @@ export const useProfilePhoto = (options?: UseProfilePhotoOptions) => {
     error,
     takeProfilePhoto,
     deleteProfilePhoto,
+    // Cropper state and handlers
+    cropperImage,
+    isCropperOpen,
+    handleCropComplete,
+    handleCropCancel,
   };
 };

@@ -6,6 +6,7 @@ import Layout from '../components/Layout';
 import AccountModal from '../components/AccountModal';
 import StyleModal from '../components/StyleModal';
 import WorkingHoursModal from '../components/WorkingHoursModal';
+import ImageCropperModal from '../components/ImageCropperModal';
 import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
 import { Box, Typography, TextField, IconButton, Switch } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
@@ -59,7 +60,15 @@ const ProfilePage: React.FC = () => {
   const { userData, updateUser, updateStyles, refreshUser, loading, error } = useUser();
   const { user: authUser, logout: authLogout } = useAuth();
   const { styles, getStyleName } = useStyles();
-  const { profilePhoto, takeProfilePhoto, deleteProfilePhoto } = useProfilePhoto({
+  const {
+    profilePhoto,
+    takeProfilePhoto,
+    deleteProfilePhoto,
+    cropperImage,
+    isCropperOpen,
+    handleCropComplete,
+    handleCropCancel,
+  } = useProfilePhoto({
     onSuccess: refreshUser,
     updateUser
   });
@@ -2181,6 +2190,16 @@ const ProfilePage: React.FC = () => {
           onSave={handleSaveWorkingHours}
           artistId={artistId}
           initialWorkingHours={workingHours}
+        />
+      )}
+
+      {/* Modal for cropping profile photo */}
+      {cropperImage && (
+        <ImageCropperModal
+          isOpen={isCropperOpen}
+          imageSrc={cropperImage}
+          onClose={handleCropCancel}
+          onCropComplete={handleCropComplete}
         />
       )}
 
