@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Box, Typography, Select, MenuItem, FormControl, Button, Modal, Paper, IconButton, CircularProgress } from '@mui/material';
+import { Box, Typography, Select, MenuItem, FormControl, Button, Modal, Paper, IconButton, CircularProgress, Switch, FormControlLabel } from '@mui/material';
 import { useTheme, useMediaQuery } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloseIcon from '@mui/icons-material/Close';
@@ -64,6 +64,7 @@ export default function ArtistList() {
     const [searchParams, setSearchParams] = useState<Record<string, any>>(initialFilters);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
     const [sortBy, setSortBy] = useState('relevant');
+    const [showStudios, setShowStudios] = useState(true);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { artists, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useArtists(searchParams);
 
@@ -260,12 +261,16 @@ export default function ArtistList() {
         if (!artists || artists.length === 0) return [];
 
         // Map results, checking the type field from ES (artists have type='artist', studios have type='studio')
-        const mappedResults = artists.map(item => ({
-            type: item.type === 'studio' ? 'studio' as const : 'artist' as const,
-            data: item
-        }));
+        // Filter out studios if showStudios is false
+        const mappedResults = artists
+            .filter(item => showStudios || item.type !== 'studio')
+            .map(item => ({
+                type: item.type === 'studio' ? 'studio' as const : 'artist' as const,
+                data: item
+            }));
 
-        if (!unclaimedStudios || unclaimedStudios.length === 0) {
+        // If studios are hidden, don't include unclaimed studios either
+        if (!showStudios || !unclaimedStudios || unclaimedStudios.length === 0) {
             return mappedResults;
         }
 
@@ -399,6 +404,33 @@ export default function ArtistList() {
                                 Filters
                             </Button>
                         )}
+
+                        {/* Studios Toggle */}
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={showStudios}
+                                    onChange={(e) => setShowStudios(e.target.checked)}
+                                    size="small"
+                                    sx={{
+                                        '& .MuiSwitch-switchBase.Mui-checked': {
+                                            color: colors.accent,
+                                        },
+                                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                            backgroundColor: colors.accent,
+                                        },
+                                    }}
+                                />
+                            }
+                            label="Include studios"
+                            sx={{
+                                mr: 0,
+                                '& .MuiFormControlLabel-label': {
+                                    fontSize: '0.875rem',
+                                    color: colors.textSecondary,
+                                },
+                            }}
+                        />
 
                         {/* Sort Dropdown */}
                         <FormControl size="small">

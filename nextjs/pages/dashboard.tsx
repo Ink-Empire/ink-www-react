@@ -25,7 +25,6 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CollectionsIcon from '@mui/icons-material/Collections';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import LockIcon from '@mui/icons-material/Lock';
-import SettingsIcon from '@mui/icons-material/Settings';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PhoneIcon from '@mui/icons-material/Phone';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -160,6 +159,15 @@ export default function Dashboard() {
   const isStudioAccount = user?.type_id === 3 || user?.type_id === '3' || user?.type === 'studio';
   const hasStudio = !!ownedStudio || isStudioAccount;
 
+  // Get the correct avatar URL - for studio accounts, use studio image; otherwise user image
+  const getUserAvatarUrl = () => {
+    const studioImg = isStudioAccount ? (ownedStudio?.image || studioData?.image) : null;
+    const userImg = user?.image;
+    const img = studioImg || userImg;
+    if (!img) return undefined;
+    return typeof img === 'string' ? img : img?.uri;
+  };
+  const userAvatarUrl = getUserAvatarUrl();
 
   // Set default tab to 'studio' only for pure studio accounts
   useEffect(() => {
@@ -601,20 +609,6 @@ export default function Dashboard() {
             >
               {(isStudioAccount || activeTab === 'studio') ? 'View Studio Page' : 'View Public Profile'}
             </Button>
-            {/* Settings button for studio tab (studio accounts or anyone owning a studio) */}
-            {(isStudioAccount || (hasStudio && activeTab === 'studio')) && (
-              <IconButton
-                onClick={() => setEditStudioOpen(true)}
-                sx={{
-                  color: colors.textPrimary,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: '6px',
-                  '&:hover': { borderColor: colors.accent, color: colors.accent }
-                }}
-              >
-                <SettingsIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            )}
             {/* Upload button - only show for artists */}
             {isArtist && (
             <Button
@@ -710,7 +704,7 @@ export default function Dashboard() {
             <DashboardTab
               label={isArtist ? "My Artist Profile" : "My Dashboard"}
               initials={userInitials}
-              imageUrl={typeof user?.image === 'string' ? user.image : user?.image?.uri}
+              imageUrl={userAvatarUrl}
               isActive={activeTab === 'artist'}
               onClick={() => setActiveTab('artist')}
               accentAvatar
@@ -1151,7 +1145,7 @@ export default function Dashboard() {
                       onClick={() => avatarInputRef.current?.click()}
                     >
                       <Avatar
-                        src={typeof user?.image === 'string' ? user.image : user?.image?.uri}
+                        src={userAvatarUrl}
                         sx={{
                           width: 64,
                           height: 64,
@@ -1959,7 +1953,7 @@ export default function Dashboard() {
                       borderBottom: studioArtists.length > 0 ? `1px solid ${colors.border}` : 'none',
                     }}>
                       <Avatar
-                        src={typeof user?.image === 'string' ? user.image : user?.image?.uri}
+                        src={userAvatarUrl}
                         sx={{
                           width: 44,
                           height: 44,
