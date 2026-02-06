@@ -28,6 +28,7 @@ import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
 import { getPlaceDetails } from '@/services/googlePlacesService';
 import { api } from '@/utils/api';
 import type { StudioCreationPayload } from './OnboardingWizard';
+import ImageCropperModal from '../ImageCropperModal';
 
 interface StudioDetailsData {
   name: string;
@@ -75,6 +76,9 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   const [phone, setPhone] = useState('');
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  // Image cropper state
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [location, setLocation] = useState('');
   const [locationLatLong, setLocationLatLong] = useState('');
   const [useMyLocation, setUseMyLocation] = useState(false);
@@ -303,16 +307,37 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
         return;
       }
 
-      setProfileImage(file);
       setErrors(prev => ({ ...prev, profileImage: '' }));
 
-      // Create preview URL
+      // Open cropper with the selected image
       const reader = new FileReader();
       reader.onload = (e) => {
-        setProfileImagePreview(e.target?.result as string);
+        setImageToCrop(e.target?.result as string);
+        setCropperOpen(true);
       };
       reader.readAsDataURL(file);
     }
+    // Reset input so same file can be selected again
+    event.target.value = '';
+  };
+
+  const handleCropComplete = (croppedBlob: Blob) => {
+    // Convert blob to File for upload
+    const croppedFile = new File([croppedBlob], 'studio.jpg', { type: 'image/jpeg' });
+    setProfileImage(croppedFile);
+
+    // Create preview URL from the cropped blob
+    const previewUrl = URL.createObjectURL(croppedBlob);
+    setProfileImagePreview(previewUrl);
+
+    // Close cropper
+    setCropperOpen(false);
+    setImageToCrop(null);
+  };
+
+  const handleCropperClose = () => {
+    setCropperOpen(false);
+    setImageToCrop(null);
   };
 
   const handleImageClick = () => {
@@ -1133,6 +1158,16 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       >
         You can always update your studio information later in your dashboard.
       </Typography>
+
+      {/* Image Cropper Modal */}
+      {imageToCrop && (
+        <ImageCropperModal
+          isOpen={cropperOpen}
+          imageSrc={imageToCrop}
+          onClose={handleCropperClose}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </Box>
   );
 };

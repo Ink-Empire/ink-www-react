@@ -5,9 +5,8 @@ import { OnboardingWizard, OnboardingData } from '../components/Onboarding';
 import { removeToken, setToken } from '@/utils/auth';
 import { getCsrfToken, fetchCsrfToken } from '@/utils/api';
 import { studioService } from '@/services/studioService';
-import { userService } from '@/services/userService';
 import { leadService } from '@/services/leadService';
-import { uploadImageToS3 } from '@/utils/s3Upload';
+import { imageService } from '@/services/imageService';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
 import { colors } from '@/styles/colors';
@@ -52,9 +51,8 @@ const RegisterPage: React.FC = () => {
           method: 'GET',
           credentials: 'include',
         });
-        console.log('Fresh CSRF token obtained');
       } catch (e) {
-        console.log('Could not get fresh CSRF token');
+        // Silently fail - CSRF token fetch is best effort
       }
 
       if (mounted) {
@@ -80,7 +78,6 @@ const RegisterPage: React.FC = () => {
   const handleRegistrationComplete = async (data: OnboardingData) => {
     try {
       setIsRegistering(true);
-      console.log('Registration/Onboarding completed with data:', data);
 
       // Get CSRF token for the request
       await fetchCsrfToken();
@@ -90,7 +87,6 @@ const RegisterPage: React.FC = () => {
       if (data.userType === 'studio') {
         // If user logged in with existing account, create studio and redirect to dashboard
         if (data.studioOwner?.isAuthenticated && data.studioOwner?.existingAccountId) {
-          console.log('Studio flow: existing user creating studio...');
 
           // Create or claim the studio for the authenticated user
           const studioPayload: Record<string, unknown> = {
@@ -122,11 +118,9 @@ const RegisterPage: React.FC = () => {
           const studioId = studioResponse?.studio?.id;
           if (data.studioDetails?.profileImage && studioId) {
             try {
-              const uploadedImage = await uploadImageToS3(data.studioDetails.profileImage, 'studio');
-              await studioService.uploadImage(studioId, uploadedImage.id);
-              console.log('Studio image uploaded');
+              await imageService.uploadStudioImage(data.studioDetails.profileImage, studioId);
             } catch (imgErr) {
-              console.error('Failed to upload studio image:', imgErr);
+              // Continue with registration even if image upload fails
             }
           }
 
@@ -137,7 +131,6 @@ const RegisterPage: React.FC = () => {
         }
 
         // New user creating studio - register user and create studio
-        console.log('Studio flow: new user registration with studio...');
 
         // Register the user account
         const registrationPayload = {
@@ -170,17 +163,31 @@ const RegisterPage: React.FC = () => {
         }
 
         const result = await response.json();
-        console.log('Registration result:', result);
+
+        // Upload studio image to S3 before storing pending data
+        // (File objects can't be serialized to JSON)
+        let uploadedImageId: number | undefined;
+        if (data.studioDetails?.profileImage && result.token) {
+          try {
+            setToken(result.token);
+            const uploadedImage = await imageService.upload(data.studioDetails.profileImage, 'studio');
+            uploadedImageId = uploadedImage.id;
+          } catch (imgErr) {
+            // Continue with registration even if image upload fails
+          }
+        }
 
         // Store pending studio data for after email verification
         if (data.studioDetails) {
           localStorage.setItem('pendingStudioData', JSON.stringify({
             ...data.studioDetails,
-            // Don't store password
+            // Don't store password or File object
             password: undefined,
             password_confirmation: undefined,
+            profileImage: undefined,
+            // Store the uploaded image ID instead
+            uploadedImageId,
           }));
-          console.log('Stored pending studio data for after email verification');
         }
 
         // Redirect to verify email
@@ -225,7 +232,6 @@ const RegisterPage: React.FC = () => {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Registration successful:', result);
 
         // Upload profile image if provided - do this before email verification redirect
         if (data.userDetails?.profileImage && result.user?.id) {
@@ -234,8 +240,7 @@ const RegisterPage: React.FC = () => {
             if (result.token) {
               setToken(result.token);
             }
-            const uploadedImage = await uploadImageToS3(data.userDetails.profileImage, 'profile');
-            await userService.uploadProfilePhoto({ image_id: uploadedImage.id });
+            await imageService.uploadProfilePhoto(data.userDetails.profileImage);
           } catch (imgErr) {
             // Continue with registration even if image upload fails
           }

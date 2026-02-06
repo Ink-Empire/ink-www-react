@@ -3,6 +3,7 @@
 
 export { artistService } from './artistService';
 export { appointmentService } from './appointmentService';
+export { imageService } from './imageService';
 export { authService } from './authService';
 export { bulkUploadService } from './bulkUploadService';
 export { calendarService } from './calendarService';
@@ -75,3 +76,7 @@ export type {
   WishlistArtist,
   ClientDashboardResponse,
 } from './clientService';
+
+export type {
+  ImagePurpose,
+} from './imageService';

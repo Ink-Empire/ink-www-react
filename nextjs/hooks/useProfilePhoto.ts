@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { uploadImageToS3 } from '../utils/s3Upload';
-import { userService } from '../services/userService';
+import { imageService } from '../services/imageService';
 
 interface ProfilePhoto {
   webviewPath?: string;
@@ -106,11 +105,8 @@ export const useProfilePhoto = (options?: UseProfilePhotoOptions) => {
         filepath: croppedFile.name,
       });
 
-      // Upload the cropped file to S3
-      const uploadedImage = await uploadImageToS3(croppedFile, 'profile');
-
-      // Update user profile with the new image ID
-      await userService.uploadProfilePhoto({ image_id: uploadedImage.id });
+      // Upload and associate with user profile
+      const uploadedImage = await imageService.uploadProfilePhoto(croppedFile);
 
       // Update local state with server URL
       setProfilePhoto({

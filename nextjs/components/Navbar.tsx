@@ -50,8 +50,14 @@ const Navbar: React.FC = () => {
   const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
-    // Support both object format (image.uri) and string format for backwards compatibility
-    const img = (user as any)?.image;
+    // For studio accounts, use the studio image; otherwise use user image
+    const isStudio = user?.type_id === 4 || user?.type_id === '4' || user?.type === 'studio';
+    const studioImg = (user as any)?.owned_studio?.image;
+    const userImg = (user as any)?.image;
+
+    // Pick the right image source
+    const img = isStudio && studioImg ? studioImg : userImg;
+
     if (typeof img === 'string') {
       setAvatarUrl(img);
     } else if (img?.uri) {

@@ -30,6 +30,7 @@ export default function VerifyEmailPage() {
   const [redirectUrl, setRedirectUrl] = useState<string>('/dashboard');
   const [resendEmail, setResendEmail] = useState<string>('');
   const [resendLoading, setResendLoading] = useState(false);
+  const [verificationAttempted, setVerificationAttempted] = useState(false);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -42,11 +43,13 @@ export default function VerifyEmailPage() {
       setResendEmail(emailFromUrl);
     }
 
-    // If there's a verification URL, attempt to verify
-    if (verifyUrl) {
+    // If there's a verification URL and we haven't already attempted, verify
+    // This prevents duplicate verification calls from useEffect re-running
+    if (verifyUrl && !verificationAttempted) {
+      setVerificationAttempted(true);
       handleVerification(verifyUrl);
     }
-  }, [router.isReady, router.query]);
+  }, [router.isReady, router.query, verificationAttempted]);
 
   const handleVerification = async (verifyUrl: string) => {
     setStatus('verifying');

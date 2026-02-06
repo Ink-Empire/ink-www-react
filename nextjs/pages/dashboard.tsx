@@ -178,9 +178,12 @@ export default function Dashboard() {
       const pendingDataStr = localStorage.getItem('pendingStudioData');
       if (!pendingDataStr) return;
 
+      // IMMEDIATELY clear pending data to prevent duplicate creation
+      // (React 18 strict mode or rapid re-renders could cause double execution)
+      localStorage.removeItem('pendingStudioData');
+
       try {
         const pendingData = JSON.parse(pendingDataStr);
-        console.log('Processing pending studio data...', pendingData);
 
         // Generate slug from username or name
         const generateSlug = (text: string) => {
@@ -202,26 +205,31 @@ export default function Dashboard() {
         };
 
         // Check if this is claiming an existing studio or creating a new one
+        let studioResponse: { studio?: { id?: number } };
         if (pendingData.existingStudioId) {
           // Claim existing Google Places studio
-          console.log('Claiming existing studio:', pendingData.existingStudioId);
-          await studioService.claim(pendingData.existingStudioId, studioPayload);
-          console.log('Studio claimed successfully');
+          studioResponse = await studioService.claim(pendingData.existingStudioId, studioPayload) as { studio?: { id?: number } };
         } else {
           // Create new studio
-          console.log('Creating new studio...');
-          await studioService.create(studioPayload);
-          console.log('Studio created successfully');
+          studioResponse = await studioService.create(studioPayload) as { studio?: { id?: number } };
         }
 
-        // Clear pending data
-        localStorage.removeItem('pendingStudioData');
+        // Associate uploaded image with the new studio if we have one
+        const studioId = studioResponse?.studio?.id;
+        if (studioId && pendingData.uploadedImageId) {
+          try {
+            await studioService.uploadImage(studioId, pendingData.uploadedImageId);
+          } catch (imgErr) {
+            // Continue even if image association fails
+          }
+        }
 
         // Refresh user to get the owned_studio
         await refreshUser();
       } catch (err) {
         console.error('Failed to create/claim studio from pending data:', err);
-        // Don't remove pending data on error so it can be retried
+        // Restore pending data on error so it can be retried
+        localStorage.setItem('pendingStudioData', pendingDataStr);
       }
     };
 

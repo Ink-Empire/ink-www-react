@@ -60,7 +60,7 @@ import { withAuth } from '@/components/WithAuth';
 import { colors, modalStyles } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
 import { userService } from '@/services/userService';
-import { uploadImageToS3 } from '@/utils/s3Upload';
+import { imageService } from '@/services/imageService';
 import ComingSoonBadge from '@/components/ui/ComingSoonBadge';
 import {
   navItems,
@@ -469,10 +469,8 @@ const ProfilePage: React.FC = () => {
 
     setUploadingWatermark(true);
     try {
-      const uploadedImage = await uploadImageToS3(file, 'profile');
-
-      // Update artist settings with new watermark
-      await artistService.updateSettings(artistId, { watermark_image_id: uploadedImage.id });
+      // Upload watermark and associate with artist settings
+      const uploadedImage = await imageService.uploadWatermark(file, artistId);
 
       setArtistSettings(prev => ({
         ...prev,

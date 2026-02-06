@@ -23,6 +23,7 @@ import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
 import LocationAutocomplete from '../LocationAutocomplete';
 import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
+import ImageCropperModal from '../ImageCropperModal';
 
 interface UserDetailsProps {
   onStepComplete: (userDetails: {
@@ -53,6 +54,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const [bio, setBio] = useState('');
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  // Image cropper state
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [location, setLocation] = useState('');
   const [locationLatLong, setLocationLatLong] = useState('');
   const [useMyLocation, setUseMyLocation] = useState(false);
@@ -134,23 +138,44 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         setErrors(prev => ({ ...prev, profileImage: 'Please select a valid image file' }));
         return;
       }
-      
+
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setErrors(prev => ({ ...prev, profileImage: 'Image must be less than 5MB' }));
         return;
       }
-      
-      setProfileImage(file);
+
       setErrors(prev => ({ ...prev, profileImage: '' }));
-      
-      // Create preview URL
+
+      // Open cropper with the selected image
       const reader = new FileReader();
       reader.onload = (e) => {
-        setProfileImagePreview(e.target?.result as string);
+        setImageToCrop(e.target?.result as string);
+        setCropperOpen(true);
       };
       reader.readAsDataURL(file);
     }
+    // Reset input so same file can be selected again
+    event.target.value = '';
+  };
+
+  const handleCropComplete = (croppedBlob: Blob) => {
+    // Convert blob to File for upload
+    const croppedFile = new File([croppedBlob], 'profile.jpg', { type: 'image/jpeg' });
+    setProfileImage(croppedFile);
+
+    // Create preview URL from the cropped blob
+    const previewUrl = URL.createObjectURL(croppedBlob);
+    setProfileImagePreview(previewUrl);
+
+    // Close cropper
+    setCropperOpen(false);
+    setImageToCrop(null);
+  };
+
+  const handleCropperClose = () => {
+    setCropperOpen(false);
+    setImageToCrop(null);
   };
 
   const handleImageClick = () => {
@@ -780,6 +805,16 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       >
         You can always update your profile information later in your settings.
       </Typography>
+
+      {/* Image Cropper Modal */}
+      {imageToCrop && (
+        <ImageCropperModal
+          isOpen={cropperOpen}
+          imageSrc={imageToCrop}
+          onClose={handleCropperClose}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </Box>
   );
 };
