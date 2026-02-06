@@ -83,6 +83,9 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   const [locationLatLong, setLocationLatLong] = useState('');
   const [useMyLocation, setUseMyLocation] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  // For triggering manual city entry when geolocation returns unknown city
+  const [triggerManualEntry, setTriggerManualEntry] = useState(false);
+  const [detectedState, setDetectedState] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Google Places autofill
@@ -372,16 +375,25 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
       if (locationData.items && locationData.items.length > 0) {
         const address = locationData.items[0].address;
+        const city = address.city || '';
+        const state = address.state || '';
 
-        const locationStr = [
-          address.city,
-          address.state,
-          address.countryCode
-        ].filter(Boolean).join(', ');
+        // Check if city is unknown or missing - trigger manual entry
+        const isUnknownCity = !city || city.toLowerCase().includes('unknown');
 
-        setLocation(locationStr || 'Current Location');
+        if (isUnknownCity) {
+          console.log('Unknown city detected, triggering manual entry');
+          setDetectedState(state);
+          setTriggerManualEntry(true);
+          setUseMyLocation(false); // Switch back to manual mode to show the autocomplete with dialog
+        } else {
+          const locationStr = [city, state, address.countryCode].filter(Boolean).join(', ');
+          setLocation(locationStr);
+        }
       } else {
-        setLocation('Current Location');
+        console.log('No location items found, triggering manual entry');
+        setTriggerManualEntry(true);
+        setUseMyLocation(false);
       }
     } catch (err) {
       console.error('Failed to get current location:', err);
@@ -1065,13 +1077,19 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                 value={location}
                 onChange={(newLocation, newLatLong) => {
                   setLocation(newLocation);
-                  setLocationLatLong(newLatLong);
+                  if (newLatLong || !locationLatLong) {
+                    setLocationLatLong(newLatLong);
+                  }
                 }}
                 label="Studio Location"
                 placeholder="Start typing a city name..."
                 error={!!errors.location}
                 helperText={errors.location}
                 required
+                triggerManualEntry={triggerManualEntry}
+                onManualEntryClose={() => setTriggerManualEntry(false)}
+                initialState={detectedState}
+                initialLatLong={locationLatLong}
               />
             )}
 
