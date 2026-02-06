@@ -401,14 +401,6 @@ export default function ArtistList() {
                         }}>
                             Find Artists
                         </Typography>
-                        {total < 25 && !loading && (
-                            <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
-                                <Box component="strong" sx={{ color: colors.accent }}>
-                                    {total}
-                                </Box>
-                                {' '}{total === 1 ? 'result' : 'results'} found
-                            </Typography>
-                        )}
                     </Box>
 
                     <Box sx={{
@@ -648,7 +640,7 @@ export default function ArtistList() {
                         )}
                         {!hasMore && artists.length > 25 && (
                             <Typography sx={{ color: colors.textMuted, fontSize: '0.875rem' }}>
-                                You've seen all {total} results
+                                You've seen all results
                             </Typography>
                         )}
                     </Box>

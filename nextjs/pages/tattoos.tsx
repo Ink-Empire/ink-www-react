@@ -593,18 +593,9 @@ export default function TattoosPage() {
             }}>
               Browse Tattoos
             </Typography>
-            {hasActiveSearch ? (
-              <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
-                <Box component="strong" sx={{ color: colors.accent }}>
-                  {total?.toLocaleString() || tattoos?.length || 0}
-                </Box>
-                {' '}results found
-              </Typography>
-            ) : (
-              <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
-                Discover amazing tattoos and artists
-              </Typography>
-            )}
+            <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
+              Discover amazing tattoos and artists
+            </Typography>
           </Box>
 
           <Box sx={{
@@ -807,7 +798,7 @@ export default function TattoosPage() {
             )}
             {!hasMore && tattoos.length > 25 && (
               <Typography sx={{ color: colors.textMuted, fontSize: '0.875rem' }}>
-                You've seen all {total} results
+                You've seen all results
               </Typography>
             )}
           </Box>
