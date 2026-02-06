@@ -63,8 +63,18 @@ export default function ArtistList() {
 
     const [searchParams, setSearchParams] = useState<Record<string, any>>(initialFilters);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
-    const [sortBy, setSortBy] = useState('relevant');
+    const [sortBy, setSortBy] = useState<string>('relevant');
     const [showStudios, setShowStudios] = useState(true);
+
+    // Map UI sort values to API sort values
+    const getSortParam = (uiSort: string) => {
+        switch (uiSort) {
+            case 'popular': return 'popular';
+            case 'recent': return 'recent';
+            case 'nearest': return 'nearest';
+            default: return undefined; // 'relevant' uses default sorting
+        }
+    };
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { artists, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useArtists(searchParams);
 
@@ -166,8 +176,28 @@ export default function ArtistList() {
             delete newParams.artist_near_me;
         }
 
+        // Add sort parameter
+        const sortParam = getSortParam(sortBy);
+        if (sortParam) {
+            newParams.sort = sortParam;
+        }
+
         setSearchParams(newParams);
     };
+
+    // Update searchParams when sort changes
+    useEffect(() => {
+        const sortParam = getSortParam(sortBy);
+        setSearchParams((prev) => {
+            const newParams = { ...prev };
+            if (sortParam) {
+                newParams.sort = sortParam;
+            } else {
+                delete newParams.sort;
+            }
+            return newParams;
+        });
+    }, [sortBy]);
 
     // Get active filters for display
     const getActiveFilters = () => {
@@ -454,6 +484,8 @@ export default function ArtistList() {
                                 }}
                             >
                                 <MenuItem value="relevant">Most Relevant</MenuItem>
+                                <MenuItem value="recent">Most Recent</MenuItem>
+                                <MenuItem value="popular">Most Popular</MenuItem>
                                 <MenuItem value="nearest">Nearest</MenuItem>
                             </Select>
                         </FormControl>

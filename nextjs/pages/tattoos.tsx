@@ -47,7 +47,17 @@ export default function TattoosPage() {
   const [hasAttemptedFallback, setHasAttemptedFallback] = useState(false);
 
   // UI state
-  const [sortBy, setSortBy] = useState('relevant');
+  const [sortBy, setSortBy] = useState<string>('relevant');
+
+  // Map UI sort values to API sort values
+  const getSortParam = (uiSort: string) => {
+    switch (uiSort) {
+      case 'popular': return 'popular';
+      case 'recent': return 'recent';
+      case 'nearest': return 'nearest';
+      default: return undefined; // 'relevant' uses default sorting
+    }
+  };
 
   // Handler for opening tattoo modal
   const handleTattooClick = (tattooId: string) => {
@@ -284,6 +294,20 @@ export default function TattoosPage() {
     }
   }, [studio_id]);
 
+  // Update searchParams when sort changes
+  useEffect(() => {
+    const sortParam = getSortParam(sortBy);
+    setSearchParams((prev) => {
+      const newParams = { ...prev };
+      if (sortParam) {
+        newParams.sort = sortParam;
+      } else {
+        delete newParams.sort;
+      }
+      return newParams;
+    });
+  }, [sortBy]);
+
   // Update searchParams when URL query parameters change
   useEffect(() => {
     const searchString = (router.query.search || router.query.searchString) as string;
@@ -353,6 +377,12 @@ export default function TattoosPage() {
 
     if (studio_id) {
       newParams.studio_id = studio_id;
+    }
+
+    // Add sort parameter
+    const sortParam = getSortParam(sortBy);
+    if (sortParam) {
+      newParams.sort = sortParam;
     }
 
     // Store locationCoords as object for passing back to SearchFilters
