@@ -213,6 +213,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     let mounted = true;
 
     const validateSession = async () => {
+      // Skip validation on verify-email page - it handles its own auth flow
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (pathname.startsWith('/verify-email')) {
+        if (mounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       const storedUser = getStoredUser();
       if (storedUser) {
         // Validate with server

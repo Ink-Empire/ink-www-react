@@ -45,7 +45,7 @@ const SearchStudioCard: React.FC<SearchStudioCardProps> = ({ studio }) => {
   };
 
   const styleTags = getStyleTags();
-  const isClaimed = studio.is_claimed !== false;
+  const isClaimed = studio.is_claimed === true;
 
   // Unclaimed studio - show CTA to claim
   if (!isClaimed) {

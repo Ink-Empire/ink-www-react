@@ -8,7 +8,6 @@ import { Box, Button, Avatar, Typography, IconButton, Tooltip } from '@mui/mater
 import ImageIcon from '@mui/icons-material/Image';
 import InfoIcon from '@mui/icons-material/Info';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import StarIcon from '@mui/icons-material/Star';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
@@ -566,25 +565,12 @@ export default function StudioDetail() {
               </Box>
             )}
 
-            {/* Rating */}
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              color: colors.accent,
-              fontWeight: 500,
-              mb: 1
-            }}>
-              <StarIcon sx={{ fontSize: '1rem' }} />
-              <Typography sx={{ fontWeight: 500 }}>{studio.rating || '4.9'}</Typography>
-              <Typography sx={{ color: colors.textSecondary, fontWeight: 400 }}>({studio.review_count || 0} reviews)</Typography>
-              {artists && artists.length > 0 && (
-                <>
-                  <Box sx={{ mx: 1, color: colors.textMuted }}>·</Box>
-                  <Typography sx={{ color: colors.textSecondary }}>{artists.length} Artists</Typography>
-                </>
-              )}
-            </Box>
+            {/* Artists count */}
+            {artists && artists.length > 0 && (
+              <Typography sx={{ color: colors.textSecondary, mb: 1 }}>
+                {artists.length} {artists.length === 1 ? 'Artist' : 'Artists'}
+              </Typography>
+            )}
 
             {/* About */}
             {studio.about && (
@@ -1407,8 +1393,8 @@ export default function StudioDetail() {
               )}
             </Box>
 
-            {/* About */}
-            {studio.about && (
+            {/* Contact */}
+            {(canContact || studio.phone || studio.website) && (
               <Box sx={{
                 bgcolor: colors.surface,
                 borderRadius: '12px',
@@ -1420,15 +1406,77 @@ export default function StudioDetail() {
                   fontFamily: '"Cormorant Garamond", Georgia, serif',
                   fontSize: '1.5rem',
                   fontWeight: 500,
-                  mb: 2
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
                 }}>
-                  About
+                  <ChatBubbleOutlineIcon sx={{ color: colors.accent }} />
+                  Contact
                 </Typography>
-                <Typography sx={{ color: colors.textSecondary, lineHeight: 1.8 }}>
-                  {studio.about}
-                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {canContact && (
+                    <Box
+                      component="button"
+                      onClick={handleContactStudio}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        color: colors.accent,
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        fontSize: 'inherit',
+                        '&:hover': { textDecoration: 'underline' }
+                      }}
+                    >
+                      <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
+                      Send Message
+                    </Box>
+                  )}
+                  {studio.phone && (
+                    <Box
+                      component="a"
+                      href={`tel:${studio.phone}`}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        color: colors.textSecondary,
+                        textDecoration: 'none',
+                        '&:hover': { color: colors.accent }
+                      }}
+                    >
+                      <PhoneIcon sx={{ fontSize: 18 }} />
+                      {studio.phone}
+                    </Box>
+                  )}
+                  {studio.website && (
+                    <Box
+                      component="a"
+                      href={studio.website.startsWith('http') ? studio.website : `https://${studio.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        color: colors.textSecondary,
+                        textDecoration: 'none',
+                        '&:hover': { color: colors.accent }
+                      }}
+                    >
+                      <LanguageIcon sx={{ fontSize: 18 }} />
+                      {studio.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                    </Box>
+                  )}
+                </Box>
               </Box>
             )}
+
           </Box>
         )}
       </Box>
