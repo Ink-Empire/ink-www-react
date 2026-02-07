@@ -72,6 +72,9 @@ export function createStudioService(api: ApiClient) {
 
     getArtists: (idOrSlug: string | number) =>
       api.get<Artist[]>(`/studios/${idOrSlug}/artists`),
+
+    getGallery: (idOrSlug: string | number) =>
+      api.get<Tattoo[]>(`/studios/${idOrSlug}/gallery`),
   };
 }
 

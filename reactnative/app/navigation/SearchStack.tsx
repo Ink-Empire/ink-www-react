@@ -5,6 +5,7 @@ import SearchScreen from '../screens/SearchScreen';
 import ArtistListScreen from '../screens/ArtistListScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
+import StudioDetailScreen from '../screens/StudioDetailScreen';
 import type { SearchStackParamList } from './types';
 
 const Stack = createStackNavigator<SearchStackParamList>();
@@ -26,6 +27,11 @@ export default function SearchStack() {
         options={({ route }) => ({ title: route.params?.name || 'Artist' })}
       />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo' }} />
+      <Stack.Screen
+        name="StudioDetail"
+        component={StudioDetailScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Studio' })}
+      />
     </Stack.Navigator>
   );
 }

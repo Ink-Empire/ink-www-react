@@ -6,6 +6,7 @@ import HomeScreen from '../screens/HomeScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import StudioDetailScreen from '../screens/StudioDetailScreen';
 import type { HomeStackParamList } from './types';
 
 const Stack = createStackNavigator<HomeStackParamList>();
@@ -39,6 +40,11 @@ export default function HomeStack() {
         options={({ route }) => ({ title: route.params?.name || 'Artist' })}
       />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo' }} />
+      <Stack.Screen
+        name="StudioDetail"
+        component={StudioDetailScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Studio' })}
+      />
       <Stack.Screen
         name="Calendar"
         component={CalendarScreen}

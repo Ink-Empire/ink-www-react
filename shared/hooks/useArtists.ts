@@ -148,9 +148,14 @@ export function useArtistPortfolio(
       setError(null);
 
       try {
-        const response = await api.get<any[]>(`/artists/${artistIdOrSlug}/portfolio`);
+        const response = await api.post<any>('/tattoos', {
+          artist_id: artistIdOrSlug,
+        }, {
+          headers: { 'X-Account-Type': 'user' },
+        });
         if (mountedRef.current) {
-          setPortfolio(Array.isArray(response) ? response : []);
+          const data = response?.response ?? response;
+          setPortfolio(Array.isArray(data) ? data : []);
         }
       } catch (err) {
         if (mountedRef.current) {

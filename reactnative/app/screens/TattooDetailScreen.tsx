@@ -34,8 +34,8 @@ export default function TattooDetailScreen({ navigation, route }: any) {
 
   const artist = tattoo.artist;
   const artistName = artist?.name || (tattoo as any).artist_name;
-  const artistSlug = artist?.slug || artist?.username || (tattoo as any).artist_slug;
-  const artistImageUri = artist?.image?.uri || (tattoo as any).artist_image_uri;
+  const artistSlug = artist?.slug || (tattoo as any).artist_slug;
+  const artistImageUri = artist?.primary_image?.uri || artist?.image?.uri || (tattoo as any).artist_image_uri;
   const studio = tattoo.studio || artist?.studio;
   const studioName = studio?.name || artist?.studio_name || (tattoo as any).studio_name;
   const studioSlug = studio?.slug;
@@ -59,7 +59,12 @@ export default function TattooDetailScreen({ navigation, route }: any) {
             <View style={styles.artistHeaderInfo}>
               <Text style={styles.artistName}>{artistName}</Text>
               {studioName && (
-                <Text style={styles.studioName}>{studioName}</Text>
+                <TouchableOpacity
+                  onPress={() => studioSlug && navigation.navigate('StudioDetail', { slug: studioSlug, name: studioName })}
+                  activeOpacity={studioSlug ? 0.7 : 1}
+                >
+                  <Text style={styles.studioName}>{studioName}</Text>
+                </TouchableOpacity>
               )}
               {location && (
                 <Text style={styles.artistLocation}>{location}</Text>

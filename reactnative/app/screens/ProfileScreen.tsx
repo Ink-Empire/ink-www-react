@@ -122,7 +122,15 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.sectionTitle}>Studio</Text>
           {affiliatedStudios.length > 0 ? (
             affiliatedStudios.map((studio: any) => (
-              <View key={studio.id} style={styles.studioRow}>
+              <TouchableOpacity
+                key={studio.id}
+                style={styles.studioRow}
+                onPress={() => studio.slug && navigation.navigate('StudioDetail', {
+                  slug: studio.slug,
+                  name: studio.name,
+                })}
+                activeOpacity={studio.slug ? 0.7 : 1}
+              >
                 <MaterialIcons name="store" size={18} color={colors.accent} />
                 <Text style={styles.studioName}>{studio.name}</Text>
                 {studio.is_primary && (
@@ -130,13 +138,26 @@ export default function ProfileScreen({ navigation }: any) {
                     <Text style={styles.primaryBadgeText}>Primary</Text>
                   </View>
                 )}
-              </View>
+                {studio.slug && (
+                  <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+                )}
+              </TouchableOpacity>
             ))
           ) : primaryStudio ? (
-            <View style={styles.studioRow}>
+            <TouchableOpacity
+              style={styles.studioRow}
+              onPress={() => primaryStudio.slug && navigation.navigate('StudioDetail', {
+                slug: primaryStudio.slug,
+                name: primaryStudio.name,
+              })}
+              activeOpacity={primaryStudio.slug ? 0.7 : 1}
+            >
               <MaterialIcons name="store" size={18} color={colors.accent} />
               <Text style={styles.studioName}>{primaryStudio.name}</Text>
-            </View>
+              {primaryStudio.slug && (
+                <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+              )}
+            </TouchableOpacity>
           ) : null}
         </View>
       )}

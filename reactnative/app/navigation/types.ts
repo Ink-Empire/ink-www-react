@@ -18,6 +18,7 @@ export type HomeStackParamList = {
   Home: undefined;
   ArtistDetail: { slug: string; name?: string };
   TattooDetail: { id: number };
+  StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
 };
 
@@ -26,18 +27,21 @@ export type SearchStackParamList = {
   ArtistList: { styleId?: number; searchQuery?: string } | undefined;
   ArtistDetail: { slug: string; name?: string };
   TattooDetail: { id: number };
+  StudioDetail: { slug: string; name?: string };
 };
 
 export type FavoritesStackParamList = {
   Favorites: undefined;
   ArtistDetail: { slug: string; name?: string };
   TattooDetail: { id: number };
+  StudioDetail: { slug: string; name?: string };
 };
 
 export type ArtistsStackParamList = {
   ArtistList: { styleId?: number; searchQuery?: string; filterStyles?: number[]; filterTags?: number[] } | undefined;
   ArtistDetail: { slug: string; name?: string };
   TattooDetail: { id: number };
+  StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
 };
 
@@ -50,5 +54,6 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   ArtistDetail: { slug: string; name?: string };
   TattooDetail: { id: number };
+  StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
 };

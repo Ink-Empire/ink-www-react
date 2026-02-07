@@ -5,6 +5,7 @@ import ArtistListScreen from '../screens/ArtistListScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import StudioDetailScreen from '../screens/StudioDetailScreen';
 import type { ArtistsStackParamList } from './types';
 
 const Stack = createStackNavigator<ArtistsStackParamList>();
@@ -25,6 +26,11 @@ export default function ArtistsStack() {
         options={({ route }) => ({ title: route.params?.name || 'Artist' })}
       />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo' }} />
+      <Stack.Screen
+        name="StudioDetail"
+        component={StudioDetailScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Studio' })}
+      />
       <Stack.Screen
         name="Calendar"
         component={CalendarScreen}

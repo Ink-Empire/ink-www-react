@@ -63,9 +63,13 @@ export default function FavoritesScreen({ navigation }: any) {
     <ArtistCard
       artist={item}
       onPress={() => navigation.navigate('ArtistDetail', {
-        slug: item.slug || item.username,
+        slug: item.slug,
         name: item.name,
       })}
+      onStudioPress={item.studio?.slug ? () => navigation.navigate('StudioDetail', {
+        slug: item.studio.slug,
+        name: item.studio.name,
+      }) : undefined}
     />
   ), [navigation]);
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -8,6 +9,8 @@ import ArtistsStack from './ArtistsStack';
 import UploadStack from './UploadStack';
 import FavoritesStack from './FavoritesStack';
 import ProfileStack from './ProfileStack';
+import TattooMachineIcon from '../components/icons/TattooMachineIcon';
+import ChairIcon from '../components/icons/ChairIcon';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -20,11 +23,18 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+          marginTop: -2,
+        },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
+          height: 64,
+          paddingBottom: 6,
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
@@ -34,8 +44,9 @@ export default function MainTabs() {
         name="HomeTab"
         component={HomeStack}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="home" size={size} color={color} />
+          tabBarLabel: 'Tattoos',
+          tabBarIcon: ({ color }) => (
+            <TattooMachineIcon size={28} color={color} />
           ),
         }}
       />
@@ -43,8 +54,9 @@ export default function MainTabs() {
         name="ArtistsTab"
         component={ArtistsStack}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="brush" size={size} color={color} />
+          tabBarLabel: 'Artists',
+          tabBarIcon: ({ color }) => (
+            <ChairIcon size={28} color={color} />
           ),
         }}
       />
@@ -53,8 +65,11 @@ export default function MainTabs() {
           name="UploadTab"
           component={UploadStack}
           options={{
-            tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="add-circle-outline" size={size + 6} color={color} />
+            tabBarLabel: () => null,
+            tabBarIcon: ({ color }) => (
+              <View style={styles.uploadButton}>
+                <MaterialIcons name="add" size={28} color={colors.surface} />
+              </View>
             ),
           }}
         />
@@ -63,8 +78,9 @@ export default function MainTabs() {
         name="FavoritesTab"
         component={FavoritesStack}
         options={{
+          tabBarLabel: 'Saved',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="bookmark-border" size={size} color={color} />
+            <MaterialIcons name="bookmark-border" size={28} color={color} />
           ),
         }}
       />
@@ -72,11 +88,24 @@ export default function MainTabs() {
         name="ProfileTab"
         component={ProfileStack}
         options={{
+          tabBarLabel: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="person-outline" size={size} color={color} />
+            <MaterialIcons name="person-outline" size={28} color={color} />
           ),
         }}
       />
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  uploadButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -10,
+  },
+});

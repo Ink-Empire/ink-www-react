@@ -6,6 +6,7 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import StudioDetailScreen from '../screens/StudioDetailScreen';
 import type { ProfileStackParamList } from './types';
 
 const Stack = createStackNavigator<ProfileStackParamList>();
@@ -30,6 +31,11 @@ export default function ProfileStack() {
         name="TattooDetail"
         component={TattooDetailScreen}
         options={{ title: 'Tattoo' }}
+      />
+      <Stack.Screen
+        name="StudioDetail"
+        component={StudioDetailScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Studio' })}
       />
       <Stack.Screen
         name="Calendar"

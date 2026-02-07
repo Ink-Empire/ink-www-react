@@ -4,6 +4,7 @@ import { colors } from '../../lib/colors';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
+import StudioDetailScreen from '../screens/StudioDetailScreen';
 import type { FavoritesStackParamList } from './types';
 
 const Stack = createStackNavigator<FavoritesStackParamList>();
@@ -24,6 +25,11 @@ export default function FavoritesStack() {
         options={({ route }) => ({ title: route.params?.name || 'Artist' })}
       />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo' }} />
+      <Stack.Screen
+        name="StudioDetail"
+        component={StudioDetailScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Studio' })}
+      />
     </Stack.Navigator>
   );
 }

@@ -13,15 +13,16 @@ interface ArtistCardProps {
     image?: { uri: string } | string | null;
     primary_image?: { uri: string } | null;
     styles?: { id: number; name: string }[];
-    studio?: { name: string } | null;
+    studio?: { name: string; slug?: string } | null;
   };
   onPress: () => void;
+  onStudioPress?: () => void;
 }
 
-export default function ArtistCard({ artist, onPress }: ArtistCardProps) {
+export default function ArtistCard({ artist, onPress, onStudioPress }: ArtistCardProps) {
   const imageUri =
-    (typeof artist.image === 'object' ? artist.image?.uri : artist.image) ||
-    artist.primary_image?.uri;
+    artist.primary_image?.uri ||
+    (typeof artist.image === 'object' ? artist.image?.uri : artist.image);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -35,7 +36,13 @@ export default function ArtistCard({ artist, onPress }: ArtistCardProps) {
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>{artist.name}</Text>
         {artist.studio?.name && (
-          <Text style={styles.studio} numberOfLines={1}>{artist.studio.name}</Text>
+          onStudioPress ? (
+            <TouchableOpacity onPress={onStudioPress}>
+              <Text style={styles.studio} numberOfLines={1}>{artist.studio.name}</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.studio} numberOfLines={1}>{artist.studio.name}</Text>
+          )
         )}
         {artist.location && (
           <Text style={styles.location} numberOfLines={1}>{artist.location}</Text>
