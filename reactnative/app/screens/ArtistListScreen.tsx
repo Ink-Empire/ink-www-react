@@ -65,11 +65,11 @@ export default function ArtistListScreen({ navigation, route }: any) {
   const renderItem = useCallback(({ item }: any) => (
     <ArtistCard
       artist={item}
-      onPress={() => navigation.navigate('ArtistDetail', {
+      onPress={() => navigation.push('ArtistDetail', {
         slug: item.slug,
         name: item.name,
       })}
-      onStudioPress={item.studio?.slug ? () => navigation.navigate('StudioDetail', {
+      onStudioPress={item.studio?.slug ? () => navigation.push('StudioDetail', {
         slug: item.studio.slug,
         name: item.studio.name,
       }) : undefined}

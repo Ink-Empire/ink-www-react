@@ -15,6 +15,7 @@ import { useStyles } from '@inkedin/shared/hooks';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import StyleTag from '../components/common/StyleTag';
+import LocationAutocomplete from '../components/common/LocationAutocomplete';
 
 const SOCIAL_PLATFORMS = [
   { key: 'instagram', label: 'Instagram' },
@@ -36,6 +37,7 @@ export default function EditProfileScreen({ navigation }: any) {
   const [bio, setBio] = useState(u?.about || '');
   const [phone, setPhone] = useState(u?.phone || '');
   const [location, setLocation] = useState(u?.location || '');
+  const [locationLatLong, setLocationLatLong] = useState(u?.location_lat_long || '');
 
   // Styles state
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
@@ -118,6 +120,7 @@ export default function EditProfileScreen({ navigation }: any) {
         about: bio.trim(),
         phone: phone.trim(),
         location: location.trim(),
+        location_lat_long: locationLatLong,
         styles: selectedStyles,
       } as any);
 
@@ -188,11 +191,12 @@ export default function EditProfileScreen({ navigation }: any) {
           keyboardType="phone-pad"
         />
 
-        <Input
-          label="Location"
+        <LocationAutocomplete
           value={location}
-          onChangeText={setLocation}
-          placeholder="City, State"
+          onChange={(loc, latLong) => {
+            setLocation(loc);
+            setLocationLatLong(latLong);
+          }}
         />
 
         {/* Styles */}

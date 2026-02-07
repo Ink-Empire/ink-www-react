@@ -4,6 +4,7 @@ import { colors } from '../../../lib/colors';
 import { api } from '../../../lib/api';
 import Input from '../common/Input';
 import Button from '../common/Button';
+import LocationAutocomplete from '../common/LocationAutocomplete';
 
 interface UserDetailsData {
   name: string;
@@ -24,6 +25,7 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
+  const [locationLatLong, setLocationLatLong] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checkingUsername, setCheckingUsername] = useState(false);
 
@@ -69,7 +71,7 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
       username: username.trim().toLowerCase(),
       bio: bio.trim(),
       location: location.trim(),
-      locationLatLong: '',
+      locationLatLong,
     });
   };
 
@@ -112,11 +114,12 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
         style={{ minHeight: 80, textAlignVertical: 'top' }}
       />
 
-      <Input
-        label="Location"
+      <LocationAutocomplete
         value={location}
-        onChangeText={setLocation}
-        placeholder="City, State"
+        onChange={(loc, latLong) => {
+          setLocation(loc);
+          setLocationLatLong(latLong);
+        }}
       />
 
       <View style={styles.buttons}>

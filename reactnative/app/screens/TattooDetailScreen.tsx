@@ -49,7 +49,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
         {artistName ? (
           <TouchableOpacity
             style={styles.artistHeader}
-            onPress={() => artistSlug && navigation.navigate('ArtistDetail', {
+            onPress={() => artistSlug && navigation.push('ArtistDetail', {
               slug: artistSlug,
               name: artistName,
             })}
@@ -60,7 +60,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
               <Text style={styles.artistName}>{artistName}</Text>
               {studioName && (
                 <TouchableOpacity
-                  onPress={() => studioSlug && navigation.navigate('StudioDetail', { slug: studioSlug, name: studioName })}
+                  onPress={() => studioSlug && navigation.push('StudioDetail', { slug: studioSlug, name: studioName })}
                   activeOpacity={studioSlug ? 0.7 : 1}
                 >
                   <Text style={styles.studioName}>{studioName}</Text>

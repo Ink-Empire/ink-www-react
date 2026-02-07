@@ -109,6 +109,13 @@ export function createUserService(api: ApiClient) {
 }
 
 // =============================================================================
+// Google Places Service (REST API)
+// =============================================================================
+
+export { fetchPlacesApiKey, searchPlaces, getPlaceDetails } from './googlePlacesService';
+export type { PlacePrediction, PlaceDetails } from './googlePlacesService';
+
+// =============================================================================
 // Export types
 // =============================================================================
 

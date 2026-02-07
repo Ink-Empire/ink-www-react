@@ -35,7 +35,7 @@ const SOCIAL_ICONS: Record<string, string> = {
 };
 
 export default function ArtistDetailScreen({ navigation, route }: any) {
-  const { slug } = route.params;
+  const { slug, name: routeName } = route.params;
   const { artist, loading, error } = useArtist(api, slug);
   const { portfolio, loading: portfolioLoading } = useArtistPortfolio(api, slug);
   const { user, toggleFavorite } = useAuth();
@@ -75,12 +75,12 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
       {/* Hero Header */}
       <View style={styles.header}>
         <View style={styles.avatarBorder}>
-          <Avatar uri={imageUri} name={artist.name} size={100} />
+          <Avatar uri={imageUri} name={artist.name || routeName} size={100} />
         </View>
-        <Text style={styles.name}>{artist.name}</Text>
+        <Text style={styles.name}>{artist.name || routeName}</Text>
         {a.studio?.name && (
           <TouchableOpacity
-            onPress={() => a.studio?.slug && navigation.navigate('StudioDetail', {
+            onPress={() => a.studio?.slug && navigation.push('StudioDetail', {
               slug: a.studio.slug,
               name: a.studio.name,
             })}
@@ -284,7 +284,7 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
       <TouchableOpacity
         style={styles.gridItem}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('TattooDetail', { id: item.id })}
+        onPress={() => navigation.push('TattooDetail', { id: item.id })}
       >
         {imageSource ? (
           <Image source={{ uri: imageSource }} style={styles.gridImage} />

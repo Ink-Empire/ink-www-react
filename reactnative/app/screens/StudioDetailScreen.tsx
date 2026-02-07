@@ -312,7 +312,7 @@ export default function StudioDetailScreen({ navigation, route }: any) {
       <TouchableOpacity
         style={styles.gridItem}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('TattooDetail', { id: item.id })}
+        onPress={() => navigation.push('TattooDetail', { id: item.id })}
       >
         {imageSource ? (
           <Image source={{ uri: imageSource }} style={styles.gridImage} />
@@ -324,7 +324,7 @@ export default function StudioDetailScreen({ navigation, route }: any) {
         {tattooArtistName && (
           <TouchableOpacity
             style={styles.gridArtistOverlay}
-            onPress={() => tattooArtistSlug && navigation.navigate('ArtistDetail', {
+            onPress={() => tattooArtistSlug && navigation.push('ArtistDetail', {
               slug: tattooArtistSlug,
               name: tattooArtistName,
             })}

@@ -100,7 +100,7 @@ export default function ProfileScreen({ navigation }: any) {
       {isArtist && u.slug && (
         <TouchableOpacity
           style={styles.profileLink}
-          onPress={() => navigation.navigate('ArtistDetail', { slug: u.slug, name: u.name })}
+          onPress={() => navigation.push('ArtistDetail', { slug: u.slug, name: u.name })}
         >
           <MaterialIcons name="person" size={20} color={colors.accent} />
           <Text style={styles.profileLinkText}>View Public Profile</Text>
@@ -125,7 +125,7 @@ export default function ProfileScreen({ navigation }: any) {
               <TouchableOpacity
                 key={studio.id}
                 style={styles.studioRow}
-                onPress={() => studio.slug && navigation.navigate('StudioDetail', {
+                onPress={() => studio.slug && navigation.push('StudioDetail', {
                   slug: studio.slug,
                   name: studio.name,
                 })}
@@ -146,7 +146,7 @@ export default function ProfileScreen({ navigation }: any) {
           ) : primaryStudio ? (
             <TouchableOpacity
               style={styles.studioRow}
-              onPress={() => primaryStudio.slug && navigation.navigate('StudioDetail', {
+              onPress={() => primaryStudio.slug && navigation.push('StudioDetail', {
                 slug: primaryStudio.slug,
                 name: primaryStudio.name,
               })}

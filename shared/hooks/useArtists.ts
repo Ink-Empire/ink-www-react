@@ -100,9 +100,9 @@ export function useArtist(
       setError(null);
 
       try {
-        const response = await api.get<{ artist: Artist }>(`/artists/${idOrSlug}`);
+        const response = await api.get<any>(`/artists/${idOrSlug}`);
         if (mountedRef.current) {
-          setArtist(response.artist || response as any);
+          setArtist(response?.artist as Artist);
         }
       } catch (err) {
         if (mountedRef.current) {

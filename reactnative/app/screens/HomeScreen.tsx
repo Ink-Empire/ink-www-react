@@ -65,7 +65,7 @@ export default function HomeScreen({ navigation, route }: any) {
   const renderItem = ({ item }: any) => (
     <TattooCard
       tattoo={item}
-      onPress={() => navigation.navigate('TattooDetail', { id: item.id })}
+      onPress={() => navigation.push('TattooDetail', { id: item.id })}
     />
   );
 

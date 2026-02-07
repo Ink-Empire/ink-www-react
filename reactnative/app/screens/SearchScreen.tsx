@@ -56,18 +56,18 @@ export default function SearchScreen({ navigation, route }: any) {
   const renderTattooItem = useCallback(({ item }: any) => (
     <TattooCard
       tattoo={item}
-      onPress={() => navigation.navigate('TattooDetail', { id: item.id })}
+      onPress={() => navigation.push('TattooDetail', { id: item.id })}
     />
   ), [navigation]);
 
   const renderArtistItem = useCallback(({ item }: any) => (
     <ArtistCard
       artist={item}
-      onPress={() => navigation.navigate('ArtistDetail', {
+      onPress={() => navigation.push('ArtistDetail', {
         slug: item.slug,
         name: item.name,
       })}
-      onStudioPress={item.studio?.slug ? () => navigation.navigate('StudioDetail', {
+      onStudioPress={item.studio?.slug ? () => navigation.push('StudioDetail', {
         slug: item.studio.slug,
         name: item.studio.name,
       }) : undefined}
