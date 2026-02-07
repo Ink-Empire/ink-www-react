@@ -45,10 +45,12 @@ export function useTattoos(
         requestBody.locationCoords = `${coords.lat || coords.latitude},${coords.lng || coords.longitude}`;
       }
 
-      const response = await api.post<Tattoo[]>('/tattoos', requestBody);
+      const response = await api.post<any>('/tattoos', requestBody);
 
       if (mountedRef.current) {
-        setTattoos(Array.isArray(response) ? response : []);
+        // API returns { response: [...], total, has_more } or a plain array
+        const data = response?.response ?? response;
+        setTattoos(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       if (mountedRef.current) {

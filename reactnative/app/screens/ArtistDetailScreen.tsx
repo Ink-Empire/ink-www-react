@@ -1,192 +1,196 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, SafeAreaView, TouchableOpacity, Linking } from 'react-native';
-import { ArtistType } from '../models/artist.interface';
+import React from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Linking,
+} from 'react-native';
+import { colors } from '../../lib/colors';
+import { api } from '../../lib/api';
+import { useArtist, useArtistPortfolio } from '@inkedin/shared/hooks';
+import { useAuth } from '../contexts/AuthContext';
+import LoadingScreen from '../components/common/LoadingScreen';
+import ErrorView from '../components/common/ErrorView';
+import StyleTag from '../components/common/StyleTag';
+import TattooCard from '../components/cards/TattooCard';
+import Button from '../components/common/Button';
+import Avatar from '../components/common/Avatar';
 
-const loadArtist = async (id: number): Promise<ArtistType | null> => {
-  try {
-    const artists = require('../../assets/data/artists.json');
-    return artists.find((artist: ArtistType) => artist.id === id) || null;
-  } catch (error) {
-    console.error('Failed to load artist:', error);
-    return null;
-  }
-};
+export default function ArtistDetailScreen({ navigation, route }: any) {
+  const { slug } = route.params;
+  const { artist, loading, error } = useArtist(api, slug);
+  const { portfolio, loading: portfolioLoading } = useArtistPortfolio(api, slug);
+  const { user, toggleFavorite } = useAuth();
 
-const ArtistDetailScreen = ({ route, navigation }: any) => {
-  const { artistId } = route.params;
-  const [artist, setArtist] = useState<ArtistType | null>(null);
-  const [loading, setLoading] = useState(true);
+  if (loading) return <LoadingScreen />;
+  if (error || !artist) return <ErrorView message={error?.message || 'Artist not found'} />;
 
-  useEffect(() => {
-    const fetchArtist = async () => {
-      const data = await loadArtist(artistId);
-      setArtist(data);
-      setLoading(false);
-    };
-
-    fetchArtist();
-  }, [artistId]);
-
-  if (loading || !artist) {
-    return (
-      <View style={styles.centered}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
-
-  const handleEmailPress = () => {
-    if (artist.email) {
-      Linking.openURL(`mailto:${artist.email}`);
-    }
-  };
-
-  const handlePhonePress = () => {
-    if (artist.phone) {
-      Linking.openURL(`tel:${artist.phone}`);
-    }
-  };
+  const isFavorited = user?.favorites?.artists?.includes(artist.id);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView>
-        <Image
-          source={{ uri: artist.image?.uri.replace('/assets', 'file:///android_asset') }}
-          style={styles.coverImage}
-        />
-        
-        <View style={styles.content}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <Avatar uri={artist.image?.uri} name={artist.name} size={80} />
+        <View style={styles.headerInfo}>
           <Text style={styles.name}>{artist.name}</Text>
-          <Text style={styles.shop}>{artist.shop}</Text>
-          
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.about}>{artist.about}</Text>
-          </View>
-          
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Location</Text>
+          {(artist as any).studio?.name && (
+            <Text style={styles.studio}>{(artist as any).studio.name}</Text>
+          )}
+          {artist.location && (
             <Text style={styles.location}>{artist.location}</Text>
-          </View>
-          
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Styles</Text>
-            <View style={styles.stylesContainer}>
-              {artist.styles?.map((style, index) => (
-                <View key={index} style={styles.styleTag}>
-                  <Text style={styles.styleText}>{style}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-          
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contact</Text>
-            <TouchableOpacity onPress={handleEmailPress}>
-              <Text style={styles.contactLink}>{artist.email}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handlePhonePress}>
-              <Text style={styles.contactLink}>{artist.phone}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {artist.tattoos && artist.tattoos.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Portfolio</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {artist.tattoos.map((tattoo, index) => (
-                  <TouchableOpacity 
-                    key={index}
-                    onPress={() => navigation.navigate('TattooDetail', { tattooId: tattoo.id })}
-                  >
-                    <Image
-                      source={{ uri: tattoo.image.uri.replace('/assets', 'file:///android_asset') }}
-                      style={styles.portfolioImage}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
           )}
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+
+      <View style={styles.actions}>
+        <Button
+          title="Book"
+          onPress={() => navigation.navigate('Calendar', {
+            artistId: artist.id,
+            artistName: artist.name,
+            artistSlug: slug,
+          })}
+          style={styles.actionButton}
+        />
+        {user && (
+          <Button
+            title={isFavorited ? 'Saved' : 'Save'}
+            onPress={() => toggleFavorite('artist', artist.id)}
+            variant={isFavorited ? 'secondary' : 'outline'}
+            style={styles.actionButton}
+          />
+        )}
+      </View>
+
+      {(artist as any).about && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <Text style={styles.aboutText}>{(artist as any).about}</Text>
+        </View>
+      )}
+
+      {artist.styles && artist.styles.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Styles</Text>
+          <View style={styles.tagsRow}>
+            {artist.styles.map((style: any) => (
+              <StyleTag key={style.id} label={style.name} />
+            ))}
+          </View>
+        </View>
+      )}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Portfolio</Text>
+        {portfolioLoading ? (
+          <Text style={styles.mutedText}>Loading portfolio...</Text>
+        ) : portfolio.length === 0 ? (
+          <Text style={styles.mutedText}>No tattoos yet</Text>
+        ) : (
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={portfolio}
+            keyExtractor={(item: any) => String(item.id)}
+            renderItem={({ item }: any) => (
+              <TattooCard
+                tattoo={item}
+                size="small"
+                onPress={() => navigation.navigate('TattooDetail', { id: item.id })}
+              />
+            )}
+          />
+        )}
+      </View>
+
+      <View style={styles.section}>
+        {artist.email && (
+          <TouchableOpacity onPress={() => Linking.openURL(`mailto:${artist.email}`)}>
+            <Text style={styles.contactLink}>Email: {artist.email}</Text>
+          </TouchableOpacity>
+        )}
+        {artist.phone && (
+          <TouchableOpacity onPress={() => Linking.openURL(`tel:${artist.phone}`)}>
+            <Text style={styles.contactLink}>Phone: {artist.phone}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.bottomPadding} />
+    </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
+    padding: 16,
     alignItems: 'center',
   },
-  coverImage: {
-    width: '100%',
-    height: 300,
-    resizeMode: 'cover',
-  },
-  content: {
-    padding: 16,
+  headerInfo: {
+    flex: 1,
+    marginLeft: 16,
   },
   name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
   },
-  shop: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  about: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#444',
+  studio: {
+    color: colors.accent,
+    fontSize: 14,
+    marginTop: 2,
   },
   location: {
-    fontSize: 16,
-    color: '#444',
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: 2,
   },
-  stylesContainer: {
+  actions: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 8,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  section: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  sectionTitle: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  aboutText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  styleTag: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  styleText: {
+  mutedText: {
+    color: colors.textMuted,
     fontSize: 14,
-    color: '#666',
   },
   contactLink: {
-    fontSize: 16,
-    color: '#0066cc',
-    marginBottom: 8,
+    color: colors.accent,
+    fontSize: 14,
+    paddingVertical: 4,
   },
-  portfolioImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 8,
-    marginRight: 12,
+  bottomPadding: {
+    height: 32,
   },
 });
-
-export default ArtistDetailScreen;

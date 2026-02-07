@@ -23,4 +23,6 @@ export {
 
 export { useStyles, useTags } from './useStyles';
 
+export { usePlacements } from './usePlacements';
+
 export { useCalendar } from './useCalendar';

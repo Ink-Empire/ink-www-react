@@ -1,58 +1,32 @@
-/**
- * Inkedin App - React Native version
- */
-
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar, SafeAreaView } from 'react-native';
+import { StatusBar } from 'react-native';
+import { colors } from './lib/colors';
+import { AuthProvider, useAuth } from './app/contexts/AuthContext';
+import AuthStack from './app/navigation/AuthStack';
+import MainTabs from './app/navigation/MainTabs';
+import LoadingScreen from './app/components/common/LoadingScreen';
 
-// Import screens
-import HomeScreen from './app/screens/HomeScreen';
-import SearchScreen from './app/screens/SearchScreen';
-import ArtistListScreen from './app/screens/ArtistListScreen';
-import ArtistDetailScreen from './app/screens/ArtistDetailScreen';
-import CalendarScreen from './app/screens/CalendarScreen';
+function RootNavigator(): React.JSX.Element {
+  const { isAuthenticated, isLoading } = useAuth();
 
-// Create the navigator
-const Stack = createStackNavigator();
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <NavigationContainer>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      {isAuthenticated ? <MainTabs /> : <AuthStack />}
+    </NavigationContainer>
+  );
+}
 
 function App(): React.JSX.Element {
   return (
-    <NavigationContainer>
-      <StatusBar barStyle="dark-content" />
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen 
-          name="Home" 
-          component={HomeScreen} 
-          options={{ title: 'Inked Out' }}
-        />
-        <Stack.Screen
-          name="Search"
-          component={SearchScreen}
-          options={{ title: 'Search' }}
-        />
-        <Stack.Screen 
-          name="ArtistList" 
-          component={ArtistListScreen} 
-          options={{ title: 'Artists' }}
-        />
-        <Stack.Screen
-          name="ArtistDetail"
-          component={ArtistDetailScreen}
-          options={({ route }: any) => ({
-            title: route.params?.name || 'Artist Details'
-          })}
-        />
-        <Stack.Screen
-          name="Calendar"
-          component={CalendarScreen}
-          options={({ route }: any) => ({
-            title: route.params?.artistName ? `${route.params.artistName}'s Calendar` : 'Calendar'
-          })}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
   );
 }
 

@@ -56,8 +56,8 @@ const removeToken = async (): Promise<void> => {
 // In development, this might be your local machine's IP
 // In production, this will be your API server URL
 const API_BASE_URL = __DEV__
-  ? 'http://localhost:8000/api' // Change to your machine's IP for device testing
-  : 'https://api.inkedin.com/api'; // Production URL
+  ? 'http://localhost/api' // Local dev via Valet/Nginx
+  : 'https://api.getinked.in/api'; // Production URL
 
 // Create and export the API client instance
 export const api = createApiClient({
