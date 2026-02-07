@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   Image,
+  FlatList,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -25,11 +28,33 @@ export default function TattooDetailScreen({ navigation, route }: any) {
   const { id } = route.params;
   const { tattoo, loading, error } = useTattoo(api, id);
   const { user, toggleFavorite } = useAuth();
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const allImages = useMemo(() => {
+    if (!tattoo) return [];
+    const imgs: { uri: string }[] = [];
+    if (tattoo.images && Array.isArray(tattoo.images)) {
+      tattoo.images.forEach((img: any) => {
+        const uri = typeof img === 'string' ? img : img?.uri;
+        if (uri) imgs.push({ uri });
+      });
+    }
+    if (imgs.length === 0) {
+      const primaryUri = tattoo.primary_image?.uri;
+      if (primaryUri) imgs.push({ uri: primaryUri });
+    }
+    return imgs;
+  }, [tattoo]);
+
+  const onScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / screenWidth);
+    setActiveIndex(index);
+  }, []);
 
   if (loading) return <LoadingScreen />;
   if (error || !tattoo) return <ErrorView message={error?.message || 'Tattoo not found'} />;
 
-  const imageUri = tattoo.primary_image?.uri || tattoo.images?.[0]?.uri;
   const isFavorited = user?.favorites?.tattoos?.includes(tattoo.id);
 
   const artist = tattoo.artist;
@@ -88,12 +113,34 @@ export default function TattooDetailScreen({ navigation, route }: any) {
         )}
       </View>
 
-      {imageUri && (
-        <Image
-          source={{ uri: imageUri }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+      {allImages.length > 0 && (
+        <View>
+          <FlatList
+            data={allImages}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onScrollEnd}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={({ item }) => (
+              <Image
+                source={{ uri: item.uri }}
+                style={styles.image}
+                resizeMode="cover"
+              />
+            )}
+          />
+          {allImages.length > 1 && (
+            <View style={styles.dots}>
+              {allImages.map((_, i) => (
+                <View
+                  key={i}
+                  style={[styles.dot, i === activeIndex && styles.dotActive]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
       )}
 
       <View style={styles.content}>
@@ -190,6 +237,25 @@ const styles = StyleSheet.create({
     width: screenWidth,
     height: screenWidth,
     backgroundColor: colors.surfaceElevated,
+  },
+  // Carousel dots
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.textMuted,
+    marginHorizontal: 4,
+    opacity: 0.4,
+  },
+  dotActive: {
+    backgroundColor: colors.accent,
+    opacity: 1,
   },
   // Artist bar (above image)
   artistBar: {
