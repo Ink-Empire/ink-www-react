@@ -130,10 +130,12 @@ export const messageService = {
   },
 
   // Get more messages for a conversation (requires auth)
-  getConversationMessages: async (conversationId: number, before?: number): Promise<MessagesResponse> => {
-    const endpoint = before
-      ? `/conversations/${conversationId}/messages?before=${before}`
-      : `/conversations/${conversationId}/messages`;
+  getConversationMessages: async (conversationId: number, before?: number, after?: number): Promise<MessagesResponse> => {
+    const params = new URLSearchParams();
+    if (before) params.set('before', String(before));
+    if (after) params.set('after', String(after));
+    const query = params.toString();
+    const endpoint = `/conversations/${conversationId}/messages${query ? `?${query}` : ''}`;
     return api.get(endpoint, { requiresAuth: true, useCache: false });
   },
 

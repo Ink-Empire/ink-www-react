@@ -129,51 +129,68 @@ export function useArtist(
 export function useArtistPortfolio(
   api: ApiClient,
   artistIdOrSlug: string | number | null
-): { portfolio: any[]; loading: boolean; error: Error | null } {
+): { portfolio: any[]; loading: boolean; error: Error | null; hasMore: boolean; loadMore: () => void } {
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [loading, setLoading] = useState(!!artistIdOrSlug);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const mountedRef = useRef(true);
 
-  useEffect(() => {
-    if (!artistIdOrSlug) {
-      setLoading(false);
-      return;
-    }
+  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
+    if (!artistIdOrSlug) return;
 
-    mountedRef.current = true;
-
-    const fetchPortfolio = async () => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
       setLoading(true);
-      setError(null);
+    }
+    setError(null);
 
-      try {
-        const response = await api.post<any>('/tattoos', {
-          artist_id: artistIdOrSlug,
-        }, {
-          headers: { 'X-Account-Type': 'user' },
-        });
-        if (mountedRef.current) {
-          const data = response?.response ?? response;
-          setPortfolio(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
-        if (mountedRef.current) {
-          setError(err instanceof Error ? err : new Error(`Failed to fetch portfolio for artist ${artistIdOrSlug}`));
-        }
-      } finally {
-        if (mountedRef.current) {
-          setLoading(false);
-        }
+    try {
+      const response = await api.get<any>(`/artists/${artistIdOrSlug}/portfolio?page=${pageNum}&per_page=25`);
+      if (mountedRef.current) {
+        const data = response?.response ?? response;
+        const items = Array.isArray(data) ? data : [];
+        setPortfolio(prev => append ? [...prev, ...items] : items);
+        setHasMore(response?.has_more ?? false);
       }
-    };
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err : new Error(`Failed to fetch portfolio for artist ${artistIdOrSlug}`));
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }, [api, artistIdOrSlug]);
 
-    fetchPortfolio();
+  useEffect(() => {
+    mountedRef.current = true;
+    setPage(1);
+    setPortfolio([]);
+
+    if (artistIdOrSlug) {
+      fetchPage(1, false);
+    } else {
+      setLoading(false);
+    }
 
     return () => {
       mountedRef.current = false;
     };
-  }, [api, artistIdOrSlug]);
+  }, [fetchPage]);
 
-  return { portfolio, loading, error };
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchPage(nextPage, true);
+    }
+  }, [loadingMore, hasMore, page, fetchPage]);
+
+  return { portfolio, loading, error, hasMore, loadMore };
 }

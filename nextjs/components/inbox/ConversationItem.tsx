@@ -26,7 +26,7 @@ export function ConversationItem({
     if (!conversation.last_message) return 'No messages yet';
     const isOwnMessage = conversation.last_message.sender_id === currentUserId;
     const prefix = isOwnMessage ? 'You: ' : '';
-    return prefix + conversation.last_message.content;
+    return prefix + (conversation.last_message.content || 'Attachment');
   }, [conversation.last_message, currentUserId]);
 
   return (

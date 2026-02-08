@@ -118,18 +118,11 @@ export default function BookingModal({
       // Determine the final booking type
       const finalBookingType = bookingType || (acceptsConsultations ? 'consultation' : 'tattoo');
       
-      // Create start and end date objects
+      // Format start and end times as plain HH:mm strings (naive local time)
       const [timeHour, timeMinute] = selectedTimeSlot.split(':').map(Number);
-      const startDate = new Date(selectedDate);
-      startDate.setHours(timeHour, timeMinute, 0, 0);
-      
-      // Default to 1-hour appointment duration
-      const endDate = new Date(startDate);
-      endDate.setHours(startDate.getHours() + 1);
-
-      // Format dates as ISO strings
-      const startISO = startDate.toISOString();
-      const endISO = endDate.toISOString();
+      const startTime = `${String(timeHour).padStart(2, '0')}:${String(timeMinute).padStart(2, '0')}`;
+      const endHour = timeHour + 1;
+      const endTime = `${String(endHour).padStart(2, '0')}:${String(timeMinute).padStart(2, '0')}`;
 
       console.log(user);
 
@@ -137,8 +130,8 @@ export default function BookingModal({
       const appointmentData = {
         artist_id: artistId,
         title: `${finalBookingType} request from ${user?.username}`,
-        start_time: startISO,
-        end_time: endISO,
+        start_time: startTime,
+        end_time: endTime,
         date: selectedDate,
         all_day: false,
         description: notes || '',

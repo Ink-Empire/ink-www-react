@@ -15,7 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter();
 
   // Pages that handle their own layout (no container wrapper)
-  const fullWidthPages = ['/', '/login', '/register', '/how-it-works', '/for-artists'];
+  const fullWidthPages = ['/', '/login', '/register', '/how-it-works', '/for-artists', '/inbox'];
   const isFullWidthPage = fullWidthPages.some(page =>
     router.pathname === page || router.pathname.startsWith(`${page}/`)
   );

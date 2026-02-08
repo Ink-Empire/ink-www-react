@@ -18,7 +18,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import EmailIcon from '@mui/icons-material/Email';
 import SmsIcon from '@mui/icons-material/Sms';
-import { useArtist } from '../../hooks';
+import { useArtist, useArtistPortfolio } from '../../hooks';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooCreateWizard from '@/components/TattooCreateWizard';
 import TattooModal from '@/components/TattooModal';
@@ -33,6 +33,7 @@ export default function ArtistDetail() {
     const { slug } = router.query;
     const slugString = typeof slug === 'string' ? slug : null;
     const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString);
+    const { portfolio, loading: portfolioLoading, refetch: fetchPortfolio } = useArtistPortfolio(slugString);
     const { user, isAuthenticated } = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
@@ -184,7 +185,7 @@ export default function ArtistDetail() {
     };
 
     const isOwner = isAuthenticated && user && (user.slug === slug || user.id === artist?.id);
-    const portfolio = artist?.tattoos || [];
+    // portfolio comes from useArtistPortfolio hook (GET /artists/{slug}/portfolio)
 
     // Get unique styles from artist or their tattoos
     const artistStyles = useMemo(() => {

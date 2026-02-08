@@ -38,6 +38,9 @@ import PersonIcon from '@mui/icons-material/Person';
 import BlockIcon from '@mui/icons-material/Block';
 import ReportIcon from '@mui/icons-material/Report';
 import CloseIcon from '@mui/icons-material/Close';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import CheckIcon from '@mui/icons-material/Check';
 import { colors } from '@/styles/colors';
 import {
   useConversations,
@@ -45,6 +48,7 @@ import {
   createConversation,
 } from '../hooks/useConversations';
 import { userService } from '../services/userService';
+import { artistService } from '../services/artistService';
 import { appointmentService } from '../services/appointmentService';
 import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
 import {
@@ -76,6 +80,17 @@ export default function InboxPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const designInputRef = useRef<HTMLInputElement>(null);
+
+  // Sort state
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null);
+
+  // New message dialog state
+  const [newMessageOpen, setNewMessageOpen] = useState(false);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [recipientResult, setRecipientResult] = useState<{ id: number; name: string; username: string; slug?: string; image?: any } | null>(null);
+  const [recipientError, setRecipientError] = useState('');
+  const [searchingRecipient, setSearchingRecipient] = useState(false);
 
   // Modal states
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -135,12 +150,24 @@ export default function InboxPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mark conversation as read when selected
+  // Mark conversation as read when selected or when new messages arrive
   useEffect(() => {
     if (selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
-      markAsRead();
+      markAsRead().then(() => fetchConversations());
     }
-  }, [selectedConversationId, selectedConversation?.unread_count, markAsRead]);
+  }, [selectedConversationId, selectedConversation?.unread_count, messages.length, markAsRead]);
+
+  // Mark as read when window regains focus (e.g., switching tabs back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
+        markAsRead().then(() => fetchConversations());
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [selectedConversationId, selectedConversation?.unread_count, markAsRead, fetchConversations]);
 
   // Refetch conversations when filter changes
   useEffect(() => {
@@ -209,6 +236,15 @@ export default function InboxPage() {
   }, [artistId, isAuthenticated, conversations, conversationsLoading, creatingConversation, router, fetchConversations]);
 
   const unreadCount = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations]);
+
+  const sortedConversations = useMemo(() => {
+    const sorted = [...conversations].sort((a, b) => {
+      const dateA = new Date(a.last_message?.created_at || a.updated_at || a.created_at).getTime();
+      const dateB = new Date(b.last_message?.created_at || b.updated_at || b.created_at).getTime();
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+    return sorted;
+  }, [conversations, sortOrder]);
 
   const handleSelectConversation = (conv: ApiConversation) => {
     // Clear pending attachments when switching conversations
@@ -424,14 +460,6 @@ export default function InboxPage() {
   };
 
   // Header action handlers
-  const handleCalendarClick = () => {
-    if (selectedConversation?.participant) {
-      // Navigate to the artist's profile calendar tab
-      const participantSlug = selectedConversation.participant.slug || selectedConversation.participant.username;
-      window.open(`/artists/${participantSlug}?tab=calendar`, '_blank');
-    }
-  };
-
   const handleMoreMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setMoreMenuAnchor(event.currentTarget);
   };
@@ -478,6 +506,52 @@ export default function InboxPage() {
     // TODO: Implement report functionality - for now just show a message
     setSnackbar({ open: true, message: 'Report submitted. Our team will review it.', severity: 'info' });
     handleMoreMenuClose();
+  };
+
+  const handleRecipientSearch = async () => {
+    if (!recipientSearch.trim()) return;
+    setSearchingRecipient(true);
+    setRecipientError('');
+    setRecipientResult(null);
+
+    try {
+      const response = await artistService.lookupByIdentifier(recipientSearch.trim());
+      if (response.artist) {
+        setRecipientResult(response.artist);
+      } else {
+        setRecipientError('No user found with that username or email');
+      }
+    } catch (err: any) {
+      setRecipientError('No user found with that username or email');
+    } finally {
+      setSearchingRecipient(false);
+    }
+  };
+
+  const handleStartConversation = async () => {
+    if (!recipientResult) return;
+    setCreatingConversation(true);
+
+    try {
+      const newConversation = await createConversation(recipientResult.id);
+      if (newConversation) {
+        await fetchConversations();
+        setSelectedConversationId(newConversation.id);
+        setMobileShowConversation(true);
+      }
+      setNewMessageOpen(false);
+      setRecipientSearch('');
+      setRecipientResult(null);
+      setRecipientError('');
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to start conversation. Please try again.',
+        severity: 'error',
+      });
+    } finally {
+      setCreatingConversation(false);
+    }
   };
 
   const handleShareDesign = () => {
@@ -659,6 +733,7 @@ export default function InboxPage() {
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <IconButton
+                  onClick={(e) => setSortMenuAnchor(e.currentTarget)}
                   sx={{
                     width: 36,
                     height: 36,
@@ -671,6 +746,7 @@ export default function InboxPage() {
                   <TuneIcon sx={{ fontSize: 18 }} />
                 </IconButton>
                 <IconButton
+                  onClick={() => setNewMessageOpen(true)}
                   sx={{
                     width: 36,
                     height: 36,
@@ -684,6 +760,44 @@ export default function InboxPage() {
                 </IconButton>
               </Box>
             </Box>
+
+            {/* Sort Menu */}
+            <Menu
+              anchorEl={sortMenuAnchor}
+              open={Boolean(sortMenuAnchor)}
+              onClose={() => setSortMenuAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              PaperProps={{
+                sx: {
+                  bgcolor: colors.surface,
+                  border: `1px solid ${colors.borderSubtle}`,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                  minWidth: 180,
+                },
+              }}
+            >
+              <MenuItem
+                onClick={() => { setSortOrder('newest'); setSortMenuAnchor(null); }}
+                sx={{ color: colors.textPrimary }}
+              >
+                <ListItemIcon>
+                  <ArrowDownwardIcon sx={{ color: sortOrder === 'newest' ? colors.accent : colors.textSecondary, fontSize: 18 }} />
+                </ListItemIcon>
+                <ListItemText>Newest first</ListItemText>
+                {sortOrder === 'newest' && <CheckIcon sx={{ color: colors.accent, fontSize: 18, ml: 1 }} />}
+              </MenuItem>
+              <MenuItem
+                onClick={() => { setSortOrder('oldest'); setSortMenuAnchor(null); }}
+                sx={{ color: colors.textPrimary }}
+              >
+                <ListItemIcon>
+                  <ArrowUpwardIcon sx={{ color: sortOrder === 'oldest' ? colors.accent : colors.textSecondary, fontSize: 18 }} />
+                </ListItemIcon>
+                <ListItemText>Oldest first</ListItemText>
+                {sortOrder === 'oldest' && <CheckIcon sx={{ color: colors.accent, fontSize: 18, ml: 1 }} />}
+              </MenuItem>
+            </Menu>
 
             <TextField
               fullWidth
@@ -756,8 +870,8 @@ export default function InboxPage() {
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress size={24} sx={{ color: colors.accent }} />
               </Box>
-            ) : conversations.length > 0 ? (
-              conversations.map((conv) => (
+            ) : sortedConversations.length > 0 ? (
+              sortedConversations.map((conv) => (
                 <ConversationItem
                   key={conv.id}
                   conversation={conv}
@@ -844,23 +958,6 @@ export default function InboxPage() {
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Show calendar button when participant is an artist (booking/consultation conversations) */}
-                  {(selectedConversation?.type === 'booking' || selectedConversation?.type === 'consultation' || selectedConversation?.type === 'guest-spot') && (
-                    <IconButton
-                      onClick={handleCalendarClick}
-                      title="View calendar"
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        bgcolor: colors.background,
-                        border: `1px solid ${colors.borderSubtle}`,
-                        color: colors.textSecondary,
-                        '&:hover': { borderColor: colors.accent, color: colors.accent },
-                      }}
-                    >
-                      <CalendarMonthIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  )}
                   <IconButton
                     onClick={handleMoreMenuClick}
                     title="More options"
@@ -911,8 +1008,8 @@ export default function InboxPage() {
                 </Menu>
               </Box>
 
-              {/* Request Banner for pending appointments */}
-              {selectedConversation.appointment?.status === 'pending' && (
+              {/* Request Banner for pending appointments - only artists can accept/decline */}
+              {selectedConversation.appointment?.status === 'pending' && isArtist && (
                 <Box
                   sx={{
                     display: 'flex',
@@ -1420,6 +1517,139 @@ export default function InboxPage() {
           )}
         </Box>
       </Box>
+
+      {/* New Message Dialog */}
+      <Dialog
+        open={newMessageOpen}
+        onClose={() => { setNewMessageOpen(false); setRecipientSearch(''); setRecipientResult(null); setRecipientError(''); }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            border: `1px solid ${colors.borderSubtle}`,
+            borderRadius: '12px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: colors.textPrimary }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AddIcon sx={{ color: colors.accent }} />
+            New Message
+          </Box>
+          <IconButton onClick={() => { setNewMessageOpen(false); setRecipientSearch(''); setRecipientResult(null); setRecipientError(''); }} sx={{ color: colors.textMuted }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem', mb: 2 }}>
+            Search for a user by their username or email to start a conversation.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              fullWidth
+              placeholder="Search by username or email"
+              value={recipientSearch}
+              onChange={(e) => setRecipientSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRecipientSearch(); } }}
+              size="small"
+              autoFocus
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: colors.background,
+                  '& fieldset': { borderColor: colors.borderSubtle },
+                  '&:hover fieldset': { borderColor: colors.borderLight },
+                  '&.Mui-focused fieldset': { borderColor: colors.accent },
+                },
+                '& .MuiInputBase-input': { color: colors.textPrimary },
+                '& .MuiInputBase-input::placeholder': { color: colors.textMuted, opacity: 1 },
+              }}
+            />
+            <Button
+              onClick={handleRecipientSearch}
+              disabled={!recipientSearch.trim() || searchingRecipient}
+              variant="contained"
+              sx={{
+                bgcolor: colors.accent,
+                color: colors.background,
+                textTransform: 'none',
+                flexShrink: 0,
+                '&:hover': { bgcolor: colors.accentHover },
+                '&.Mui-disabled': { bgcolor: colors.surfaceElevated, color: colors.textMuted },
+              }}
+            >
+              {searchingRecipient ? <CircularProgress size={20} sx={{ color: colors.background }} /> : 'Search'}
+            </Button>
+          </Box>
+
+          {recipientError && (
+            <Typography sx={{ color: colors.error, fontSize: '0.85rem', mt: 2 }}>
+              {recipientError}
+            </Typography>
+          )}
+
+          {recipientResult && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                mt: 2,
+                p: 2,
+                bgcolor: colors.background,
+                borderRadius: '8px',
+                border: `1px solid ${colors.borderSubtle}`,
+              }}
+            >
+              <Avatar
+                src={recipientResult.image?.uri}
+                sx={{
+                  width: 48,
+                  height: 48,
+                  bgcolor: colors.surfaceElevated,
+                  color: colors.accent,
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                }}
+              >
+                {recipientResult.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || recipientResult.username?.slice(0, 2).toUpperCase()}
+              </Avatar>
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: colors.textPrimary }}>
+                  {recipientResult.name || recipientResult.username}
+                </Typography>
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted }}>
+                  @{recipientResult.username}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        {recipientResult && (
+          <DialogActions sx={{ p: 2, pt: 0 }}>
+            <Button
+              onClick={() => { setNewMessageOpen(false); setRecipientSearch(''); setRecipientResult(null); setRecipientError(''); }}
+              sx={{ color: colors.textSecondary, textTransform: 'none' }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleStartConversation}
+              disabled={creatingConversation}
+              variant="contained"
+              sx={{
+                bgcolor: colors.accent,
+                color: colors.background,
+                textTransform: 'none',
+                '&:hover': { bgcolor: colors.accentHover },
+                '&.Mui-disabled': { bgcolor: colors.surfaceElevated, color: colors.textMuted },
+              }}
+            >
+              {creatingConversation ? <CircularProgress size={20} sx={{ color: colors.background }} /> : 'Start Conversation'}
+            </Button>
+          </DialogActions>
+        )}
+      </Dialog>
 
       {/* Booking Modal */}
       <Dialog

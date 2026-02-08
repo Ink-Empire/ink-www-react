@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { messageService, ConversationType } from '../services/messageService';
+
+const CONVERSATION_LIST_POLL_INTERVAL = 15000; // 15s for sidebar
+const MESSAGE_POLL_INTERVAL = 5000; // 5s for active conversation
 
 // Re-export ConversationType for external use
 export type { ConversationType } from '../services/messageService';
@@ -156,6 +159,7 @@ export function useConversations(): UseConversationsReturn {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<ConversationsResponse['meta'] | null>(null);
+  const lastParamsRef = useRef<any>(undefined);
 
   const fetchConversations = useCallback(async (params?: {
     type?: ConversationType;
@@ -167,6 +171,7 @@ export function useConversations(): UseConversationsReturn {
     try {
       setLoading(true);
       setError(null);
+      lastParamsRef.current = params;
 
       const response = await messageService.getConversations({
         type: params?.type,
@@ -193,6 +198,28 @@ export function useConversations(): UseConversationsReturn {
 
   useEffect(() => {
     fetchConversations();
+  }, []);
+
+  // Poll for conversation list updates
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const params = lastParamsRef.current;
+        const response = await messageService.getConversations({
+          type: params?.type,
+          unread: params?.unread,
+          search: params?.search,
+          page: params?.page,
+          limit: params?.limit,
+        });
+        setConversations(response.conversations || []);
+        setMeta(response.meta || null);
+      } catch {
+        // Silent fail on poll — don't overwrite existing data
+      }
+    }, CONVERSATION_LIST_POLL_INTERVAL);
+
+    return () => clearInterval(interval);
   }, []);
 
   return {
@@ -325,6 +352,7 @@ export function useConversation(conversationId?: number): UseConversationReturn 
 
     try {
       await messageService.markConversationRead(conversationId);
+      setConversation((prev) => prev ? { ...prev, unread_count: 0 } : prev);
     } catch (err) {
       console.error('Error marking conversation as read:', err);
     }
@@ -348,6 +376,31 @@ export function useConversation(conversationId?: number): UseConversationReturn 
       fetchConversation(conversationId);
     }
   }, [conversationId, fetchConversation]);
+
+  // Poll for new messages in the active conversation
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const currentMessages = messagesRef.current;
+        const latestId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : undefined;
+        if (!latestId) return;
+
+        const response = await messageService.getConversationMessages(conversationId, undefined, latestId);
+        if (response.messages && response.messages.length > 0) {
+          setMessages((prev) => [...prev, ...response.messages]);
+        }
+      } catch {
+        // Silent fail on poll
+      }
+    }, MESSAGE_POLL_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [conversationId]);
 
   return {
     conversation,
@@ -393,6 +446,20 @@ export function useUnreadConversationCount(): UseUnreadCountReturn {
 
   useEffect(() => {
     fetchCount();
+  }, []);
+
+  // Poll unread count
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await messageService.getUnreadConversationCount();
+        setUnreadCount(response.unread_count || 0);
+      } catch {
+        // Silent fail on poll
+      }
+    }, CONVERSATION_LIST_POLL_INTERVAL);
+
+    return () => clearInterval(interval);
   }, []);
 
   return {

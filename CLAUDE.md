@@ -4,6 +4,12 @@
 - **Frontend**: https://getinked.in (NOT inkedin.com)
 - **API**: https://api.getinked.in
 
+## Cross-Platform Parity (CRITICAL)
+- **Next.js and React Native must remain tightly coupled.** Any change to hooks, services, API calls, or data fetching on one platform MUST be mirrored on the other.
+- When updating a shared hook or service, verify both `nextjs/` and `reactnative/` (and `shared/`) are updated.
+- When adding a new API endpoint, ensure both platforms have corresponding service methods and hooks.
+- When fixing a bug on one platform, check if the same bug exists on the other.
+
 ## Code Completion Guidelines
 - Never use hardcoded data when fulfilling prompts. We will get data from the API and generate test data in the API.
 

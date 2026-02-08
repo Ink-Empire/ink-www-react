@@ -162,35 +162,75 @@ export function useArtist(idOrSlug: string | null) {
   return { artist, loading, error, refetch };
 }
 
-// Hook for fetching artist portfolio (tattoos by artist)
+// Hook for fetching artist portfolio (tattoos by artist) with pagination
 export function useArtistPortfolio(artistIdOrSlug: string | null) {
   const [portfolio, setPortfolio] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(!!artistIdOrSlug);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    if (!artistIdOrSlug) {
-      setLoading(false);
-      return;
+  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
+    if (!artistIdOrSlug) return;
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
     }
+    setError(null);
 
-    const fetchPortfolio = async () => {
-      try {
-        setLoading(true);
-        const data = await artistService.getPortfolio(artistIdOrSlug);
-
-        console.log(data);
-        setPortfolio(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(`Failed to fetch portfolio for artist ${artistIdOrSlug}`));
-      } finally {
-        setLoading(false);
+    try {
+      const response = await artistService.getPortfolio(artistIdOrSlug, pageNum);
+      if (mountedRef.current) {
+        const data = response?.response ?? response;
+        const items = Array.isArray(data) ? data : [];
+        setPortfolio(prev => append ? [...prev, ...items] : items);
+        setHasMore(response?.has_more ?? false);
       }
-    };
-
-    fetchPortfolio();
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err : new Error(`Failed to fetch portfolio for artist ${artistIdOrSlug}`));
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
   }, [artistIdOrSlug]);
 
-  return { portfolio, loading, error };
+  useEffect(() => {
+    mountedRef.current = true;
+    setPage(1);
+    setPortfolio([]);
+
+    if (artistIdOrSlug) {
+      fetchPage(1, false);
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [fetchPage]);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchPage(nextPage, true);
+    }
+  }, [loadingMore, hasMore, page, fetchPage]);
+
+  const refetch = useCallback(() => {
+    setPage(1);
+    setPortfolio([]);
+    fetchPage(1, false);
+  }, [fetchPage]);
+
+  return { portfolio, loading, error, hasMore, loadMore, refetch };
 }
