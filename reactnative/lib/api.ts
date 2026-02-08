@@ -53,7 +53,9 @@ const removeToken = async (): Promise<void> => {
   return mobileStorage.removeItem(TOKEN_KEY);
 };
 
-const API_BASE_URL = Config.API_BASE_URL || 'http://localhost/api';
+const API_BASE_URL = __DEV__
+  ? 'http://localhost/api'
+  : 'https://api.getinked.in/api';
 
 // Create and export the API client instance
 export const api = createApiClient({
@@ -62,7 +64,9 @@ export const api = createApiClient({
   setToken,
   removeToken,
   defaultHeaders: {
-    'X-App-Token': Config.APP_TOKEN || '',
+    'X-App-Token': __DEV__
+      ? '46d4bd6b9e874f125a1d16fa76110705b66b4a2a045c5ac8f26cdff581acbdfb'
+      : '8c07eab3b9d0a757f0d9208e94831fb9a04d1fa7d96f5540495020082cb7c013',
   },
   onUnauthorized: () => {
     // Handle unauthorized - navigation will be handled by the app

@@ -13,7 +13,7 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
-import { useArtist, useArtistPortfolio } from '@inkedin/shared/hooks';
+import { useArtist } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import LoadingScreen from '../components/common/LoadingScreen';
@@ -38,13 +38,13 @@ const SOCIAL_ICONS: Record<string, string> = {
 export default function ArtistDetailScreen({ navigation, route }: any) {
   const { slug, name: routeName } = route.params;
   const { artist, loading, error } = useArtist(api, slug);
-  const { portfolio, loading: portfolioLoading } = useArtistPortfolio(api, slug);
   const { user, toggleFavorite } = useAuth();
   const { showSnackbar } = useSnackbar();
 
   const [activeStyleFilter, setActiveStyleFilter] = useState<number | null>(null);
 
   const a = artist as any;
+  const portfolio = (a?.tattoos as any[]) || [];
 
   const filteredPortfolio = useMemo(() => {
     if (!activeStyleFilter) return portfolio;
@@ -217,7 +217,7 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
       <View style={styles.section}>
         <View style={styles.portfolioHeader}>
           <Text style={styles.sectionTitle}>
-            Portfolio{!portfolioLoading && portfolio.length > 0 ? ` (${filteredPortfolio.length})` : ''}
+            Portfolio{!loading && portfolio.length > 0 ? ` (${filteredPortfolio.length})` : ''}
           </Text>
         </View>
 
@@ -249,11 +249,11 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
         )}
       </View>
 
-      {portfolioLoading && (
+      {loading && (
         <ActivityIndicator color={colors.accent} size="large" style={styles.loader} />
       )}
 
-      {!portfolioLoading && filteredPortfolio.length === 0 && (
+      {!loading && filteredPortfolio.length === 0 && (
         <Text style={styles.emptyText}>
           {activeStyleFilter ? 'No tattoos match this style' : 'No tattoos yet'}
         </Text>
@@ -313,7 +313,7 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
   return (
     <FlatList
       style={styles.container}
-      data={portfolioLoading ? [] : filteredPortfolio}
+      data={loading ? [] : filteredPortfolio}
       numColumns={2}
       keyExtractor={(item: any) => String(item.id)}
       renderItem={renderTattoo}

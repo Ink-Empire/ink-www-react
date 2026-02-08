@@ -85,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasServerData, setHasServerData] = useState(false);
   const logoutRef = useRef<() => Promise<void>>();
 
   const fetchUser = useCallback(async (): Promise<User | null> => {
@@ -93,6 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const userData = (response as any)?.data || response;
       if (userData && userData.id) {
         setUser(userData);
+        setHasServerData(true);
         await saveUser(userData);
         setError(null);
         return userData;
@@ -148,6 +150,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (userData && (userData as any).id) {
         setUser(userData as User);
+        setHasServerData(true);
         await saveUser(userData as User);
       } else {
         throw new Error('Login succeeded but failed to get user data');
@@ -187,6 +190,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Logout API error:', err);
     }
     setUser(null);
+    setHasServerData(false);
     await clearAuthStorage();
   }, []);
 
@@ -266,7 +270,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         user,
         isLoading,
         isAuthenticated: Boolean(user),
-        isEmailVerified: Boolean(user?.is_email_verified),
+        isEmailVerified: hasServerData ? Boolean(user?.is_email_verified) : true,
         error,
         login,
         register,
