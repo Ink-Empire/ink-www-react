@@ -1,59 +1,56 @@
-/**
- * Inkedin App - React Native version
- */
-
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar, SafeAreaView } from 'react-native';
+import { StatusBar, View, StyleSheet } from 'react-native';
+import { colors } from './lib/colors';
+import { AuthProvider, useAuth } from './app/contexts/AuthContext';
+import { SnackbarProvider } from './app/contexts/SnackbarContext';
+import AuthStack from './app/navigation/AuthStack';
+import MainTabs from './app/navigation/MainTabs';
+import LoadingScreen from './app/components/common/LoadingScreen';
+import VerifyEmailGate from './app/components/auth/VerifyEmailGate';
+import Snackbar from './app/components/common/Snackbar';
 
-// Import screens
-import HomeScreen from './app/screens/HomeScreen';
-import SearchScreen from './app/screens/SearchScreen';
-import ArtistListScreen from './app/screens/ArtistListScreen';
-import ArtistDetailScreen from './app/screens/ArtistDetailScreen';
-import CalendarScreen from './app/screens/CalendarScreen';
+function RootNavigator(): React.JSX.Element {
+  const { isAuthenticated, isEmailVerified, isLoading, user } = useAuth();
 
-// Create the navigator
-const Stack = createStackNavigator();
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  // User is logged in but hasn't verified email
+  if (isAuthenticated && !isEmailVerified) {
+    return (
+      <View style={styles.flex}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        <VerifyEmailGate email={user?.email || ''} />
+        <Snackbar />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.flex}>
+      <NavigationContainer>
+        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        {isAuthenticated ? <MainTabs /> : <AuthStack />}
+      </NavigationContainer>
+      <Snackbar />
+    </View>
+  );
+}
 
 function App(): React.JSX.Element {
   return (
-    <NavigationContainer>
-      <StatusBar barStyle="dark-content" />
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen 
-          name="Home" 
-          component={HomeScreen} 
-          options={{ title: 'Inked Out' }}
-        />
-        <Stack.Screen
-          name="Search"
-          component={SearchScreen}
-          options={{ title: 'Search' }}
-        />
-        <Stack.Screen 
-          name="ArtistList" 
-          component={ArtistListScreen} 
-          options={{ title: 'Artists' }}
-        />
-        <Stack.Screen
-          name="ArtistDetail"
-          component={ArtistDetailScreen}
-          options={({ route }: any) => ({
-            title: route.params?.name || 'Artist Details'
-          })}
-        />
-        <Stack.Screen
-          name="Calendar"
-          component={CalendarScreen}
-          options={({ route }: any) => ({
-            title: route.params?.artistName ? `${route.params.artistName}'s Calendar` : 'Calendar'
-          })}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <AuthProvider>
+      <SnackbarProvider>
+        <RootNavigator />
+      </SnackbarProvider>
+    </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+});
 
 export default App;

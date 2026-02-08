@@ -21,6 +21,14 @@ export {
   type UseTattoosResult,
 } from './useTattoos';
 
+export {
+  useStudio,
+  useStudioGallery,
+  useStudioArtists,
+} from './useStudios';
+
 export { useStyles, useTags } from './useStyles';
+
+export { usePlacements } from './usePlacements';
 
 export { useCalendar } from './useCalendar';

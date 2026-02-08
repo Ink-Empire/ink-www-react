@@ -21,9 +21,11 @@ export function useStyles(
       setError(null);
 
       try {
-        const response = await api.get<Style[]>('/styles');
+        const response = await api.get<any>('/styles');
         if (mountedRef.current) {
-          setStyles(Array.isArray(response) ? response : []);
+          // API returns { styles: [...] }
+          const data = response?.styles ?? response;
+          setStyles(Array.isArray(data) ? data : []);
         }
       } catch (err) {
         if (mountedRef.current) {
@@ -63,9 +65,11 @@ export function useTags(
       setError(null);
 
       try {
-        const response = await api.get<{ id: number; name: string }[]>('/tags');
+        const response = await api.get<any>('/tags');
         if (mountedRef.current) {
-          setTags(Array.isArray(response) ? response : []);
+          // API returns { success: true, data: [...] }
+          const data = response?.data ?? response;
+          setTags(Array.isArray(data) ? data : []);
         }
       } catch (err) {
         if (mountedRef.current) {

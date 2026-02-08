@@ -72,6 +72,15 @@ export function createStudioService(api: ApiClient) {
 
     getArtists: (idOrSlug: string | number) =>
       api.get<Artist[]>(`/studios/${idOrSlug}/artists`),
+
+    getGallery: (idOrSlug: string | number) =>
+      api.get<Tattoo[]>(`/studios/${idOrSlug}/gallery`),
+
+    claim: (id: number, data: Record<string, any>) =>
+      api.post<{ studio: Studio }>(`/studios/${id}/claim`, data, { requiresAuth: true }),
+
+    lookupOrCreate: (data: Record<string, any>) =>
+      api.post<any>('/studios/lookup-or-create', data, { requiresAuth: true }),
   };
 }
 
@@ -102,8 +111,21 @@ export function createUserService(api: ApiClient) {
 
     toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number, action: 'add' | 'remove') =>
       api.post(`/users/favorites/${type}`, { ids: id, action }, { requiresAuth: true }),
+
+    uploadProfilePhoto: (imageId: number) =>
+      api.post('/users/profile-photo', { image_id: imageId }, { requiresAuth: true }),
+
+    deleteProfilePhoto: () =>
+      api.delete('/users/profile-photo', { requiresAuth: true }),
   };
 }
+
+// =============================================================================
+// Google Places Service (REST API)
+// =============================================================================
+
+export { fetchPlacesApiKey, searchPlaces, getPlaceDetails } from './googlePlacesService';
+export type { PlacePrediction, PlaceDetails } from './googlePlacesService';
 
 // =============================================================================
 // Export types

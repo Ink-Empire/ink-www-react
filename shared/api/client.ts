@@ -13,6 +13,7 @@ export interface ApiConfig {
   setToken: (token: string) => Promise<void>;
   removeToken: () => Promise<void>;
   onUnauthorized?: () => void;
+  defaultHeaders?: Record<string, string>;
 }
 
 export interface RequestOptions {
@@ -27,7 +28,7 @@ export interface RequestOptions {
 // =============================================================================
 
 export function createApiClient(config: ApiConfig) {
-  const { baseUrl, getToken, setToken, removeToken, onUnauthorized } = config;
+  const { baseUrl, getToken, setToken, removeToken, onUnauthorized, defaultHeaders = {} } = config;
 
   async function request<T>(
     endpoint: string,
@@ -45,6 +46,7 @@ export function createApiClient(config: ApiConfig) {
     const requestHeaders: Record<string, string> = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      ...defaultHeaders,
       ...headers,
     };
 
@@ -164,6 +166,10 @@ export interface RegisterData {
   location?: string;
   location_lat_long?: string;
   type?: string;
+  selected_styles?: number[];
+  preferred_styles?: number[];
+  experience_level?: string;
+  studio_id?: number;
 }
 
 export function createAuthApi(api: ReturnType<typeof createApiClient>) {

@@ -45,12 +45,14 @@ export function useArtists(
         requestBody.locationCoords = `${coords.lat || coords.latitude},${coords.lng || coords.longitude}`;
       }
 
-      const response = await api.post<Artist[]>('/artists', requestBody, {
+      const response = await api.post<any>('/artists', requestBody, {
         headers: { 'X-Account-Type': 'artist' },
       });
 
       if (mountedRef.current) {
-        setArtists(Array.isArray(response) ? response : []);
+        // API returns { response: [...], total, has_more } or a plain array
+        const data = response?.response ?? response;
+        setArtists(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -98,9 +100,9 @@ export function useArtist(
       setError(null);
 
       try {
-        const response = await api.get<{ artist: Artist }>(`/artists/${idOrSlug}`);
+        const response = await api.get<any>(`/artists/${idOrSlug}`);
         if (mountedRef.current) {
-          setArtist(response.artist || response as any);
+          setArtist(response?.artist as Artist);
         }
       } catch (err) {
         if (mountedRef.current) {
@@ -146,9 +148,14 @@ export function useArtistPortfolio(
       setError(null);
 
       try {
-        const response = await api.get<any[]>(`/artists/${artistIdOrSlug}/portfolio`);
+        const response = await api.post<any>('/tattoos', {
+          artist_id: artistIdOrSlug,
+        }, {
+          headers: { 'X-Account-Type': 'user' },
+        });
         if (mountedRef.current) {
-          setPortfolio(Array.isArray(response) ? response : []);
+          const data = response?.response ?? response;
+          setPortfolio(Array.isArray(data) ? data : []);
         }
       } catch (err) {
         if (mountedRef.current) {
