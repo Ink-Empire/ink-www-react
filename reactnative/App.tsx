@@ -12,6 +12,7 @@ import InboxStack from './app/navigation/InboxStack';
 import LoadingScreen from './app/components/common/LoadingScreen';
 import VerifyEmailGate from './app/components/auth/VerifyEmailGate';
 import Snackbar from './app/components/common/Snackbar';
+import WelcomeModal from './app/components/common/WelcomeModal';
 import type { RootStackParamList } from './app/navigation/types';
 
 const RootStack = createStackNavigator<RootStackParamList>();
@@ -55,6 +56,7 @@ function RootNavigator(): React.JSX.Element {
           <AuthStack />
         )}
       </NavigationContainer>
+      <WelcomeModal />
       <Snackbar />
     </View>
   );

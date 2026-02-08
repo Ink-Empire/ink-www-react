@@ -5,6 +5,7 @@ import { Box, Container, Typography, Button, Stack } from '@mui/material';
 import Navbar from './Navbar';
 import IncompleteBulkUploadAlert from './IncompleteBulkUploadAlert';
 import PreviewBanner from './PreviewBanner';
+import WelcomeModal from './WelcomeModal';
 import { colors } from '@/styles/colors';
 
 interface LayoutProps {
@@ -29,6 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Navbar />
       <PreviewBanner />
       <IncompleteBulkUploadAlert />
+      <WelcomeModal />
 
       <Box component="main" sx={{ flexGrow: 1, bgcolor: colors.background }}>
         {isFullWidthPage ? (

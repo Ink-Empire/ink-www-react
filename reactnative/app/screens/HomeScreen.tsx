@@ -15,6 +15,7 @@ import SearchBar from '../components/search/SearchBar';
 import FilterDrawer, { type AppliedFilters } from '../components/search/FilterDrawer';
 import TattooCard from '../components/cards/TattooCard';
 import EmptyState from '../components/common/EmptyState';
+import GrowingBanner from '../components/common/GrowingBanner';
 
 export default function HomeScreen({ navigation, route }: any) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,6 +71,7 @@ export default function HomeScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.container}>
+      <GrowingBanner />
       <View style={styles.header}>
         <View style={styles.searchRow}>
           <View style={styles.searchBarWrap}>

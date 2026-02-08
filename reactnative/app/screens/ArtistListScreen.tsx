@@ -15,6 +15,7 @@ import SearchBar from '../components/search/SearchBar';
 import FilterDrawer, { type AppliedFilters } from '../components/search/FilterDrawer';
 import ArtistCard from '../components/cards/ArtistCard';
 import EmptyState from '../components/common/EmptyState';
+import GrowingBanner from '../components/common/GrowingBanner';
 
 export default function ArtistListScreen({ navigation, route }: any) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,6 +78,7 @@ export default function ArtistListScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.container}>
+      <GrowingBanner />
       <View style={styles.header}>
         <View style={styles.searchRow}>
           <View style={styles.searchBarWrap}>

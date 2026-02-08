@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Box, Typography, Button, Tooltip } from '@mui/material';
+import { Box, Typography, Button, Tooltip, IconButton } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import { colors } from '@/styles/colors';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,12 +12,13 @@ export default function PreviewBanner() {
   const router = useRouter();
   const { isDemoMode } = useDemoMode();
   const { isAuthenticated } = useAuth();
+  const [dismissed, setDismissed] = useState(false);
 
   // Only show on browse pages (artists and tattoos)
   const showBannerPages = ['/artists', '/tattoos'];
   const shouldShow = showBannerPages.some(page => router.pathname.startsWith(page));
 
-  if (!shouldShow) {
+  if (!shouldShow || dismissed) {
     return null;
   }
 
@@ -32,9 +34,10 @@ export default function PreviewBanner() {
         borderBottom: `2px solid ${colors.warning}`,
         px: 3,
         py: 1.5,
+        position: 'relative',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 1.5, pr: 4 }}>
         <Tooltip
           title="Be one of our founding artists and get featured!"
           arrow
@@ -44,10 +47,10 @@ export default function PreviewBanner() {
         </Tooltip>
 
         <Typography component="span" sx={{ color: colors.textPrimary, fontWeight: 600, fontSize: '0.95rem' }}>
-          We're just getting started!
+          We're growing!
         </Typography>
         <Typography component="span" sx={{ color: colors.textSecondary, fontSize: '0.95rem' }}>
-          — Be a founding artist and get featured
+          New artists join every week. Check back for more.
         </Typography>
         {!isAuthenticated && (
           <Button
@@ -70,6 +73,21 @@ export default function PreviewBanner() {
           </Button>
         )}
       </Box>
+      <IconButton
+        onClick={() => setDismissed(true)}
+        size="small"
+        aria-label="Dismiss banner"
+        sx={{
+          position: 'absolute',
+          right: 8,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          color: colors.textSecondary,
+          '&:hover': { color: colors.textPrimary },
+        }}
+      >
+        <CloseIcon fontSize="small" />
+      </IconButton>
     </Box>
   );
 }
