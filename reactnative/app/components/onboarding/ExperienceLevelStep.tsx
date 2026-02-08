@@ -11,13 +11,13 @@ interface ExperienceLevelStepProps {
 const levels = [
   {
     value: 'beginner' as const,
-    title: "I'm New to Tattoos",
-    description: "I'm exploring styles and looking for guidance on my first (or next) tattoo",
+    title: 'New to Tattoos',
+    description: "I'm just starting my tattoo journey and would love some guidance",
   },
   {
     value: 'experienced' as const,
-    title: 'I Know What I Want',
-    description: "I have tattoos and know the styles and artists I'm looking for",
+    title: 'Experienced Collector',
+    description: "I already have tattoos and know what I'm looking for",
   },
 ];
 
@@ -25,7 +25,9 @@ export default function ExperienceLevelStep({ onSelect, onBack }: ExperienceLeve
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your Tattoo Experience</Text>
-      <Text style={styles.subtitle}>This helps us personalize your experience</Text>
+      <Text style={styles.subtitle}>
+        This helps us personalize your experience and show you the most relevant content.
+      </Text>
 
       {levels.map(({ value, title, description }) => (
         <TouchableOpacity
@@ -38,6 +40,10 @@ export default function ExperienceLevelStep({ onSelect, onBack }: ExperienceLeve
           <Text style={styles.cardDescription}>{description}</Text>
         </TouchableOpacity>
       ))}
+
+      <Text style={styles.footer}>
+        This helps us customize your feed and recommendations
+      </Text>
 
       <Button title="Back" onPress={onBack} variant="secondary" style={styles.backButton} />
     </View>
@@ -80,7 +86,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  footer: {
+    color: colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
+  },
   backButton: {
-    marginTop: 8,
+    marginTop: 16,
   },
 });

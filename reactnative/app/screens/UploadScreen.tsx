@@ -8,7 +8,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
-  Alert,
   Modal,
   ActivityIndicator,
   SafeAreaView,
@@ -20,6 +19,7 @@ import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
 import { useStyles, useTags, usePlacements } from '@inkedin/shared/hooks';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import StepIndicator from '../components/upload/StepIndicator';
 import StyleTag from '../components/common/StyleTag';
 
@@ -61,6 +61,9 @@ export default function UploadScreen({ navigation }: any) {
   const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
+  // Snackbar
+  const { showSnackbar } = useSnackbar();
+
   // Data hooks
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
@@ -79,7 +82,7 @@ export default function UploadScreen({ navigation }: any) {
   const handleAddPhotos = useCallback(() => {
     const remaining = MAX_IMAGES - images.length;
     if (remaining <= 0) {
-      Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images allowed.`);
+      showSnackbar(`Maximum ${MAX_IMAGES} images allowed`, 'error');
       return;
     }
     launchImageLibrary(
@@ -94,11 +97,11 @@ export default function UploadScreen({ navigation }: any) {
         setImages(prev => [...prev, ...newImages].slice(0, MAX_IMAGES));
       },
     );
-  }, [images.length]);
+  }, [images.length, showSnackbar]);
 
   const handleTakePhoto = useCallback(() => {
     if (images.length >= MAX_IMAGES) {
-      Alert.alert('Limit reached', `Maximum ${MAX_IMAGES} images allowed.`);
+      showSnackbar(`Maximum ${MAX_IMAGES} images allowed`, 'error');
       return;
     }
     launchCamera({ mediaType: 'photo', quality: 0.8 }, (response) => {
@@ -111,7 +114,7 @@ export default function UploadScreen({ navigation }: any) {
         ].slice(0, MAX_IMAGES));
       }
     });
-  }, [images.length]);
+  }, [images.length, showSnackbar]);
 
   const handleRemoveImage = useCallback((index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
@@ -179,27 +182,22 @@ export default function UploadScreen({ navigation }: any) {
 
       await api.post('/tattoos/create', tattooData, { requiresAuth: true });
 
-      Alert.alert('Published', 'Your tattoo has been posted.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form
-            setStep(0);
-            setImages([]);
-            setTitle('');
-            setDescription('');
-            setSelectedStyles([]);
-            setSelectedTags([]);
-            setPlacement('');
-            setSize('');
-            setHours('');
-            setIsPublic(true);
-            navigation.navigate('HomeTab');
-          },
-        },
-      ]);
+      // Reset form
+      setStep(0);
+      setImages([]);
+      setTitle('');
+      setDescription('');
+      setSelectedStyles([]);
+      setSelectedTags([]);
+      setPlacement('');
+      setSize('');
+      setHours('');
+      setIsPublic(true);
+
+      showSnackbar('Your tattoo has been published');
+      navigation.navigate('HomeTab');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to publish. Please try again.');
+      showSnackbar(err.message || 'Failed to publish. Please try again.', 'error');
     } finally {
       setPublishing(false);
       setUploadProgress(null);

@@ -6,16 +6,25 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
+  ActivityIndicator,
   Alert,
+  ActionSheetIOS,
 } from 'react-native';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
+import { uploadImagesToS3, type ImageFile } from '../../lib/s3Upload';
+import { userService } from '../../lib/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { useStyles } from '@inkedin/shared/hooks';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import StyleTag from '../components/common/StyleTag';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
+import Avatar from '../components/common/Avatar';
 
 const SOCIAL_PLATFORMS = [
   { key: 'instagram', label: 'Instagram' },
@@ -27,6 +36,7 @@ const SOCIAL_PLATFORMS = [
 
 export default function EditProfileScreen({ navigation }: any) {
   const { user, updateUser, refreshUser } = useAuth();
+  const { showSnackbar } = useSnackbar();
   const { styles: allStyles } = useStyles(api);
 
   const u = user as any;
@@ -40,32 +50,25 @@ export default function EditProfileScreen({ navigation }: any) {
   const [locationLatLong, setLocationLatLong] = useState(u?.location_lat_long || '');
 
   // Styles state
-  const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
-  const [stylesLoaded, setStylesLoaded] = useState(false);
+  const [selectedStyles, setSelectedStyles] = useState<number[]>(
+    Array.isArray(u?.styles) ? u.styles : [],
+  );
+  const [stylesLoaded, setStylesLoaded] = useState(selectedStyles.length > 0);
 
-  // Fetch user's current styles from API on mount to ensure we have accurate data
+  // Fetch authoritative styles from API on mount
   useEffect(() => {
-    const fetchUserStyles = async () => {
+    const load = async () => {
       try {
-        const response = await api.get<any>('/users/me', { requiresAuth: true });
-        const userData = response?.data || response?.user || response;
-        const rawStyles = userData?.styles || [];
-        const ids: number[] = Array.isArray(rawStyles)
-          ? rawStyles.map((s: any) => (typeof s === 'number' ? s : s?.id)).filter(Boolean)
-          : [];
-        setSelectedStyles(ids);
-      } catch (err) {
-        // Fallback to context data
-        const rawStyles = u?.styles || [];
-        const ids: number[] = Array.isArray(rawStyles)
-          ? rawStyles.map((s: any) => (typeof s === 'number' ? s : s?.id)).filter(Boolean)
-          : [];
-        setSelectedStyles(ids);
+        const freshUser = await refreshUser();
+        const styles = (freshUser as any)?.styles;
+        if (Array.isArray(styles)) {
+          setSelectedStyles(styles);
+        }
       } finally {
         setStylesLoaded(true);
       }
     };
-    fetchUserStyles();
+    load();
   }, []);
 
   // Social media state (artists only)
@@ -83,10 +86,91 @@ export default function EditProfileScreen({ navigation }: any) {
     bluesky: getLinkUsername('bluesky'),
   });
 
+  // Photo state
+  const existingImageUri = typeof u?.image === 'string' && u.image ? u.image : u?.image?.uri;
+  const [photoUri, setPhotoUri] = useState<string | null>(existingImageUri || null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
   // Form state
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handlePickImage = useCallback((source: 'library' | 'camera') => {
+    const options = { mediaType: 'photo' as const, selectionLimit: 1, quality: 0.8 as const };
+    const launcher = source === 'library' ? launchImageLibrary : launchCamera;
+
+    launcher(options, async (response) => {
+      if (response.didCancel || response.errorCode) return;
+      const asset = response.assets?.[0];
+      if (!asset?.uri) return;
+
+      const previousUri = photoUri;
+      setPhotoUri(asset.uri);
+      setUploadingPhoto(true);
+
+      try {
+        const imageFile: ImageFile = {
+          uri: asset.uri,
+          type: asset.type || 'image/jpeg',
+          name: asset.fileName || `profile_${Date.now()}.jpg`,
+        };
+        const uploaded = await uploadImagesToS3(api, [imageFile], 'profile');
+        await userService.uploadProfilePhoto(uploaded[0].id);
+        await refreshUser();
+        showSnackbar('Profile photo updated');
+      } catch (err: any) {
+        setPhotoUri(previousUri);
+        showSnackbar(err.message || 'Failed to upload photo', 'error');
+      } finally {
+        setUploadingPhoto(false);
+      }
+    });
+  }, [photoUri, refreshUser, showSnackbar]);
+
+  const handleRemovePhoto = useCallback(async () => {
+    setUploadingPhoto(true);
+    try {
+      await userService.deleteProfilePhoto();
+      setPhotoUri(null);
+      await refreshUser();
+      showSnackbar('Profile photo removed');
+    } catch (err: any) {
+      showSnackbar(err.message || 'Failed to remove photo', 'error');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }, [refreshUser, showSnackbar]);
+
+  const handleChangePhoto = useCallback(() => {
+    const hasPhoto = !!photoUri;
+
+    if (Platform.OS === 'ios') {
+      const options = hasPhoto
+        ? ['Choose from Library', 'Take Photo', 'Remove Photo', 'Cancel']
+        : ['Choose from Library', 'Take Photo', 'Cancel'];
+      const cancelIndex = options.length - 1;
+      const destructiveIndex = hasPhoto ? 2 : undefined;
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: cancelIndex, destructiveButtonIndex: destructiveIndex },
+        (index) => {
+          if (index === 0) handlePickImage('library');
+          else if (index === 1) handlePickImage('camera');
+          else if (hasPhoto && index === 2) handleRemovePhoto();
+        },
+      );
+    } else {
+      const buttons: any[] = [
+        { text: 'Choose from Library', onPress: () => handlePickImage('library') },
+        { text: 'Take Photo', onPress: () => handlePickImage('camera') },
+      ];
+      if (hasPhoto) {
+        buttons.push({ text: 'Remove Photo', style: 'destructive', onPress: handleRemovePhoto });
+      }
+      buttons.push({ text: 'Cancel', style: 'cancel' });
+      Alert.alert('Change Photo', undefined, buttons);
+    }
+  }, [photoUri, handlePickImage, handleRemovePhoto]);
 
   const toggleStyle = useCallback((id: number) => {
     setSelectedStyles(prev =>
@@ -111,18 +195,20 @@ export default function EditProfileScreen({ navigation }: any) {
     if (!validate()) return;
 
     setSaving(true);
-    setSaveError(null);
 
     try {
-      // Update basic info + styles
-      await updateUser({
+      // Update basic info + styles (only include styles once loaded from API)
+      const payload: any = {
         name: name.trim(),
         about: bio.trim(),
         phone: phone.trim(),
         location: location.trim(),
         location_lat_long: locationLatLong,
-        styles: selectedStyles,
-      } as any);
+      };
+      if (stylesLoaded) {
+        payload.styles = selectedStyles;
+      }
+      await updateUser(payload);
 
       // Update social links (artists only)
       if (isArtist) {
@@ -141,9 +227,10 @@ export default function EditProfileScreen({ navigation }: any) {
       // Refresh user data to get the full updated object
       await refreshUser();
 
+      showSnackbar('Profile updated');
       navigation.goBack();
     } catch (err: any) {
-      setSaveError(err.message || 'Failed to save changes');
+      showSnackbar(err.message || 'Failed to save changes', 'error');
     } finally {
       setSaving(false);
     }
@@ -161,6 +248,31 @@ export default function EditProfileScreen({ navigation }: any) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Profile Photo */}
+        <View style={styles.photoSection}>
+          <TouchableOpacity onPress={handleChangePhoto} activeOpacity={0.7} disabled={uploadingPhoto}>
+            <View style={styles.avatarWrapper}>
+              <Avatar uri={photoUri} name={u?.name} size={100} />
+              {uploadingPhoto && (
+                <View style={styles.avatarOverlay}>
+                  <ActivityIndicator size="small" color={colors.accent} />
+                </View>
+              )}
+              <View style={styles.cameraIcon}>
+                <MaterialIcons name="camera-alt" size={14} color={colors.textPrimary} />
+              </View>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleChangePhoto} disabled={uploadingPhoto}>
+            <Text style={styles.changePhotoText}>Change Photo</Text>
+          </TouchableOpacity>
+          {photoUri && !uploadingPhoto && (
+            <TouchableOpacity onPress={handleRemovePhoto}>
+              <Text style={styles.removePhotoText}>Remove</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Basic Info */}
         <Text style={styles.sectionTitle}>Basic Info</Text>
 
@@ -258,11 +370,6 @@ export default function EditProfileScreen({ navigation }: any) {
           </>
         )}
 
-        {/* Save Error */}
-        {saveError && (
-          <Text style={styles.errorText}>{saveError}</Text>
-        )}
-
         {/* Actions */}
         <View style={styles.buttons}>
           <Button
@@ -293,6 +400,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
   },
+  photoSection: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    borderWidth: 2,
+    borderColor: colors.accent,
+    borderRadius: 52,
+    padding: 2,
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 50,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  changePhotoText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  removePhotoText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 4,
+  },
   sectionTitle: {
     color: colors.textPrimary,
     fontSize: 16,
@@ -314,12 +463,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 16,
-  },
-  errorText: {
-    color: colors.error,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 12,
   },
   buttons: {
     flexDirection: 'row',

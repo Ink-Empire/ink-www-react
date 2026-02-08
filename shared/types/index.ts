@@ -52,6 +52,7 @@ export interface User {
     slug: string;
   } | null;
   email_verified_at?: string;
+  is_email_verified?: boolean;
   last_login_at?: string;
   created_at?: string;
   updated_at?: string;

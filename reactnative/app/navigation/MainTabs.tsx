@@ -46,7 +46,7 @@ export default function MainTabs() {
         options={{
           tabBarLabel: 'Tattoos',
           tabBarIcon: ({ color }) => (
-            <TattooMachineIcon size={28} color={color} />
+            <MaterialIcons name="anchor" size={28} color={color} />
           ),
         }}
       />

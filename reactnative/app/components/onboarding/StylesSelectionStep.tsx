@@ -19,7 +19,7 @@ export default function StylesSelectionStep({
   userType,
   initialSelection = [],
 }: StylesSelectionStepProps) {
-  const { data: stylesData, loading } = useStyles(api);
+  const { styles: stylesData, loading } = useStyles(api);
   const styles_list = Array.isArray(stylesData) ? stylesData : [];
   const [selectedStyles, setSelectedStyles] = useState<number[]>(initialSelection);
 
@@ -36,8 +36,8 @@ export default function StylesSelectionStep({
     : 'What are your specialties?';
 
   const subtitle = userType === 'client'
-    ? 'Select the tattoo styles you love'
-    : 'Select the styles you specialize in';
+    ? "Choose the tattoo styles you love or are curious about. We'll use this to show you relevant artists and inspiration. Don't know yet? That's okay, you can always fill this out later!"
+    : 'Select the tattoo styles you create or want to be known for. This helps clients find you when searching for specific styles.';
 
   return (
     <View style={componentStyles.container}>
@@ -47,26 +47,50 @@ export default function StylesSelectionStep({
       {loading ? (
         <ActivityIndicator color={colors.accent} size="large" style={componentStyles.loader} />
       ) : (
-        <ScrollView style={componentStyles.scrollArea} contentContainerStyle={componentStyles.tagsContainer}>
-          {styles_list.map((style: any) => (
-            <StyleTag
-              key={style.id}
-              label={style.name}
-              selected={selectedStyles.includes(style.id)}
-              onPress={() => toggleStyle(style.id)}
-            />
-          ))}
-        </ScrollView>
+        <>
+          {selectedStyles.length > 0 && (
+            <Text style={componentStyles.countText}>
+              {selectedStyles.length} style{selectedStyles.length !== 1 ? 's' : ''} selected
+            </Text>
+          )}
+          <ScrollView style={componentStyles.scrollArea} contentContainerStyle={componentStyles.tagsContainer}>
+            {styles_list.map((style: any) => (
+              <StyleTag
+                key={style.id}
+                label={style.name}
+                selected={selectedStyles.includes(style.id)}
+                onPress={() => toggleStyle(style.id)}
+              />
+            ))}
+          </ScrollView>
+        </>
       )}
 
       <View style={componentStyles.buttons}>
         <Button title="Back" onPress={onBack} variant="secondary" style={componentStyles.buttonHalf} />
-        <Button
-          title="Continue"
-          onPress={() => onComplete(selectedStyles)}
-          disabled={selectedStyles.length === 0}
-          style={componentStyles.buttonHalf}
-        />
+        {userType === 'client' ? (
+          <View style={componentStyles.buttonHalf}>
+            {selectedStyles.length === 0 ? (
+              <Button
+                title="Skip for now"
+                onPress={() => onComplete([])}
+                variant="outline"
+              />
+            ) : (
+              <Button
+                title="Continue"
+                onPress={() => onComplete(selectedStyles)}
+              />
+            )}
+          </View>
+        ) : (
+          <Button
+            title="Continue"
+            onPress={() => onComplete(selectedStyles)}
+            disabled={selectedStyles.length === 0}
+            style={componentStyles.buttonHalf}
+          />
+        )}
       </View>
     </View>
   );
@@ -88,6 +112,13 @@ const componentStyles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 24,
+  },
+  countText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 12,
   },
   loader: {
     marginTop: 40,

@@ -51,6 +51,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isEmailVerified: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
@@ -65,6 +66,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isAuthenticated: false,
+  isEmailVerified: false,
   error: null,
   login: async () => {},
   register: async () => {},
@@ -170,13 +172,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
 
     try {
-      const response = await authApi.register(data);
-      const userData = response.user;
-
-      if (userData && (userData as any).id) {
-        setUser(userData as User);
-        await saveUser(userData as User);
-      }
+      await authApi.register(data);
+      // Don't set user here — user must verify email first.
+      // Token is stored by authApi.register() for polling on the VerifyEmail screen.
     } catch (err: any) {
       throw err;
     }
@@ -268,6 +266,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         user,
         isLoading,
         isAuthenticated: Boolean(user),
+        isEmailVerified: Boolean(user?.is_email_verified),
         error,
         login,
         register,

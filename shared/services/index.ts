@@ -75,6 +75,12 @@ export function createStudioService(api: ApiClient) {
 
     getGallery: (idOrSlug: string | number) =>
       api.get<Tattoo[]>(`/studios/${idOrSlug}/gallery`),
+
+    claim: (id: number, data: Record<string, any>) =>
+      api.post<{ studio: Studio }>(`/studios/${id}/claim`, data, { requiresAuth: true }),
+
+    lookupOrCreate: (data: Record<string, any>) =>
+      api.post<any>('/studios/lookup-or-create', data, { requiresAuth: true }),
   };
 }
 
@@ -105,6 +111,12 @@ export function createUserService(api: ApiClient) {
 
     toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number, action: 'add' | 'remove') =>
       api.post(`/users/favorites/${type}`, { ids: id, action }, { requiresAuth: true }),
+
+    uploadProfilePhoto: (imageId: number) =>
+      api.post('/users/profile-photo', { image_id: imageId }, { requiresAuth: true }),
+
+    deleteProfilePhoto: () =>
+      api.delete('/users/profile-photo', { requiresAuth: true }),
   };
 }
 

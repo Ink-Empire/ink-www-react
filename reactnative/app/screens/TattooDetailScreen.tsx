@@ -16,6 +16,7 @@ import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useTattoo } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import LoadingScreen from '../components/common/LoadingScreen';
 import ErrorView from '../components/common/ErrorView';
 import StyleTag from '../components/common/StyleTag';
@@ -28,7 +29,10 @@ export default function TattooDetailScreen({ navigation, route }: any) {
   const { id } = route.params;
   const { tattoo, loading, error } = useTattoo(api, id);
   const { user, toggleFavorite } = useAuth();
+  const { showSnackbar } = useSnackbar();
   const [activeIndex, setActiveIndex] = useState(0);
+
+  console.log(tattoo);
 
   const allImages = useMemo(() => {
     if (!tattoo) return [];
@@ -52,19 +56,30 @@ export default function TattooDetailScreen({ navigation, route }: any) {
     setActiveIndex(index);
   }, []);
 
+  const isFavorited = user?.favorites?.tattoos?.includes(tattoo?.id);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!tattoo) return;
+    try {
+      await toggleFavorite('tattoo', tattoo.id);
+      showSnackbar(isFavorited ? 'Removed from saved' : 'Tattoo saved');
+    } catch {
+      showSnackbar('Something went wrong', 'error');
+    }
+  }, [toggleFavorite, tattoo?.id, isFavorited, showSnackbar]);
+
   if (loading) return <LoadingScreen />;
   if (error || !tattoo) return <ErrorView message={error?.message || 'Tattoo not found'} />;
 
-  const isFavorited = user?.favorites?.tattoos?.includes(tattoo.id);
-
+  console.log('TATTOO DATA:', JSON.stringify({ studio: tattoo.studio, studio_name: (tattoo as any).studio_name, artist_location: (tattoo as any).artist_location }));
   const artist = tattoo.artist;
   const artistName = artist?.name || (tattoo as any).artist_name;
   const artistSlug = artist?.slug || (tattoo as any).artist_slug;
   const artistImageUri = artist?.primary_image?.uri || artist?.image?.uri || (tattoo as any).artist_image_uri;
   const studio = tattoo.studio || artist?.studio;
-  const studioName = studio?.name || artist?.studio_name || (tattoo as any).studio_name;
+  const studioName = studio?.name || (tattoo as any).studio_name;
   const studioSlug = studio?.slug;
-  const location = studio?.location || artist?.location;
+  const location = studio?.location || (tattoo as any).artist_location;
   const duration = (tattoo as any).duration;
 
   return (
@@ -100,16 +115,12 @@ export default function TattooDetailScreen({ navigation, route }: any) {
           <View style={styles.artistHeader} />
         )}
         {user && (
-          <TouchableOpacity
-            style={styles.bookmarkButton}
-            onPress={() => toggleFavorite('tattoo', tattoo.id)}
-          >
-            <MaterialIcons
-              name={isFavorited ? 'bookmark' : 'bookmark-border'}
-              size={26}
-              color={isFavorited ? colors.accent : colors.textMuted}
-            />
-          </TouchableOpacity>
+          <Button
+            title={isFavorited ? 'Saved' : 'Save'}
+            onPress={handleToggleFavorite}
+            variant={isFavorited ? 'secondary' : 'outline'}
+            style={styles.saveButton}
+          />
         )}
       </View>
 
@@ -289,11 +300,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 1,
   },
-  bookmarkButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+  saveButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    minHeight: 36,
     marginLeft: 8,
   },
   content: {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useStudio, useStudioGallery, useStudioArtists } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import LoadingScreen from '../components/common/LoadingScreen';
 import ErrorView from '../components/common/ErrorView';
 import StyleTag from '../components/common/StyleTag';
@@ -40,6 +41,7 @@ export default function StudioDetailScreen({ navigation, route }: any) {
   const { gallery, loading: galleryLoading } = useStudioGallery(api, slug);
   const { artists, loading: artistsLoading } = useStudioArtists(api, slug);
   const { user, toggleFavorite } = useAuth();
+  const { showSnackbar } = useSnackbar();
 
   const [activeStyleFilter, setActiveStyleFilter] = useState<number | null>(null);
 
@@ -69,10 +71,21 @@ export default function StudioDetailScreen({ navigation, route }: any) {
     });
   }, [gallery, activeStyleFilter]);
 
+  const isFavorited = user?.favorites?.studios?.includes(studio?.id);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!studio) return;
+    try {
+      await toggleFavorite('studio', studio.id);
+      showSnackbar(isFavorited ? 'Removed from saved' : 'Studio saved');
+    } catch {
+      showSnackbar('Something went wrong', 'error');
+    }
+  }, [toggleFavorite, studio?.id, isFavorited, showSnackbar]);
+
   if (loading) return <LoadingScreen />;
   if (error || !studio) return <ErrorView message={error?.message || 'Studio not found'} />;
 
-  const isFavorited = user?.favorites?.studios?.includes(studio.id);
   const imageUri = s.primary_image?.uri || (typeof s.image === 'string' && s.image ? s.image : s.image?.uri);
   const hours = formatHours(s.hours || []);
 
@@ -109,7 +122,7 @@ export default function StudioDetailScreen({ navigation, route }: any) {
         {user && (
           <Button
             title={isFavorited ? 'Saved' : 'Save'}
-            onPress={() => toggleFavorite('studio', studio.id)}
+            onPress={handleToggleFavorite}
             variant={isFavorited ? 'secondary' : 'outline'}
             style={styles.actionButton}
           />

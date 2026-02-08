@@ -9,15 +9,28 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../../../lib/colors';
+import { api } from '../../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { uploadImagesToS3 } from '../../../lib/s3Upload';
+import { leadService } from '../../../lib/leadService';
+import { createUserService, createStudioService } from '@inkedin/shared/services';
 import ProgressBar from '../../components/onboarding/ProgressBar';
 import UserTypeStep from '../../components/onboarding/UserTypeStep';
 import ExperienceLevelStep from '../../components/onboarding/ExperienceLevelStep';
 import StylesSelectionStep from '../../components/onboarding/StylesSelectionStep';
 import UserDetailsStep from '../../components/onboarding/UserDetailsStep';
 import AccountSetupStep from '../../components/onboarding/AccountSetupStep';
+import TattooIntentStep from '../../components/onboarding/TattooIntentStep';
+import type { TattooIntentData } from '../../components/onboarding/TattooIntentStep';
+import StudioOwnerCheckStep from '../../components/onboarding/StudioOwnerCheckStep';
+import type { StudioOwnerData } from '../../components/onboarding/StudioOwnerCheckStep';
+import StudioDetailsStep from '../../components/onboarding/StudioDetailsStep';
+import type { StudioDetailsData } from '../../components/onboarding/StudioDetailsStep';
+import type { ImageFile } from '../../../lib/s3Upload';
+
 import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
@@ -32,21 +45,34 @@ interface OnboardingData {
     bio: string;
     location: string;
     locationLatLong: string;
+    profileImage?: ImageFile;
+    studioAffiliation?: {
+      studioId: number;
+      studioName: string;
+      isNew: boolean;
+      isClaimed: boolean;
+    };
   };
+  tattooIntent?: TattooIntentData;
+  studioOwner?: StudioOwnerData;
+  studioDetails?: StudioDetailsData;
 }
 
 function getStepLabels(userType?: string): string[] {
   if (userType === 'client') {
-    return ['Type', 'Experience', 'Interests', 'Profile', 'Account'];
+    return ['Type', 'Experience', 'Interests', 'Profile', 'Plans', 'Account'];
   }
   if (userType === 'artist') {
     return ['Type', 'Specialties', 'Profile', 'Account'];
   }
-  return ['Type', 'Details', 'Account'];
+  return ['Type', 'Owner', 'Studio Details'];
 }
 
+const userService = createUserService(api);
+const studioService = createStudioService(api);
+
 export default function RegisterScreen({ navigation }: Props) {
-  const { register } = useAuth();
+  const { register, refreshUser } = useAuth();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<OnboardingData>({ selectedStyles: [] });
@@ -58,6 +84,17 @@ export default function RegisterScreen({ navigation }: Props) {
       navigation.goBack();
     } else {
       setStep(step - 1);
+    }
+  };
+
+  const uploadProfilePhoto = async (image: ImageFile) => {
+    try {
+      const uploaded = await uploadImagesToS3(api, [image], 'profile');
+      if (uploaded.length > 0) {
+        await userService.uploadProfilePhoto(uploaded[0].id);
+      }
+    } catch (err) {
+      console.error('Profile photo upload failed:', err);
     }
   };
 
@@ -81,9 +118,104 @@ export default function RegisterScreen({ navigation }: Props) {
         location: data.userDetails.location,
         location_lat_long: data.userDetails.locationLatLong,
         type: data.userType || 'client',
+        selected_styles: data.userType === 'artist' ? data.selectedStyles : undefined,
+        preferred_styles: data.userType === 'client' ? data.selectedStyles : undefined,
+        experience_level: data.experienceLevel,
+        studio_id: data.userDetails.studioAffiliation?.studioId,
       });
 
-      navigation.navigate('VerifyEmail', { email: credentials.email });
+      // Upload profile photo after registration
+      if (data.userDetails.profileImage) {
+        await uploadProfilePhoto(data.userDetails.profileImage);
+      }
+
+      // Create lead for clients with tattoo intent
+      if (data.userType === 'client' && data.tattooIntent && data.tattooIntent.timing) {
+        try {
+          await leadService.create({
+            timing: data.tattooIntent.timing,
+            tag_ids: data.tattooIntent.tagIds,
+            custom_themes: data.tattooIntent.customThemes,
+            description: data.tattooIntent.description,
+            allow_artist_contact: data.tattooIntent.allowArtistContact,
+          });
+        } catch (err) {
+          console.error('Lead creation failed:', err);
+        }
+      }
+
+      // Set user in AuthContext — VerifyEmailGate will show automatically
+      // since is_email_verified is false
+      await refreshUser();
+    } catch (err: any) {
+      const message = err.data?.message || err.message || 'Registration failed. Please try again.';
+      Alert.alert('Error', message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStudioSubmit = async (studioDetails: StudioDetailsData) => {
+    setLoading(true);
+    try {
+      if (data.studioOwner?.isAuthenticated) {
+        // Existing user - create or claim studio directly
+        if (studioDetails.studioResult?.id) {
+          await studioService.claim(studioDetails.studioResult.id, {
+            bio: studioDetails.bio,
+            phone: studioDetails.phone,
+          });
+        } else {
+          await studioService.lookupOrCreate({
+            name: studioDetails.name,
+            username: studioDetails.username,
+            bio: studioDetails.bio,
+            email: studioDetails.email,
+            phone: studioDetails.phone,
+            location: studioDetails.location,
+            location_lat_long: studioDetails.locationLatLong,
+          });
+        }
+
+        if (studioDetails.studioPhoto) {
+          try {
+            const uploaded = await uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio');
+            if (uploaded.length > 0) {
+              // Studio photo uploaded, backend handles association
+            }
+          } catch {
+            console.error('Studio photo upload failed');
+          }
+        }
+
+        navigation.navigate('Login');
+      } else {
+        // New user - register first, then handle studio
+        await register({
+          name: studioDetails.name,
+          email: studioDetails.email,
+          password: studioDetails.password || '',
+          password_confirmation: studioDetails.password_confirmation || '',
+          username: studioDetails.username,
+          slug: studioDetails.username,
+          about: studioDetails.bio,
+          location: studioDetails.location,
+          location_lat_long: studioDetails.locationLatLong,
+          type: 'studio',
+        });
+
+        // Store pending studio data for after verification
+        await AsyncStorage.setItem('pending_studio', JSON.stringify({
+          studioResult: studioDetails.studioResult,
+          name: studioDetails.name,
+          username: studioDetails.username,
+          bio: studioDetails.bio,
+          phone: studioDetails.phone,
+          location: studioDetails.location,
+        }));
+
+        navigation.navigate('VerifyEmail', { email: studioDetails.email });
+      }
     } catch (err: any) {
       const message = err.data?.message || err.message || 'Registration failed. Please try again.';
       Alert.alert('Error', message);
@@ -141,7 +273,23 @@ export default function RegisterScreen({ navigation }: Props) {
             />
           );
         case 4:
-          return <AccountSetupStep onComplete={handleSubmit} onBack={handleBack} />;
+          return (
+            <TattooIntentStep
+              onComplete={(intent) => {
+                setData(prev => ({ ...prev, tattooIntent: intent }));
+                setStep(5);
+              }}
+              onBack={handleBack}
+            />
+          );
+        case 5:
+          return (
+            <AccountSetupStep
+              onComplete={handleSubmit}
+              onBack={handleBack}
+              userType="client"
+            />
+          );
       }
     }
 
@@ -171,25 +319,38 @@ export default function RegisterScreen({ navigation }: Props) {
             />
           );
         case 3:
-          return <AccountSetupStep onComplete={handleSubmit} onBack={handleBack} />;
+          return (
+            <AccountSetupStep
+              onComplete={handleSubmit}
+              onBack={handleBack}
+              userType="artist"
+            />
+          );
       }
     }
 
-    // Fallback for studio (simplified for now)
-    switch (step) {
-      case 1:
-        return (
-          <UserDetailsStep
-            onComplete={(details) => {
-              setData(prev => ({ ...prev, userDetails: details }));
-              setStep(2);
-            }}
-            onBack={handleBack}
-            userType="client"
-          />
-        );
-      case 2:
-        return <AccountSetupStep onComplete={handleSubmit} onBack={handleBack} />;
+    // Studio flow
+    if (data.userType === 'studio') {
+      switch (step) {
+        case 1:
+          return (
+            <StudioOwnerCheckStep
+              onComplete={(ownerData) => {
+                setData(prev => ({ ...prev, studioOwner: ownerData }));
+                setStep(2);
+              }}
+              onBack={handleBack}
+            />
+          );
+        case 2:
+          return (
+            <StudioDetailsStep
+              onComplete={handleStudioSubmit}
+              onBack={handleBack}
+              isAuthenticated={data.studioOwner?.isAuthenticated || false}
+            />
+          );
+      }
     }
 
     return null;
@@ -212,11 +373,13 @@ export default function RegisterScreen({ navigation }: Props) {
         </View>
       </KeyboardAvoidingView>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.footer}>
-        <Text style={styles.footerText}>
-          Already have an account? <Text style={styles.footerAccent}>Sign in</Text>
-        </Text>
-      </TouchableOpacity>
+      {step === 0 && (
+        <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.footer}>
+          <Text style={styles.footerText}>
+            Already have an account? <Text style={styles.footerAccent}>Sign in</Text>
+          </Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }

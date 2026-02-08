@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useArtist, useArtistPortfolio } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import LoadingScreen from '../components/common/LoadingScreen';
 import ErrorView from '../components/common/ErrorView';
 import StyleTag from '../components/common/StyleTag';
@@ -39,6 +40,7 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
   const { artist, loading, error } = useArtist(api, slug);
   const { portfolio, loading: portfolioLoading } = useArtistPortfolio(api, slug);
   const { user, toggleFavorite } = useAuth();
+  const { showSnackbar } = useSnackbar();
 
   const [activeStyleFilter, setActiveStyleFilter] = useState<number | null>(null);
 
@@ -55,10 +57,21 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
     });
   }, [portfolio, activeStyleFilter]);
 
+  const isFavorited = user?.favorites?.artists?.includes(artist?.id);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!artist) return;
+    try {
+      await toggleFavorite('artist', artist.id);
+      showSnackbar(isFavorited ? 'Removed from saved' : 'Artist saved');
+    } catch {
+      showSnackbar('Something went wrong', 'error');
+    }
+  }, [toggleFavorite, artist?.id, isFavorited, showSnackbar]);
+
   if (loading) return <LoadingScreen />;
   if (error || !artist) return <ErrorView message={error?.message || 'Artist not found'} />;
 
-  const isFavorited = user?.favorites?.artists?.includes(artist.id);
   const imageUri = a.primary_image?.uri || (typeof a.image === 'string' && a.image ? a.image : a.image?.uri);
   const socialLinks: any[] = a.social_media_links || [];
   const artistStyles: any[] = artist.styles || [];
@@ -111,7 +124,7 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
         {user && (
           <Button
             title={isFavorited ? 'Saved' : 'Save'}
-            onPress={() => toggleFavorite('artist', artist.id)}
+            onPress={handleToggleFavorite}
             variant={isFavorited ? 'secondary' : 'outline'}
             style={styles.actionButton}
           />

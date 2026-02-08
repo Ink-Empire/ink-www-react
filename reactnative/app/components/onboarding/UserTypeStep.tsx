@@ -9,18 +9,18 @@ interface UserTypeStepProps {
 const userTypes = [
   {
     type: 'client' as const,
-    title: 'I Want Tattoos',
-    description: 'Browse artists, discover styles, and book appointments',
+    title: 'Tattoo Enthusiast',
+    description: "I'm looking for inspiration, artists, and planning my next tattoo",
   },
   {
     type: 'artist' as const,
-    title: "I'm an Artist",
-    description: 'Showcase your portfolio, manage bookings, and grow your client base',
+    title: 'Tattoo Artist',
+    description: 'I create tattoos and want to showcase my work',
   },
   {
     type: 'studio' as const,
-    title: 'I Manage a Studio',
-    description: 'List your studio, manage artists, and attract clients',
+    title: 'Tattoo Studio',
+    description: 'I represent a studio and manage multiple artists',
   },
 ];
 
@@ -28,7 +28,9 @@ export default function UserTypeStep({ onSelect }: UserTypeStepProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to InkedIn</Text>
-      <Text style={styles.subtitle}>How will you use InkedIn?</Text>
+      <Text style={styles.subtitle}>
+        Let's get you set up! Tell us what brings you to our community.
+      </Text>
 
       {userTypes.map(({ type, title, description }) => (
         <TouchableOpacity
@@ -41,6 +43,10 @@ export default function UserTypeStep({ onSelect }: UserTypeStepProps) {
           <Text style={styles.cardDescription}>{description}</Text>
         </TouchableOpacity>
       ))}
+
+      <Text style={styles.footer}>
+        Don't worry, you can always change this later in your profile settings.
+      </Text>
     </View>
   );
 }
@@ -80,5 +86,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
+  },
+  footer: {
+    color: colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

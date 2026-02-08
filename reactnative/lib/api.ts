@@ -2,6 +2,7 @@
 // Sets up the shared API client with AsyncStorage for token persistence
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Config from 'react-native-config';
 import { createApiClient, createAuthApi, type StorageAdapter } from '@inkedin/shared';
 
 // AsyncStorage adapter for React Native
@@ -52,12 +53,7 @@ const removeToken = async (): Promise<void> => {
   return mobileStorage.removeItem(TOKEN_KEY);
 };
 
-// API base URL - configure this for your environment
-// In development, this might be your local machine's IP
-// In production, this will be your API server URL
-const API_BASE_URL = __DEV__
-  ? 'http://localhost/api' // Local dev via Valet/Nginx
-  : 'https://api.getinked.in/api'; // Production URL
+const API_BASE_URL = Config.API_BASE_URL || 'http://localhost/api';
 
 // Create and export the API client instance
 export const api = createApiClient({
@@ -65,6 +61,9 @@ export const api = createApiClient({
   getToken,
   setToken,
   removeToken,
+  defaultHeaders: {
+    'X-App-Token': Config.APP_TOKEN || '',
+  },
   onUnauthorized: () => {
     // Handle unauthorized - navigation will be handled by the app
     console.log('Unauthorized - user needs to log in');

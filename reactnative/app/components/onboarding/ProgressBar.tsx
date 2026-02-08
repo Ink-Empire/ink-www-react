@@ -16,9 +16,7 @@ export default function ProgressBar({ currentStep, totalSteps, label }: Progress
       <View style={styles.barBackground}>
         <View style={[styles.barFill, { width: `${progress}%` }]} />
       </View>
-      <Text style={styles.label}>
-        Step {currentStep + 1} of {totalSteps}{label ? `: ${label}` : ''}
-      </Text>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
     </View>
   );
 }

@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../../../lib/colors';
 import { authApi } from '../../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import Button from '../../components/common/Button';
-import type { AuthStackParamList } from '../../navigation/types';
+import Button from '../common/Button';
 
-type Props = NativeStackScreenProps<AuthStackParamList, 'VerifyEmail'>;
+interface VerifyEmailGateProps {
+  email: string;
+}
 
 const POLL_INTERVAL_MS = 5000;
 
-export default function VerifyEmailScreen({ route, navigation }: Props) {
-  const { email } = route.params;
-  const { refreshUser } = useAuth();
+export default function VerifyEmailGate({ email }: VerifyEmailGateProps) {
+  const { refreshUser, logout } = useAuth();
   const [resending, setResending] = useState(false);
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -22,15 +21,13 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
 
-  // Poll for verification status
   useEffect(() => {
     mountedRef.current = true;
 
     pollRef.current = setInterval(async () => {
       try {
         const user = await refreshUser();
-        if (user && mountedRef.current) {
-          // Verified — AuthContext updates, navigation auto-switches to MainTabs
+        if (user?.is_email_verified && mountedRef.current) {
           if (pollRef.current) clearInterval(pollRef.current);
         }
       } catch {
@@ -68,11 +65,10 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
     setMessage(null);
     try {
       const user = await refreshUser();
-      if (!user && mountedRef.current) {
+      if ((!user || !user.is_email_verified) && mountedRef.current) {
         setMessage('Email not verified yet. Please check your inbox.');
         setMessageType('info');
       }
-      // If user is returned, AuthContext updates and navigation auto-switches
     } catch {
       if (mountedRef.current) {
         setMessage('Email not verified yet. Please check your inbox.');
@@ -83,53 +79,60 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleLogout = async () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    await logout();
+  };
+
   const messageColor =
     messageType === 'success' ? colors.success :
     messageType === 'error' ? colors.error :
     colors.info;
 
   return (
-    <View style={styles.container}>
-      <MaterialIcons name="mail-outline" size={72} color={colors.accent} style={styles.icon} />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <MaterialIcons name="mail-outline" size={72} color={colors.accent} style={styles.icon} />
 
-      <Text style={styles.title}>You're almost done!</Text>
-      <Text style={styles.subtitle}>Verify your email to start using the app.</Text>
+        <Text style={styles.title}>You're almost done!</Text>
+        <Text style={styles.subtitle}>Verify your email to start using the app.</Text>
 
-      <Text style={styles.body}>
-        We've sent a verification link to:
-      </Text>
-      <Text style={styles.email}>{email}</Text>
-      <Text style={styles.body}>
-        Click the link in the email to verify your account. This page will update automatically once verified.
-      </Text>
-      <Text style={styles.hint}>
-        Can't find the email? Check your spam or junk folder.
-      </Text>
+        <Text style={styles.body}>
+          We've sent a verification link to:
+        </Text>
+        <Text style={styles.email}>{email}</Text>
+        <Text style={styles.body}>
+          Click the link in the email to verify your account. This page will update automatically once verified.
+        </Text>
+        <Text style={styles.hint}>
+          Can't find the email? Check your spam or junk folder.
+        </Text>
 
-      {message && <Text style={[styles.feedback, { color: messageColor }]}>{message}</Text>}
+        {message && <Text style={[styles.feedback, { color: messageColor }]}>{message}</Text>}
 
-      <Button
-        title="I've Verified My Email"
-        onPress={handleCheckNow}
-        loading={checking}
-        style={styles.button}
-      />
+        <Button
+          title="I've Verified My Email"
+          onPress={handleCheckNow}
+          loading={checking}
+          style={styles.button}
+        />
 
-      <Button
-        title="Resend Verification Email"
-        onPress={handleResend}
-        loading={resending}
-        variant="outline"
-        style={styles.button}
-      />
+        <Button
+          title="Resend Verification Email"
+          onPress={handleResend}
+          loading={resending}
+          variant="outline"
+          style={styles.button}
+        />
 
-      <Button
-        title="Back to Sign In"
-        onPress={() => navigation.navigate('Login')}
-        variant="secondary"
-        style={styles.button}
-      />
-    </View>
+        <Button
+          title="Sign Out"
+          onPress={handleLogout}
+          variant="secondary"
+          style={styles.button}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -137,6 +140,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
     padding: 24,
   },
