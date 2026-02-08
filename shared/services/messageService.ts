@@ -62,5 +62,11 @@ export function createMessageService(api: ApiClient) {
         initial_message: initialMessage,
         appointment_id: appointmentId,
       }, { requiresAuth: true }),
+
+    searchUsers: (query: string) =>
+      api.get<{ users: Array<{ id: number; name: string; username: string; slug?: string; image?: { id: number; uri: string } | null }> }>(
+        `/conversations/search-users?q=${encodeURIComponent(query)}`,
+        { requiresAuth: true, useCache: false, skipDemoMode: true },
+      ),
   };
 }

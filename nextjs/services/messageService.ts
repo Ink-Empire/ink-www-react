@@ -207,4 +207,13 @@ export const messageService = {
       appointment_id: appointmentId,
     }, { requiresAuth: true });
   },
+
+  // Search users for starting conversations (typeahead, requires auth)
+  searchUsers: async (query: string): Promise<{ users: Array<{ id: number; name: string; username: string; slug?: string; image?: any }> }> => {
+    return api.get(`/conversations/search-users?q=${encodeURIComponent(query)}`, {
+      requiresAuth: true,
+      useCache: false,
+      skipDemoMode: true,
+    });
+  },
 };

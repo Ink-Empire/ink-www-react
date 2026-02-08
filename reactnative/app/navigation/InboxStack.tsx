@@ -16,7 +16,7 @@ const screenOptions = {
 export default function InboxStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="Inbox" component={InboxScreen} options={{ title: 'Messages' }} />
+      <Stack.Screen name="Inbox" component={InboxScreen} options={{ title: 'Inbox' }} />
       <Stack.Screen
         name="Conversation"
         component={ConversationScreen}

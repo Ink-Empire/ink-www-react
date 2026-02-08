@@ -48,8 +48,8 @@ import {
   createConversation,
 } from '../hooks/useConversations';
 import { userService } from '../services/userService';
-import { artistService } from '../services/artistService';
 import { appointmentService } from '../services/appointmentService';
+import { messageService } from '../services/messageService';
 import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
 import {
   FilterType,
@@ -88,9 +88,10 @@ export default function InboxPage() {
   // New message dialog state
   const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [recipientSearch, setRecipientSearch] = useState('');
-  const [recipientResult, setRecipientResult] = useState<{ id: number; name: string; username: string; slug?: string; image?: any } | null>(null);
+  const [searchResults, setSearchResults] = useState<Array<{ id: number; name: string; username: string; slug?: string; image?: any }>>([]);
   const [recipientError, setRecipientError] = useState('');
   const [searchingRecipient, setSearchingRecipient] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modal states
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -508,32 +509,42 @@ export default function InboxPage() {
     handleMoreMenuClose();
   };
 
-  const handleRecipientSearch = async () => {
-    if (!recipientSearch.trim()) return;
-    setSearchingRecipient(true);
-    setRecipientError('');
-    setRecipientResult(null);
+  // Typeahead user search with debounce
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
 
-    try {
-      const response = await artistService.lookupByIdentifier(recipientSearch.trim());
-      if (response.artist) {
-        setRecipientResult(response.artist);
-      } else {
-        setRecipientError('No user found with that username or email');
-      }
-    } catch (err: any) {
-      setRecipientError('No user found with that username or email');
-    } finally {
+    const query = recipientSearch.trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      setRecipientError('');
       setSearchingRecipient(false);
+      return;
     }
-  };
 
-  const handleStartConversation = async () => {
-    if (!recipientResult) return;
+    setSearchingRecipient(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await messageService.searchUsers(query);
+        setSearchResults(response.users || []);
+        setRecipientError(response.users?.length === 0 ? 'No users found' : '');
+      } catch {
+        setRecipientError('Search failed. Please try again.');
+        setSearchResults([]);
+      } finally {
+        setSearchingRecipient(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [recipientSearch]);
+
+  const handleSelectRecipient = async (recipient: { id: number; name: string; username: string }) => {
     setCreatingConversation(true);
 
     try {
-      const newConversation = await createConversation(recipientResult.id);
+      const newConversation = await createConversation(recipient.id);
       if (newConversation) {
         await fetchConversations();
         setSelectedConversationId(newConversation.id);
@@ -541,7 +552,7 @@ export default function InboxPage() {
       }
       setNewMessageOpen(false);
       setRecipientSearch('');
-      setRecipientResult(null);
+      setSearchResults([]);
       setRecipientError('');
     } catch (err: any) {
       setSnackbar({
@@ -1510,7 +1521,7 @@ export default function InboxPage() {
       {/* New Message Dialog */}
       <Dialog
         open={newMessageOpen}
-        onClose={() => { setNewMessageOpen(false); setRecipientSearch(''); setRecipientResult(null); setRecipientError(''); }}
+        onClose={() => { setNewMessageOpen(false); setRecipientSearch(''); setSearchResults([]); setRecipientError(''); }}
         maxWidth="sm"
         fullWidth
         PaperProps={{
@@ -1526,118 +1537,98 @@ export default function InboxPage() {
             <AddIcon sx={{ color: colors.accent }} />
             New Message
           </Box>
-          <IconButton onClick={() => { setNewMessageOpen(false); setRecipientSearch(''); setRecipientResult(null); setRecipientError(''); }} sx={{ color: colors.textMuted }}>
+          <IconButton onClick={() => { setNewMessageOpen(false); setRecipientSearch(''); setSearchResults([]); setRecipientError(''); }} sx={{ color: colors.textMuted }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem', mb: 2 }}>
-            Search for a user by their username or email to start a conversation.
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
-              fullWidth
-              placeholder="Search by username or email"
-              value={recipientSearch}
-              onChange={(e) => setRecipientSearch(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRecipientSearch(); } }}
-              size="small"
-              autoFocus
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: colors.background,
-                  '& fieldset': { borderColor: colors.borderSubtle },
-                  '&:hover fieldset': { borderColor: colors.borderLight },
-                  '&.Mui-focused fieldset': { borderColor: colors.accent },
-                },
-                '& .MuiInputBase-input': { color: colors.textPrimary },
-                '& .MuiInputBase-input::placeholder': { color: colors.textMuted, opacity: 1 },
-              }}
-            />
-            <Button
-              onClick={handleRecipientSearch}
-              disabled={!recipientSearch.trim() || searchingRecipient}
-              variant="contained"
-              sx={{
-                bgcolor: colors.accent,
-                color: colors.background,
-                textTransform: 'none',
-                flexShrink: 0,
-                '&:hover': { bgcolor: colors.accentHover },
-                '&.Mui-disabled': { bgcolor: colors.surfaceElevated, color: colors.textMuted },
-              }}
-            >
-              {searchingRecipient ? <CircularProgress size={20} sx={{ color: colors.background }} /> : 'Search'}
-            </Button>
-          </Box>
+        <DialogContent sx={{ pt: 2, minHeight: 300 }}>
+          <TextField
+            fullWidth
+            placeholder="Search by name, username, or email..."
+            value={recipientSearch}
+            onChange={(e) => setRecipientSearch(e.target.value)}
+            size="small"
+            autoFocus
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 18, color: colors.textMuted }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchingRecipient ? (
+                <InputAdornment position="end">
+                  <CircularProgress size={18} sx={{ color: colors.accent }} />
+                </InputAdornment>
+              ) : null,
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: colors.background,
+                '& fieldset': { borderColor: colors.borderSubtle },
+                '&:hover fieldset': { borderColor: colors.borderLight },
+                '&.Mui-focused fieldset': { borderColor: colors.accent },
+              },
+              '& .MuiInputBase-input': { color: colors.textPrimary },
+              '& .MuiInputBase-input::placeholder': { color: colors.textMuted, opacity: 1 },
+            }}
+          />
 
-          {recipientError && (
-            <Typography sx={{ color: colors.error, fontSize: '0.85rem', mt: 2 }}>
+          {recipientError && !searchingRecipient && (
+            <Typography sx={{ color: colors.textMuted, fontSize: '0.85rem', mt: 2, textAlign: 'center' }}>
               {recipientError}
             </Typography>
           )}
 
-          {recipientResult && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                mt: 2,
-                p: 2,
-                bgcolor: colors.background,
-                borderRadius: '8px',
-                border: `1px solid ${colors.borderSubtle}`,
-              }}
-            >
-              <Avatar
-                src={recipientResult.image?.uri}
-                sx={{
-                  width: 48,
-                  height: 48,
-                  bgcolor: colors.surfaceElevated,
-                  color: colors.accent,
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                }}
-              >
-                {recipientResult.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || recipientResult.username?.slice(0, 2).toUpperCase()}
-              </Avatar>
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: colors.textPrimary }}>
-                  {recipientResult.name || recipientResult.username}
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted }}>
-                  @{recipientResult.username}
-                </Typography>
-              </Box>
+          {creatingConversation && (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 2 }}>
+              <CircularProgress size={18} sx={{ color: colors.accent }} />
+              <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>Starting conversation...</Typography>
+            </Box>
+          )}
+
+          {searchResults.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              {searchResults.map((result) => (
+                <Box
+                  key={result.id}
+                  onClick={() => !creatingConversation && handleSelectRecipient(result)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: '8px',
+                    cursor: creatingConversation ? 'default' : 'pointer',
+                    opacity: creatingConversation ? 0.5 : 1,
+                    '&:hover': creatingConversation ? {} : { bgcolor: colors.background },
+                  }}
+                >
+                  <Avatar
+                    src={result.image?.uri}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: colors.surfaceElevated,
+                      color: colors.accent,
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {result.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || result.username?.slice(0, 2).toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', color: colors.textPrimary }}>
+                      {result.name || result.username}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+                      @{result.username}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
             </Box>
           )}
         </DialogContent>
-        {recipientResult && (
-          <DialogActions sx={{ p: 2, pt: 0 }}>
-            <Button
-              onClick={() => { setNewMessageOpen(false); setRecipientSearch(''); setRecipientResult(null); setRecipientError(''); }}
-              sx={{ color: colors.textSecondary, textTransform: 'none' }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleStartConversation}
-              disabled={creatingConversation}
-              variant="contained"
-              sx={{
-                bgcolor: colors.accent,
-                color: colors.background,
-                textTransform: 'none',
-                '&:hover': { bgcolor: colors.accentHover },
-                '&.Mui-disabled': { bgcolor: colors.surfaceElevated, color: colors.textMuted },
-              }}
-            >
-              {creatingConversation ? <CircularProgress size={20} sx={{ color: colors.background }} /> : 'Start Conversation'}
-            </Button>
-          </DialogActions>
-        )}
       </Dialog>
 
       {/* Booking Modal */}

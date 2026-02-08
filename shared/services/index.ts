@@ -26,6 +26,13 @@ export function createArtistService(api: ApiClient) {
 
     updateSettings: (artistId: number, settings: Partial<Artist['settings']>) =>
       api.put(`/artists/${artistId}/settings`, settings, { requiresAuth: true }),
+
+    lookupByIdentifier: (identifier: string) =>
+      api.post<{ artist: { id: number; name: string; username: string; slug?: string; image?: any } }>(
+        '/artists/lookup',
+        { username: identifier },
+        { requiresAuth: true },
+      ),
   };
 }
 
