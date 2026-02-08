@@ -35,7 +35,6 @@ export default function ArtistListScreen({ navigation, route }: any) {
   }, [route?.params?.filterStyles, route?.params?.filterTags]);
 
   const searchParams = {
-    is_demo: 1,
     searchString: searchQuery || undefined,
     sort: filters.sort,
     styles: filters.styles,

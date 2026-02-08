@@ -121,6 +121,13 @@ export function createUserService(api: ApiClient) {
 }
 
 // =============================================================================
+// Message Service
+// =============================================================================
+
+export { createMessageService } from './messageService';
+export type { ConversationType, ConversationFilters } from './messageService';
+
+// =============================================================================
 // Google Places Service (REST API)
 // =============================================================================
 
@@ -136,3 +143,4 @@ export type TattooService = ReturnType<typeof createTattooService>;
 export type StudioService = ReturnType<typeof createStudioService>;
 export type StyleService = ReturnType<typeof createStyleService>;
 export type UserService = ReturnType<typeof createUserService>;
+export type MessageService = ReturnType<typeof createMessageService>;

@@ -720,45 +720,61 @@ export default function InboxPage() {
         >
           {/* Header */}
           <Box sx={{ p: 2.5, borderBottom: `1px solid ${colors.borderSubtle}` }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TextField
+                fullWidth
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                size="small"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 16, color: colors.textMuted }} />
+                    </InputAdornment>
+                  ),
+                }}
                 sx={{
-                  fontFamily: '"Cormorant Garamond", serif',
-                  fontSize: '1.5rem',
-                  fontWeight: 600,
-                  color: colors.textPrimary,
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: colors.background,
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    '& fieldset': { borderColor: colors.borderSubtle },
+                    '&:hover fieldset': { borderColor: colors.borderLight },
+                    '&.Mui-focused fieldset': { borderColor: colors.accent },
+                  },
+                  '& .MuiInputBase-input': { color: colors.textPrimary },
+                  '& .MuiInputBase-input::placeholder': { color: colors.textMuted, opacity: 1 },
+                }}
+              />
+              <IconButton
+                onClick={(e) => setSortMenuAnchor(e.currentTarget)}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  flexShrink: 0,
+                  bgcolor: colors.background,
+                  border: `1px solid ${colors.borderSubtle}`,
+                  color: colors.textSecondary,
+                  '&:hover': { borderColor: colors.accent, color: colors.accent },
                 }}
               >
-                Messages
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <IconButton
-                  onClick={(e) => setSortMenuAnchor(e.currentTarget)}
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: colors.background,
-                    border: `1px solid ${colors.borderSubtle}`,
-                    color: colors.textSecondary,
-                    '&:hover': { borderColor: colors.accent, color: colors.accent },
-                  }}
-                >
-                  <TuneIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-                <IconButton
-                  onClick={() => setNewMessageOpen(true)}
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: colors.background,
-                    border: `1px solid ${colors.borderSubtle}`,
-                    color: colors.textSecondary,
-                    '&:hover': { borderColor: colors.accent, color: colors.accent },
-                  }}
-                >
-                  <AddIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Box>
+                <TuneIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+              <IconButton
+                onClick={() => setNewMessageOpen(true)}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  flexShrink: 0,
+                  bgcolor: colors.background,
+                  border: `1px solid ${colors.borderSubtle}`,
+                  color: colors.textSecondary,
+                  '&:hover': { borderColor: colors.accent, color: colors.accent },
+                }}
+              >
+                <AddIcon sx={{ fontSize: 18 }} />
+              </IconButton>
             </Box>
 
             {/* Sort Menu */}
@@ -798,33 +814,6 @@ export default function InboxPage() {
                 {sortOrder === 'oldest' && <CheckIcon sx={{ color: colors.accent, fontSize: 18, ml: 1 }} />}
               </MenuItem>
             </Menu>
-
-            <TextField
-              fullWidth
-              placeholder="Search messages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              size="small"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 16, color: colors.textMuted }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: colors.background,
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  '& fieldset': { borderColor: colors.borderSubtle },
-                  '&:hover fieldset': { borderColor: colors.borderLight },
-                  '&.Mui-focused fieldset': { borderColor: colors.accent },
-                },
-                '& .MuiInputBase-input': { color: colors.textPrimary },
-                '& .MuiInputBase-input::placeholder': { color: colors.textMuted, opacity: 1 },
-              }}
-            />
           </Box>
 
           {/* Filters */}

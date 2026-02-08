@@ -27,7 +27,6 @@ import { useClientDashboard, DashboardAppointment, SuggestedArtist, WishlistArti
 import { clientService } from '@/services/clientService';
 import { ApiConversation } from '@/hooks/useConversations';
 import { leadService } from '@/services/leadService';
-import { useDemoMode } from '@/contexts/DemoModeContext';
 import { useStyles } from '@/contexts/StyleContext';
 import { useUser } from '@/contexts/AuthContext';
 import InfoTooltip from './InfoTooltip';
@@ -60,7 +59,6 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
   const [beaconSnackbarOpen, setBeaconSnackbarOpen] = useState(false);
-  const { isDemoMode } = useDemoMode();
   const { styles, getStyleName } = useStyles();
   const { userData, updateStyles } = useUser();
   const theme = useTheme();

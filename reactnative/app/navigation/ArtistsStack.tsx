@@ -6,6 +6,7 @@ import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { ArtistsStackParamList } from './types';
 
 const Stack = createStackNavigator<ArtistsStackParamList>();
@@ -19,7 +20,7 @@ const screenOptions = {
 export default function ArtistsStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="ArtistList" component={ArtistListScreen} options={{ title: 'Artists' }} />
+      <Stack.Screen name="ArtistList" component={ArtistListScreen} options={{ title: 'Artists', headerRight: () => <InboxHeaderButton /> }} />
       <Stack.Screen
         name="ArtistDetail"
         component={ArtistDetailScreen}

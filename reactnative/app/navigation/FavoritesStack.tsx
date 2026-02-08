@@ -5,6 +5,7 @@ import FavoritesScreen from '../screens/FavoritesScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { FavoritesStackParamList } from './types';
 
 const Stack = createStackNavigator<FavoritesStackParamList>();
@@ -18,7 +19,7 @@ const screenOptions = {
 export default function FavoritesStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Saved' }} />
+      <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Saved', headerRight: () => <InboxHeaderButton /> }} />
       <Stack.Screen
         name="ArtistDetail"
         component={ArtistDetailScreen}

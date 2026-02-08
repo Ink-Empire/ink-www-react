@@ -32,3 +32,5 @@ export { useStyles, useTags } from './useStyles';
 export { usePlacements } from './usePlacements';
 
 export { useCalendar } from './useCalendar';
+
+export { useConversations, useConversation, useUnreadCount } from './useMessages';

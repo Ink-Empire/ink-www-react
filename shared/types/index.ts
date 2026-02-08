@@ -295,6 +295,86 @@ export type IStudio = Studio;
 export type { WorkingHour as WorkingHours } from './calendar';
 
 // =============================================================================
+// Messaging Types
+// =============================================================================
+
+export interface ConversationParticipant {
+  id: number;
+  name: string | null;
+  username: string;
+  slug: string | null;
+  initials: string;
+  image: {
+    id: number;
+    uri: string;
+  } | null;
+  is_online: boolean;
+  last_seen_at: string | null;
+}
+
+export interface LastMessage {
+  id: number;
+  content: string;
+  type: string;
+  sender_id: number;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: number;
+  type: string;
+  participant: ConversationParticipant | null;
+  last_message: LastMessage | null;
+  unread_count: number;
+  appointment: {
+    id: number;
+    status: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+    title: string | null;
+    description: string | null;
+    placement: string | null;
+    timezone: string | null;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MessageSender {
+  id: number;
+  name: string | null;
+  username: string;
+  initials: string;
+  image: {
+    id: number;
+    uri: string;
+  } | null;
+}
+
+export interface MessageAttachment {
+  id: number;
+  image: {
+    id: number;
+    uri: string;
+  } | null;
+}
+
+export interface Message {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  sender: MessageSender;
+  content: string;
+  type: string;
+  metadata: Record<string, any> | null;
+  attachments: MessageAttachment[];
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
 // Search & Filter Types
 // =============================================================================
 

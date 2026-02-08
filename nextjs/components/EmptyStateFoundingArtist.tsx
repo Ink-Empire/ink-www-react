@@ -4,7 +4,6 @@ import { Box, Typography, Button, Paper } from '@mui/material';
 import RocketLaunchOutlinedIcon from '@mui/icons-material/RocketLaunchOutlined';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { colors } from '@/styles/colors';
-import { useDemoMode } from '@/contexts/DemoModeContext';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface EmptyStateFoundingArtistProps {
@@ -12,12 +11,7 @@ interface EmptyStateFoundingArtistProps {
 }
 
 export default function EmptyStateFoundingArtist({ searchComponent }: EmptyStateFoundingArtistProps) {
-  const { setDemoMode } = useDemoMode();
   const { isAuthenticated } = useAuth();
-
-  const handleViewSampleArtists = () => {
-    setDemoMode(true);
-  };
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -95,34 +89,7 @@ export default function EmptyStateFoundingArtist({ searchComponent }: EmptyState
           </Button>
         )}
 
-        <Box sx={{ mt: isAuthenticated ? 0 : 2 }}>
-          <Typography
-            component="span"
-            sx={{ color: colors.textMuted, fontSize: '0.9rem' }}
-          >
-            or{' '}
-          </Typography>
-          <Button
-            onClick={handleViewSampleArtists}
-            sx={{
-              color: colors.accent,
-              textTransform: 'none',
-              fontSize: '0.9rem',
-              p: 0,
-              minWidth: 'auto',
-              verticalAlign: 'baseline',
-              fontWeight: 500,
-              '&:hover': {
-                bgcolor: 'transparent',
-                color: colors.accentHover,
-              },
-            }}
-          >
-            View Sample Artists
-          </Button>
-        </Box>
-
-        {/* FAQ Link - placeholder for future FAQ page */}
+        {/* FAQ Link */}
         <Box sx={{ mt: 3, pt: 2, borderTop: `1px solid ${colors.warning}40` }}>
           <Button
             component={Link}

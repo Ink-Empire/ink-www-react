@@ -140,19 +140,13 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   let finalEndpoint = endpoint;
   const demoModeEnabled = !skipDemoMode && isDemoModeEnabled();
 
-  console.log(`[API] Demo mode enabled: ${demoModeEnabled}, localStorage value: ${typeof window !== 'undefined' ? localStorage.getItem('inkedin_demo_mode') : 'SSR'}`);
-
   if (demoModeEnabled) {
     if (method === 'GET') {
-      // For GET requests, add to URL
       const separator = endpoint.includes('?') ? '&' : '?';
       finalEndpoint = `${endpoint}${separator}is_demo=1`;
     } else if (body && typeof body === 'object' && !(body instanceof FormData)) {
-      // For POST/PUT requests with JSON body, add is_demo to filter demo data
       body = { ...body, is_demo: 1 };
-      console.log(`[API] Body after adding is_demo:`, body);
     } else if (!body) {
-      // For POST/PUT without body, create one with is_demo
       body = { is_demo: 1 };
     }
   }

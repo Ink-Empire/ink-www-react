@@ -5,6 +5,11 @@ export type AuthStackParamList = {
   VerifyEmail: { email: string };
 };
 
+export type RootStackParamList = {
+  Main: undefined;
+  InboxStack: undefined;
+};
+
 export type MainTabParamList = {
   HomeTab: undefined;
   SearchTab: undefined;
@@ -47,6 +52,11 @@ export type ArtistsStackParamList = {
 
 export type UploadStackParamList = {
   Upload: undefined;
+};
+
+export type InboxStackParamList = {
+  Inbox: undefined;
+  Conversation: { conversationId: number; participantName?: string };
 };
 
 export type ProfileStackParamList = {

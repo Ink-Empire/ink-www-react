@@ -7,6 +7,7 @@ import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { HomeStackParamList } from './types';
 
 const Stack = createStackNavigator<HomeStackParamList>();
@@ -32,7 +33,7 @@ export default function HomeStack() {
       <Stack.Screen
         name="Home"
         component={HomeScreen}
-        options={{ headerTitle: () => <LogoHeader /> }}
+        options={{ headerTitle: () => <LogoHeader />, headerRight: () => <InboxHeaderButton /> }}
       />
       <Stack.Screen
         name="ArtistDetail"
