@@ -144,6 +144,8 @@ const RegisterPage: React.FC = () => {
           location: data.studioDetails?.location || '',
           location_lat_long: data.studioDetails?.locationLatLong || '',
           type: 'studio',
+          has_accepted_toc: data.credentials?.has_accepted_toc ?? true,
+          has_accepted_privacy_policy: data.credentials?.has_accepted_privacy_policy ?? true,
         };
 
         const response = await fetch('/api/register', {
@@ -211,6 +213,8 @@ const RegisterPage: React.FC = () => {
         selected_styles: data.selectedStyles,
         preferred_styles: data.preferredStyles || [],
         experience_level: data.experienceLevel,
+        has_accepted_toc: data.credentials?.has_accepted_toc ?? false,
+        has_accepted_privacy_policy: data.credentials?.has_accepted_privacy_policy ?? false,
       };
 
       // Add studio affiliation for artists

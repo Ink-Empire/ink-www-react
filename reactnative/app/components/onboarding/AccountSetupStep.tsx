@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
 import { api } from '../../../lib/api';
@@ -12,6 +12,8 @@ interface AccountSetupStepProps {
     email: string;
     password: string;
     password_confirmation: string;
+    has_accepted_toc: boolean;
+    has_accepted_privacy_policy: boolean;
   }) => void;
   onBack: () => void;
   userType?: 'client' | 'artist' | 'studio';
@@ -22,6 +24,8 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [acceptedToc, setAcceptedToc] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -82,6 +86,10 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
       newErrors.passwordConfirmation = 'Passwords do not match';
     }
 
+    if (!acceptedToc || !acceptedPrivacy) {
+      newErrors.terms = 'You must accept both the Terms of Service and Privacy Policy';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -92,10 +100,12 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
       email: email.trim().toLowerCase(),
       password,
       password_confirmation: passwordConfirmation,
+      has_accepted_toc: acceptedToc,
+      has_accepted_privacy_policy: acceptedPrivacy,
     });
   };
 
-  const isDisabled = emailStatus === 'taken' || emailStatus === 'checking' || !allRequirementsMet(password);
+  const isDisabled = emailStatus === 'taken' || emailStatus === 'checking' || !allRequirementsMet(password) || !acceptedToc || !acceptedPrivacy;
 
   const renderEmailIndicator = () => {
     if (emailStatus === 'checking') {
@@ -162,9 +172,45 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
         />
       </View>
 
-      <Text style={styles.footer}>
-        By creating an account, you agree to our Terms of Service and Privacy Policy.
-      </Text>
+      <View style={styles.checkboxSection}>
+        <TouchableOpacity style={styles.checkboxRow} onPress={() => setAcceptedToc(!acceptedToc)}>
+          <MaterialIcons
+            name={acceptedToc ? 'check-box' : 'check-box-outline-blank'}
+            size={22}
+            color={acceptedToc ? colors.accent : colors.textMuted}
+          />
+          <Text style={styles.checkboxLabel}>
+            I agree to the{' '}
+            <Text
+              style={styles.checkboxLink}
+              onPress={() => Linking.openURL('https://getinked.in/terms-of-service')}
+            >
+              Terms of Service
+            </Text>
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.checkboxRow} onPress={() => setAcceptedPrivacy(!acceptedPrivacy)}>
+          <MaterialIcons
+            name={acceptedPrivacy ? 'check-box' : 'check-box-outline-blank'}
+            size={22}
+            color={acceptedPrivacy ? colors.accent : colors.textMuted}
+          />
+          <Text style={styles.checkboxLabel}>
+            I agree to the{' '}
+            <Text
+              style={styles.checkboxLink}
+              onPress={() => Linking.openURL('https://getinked.in/privacy')}
+            >
+              Privacy Policy
+            </Text>
+          </Text>
+        </TouchableOpacity>
+
+        {errors.terms && (
+          <Text style={styles.checkboxError}>{errors.terms}</Text>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -200,10 +246,28 @@ const styles = StyleSheet.create({
   buttonHalf: {
     flex: 1,
   },
-  footer: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
+  checkboxSection: {
     marginBottom: 32,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 8,
+  },
+  checkboxLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 22,
+  },
+  checkboxLink: {
+    color: colors.accent,
+    textDecorationLine: 'underline',
+  },
+  checkboxError: {
+    color: colors.error,
+    fontSize: 12,
+    marginTop: 4,
   },
 });

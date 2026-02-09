@@ -11,7 +11,7 @@ import {
   Alert,
   ActionSheetIOS,
 } from 'react-native';
-import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
@@ -95,24 +95,30 @@ export default function EditProfileScreen({ navigation }: any) {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handlePickImage = useCallback((source: 'library' | 'camera') => {
-    const options = { mediaType: 'photo' as const, selectionLimit: 1, quality: 0.8 as const };
-    const launcher = source === 'library' ? launchImageLibrary : launchCamera;
+  const handlePickImage = useCallback(async (source: 'library' | 'camera') => {
+    const cropOptions = {
+      mediaType: 'photo' as const,
+      cropping: true,
+      cropperCircleOverlay: true,
+      width: 800,
+      height: 800,
+      compressImageQuality: 0.8,
+    };
 
-    launcher(options, async (response) => {
-      if (response.didCancel || response.errorCode) return;
-      const asset = response.assets?.[0];
-      if (!asset?.uri) return;
+    try {
+      const image = source === 'library'
+        ? await ImageCropPicker.openPicker(cropOptions)
+        : await ImageCropPicker.openCamera(cropOptions);
 
       const previousUri = photoUri;
-      setPhotoUri(asset.uri);
+      setPhotoUri(image.path);
       setUploadingPhoto(true);
 
       try {
         const imageFile: ImageFile = {
-          uri: asset.uri,
-          type: asset.type || 'image/jpeg',
-          name: asset.fileName || `profile_${Date.now()}.jpg`,
+          uri: image.path,
+          type: image.mime || 'image/jpeg',
+          name: image.filename || `profile_${Date.now()}.jpg`,
         };
         const uploaded = await uploadImagesToS3(api, [imageFile], 'profile');
         await userService.uploadProfilePhoto(uploaded[0].id);
@@ -124,7 +130,9 @@ export default function EditProfileScreen({ navigation }: any) {
       } finally {
         setUploadingPhoto(false);
       }
-    });
+    } catch {
+      // User cancelled
+    }
   }, [photoUri, refreshUser, showSnackbar]);
 
   const handleRemovePhoto = useCallback(async () => {

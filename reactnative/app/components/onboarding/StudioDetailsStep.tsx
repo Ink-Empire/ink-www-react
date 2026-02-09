@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -9,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { launchImageLibrary } from 'react-native-image-picker';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import { colors } from '../../../lib/colors';
 import { api } from '../../../lib/api';
 import type { ImageFile } from '../../../lib/s3Upload';
@@ -18,6 +19,10 @@ import Button from '../common/Button';
 import LocationAutocomplete from '../common/LocationAutocomplete';
 import StudioAutocomplete from '../common/StudioAutocomplete';
 import type { StudioOption } from '../common/StudioAutocomplete';
+import {
+  fetchPlacesApiKey,
+  getPlaceDetails,
+} from '@inkedin/shared/services/googlePlacesService';
 import PasswordRequirements, { allRequirementsMet } from './PasswordRequirements';
 
 export interface StudioDetailsData {
@@ -41,7 +46,7 @@ interface StudioDetailsStepProps {
 }
 
 export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated }: StudioDetailsStepProps) {
-  const [mode, setMode] = useState<'search' | 'manual'>('search');
+  const [showForm, setShowForm] = useState(false);
   const [studioResult, setStudioOption] = useState<StudioOption | null>(null);
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -56,72 +61,119 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const checkUsernameAvailability = useCallback(async (value: string) => {
-    if (value.length < 3) return;
-    setCheckingUsername(true);
-    try {
-      const response = await api.post<any>('/check-availability', { username: value });
-      if (!response.available) {
-        setErrors(prev => ({ ...prev, username: 'Username is already taken' }));
-      } else {
-        setErrors(prev => {
-          const next = { ...prev };
-          delete next.username;
-          return next;
-        });
-      }
-    } catch {
-      // Ignore network errors
-    } finally {
-      setCheckingUsername(false);
+  const checkUsernameAvailability = useCallback((value: string) => {
+    if (value.length < 3) {
+      setUsernameAvailable(null);
+      return;
     }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setCheckingUsername(true);
+      try {
+        const response = await api.post<any>('/studios/check-availability', { username: value });
+        setUsernameAvailable(response.available);
+        if (!response.available) {
+          setErrors(prev => ({ ...prev, username: 'Username is already taken' }));
+        } else {
+          setErrors(prev => {
+            const next = { ...prev };
+            delete next.username;
+            return next;
+          });
+        }
+      } catch {
+        setUsernameAvailable(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
   }, []);
 
   const handlePickPhoto = async () => {
     try {
-      const result = await launchImageLibrary({
+      const image = await ImageCropPicker.openPicker({
         mediaType: 'photo',
-        quality: 0.8,
-        maxWidth: 1200,
-        maxHeight: 1200,
+        cropping: true,
+        cropperCircleOverlay: true,
+        width: 800,
+        height: 800,
+        compressImageQuality: 0.8,
       });
 
-      if (result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-        if (asset.uri) {
-          setStudioPhotoUri(asset.uri);
-          setStudioPhoto({
-            uri: asset.uri,
-            type: asset.type || 'image/jpeg',
-            name: asset.fileName || 'studio.jpg',
-          });
-        }
-      }
+      setStudioPhotoUri(image.path);
+      setStudioPhoto({
+        uri: image.path,
+        type: image.mime || 'image/jpeg',
+        name: image.filename || 'studio.jpg',
+      });
     } catch {
       // User cancelled
     }
   };
 
-  const handleStudioSelect = (result: StudioOption | null) => {
+  const handleStudioSelect = async (result: StudioOption | null) => {
     setStudioOption(result);
     if (result) {
+      // Prefill form fields from the selected studio
       setName(result.name);
-      if (result.location) setLocation(result.location);
+
+      // Get structured location from Google Place details (City, State, Country)
+      if (result.google_place_id) {
+        const apiKey = await fetchPlacesApiKey(api);
+        if (apiKey) {
+          const details = await getPlaceDetails(result.google_place_id, apiKey);
+          if (details) {
+            const locationParts = [details.city, details.state, details.country].filter(Boolean);
+            setLocation(locationParts.join(', '));
+            if (details.lat && details.lng) {
+              setLocationLatLong(`${details.lat},${details.lng}`);
+            }
+          }
+        }
+      } else if (result.location) {
+        setLocation(result.location);
+      }
+
+      if (result.phone) setPhone(result.phone);
+
+      // Clear any selection errors
+      setErrors(prev => {
+        const { googleStudio, ...rest } = prev;
+        return rest;
+      });
+
+      // Reveal the full form
+      setShowForm(true);
     }
+  };
+
+  const handleManualEntry = () => {
+    setStudioOption(null);
+    setShowForm(true);
+  };
+
+  const handleChangeStudio = () => {
+    setStudioOption(null);
+    setName('');
+    setLocation('');
+    setLocationLatLong('');
+    setPhone('');
+    setShowForm(false);
   };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (mode === 'manual' || !studioResult) {
-      if (!name.trim()) newErrors.name = 'Studio name is required';
-      if (!username.trim()) {
-        newErrors.username = 'Username is required';
-      } else if (!/^[a-zA-Z0-9._]+$/.test(username)) {
-        newErrors.username = 'Only letters, numbers, periods, and underscores';
-      }
+    if (!name.trim()) newErrors.name = 'Studio name is required';
+    if (!username.trim()) {
+      newErrors.username = 'Username is required';
+    } else if (!/^[a-zA-Z0-9._]+$/.test(username)) {
+      newErrors.username = 'Only letters, numbers, periods, and underscores';
+    } else if (usernameAvailable === false) {
+      newErrors.username = 'Username is already taken';
     }
 
     if (bio.trim().length > 0 && bio.trim().length < 10) {
@@ -130,12 +182,13 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
       newErrors.bio = 'Bio must be 500 characters or less';
     }
 
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Please enter a valid email';
+    }
+
     if (!isAuthenticated) {
-      if (!email.trim()) {
-        newErrors.email = 'Email is required';
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        newErrors.email = 'Please enter a valid email';
-      }
       if (!password) {
         newErrors.password = 'Password is required';
       } else if (!allRequirementsMet(password)) {
@@ -175,7 +228,8 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
         Tell us about your studio so clients can find you.
       </Text>
 
-      {mode === 'search' && (
+      {/* Studio Search - shown when form is not yet revealed */}
+      {!showForm && (
         <>
           <StudioAutocomplete
             value={studioResult}
@@ -184,39 +238,51 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
             placeholder="Search for your studio..."
           />
 
-          {studioResult && (
-            <View style={styles.selectedStudio}>
-              <MaterialIcons name="store" size={20} color={colors.accent} />
-              <Text style={styles.selectedStudioText}>
-                {studioResult.name}
-                {studioResult.location ? ` - ${studioResult.location}` : ''}
-              </Text>
-            </View>
-          )}
-
-          <TouchableOpacity onPress={() => setMode('manual')} style={styles.switchLink}>
+          <TouchableOpacity onPress={handleManualEntry} style={styles.switchLink}>
             <Text style={styles.switchLinkText}>Or enter details manually</Text>
           </TouchableOpacity>
         </>
       )}
 
-      {mode === 'manual' && (
+      {/* Full form - shown after selecting a studio or clicking manual entry */}
+      {showForm && (
         <>
-          <TouchableOpacity onPress={() => setMode('search')} style={styles.switchLink}>
-            <Text style={styles.switchLinkText}>Search for existing studio instead</Text>
-          </TouchableOpacity>
+          {/* Selected studio banner */}
+          {studioResult && (
+            <View style={styles.selectedStudio}>
+              <MaterialIcons name="check-circle" size={20} color={colors.success} />
+              <Text style={styles.selectedStudioText}>
+                <Text style={styles.selectedStudioName}>{studioResult.name}</Text> found! Complete the details below.
+              </Text>
+              <TouchableOpacity onPress={handleChangeStudio}>
+                <Text style={styles.changeLink}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-          <TouchableOpacity style={styles.photoContainer} onPress={handlePickPhoto}>
+          {/* Back to search link for manual entry */}
+          {!studioResult && (
+            <TouchableOpacity onPress={handleChangeStudio} style={styles.switchLink}>
+              <Text style={styles.switchLinkText}>Search for existing studio instead</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Studio Photo */}
+          <TouchableOpacity style={styles.avatarContainer} onPress={handlePickPhoto}>
             {studioPhotoUri ? (
-              <Image source={{ uri: studioPhotoUri }} style={styles.photo} />
+              <Image source={{ uri: studioPhotoUri }} style={styles.avatar} />
             ) : (
-              <View style={styles.photoPlaceholder}>
-                <MaterialIcons name="add-a-photo" size={32} color={colors.textMuted} />
-                <Text style={styles.photoLabel}>Studio Photo</Text>
+              <View style={styles.avatarPlaceholder}>
+                <MaterialIcons name="camera-alt" size={32} color={colors.textMuted} />
               </View>
             )}
+            <View style={styles.cameraOverlay}>
+              <MaterialIcons name="add-a-photo" size={16} color={colors.textPrimary} />
+            </View>
           </TouchableOpacity>
+          <Text style={styles.avatarCaption}>Tap to add a studio photo (optional)</Text>
 
+          {/* Studio Name */}
           <Input
             label="Studio Name"
             value={name}
@@ -225,19 +291,50 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
             error={errors.name}
           />
 
-          <Input
-            label="Studio Username"
-            value={username}
-            onChangeText={(text) => {
-              setUsername(text.toLowerCase());
-              if (text.length >= 3) checkUsernameAvailability(text.toLowerCase());
-            }}
-            placeholder="Choose a unique username"
-            error={errors.username}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          {/* Studio Username */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Studio Username</Text>
+            <View style={styles.usernameInputRow}>
+              <TextInput
+                style={[
+                  styles.usernameInput,
+                  errors.username ? styles.usernameInputError :
+                  usernameAvailable === true ? styles.usernameInputSuccess : null,
+                ]}
+                value={username}
+                onChangeText={(text) => {
+                  const lower = text.toLowerCase();
+                  setUsername(lower);
+                  setUsernameAvailable(null);
+                  checkUsernameAvailability(lower);
+                }}
+                placeholder="Choose a unique username"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <View style={styles.usernameIndicator}>
+                {checkingUsername && (
+                  <ActivityIndicator size="small" color={colors.accent} />
+                )}
+                {!checkingUsername && usernameAvailable === true && (
+                  <MaterialIcons name="check-circle" size={20} color={colors.success} />
+                )}
+                {!checkingUsername && usernameAvailable === false && (
+                  <MaterialIcons name="cancel" size={20} color={colors.error} />
+                )}
+              </View>
+            </View>
+            {errors.username ? (
+              <Text style={styles.usernameError}>{errors.username}</Text>
+            ) : usernameAvailable === true ? (
+              <Text style={styles.usernameSuccess}>Username is available</Text>
+            ) : (
+              <Text style={styles.usernameHint}>This will be your studio's unique URL</Text>
+            )}
+          </View>
 
+          {/* Bio */}
           <View>
             <Input
               label="Bio (optional)"
@@ -252,6 +349,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
             <Text style={styles.charCount}>{bio.length}/500</Text>
           </View>
 
+          {/* Location */}
           <LocationAutocomplete
             value={location}
             onChange={(loc, latLong) => {
@@ -260,8 +358,9 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
             }}
           />
 
+          {/* Studio Email */}
           <Input
-            label="Studio Email (optional)"
+            label="Studio Email"
             value={email}
             onChangeText={setEmail}
             placeholder="studio@example.com"
@@ -269,7 +368,11 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
             autoCapitalize="none"
             keyboardType="email-address"
           />
+          <Text style={styles.fieldHint}>
+            You can reuse your artist or client email if needed.
+          </Text>
 
+          {/* Phone */}
           <Input
             label="Phone (optional)"
             value={phone}
@@ -280,31 +383,10 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
         </>
       )}
 
-      {!isAuthenticated && (
+      {/* Account creation fields for new users */}
+      {showForm && !isAuthenticated && (
         <View style={styles.authSection}>
           <Text style={styles.authSectionTitle}>Create your account</Text>
-
-          {mode === 'search' && (
-            <>
-              <Input
-                label="Your Name"
-                value={name}
-                onChangeText={setName}
-                placeholder="Your full name"
-                error={errors.name}
-                autoCapitalize="words"
-              />
-              <Input
-                label="Email Address"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="your.email@example.com"
-                error={errors.email}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </>
-          )}
 
           <Input
             label="Password"
@@ -333,7 +415,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
         <Button
           title={studioResult?.id ? 'Claim Studio' : 'Create Studio'}
           onPress={handleSubmit}
-          disabled={checkingUsername}
+          disabled={!showForm || checkingUsername || usernameAvailable === false}
           loading={checkingUsername}
           style={styles.buttonHalf}
         />
@@ -372,10 +454,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   selectedStudioText: {
-    color: colors.textPrimary,
+    color: colors.textSecondary,
     fontSize: 14,
     marginLeft: 8,
     flex: 1,
+    flexShrink: 1,
+  },
+  selectedStudioName: {
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  changeLink: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 12,
   },
   switchLink: {
     alignItems: 'center',
@@ -386,19 +479,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  photoContainer: {
+  avatarContainer: {
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
-  photo: {
-    width: 120,
-    height: 120,
-    borderRadius: 12,
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
   },
-  photoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 12,
+  avatarPlaceholder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: colors.surfaceElevated,
     borderWidth: 2,
     borderColor: colors.border,
@@ -406,7 +499,74 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoLabel: {
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarCaption: {
+    color: colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  fieldHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: -12,
+    marginBottom: 8,
+  },
+  fieldContainer: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  usernameInputRow: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  usernameInput: {
+    backgroundColor: colors.inputBackground,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: 8,
+    color: colors.textPrimary,
+    fontSize: 16,
+    paddingHorizontal: 14,
+    paddingRight: 40,
+    paddingVertical: 12,
+  },
+  usernameInputError: {
+    borderColor: colors.error,
+  },
+  usernameInputSuccess: {
+    borderColor: colors.success,
+  },
+  usernameIndicator: {
+    position: 'absolute',
+    right: 12,
+    alignItems: 'center',
+  },
+  usernameError: {
+    color: colors.error,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  usernameSuccess: {
+    color: colors.success,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  usernameHint: {
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 4,

@@ -22,6 +22,8 @@ export interface RegisterData {
   password: string;
   password_confirmation: string;
   type?: 'artist' | 'user';
+  has_accepted_toc: boolean;
+  has_accepted_privacy_policy: boolean;
 }
 
 export interface ResetPasswordData {

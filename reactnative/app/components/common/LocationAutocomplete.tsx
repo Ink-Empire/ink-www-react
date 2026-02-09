@@ -10,6 +10,7 @@ import {
   Keyboard,
   Platform,
   PermissionsAndroid,
+  Modal,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Geolocation from '@react-native-community/geolocation';
@@ -84,6 +85,10 @@ export default function LocationAutocomplete({
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [gettingLocation, setGettingLocation] = useState(false);
   const [useMyLocation, setUseMyLocation] = useState(false);
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [manualCity, setManualCity] = useState('');
+  const [manualState, setManualState] = useState('');
+  const [preservedLatLong, setPreservedLatLong] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -113,7 +118,10 @@ export default function LocationAutocomplete({
           onChange(locationStr, latLong);
         } else {
           setUseMyLocation(false);
-          setInputValue('');
+          setManualCity('');
+          setManualState(geo.state || '');
+          setPreservedLatLong(latLong);
+          setManualEntryOpen(true);
         }
         setGettingLocation(false);
       },
@@ -197,6 +205,35 @@ export default function LocationAutocomplete({
   const handleBlur = useCallback(() => {
     setTimeout(() => setShowDropdown(false), 200);
   }, []);
+
+  const handleManualEntrySubmit = async () => {
+    const city = manualCity.trim();
+    const state = manualState.trim();
+    if (!city) return;
+
+    const locationString = state ? `${city}, ${state}` : city;
+
+    let latLong = preservedLatLong;
+    if (!latLong && state && apiKey) {
+      const stateResults = await searchPlaces(state, apiKey);
+      if (stateResults.length > 0) {
+        const details = await getPlaceDetails(stateResults[0].placeId, apiKey);
+        if (details) {
+          latLong = `${details.lat},${details.lng}`;
+        }
+      }
+    }
+
+    setInputValue(locationString);
+    onChange(locationString, latLong);
+    setManualEntryOpen(false);
+    setPreservedLatLong('');
+  };
+
+  const handleCloseManualEntry = () => {
+    setManualEntryOpen(false);
+    setPreservedLatLong('');
+  };
 
   return (
     <View style={styles.container}>
@@ -291,10 +328,88 @@ export default function LocationAutocomplete({
               ))}
             </ScrollView>
           )}
+
+          {inputValue.length >= 2 && !loading && predictions.length === 0 && showDropdown && (
+            <View style={styles.dropdown}>
+              <TouchableOpacity
+                style={styles.option}
+                onPress={() => {
+                  setShowDropdown(false);
+                  setManualCity('');
+                  setManualState('');
+                  setManualEntryOpen(true);
+                }}
+              >
+                <MaterialIcons
+                  name="edit-location"
+                  size={18}
+                  color={colors.accent}
+                  style={styles.optionIcon}
+                />
+                <View style={styles.optionText}>
+                  <Text style={styles.manualEntryText}>Can't find your city?</Text>
+                  <Text style={styles.secondaryText}>Enter it manually</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
         </>
       )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <Modal
+        visible={manualEntryOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCloseManualEntry}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Enter your location</Text>
+            <Text style={styles.modalSubtitle}>
+              We couldn't find your exact city. Please enter it manually.
+            </Text>
+            <Text style={styles.modalLabel}>City</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={manualCity}
+              onChangeText={setManualCity}
+              placeholder="Your city"
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+              maxLength={100}
+            />
+            <Text style={styles.modalLabel}>State / Province</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={manualState}
+              onChangeText={setManualState}
+              placeholder="Your state or province"
+              placeholderTextColor={colors.textMuted}
+              maxLength={100}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={handleCloseManualEntry}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalSaveButton,
+                  !manualCity.trim() && styles.modalSaveButtonDisabled,
+                ]}
+                onPress={handleManualEntrySubmit}
+                disabled={!manualCity.trim()}
+              >
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -403,5 +518,82 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 1,
+  },
+  manualEntryText: {
+    color: colors.accent,
+    fontSize: 15,
+    fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  modalLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  modalInput: {
+    backgroundColor: colors.inputBackground,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: 8,
+    color: colors.textPrimary,
+    fontSize: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 4,
+  },
+  modalCancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  modalCancelText: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalSaveButton: {
+    backgroundColor: colors.accent,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  modalSaveButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  modalSaveText: {
+    color: colors.background,
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

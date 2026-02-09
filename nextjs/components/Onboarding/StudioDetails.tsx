@@ -433,18 +433,19 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       newErrors.location = 'Location is required';
     }
 
-    // Email and password validation depends on authentication status
-    if (!isAuthenticated) {
-      // Email is required for new accounts
-      if (!email.trim()) {
-        newErrors.email = 'Email is required';
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        newErrors.email = 'Please enter a valid email address';
-      } else if (emailAvailable === false) {
-        newErrors.email = 'This email is already registered';
-      }
+    // Email is always required for studios
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
+    } else if (emailAvailable === false) {
+      newErrors.email = isAuthenticated
+        ? 'This email is already registered to another studio'
+        : 'This email is already registered';
+    }
 
-      // Password is required for new accounts
+    // Password validation for new accounts only
+    if (!isAuthenticated) {
       if (!password) {
         newErrors.password = 'Password is required';
       } else if (password.length < 8) {
@@ -453,15 +454,6 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
       if (password && password !== passwordConfirmation) {
         newErrors.passwordConfirmation = 'Passwords do not match';
-      }
-    } else {
-      // For authenticated users, email is optional (studio contact email)
-      if (email.trim()) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-          newErrors.email = 'Please enter a valid email address';
-        } else if (emailAvailable === false) {
-          newErrors.email = 'This email is already registered to another studio';
-        }
       }
     }
 
@@ -844,7 +836,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
           {/* Email Field - Required for new accounts, optional for authenticated users */}
           <TextField
-            label={isAuthenticated ? "Studio Email (Optional)" : "Studio Email"}
+            label="Studio Email"
             name="studio_email"
             value={email}
             onChange={(e) => setEmail(e.target.value.toLowerCase())}
@@ -853,11 +845,10 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             helperText={
               errors.email ||
               (emailAvailable === true ? 'Email available!' :
-               isAuthenticated ? 'A public contact email for your studio' :
-               'This will be your login email')
+               'You can reuse your artist or client email if needed.')
             }
             fullWidth
-            required={!isAuthenticated}
+            required
             type="email"
             autoComplete="email"
             InputProps={{

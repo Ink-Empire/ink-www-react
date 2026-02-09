@@ -49,7 +49,7 @@ export default function TattooIntentStep({ onComplete, onBack }: TattooIntentSte
   const [tagResults, setTagResults] = useState<TagResult[]>([]);
   const [selectedThemes, setSelectedThemes] = useState<ThemeItem[]>([]);
   const [description, setDescription] = useState('');
-  const [allowArtistContact, setAllowArtistContact] = useState(false);
+  const [allowArtistContact, setAllowArtistContact] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -445,25 +445,26 @@ const styles = StyleSheet.create({
   },
   switchRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: colors.surfaceElevated,
     borderRadius: 8,
-    padding: 12,
+    padding: 14,
     marginBottom: 16,
   },
   switchTextContainer: {
     flex: 1,
     marginRight: 12,
+    paddingTop: 2,
   },
   switchLabel: {
     color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
+    marginBottom: 4,
   },
   switchDescription: {
     color: colors.textMuted,
     fontSize: 13,
-    marginTop: 2,
   },
   buttons: {
     flexDirection: 'row',

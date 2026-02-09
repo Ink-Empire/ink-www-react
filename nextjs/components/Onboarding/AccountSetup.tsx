@@ -7,6 +7,8 @@ import {
   TextField,
   Alert,
   CircularProgress,
+  Checkbox,
+  Link,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -18,6 +20,8 @@ interface AccountSetupProps {
     email: string;
     password: string;
     password_confirmation: string;
+    has_accepted_toc: boolean;
+    has_accepted_privacy_policy: boolean;
   }) => void;
   onBack: () => void;
   userType: 'client' | 'artist' | 'studio';
@@ -42,6 +46,8 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [acceptedToc, setAcceptedToc] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
 
   // Email availability state
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
@@ -136,6 +142,10 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
       newErrors.passwordConfirmation = 'Passwords do not match';
     }
 
+    if (!acceptedToc || !acceptedPrivacy) {
+      newErrors.terms = 'You must accept both the Terms of Service and Privacy Policy';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -154,6 +164,8 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
         email: email.trim(),
         password: password.trim(),
         password_confirmation: passwordConfirmation.trim(),
+        has_accepted_toc: acceptedToc,
+        has_accepted_privacy_policy: acceptedPrivacy,
       });
     } catch (error) {
       console.error('Error submitting account setup:', error);
@@ -433,7 +445,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
             <Button
               type="submit"
               variant="contained"
-              disabled={isSubmitting || isCheckingEmail || emailAvailable === false || !allPasswordRequirementsMet()}
+              disabled={isSubmitting || isCheckingEmail || emailAvailable === false || !allPasswordRequirementsMet() || !acceptedToc || !acceptedPrivacy}
               startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
               sx={{
                 backgroundColor: colors.accent,
@@ -456,17 +468,63 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
         </Stack>
       </form>
 
-      <Typography
-        variant="body2"
-        sx={{
-          mt: 3,
-          textAlign: 'center',
-          color: 'text.secondary',
-          fontStyle: 'italic',
-        }}
-      >
-        By creating an account, you agree to our Terms of Service and Privacy Policy.
-      </Typography>
+      <Box sx={{ mt: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+          <Checkbox
+            checked={acceptedToc}
+            onChange={(e) => setAcceptedToc(e.target.checked)}
+            sx={{
+              color: colors.textMuted,
+              '&.Mui-checked': { color: colors.accent },
+              p: 0,
+              mr: 1,
+              mt: 0.25,
+            }}
+          />
+          <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+            I agree to the{' '}
+            <Link
+              href="/terms-of-service"
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ color: colors.accent, textDecorationColor: colors.accent }}
+            >
+              Terms of Service
+            </Link>
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', mt: 1.5 }}>
+          <Checkbox
+            checked={acceptedPrivacy}
+            onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+            sx={{
+              color: colors.textMuted,
+              '&.Mui-checked': { color: colors.accent },
+              p: 0,
+              mr: 1,
+              mt: 0.25,
+            }}
+          />
+          <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+            I agree to the{' '}
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ color: colors.accent, textDecorationColor: colors.accent }}
+            >
+              Privacy Policy
+            </Link>
+          </Typography>
+        </Box>
+
+        {errors.terms && (
+          <Typography variant="caption" sx={{ color: colors.error, mt: 1, display: 'block' }}>
+            {errors.terms}
+          </Typography>
+        )}
+      </Box>
     </Box>
   );
 };

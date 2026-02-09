@@ -68,29 +68,20 @@ export default function StylesSelectionStep({
 
       <View style={componentStyles.buttons}>
         <Button title="Back" onPress={onBack} variant="secondary" style={componentStyles.buttonHalf} />
-        {userType === 'client' ? (
-          <View style={componentStyles.buttonHalf}>
-            {selectedStyles.length === 0 ? (
-              <Button
-                title="Skip for now"
-                onPress={() => onComplete([])}
-                variant="outline"
-              />
-            ) : (
-              <Button
-                title="Continue"
-                onPress={() => onComplete(selectedStyles)}
-              />
-            )}
-          </View>
-        ) : (
-          <Button
-            title="Continue"
-            onPress={() => onComplete(selectedStyles)}
-            disabled={selectedStyles.length === 0}
-            style={componentStyles.buttonHalf}
-          />
-        )}
+        <View style={componentStyles.buttonHalf}>
+          {selectedStyles.length === 0 ? (
+            <Button
+              title="Skip for now"
+              onPress={() => onComplete([])}
+              variant="outline"
+            />
+          ) : (
+            <Button
+              title="Continue"
+              onPress={() => onComplete(selectedStyles)}
+            />
+          )}
+        </View>
       </View>
     </View>
   );

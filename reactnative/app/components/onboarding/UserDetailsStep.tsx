@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { launchImageLibrary } from 'react-native-image-picker';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import { colors } from '../../../lib/colors';
 import { api } from '../../../lib/api';
 import type { ImageFile } from '../../../lib/s3Upload';
@@ -43,15 +43,21 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
   const [studioAffiliation, setStudioAffiliation] = useState<StudioOption | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
 
   const checkUsernameAvailability = useCallback(async (value: string) => {
-    if (value.length < 3) return;
+    if (value.length < 3) {
+      setUsernameAvailable(null);
+      return;
+    }
     setCheckingUsername(true);
     try {
       const response = await api.post<any>('/check-availability', { username: value });
       if (!response.available) {
+        setUsernameAvailable(false);
         setErrors(prev => ({ ...prev, username: 'Username is already taken' }));
       } else {
+        setUsernameAvailable(true);
         setErrors(prev => {
           const next = { ...prev };
           delete next.username;
@@ -59,7 +65,7 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
         });
       }
     } catch {
-      // Ignore network errors during check
+      setUsernameAvailable(null);
     } finally {
       setCheckingUsername(false);
     }
@@ -67,24 +73,21 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
 
   const handlePickImage = async () => {
     try {
-      const result = await launchImageLibrary({
+      const image = await ImageCropPicker.openPicker({
         mediaType: 'photo',
-        quality: 0.8,
-        maxWidth: 800,
-        maxHeight: 800,
+        cropping: true,
+        cropperCircleOverlay: true,
+        width: 800,
+        height: 800,
+        compressImageQuality: 0.8,
       });
 
-      if (result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-        if (asset.uri) {
-          setProfileImageUri(asset.uri);
-          setProfileImage({
-            uri: asset.uri,
-            type: asset.type || 'image/jpeg',
-            name: asset.fileName || 'profile.jpg',
-          });
-        }
-      }
+      setProfileImageUri(image.path);
+      setProfileImage({
+        uri: image.path,
+        type: image.mime || 'image/jpeg',
+        name: image.filename || 'profile.jpg',
+      });
     } catch {
       // User cancelled or error
     }
@@ -95,10 +98,14 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
     if (!name.trim()) newErrors.name = 'Name is required';
     if (!username.trim()) {
       newErrors.username = 'Username is required';
+    } else if (username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
     } else if (!/^[a-zA-Z0-9._]+$/.test(username)) {
       newErrors.username = 'Only letters, numbers, periods, and underscores';
     } else if (username.length > 30) {
       newErrors.username = 'Username must be 30 characters or less';
+    } else if (usernameAvailable === false) {
+      newErrors.username = 'Username is already taken';
     }
     if (userType === 'artist') {
       if (!bio.trim()) {
@@ -163,18 +170,47 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
         autoCapitalize="words"
       />
 
-      <Input
-        label="Username"
-        value={username}
-        onChangeText={(text) => {
-          setUsername(text.toLowerCase());
-          if (text.length >= 3) checkUsernameAvailability(text.toLowerCase());
-        }}
-        placeholder="Choose a unique username"
-        error={errors.username}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
+      <View style={styles.usernameContainer}>
+        <Text style={styles.usernameLabel}>Username</Text>
+        <View style={styles.usernameInputRow}>
+          <TextInput
+            style={[
+              styles.usernameInput,
+              errors.username ? styles.usernameInputError :
+              usernameAvailable === true ? styles.usernameInputSuccess : null,
+            ]}
+            value={username}
+            onChangeText={(text) => {
+              const lower = text.toLowerCase();
+              setUsername(lower);
+              setUsernameAvailable(null);
+              if (lower.length >= 3) checkUsernameAvailability(lower);
+            }}
+            placeholder="Choose a unique username"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <View style={styles.usernameIndicator}>
+            {checkingUsername && (
+              <ActivityIndicator size="small" color={colors.accent} />
+            )}
+            {!checkingUsername && usernameAvailable === true && (
+              <MaterialIcons name="check-circle" size={20} color={colors.success} />
+            )}
+            {!checkingUsername && usernameAvailable === false && (
+              <MaterialIcons name="cancel" size={20} color={colors.error} />
+            )}
+          </View>
+        </View>
+        {errors.username ? (
+          <Text style={styles.usernameError}>{errors.username}</Text>
+        ) : usernameAvailable === true ? (
+          <Text style={styles.usernameSuccess}>Username is available</Text>
+        ) : (
+          <Text style={styles.usernameHint}>This will be your unique identifier on the platform</Text>
+        )}
+      </View>
 
       <View>
         <Input
@@ -250,7 +286,7 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
         <Button
           title="Continue"
           onPress={handleContinue}
-          disabled={checkingUsername}
+          disabled={checkingUsername || usernameAvailable === false}
           loading={checkingUsername}
           style={styles.buttonHalf}
         />
@@ -316,6 +352,56 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 20,
+  },
+  usernameContainer: {
+    marginBottom: 16,
+  },
+  usernameLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  usernameInputRow: {
+    position: 'relative',
+  },
+  usernameInput: {
+    backgroundColor: colors.inputBackground,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: 8,
+    color: colors.textPrimary,
+    fontSize: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingRight: 40,
+  },
+  usernameInputError: {
+    borderColor: colors.error,
+  },
+  usernameInputSuccess: {
+    borderColor: colors.success,
+  },
+  usernameIndicator: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  usernameError: {
+    color: colors.error,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  usernameSuccess: {
+    color: colors.success,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  usernameHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
   },
   charCount: {
     color: colors.textMuted,

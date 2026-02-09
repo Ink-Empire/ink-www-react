@@ -13,7 +13,7 @@ import {
   SafeAreaView,
   Dimensions,
 } from 'react-native';
-import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
@@ -79,41 +79,49 @@ export default function UploadScreen({ navigation }: any) {
 
   // -- Image handling --
 
-  const handleAddPhotos = useCallback(() => {
+  const handleAddPhotos = useCallback(async () => {
     const remaining = MAX_IMAGES - images.length;
     if (remaining <= 0) {
       showSnackbar(`Maximum ${MAX_IMAGES} images allowed`, 'error');
       return;
     }
-    launchImageLibrary(
-      { mediaType: 'photo', selectionLimit: remaining, quality: 0.8 },
-      (response) => {
-        if (response.didCancel || response.errorCode) return;
-        const newImages: ImageFile[] = (response.assets || []).map(asset => ({
-          uri: asset.uri!,
-          type: asset.type || 'image/jpeg',
-          name: asset.fileName || `photo_${Date.now()}.jpg`,
-        }));
-        setImages(prev => [...prev, ...newImages].slice(0, MAX_IMAGES));
-      },
-    );
+    try {
+      const results = await ImageCropPicker.openPicker({
+        mediaType: 'photo',
+        multiple: true,
+        maxFiles: remaining,
+        compressImageQuality: 0.8,
+      });
+
+      const newImages: ImageFile[] = results.map((img) => ({
+        uri: img.path,
+        type: img.mime || 'image/jpeg',
+        name: img.filename || `photo_${Date.now()}.jpg`,
+      }));
+      setImages(prev => [...prev, ...newImages].slice(0, MAX_IMAGES));
+    } catch {
+      // User cancelled
+    }
   }, [images.length, showSnackbar]);
 
-  const handleTakePhoto = useCallback(() => {
+  const handleTakePhoto = useCallback(async () => {
     if (images.length >= MAX_IMAGES) {
       showSnackbar(`Maximum ${MAX_IMAGES} images allowed`, 'error');
       return;
     }
-    launchCamera({ mediaType: 'photo', quality: 0.8 }, (response) => {
-      if (response.didCancel || response.errorCode) return;
-      const asset = response.assets?.[0];
-      if (asset?.uri) {
-        setImages(prev => [
-          ...prev,
-          { uri: asset.uri!, type: asset.type || 'image/jpeg', name: asset.fileName || `photo_${Date.now()}.jpg` },
-        ].slice(0, MAX_IMAGES));
-      }
-    });
+    try {
+      const image = await ImageCropPicker.openCamera({
+        mediaType: 'photo',
+        compressImageQuality: 0.8,
+      });
+
+      setImages(prev => [
+        ...prev,
+        { uri: image.path, type: image.mime || 'image/jpeg', name: image.filename || `photo_${Date.now()}.jpg` },
+      ].slice(0, MAX_IMAGES));
+    } catch {
+      // User cancelled
+    }
   }, [images.length, showSnackbar]);
 
   const handleRemoveImage = useCallback((index: number) => {

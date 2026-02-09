@@ -170,6 +170,8 @@ export interface RegisterData {
   preferred_styles?: number[];
   experience_level?: string;
   studio_id?: number;
+  has_accepted_toc: boolean;
+  has_accepted_privacy_policy: boolean;
 }
 
 export function createAuthApi(api: ReturnType<typeof createApiClient>) {

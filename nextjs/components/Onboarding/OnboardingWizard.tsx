@@ -43,6 +43,8 @@ export interface OnboardingData {
     email: string;
     password: string;
     password_confirmation: string;
+    has_accepted_toc: boolean;
+    has_accepted_privacy_policy: boolean;
   };
   // Studio-specific details (separate from owner's userDetails)
   studioDetails?: {

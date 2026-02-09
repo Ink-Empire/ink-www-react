@@ -102,6 +102,8 @@ export default function RegisterScreen({ navigation }: Props) {
     email: string;
     password: string;
     password_confirmation: string;
+    has_accepted_toc: boolean;
+    has_accepted_privacy_policy: boolean;
   }) => {
     if (!data.userDetails) return;
 
@@ -122,6 +124,8 @@ export default function RegisterScreen({ navigation }: Props) {
         preferred_styles: data.userType === 'client' ? data.selectedStyles : undefined,
         experience_level: data.experienceLevel,
         studio_id: data.userDetails.studioAffiliation?.studioId,
+        has_accepted_toc: credentials.has_accepted_toc,
+        has_accepted_privacy_policy: credentials.has_accepted_privacy_policy,
       });
 
       // Upload profile photo after registration
@@ -202,7 +206,22 @@ export default function RegisterScreen({ navigation }: Props) {
           location: studioDetails.location,
           location_lat_long: studioDetails.locationLatLong,
           type: 'studio',
+          has_accepted_toc: true,
+          has_accepted_privacy_policy: true,
         });
+
+        // Upload studio photo using the registration token before storing pending data
+        let uploadedImageId: number | undefined;
+        if (studioDetails.studioPhoto) {
+          try {
+            const uploaded = await uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio');
+            if (uploaded.length > 0) {
+              uploadedImageId = uploaded[0].id;
+            }
+          } catch {
+            console.error('Studio photo upload failed');
+          }
+        }
 
         // Store pending studio data for after verification
         await AsyncStorage.setItem('pending_studio', JSON.stringify({
@@ -212,6 +231,8 @@ export default function RegisterScreen({ navigation }: Props) {
           bio: studioDetails.bio,
           phone: studioDetails.phone,
           location: studioDetails.location,
+          locationLatLong: studioDetails.locationLatLong,
+          uploadedImageId,
         }));
 
         navigation.navigate('VerifyEmail', { email: studioDetails.email });
