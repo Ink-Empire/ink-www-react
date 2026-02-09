@@ -32,7 +32,8 @@ export default function StudioDetail() {
   const router = useRouter();
   const { slug } = router.query;
   const { studio, loading: studioLoading, error: studioError } = useStudio(slug as string);
-  const { artists } = useStudioArtists(slug as string);
+  const { artists: allArtists } = useStudioArtists(slug as string);
+  const artists = useMemo(() => (allArtists || []).filter((a: any) => a.is_verified), [allArtists]);
   const { gallery } = useStudioGallery(slug as string);
   const { hours: workingHours } = useStudioHours(slug as string);
   const { user, isAuthenticated } = useAuth();
@@ -1054,17 +1055,19 @@ export default function StudioDetail() {
                               </Typography>
                             )}
                           </Box>
-                          <Box sx={{
-                            px: 1,
-                            py: 0.25,
-                            borderRadius: '100px',
-                            fontSize: '0.7rem',
-                            fontWeight: 500,
-                            bgcolor: artist.books_open ? `${colors.success}26` : `${colors.accent}26`,
-                            color: artist.books_open ? colors.success : colors.accent
-                          }}>
-                            {artist.books_open ? 'Open' : 'Booked'}
-                          </Box>
+                          {artist.books_open && (
+                            <Box sx={{
+                              px: 1,
+                              py: 0.25,
+                              borderRadius: '100px',
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
+                              bgcolor: `${colors.success}26`,
+                              color: colors.success
+                            }}>
+                              Books Open
+                            </Box>
+                          )}
                         </Box>
                       </Link>
                     ))}
