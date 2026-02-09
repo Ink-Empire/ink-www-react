@@ -25,10 +25,9 @@ export const artistService = {
     });
   },
 
-  // Search artists with pagination (public access, but sends auth if available for block filtering)
+  // Search artists with pagination (public access)
   search: async (params: Record<string, any>): Promise<{
     response: IArtist[];
-    unclaimed_studios?: any[];
     total: number;
     page: number;
     per_page: number;

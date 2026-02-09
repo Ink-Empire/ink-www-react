@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { artistService } from '@/services/artistService';
+import { tattooService } from '@/services/tattooService';
 import { ArtistType } from '@/models/artist.interface';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 
@@ -14,7 +15,7 @@ export interface UnclaimedStudio {
 }
 
 // Hook for fetching artists list with infinite scroll support
-export function useArtists(searchParams?: Record<string, any>) {
+export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: number[]) {
   const [artists, setArtists] = useState<ArtistType[]>([]);
   const [unclaimedStudios, setUnclaimedStudios] = useState<UnclaimedStudio[]>([]);
   const [total, setTotal] = useState<number>(0);
@@ -39,6 +40,18 @@ export function useArtists(searchParams?: Record<string, any>) {
     }
   }, [searchParamsKey]);
 
+  // Build request body from search params
+  const buildRequestBody = useCallback((pageNum: number) => {
+    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
+    if (requestBody.locationCoordsString) {
+      requestBody.locationCoords = requestBody.locationCoordsString;
+      delete requestBody.locationCoordsString;
+    } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
+      requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
+    }
+    return requestBody;
+  }, [searchParams]);
+
   // Fetch artists for a specific page
   const fetchArtists = useCallback(async (pageNum: number, append: boolean = false) => {
     if (pageNum === 1) {
@@ -48,22 +61,12 @@ export function useArtists(searchParams?: Record<string, any>) {
     }
 
     try {
-      // Construct the request body from searchParams if provided
-      const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
-      if (requestBody.locationCoordsString) {
-        requestBody.locationCoords = requestBody.locationCoordsString;
-        delete requestBody.locationCoordsString;
-      } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
-        requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
-      }
-
+      const requestBody = buildRequestBody(pageNum);
       console.log(`Fetching artists page ${pageNum}:`, requestBody);
 
       const response = await artistService.search(requestBody);
 
-      // Process the response
       let artistsData: ArtistType[] = [];
-      let unclaimedStudiosData: UnclaimedStudio[] = [];
       let totalCount = 0;
       let hasMorePages = false;
 
@@ -72,9 +75,6 @@ export function useArtists(searchParams?: Record<string, any>) {
           artistsData = response.response;
           totalCount = response.total ?? 0;
           hasMorePages = response.has_more ?? false;
-          if (response.unclaimed_studios && Array.isArray(response.unclaimed_studios)) {
-            unclaimedStudiosData = response.unclaimed_studios;
-          }
         } else if (Array.isArray(response)) {
           artistsData = response as unknown as ArtistType[];
           totalCount = artistsData.length;
@@ -86,7 +86,6 @@ export function useArtists(searchParams?: Record<string, any>) {
         setArtists(prev => [...prev, ...artistsData]);
       } else {
         setArtists(artistsData);
-        setUnclaimedStudios(unclaimedStudiosData);
       }
       setTotal(totalCount);
       setHasMore(hasMorePages);
@@ -98,7 +97,33 @@ export function useArtists(searchParams?: Record<string, any>) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchParams]);
+  }, [buildRequestBody]);
+
+  // Fetch unclaimed studios asynchronously (only on first page)
+  useEffect(() => {
+    const requestBody = buildRequestBody(1);
+    const locationCoords = requestBody.locationCoords;
+    const useAnyLocation = requestBody.useAnyLocation;
+    const isDemoData = requestBody.is_demo;
+
+    if (!locationCoords || useAnyLocation || isDemoData) {
+      setUnclaimedStudios([]);
+      return;
+    }
+
+    tattooService.fetchUnclaimedStudios(requestBody)
+      .then((res) => {
+        if (res?.unclaimed_studios && Array.isArray(res.unclaimed_studios)) {
+          setUnclaimedStudios(res.unclaimed_studios);
+        } else {
+          setUnclaimedStudios([]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch unclaimed studios:', err);
+        setUnclaimedStudios([]);
+      });
+  }, [searchParamsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial fetch when search params change
   useEffect(() => {
@@ -114,8 +139,17 @@ export function useArtists(searchParams?: Record<string, any>) {
     }
   }, [loadingMore, hasMore, page, fetchArtists]);
 
+  // Client-side blocked user filtering
+  const filteredArtists = useMemo(() => {
+    if (!blockedUserIds || blockedUserIds.length === 0) return artists;
+    return artists.filter(artist => {
+      const artistId = artist.id;
+      return !artistId || !blockedUserIds.includes(artistId);
+    });
+  }, [artists, blockedUserIds]);
+
   return {
-    artists,
+    artists: filteredArtists,
     unclaimedStudios,
     total,
     loading,

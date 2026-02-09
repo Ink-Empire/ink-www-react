@@ -76,7 +76,7 @@ export default function ArtistList() {
         }
     };
     const [loginModalOpen, setLoginModalOpen] = useState(false);
-    const { artists, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useArtists(searchParams);
+    const { artists, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useArtists(searchParams, user?.blocked_user_ids);
 
     // Ref for infinite scroll sentinel
     const sentinelRef = useRef<HTMLDivElement>(null);

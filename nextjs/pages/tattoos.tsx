@@ -194,7 +194,7 @@ export default function TattoosPage() {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   // Fetch tattoos based on search params
-  const { tattoos, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useTattoos(searchParams);
+  const { tattoos, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useTattoos(searchParams, me?.blocked_user_ids);
 
   // Ref for infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement>(null);

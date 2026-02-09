@@ -25,7 +25,6 @@ export const tattooService = {
   // Search tattoos with pagination
   search: async (params: Record<string, any>): Promise<{
     response: TattooType[];
-    unclaimed_studios?: any[];
     total: number;
     page: number;
     per_page: number;
@@ -90,6 +89,13 @@ export const tattooService = {
   // Remove tags from a tattoo (requires auth)
   removeTags: async (id: number | string, tagIds: number[]): Promise<any> => {
     return api.post(`/tattoos/${id}/tags/remove`, { tag_ids: tagIds }, { requiresAuth: true });
+  },
+
+  // Fetch unclaimed studios (async, separate from search)
+  fetchUnclaimedStudios: async (params: Record<string, any>): Promise<{ unclaimed_studios: any[] }> => {
+    return api.post('/unclaimed-studios', params, {
+      requiresAuth: false,
+    });
   },
 
   // Get tattoo with full details including tags (public access)
