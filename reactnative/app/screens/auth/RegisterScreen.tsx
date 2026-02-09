@@ -128,24 +128,20 @@ export default function RegisterScreen({ navigation }: Props) {
         has_accepted_privacy_policy: credentials.has_accepted_privacy_policy,
       });
 
-      // Upload profile photo after registration
+      // Fire off photo upload and lead creation in the background
+      // Don't block navigation to the verify email screen
       if (data.userDetails.profileImage) {
-        await uploadProfilePhoto(data.userDetails.profileImage);
+        uploadProfilePhoto(data.userDetails.profileImage);
       }
 
-      // Create lead for clients with tattoo intent
       if (data.userType === 'client' && data.tattooIntent && data.tattooIntent.timing) {
-        try {
-          await leadService.create({
-            timing: data.tattooIntent.timing,
-            tag_ids: data.tattooIntent.tagIds,
-            custom_themes: data.tattooIntent.customThemes,
-            description: data.tattooIntent.description,
-            allow_artist_contact: data.tattooIntent.allowArtistContact,
-          });
-        } catch (err) {
-          console.error('Lead creation failed:', err);
-        }
+        leadService.create({
+          timing: data.tattooIntent.timing,
+          tag_ids: data.tattooIntent.tagIds,
+          custom_themes: data.tattooIntent.customThemes,
+          description: data.tattooIntent.description,
+          allow_artist_contact: data.tattooIntent.allowArtistContact,
+        }).catch(err => console.error('Lead creation failed:', err));
       }
 
       // Set user in AuthContext — VerifyEmailGate will show automatically
@@ -181,18 +177,14 @@ export default function RegisterScreen({ navigation }: Props) {
           });
         }
 
+        // Fire off photo upload in the background
         if (studioDetails.studioPhoto) {
-          try {
-            const uploaded = await uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio');
-            if (uploaded.length > 0) {
-              // Studio photo uploaded, backend handles association
-            }
-          } catch {
-            console.error('Studio photo upload failed');
-          }
+          uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio')
+            .catch(() => console.error('Studio photo upload failed'));
         }
 
-        navigation.navigate('Login');
+        // Refresh user so AuthContext picks up the new studio
+        await refreshUser();
       } else {
         // New user - register first, then handle studio
         await register({
@@ -210,17 +202,10 @@ export default function RegisterScreen({ navigation }: Props) {
           has_accepted_privacy_policy: true,
         });
 
-        // Upload studio photo using the registration token before storing pending data
-        let uploadedImageId: number | undefined;
+        // Fire off photo upload in the background
         if (studioDetails.studioPhoto) {
-          try {
-            const uploaded = await uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio');
-            if (uploaded.length > 0) {
-              uploadedImageId = uploaded[0].id;
-            }
-          } catch {
-            console.error('Studio photo upload failed');
-          }
+          uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio')
+            .catch(() => console.error('Studio photo upload failed'));
         }
 
         // Store pending studio data for after verification
@@ -232,10 +217,11 @@ export default function RegisterScreen({ navigation }: Props) {
           phone: studioDetails.phone,
           location: studioDetails.location,
           locationLatLong: studioDetails.locationLatLong,
-          uploadedImageId,
         }));
 
-        navigation.navigate('VerifyEmail', { email: studioDetails.email });
+        // Set user in AuthContext — VerifyEmailGate will show automatically
+        // and poll until email is verified, then transition to the main app
+        await refreshUser();
       }
     } catch (err: any) {
       const message = err.data?.message || err.message || 'Registration failed. Please try again.';
@@ -309,6 +295,7 @@ export default function RegisterScreen({ navigation }: Props) {
               onComplete={handleSubmit}
               onBack={handleBack}
               userType="client"
+              loading={loading}
             />
           );
       }
@@ -345,6 +332,7 @@ export default function RegisterScreen({ navigation }: Props) {
               onComplete={handleSubmit}
               onBack={handleBack}
               userType="artist"
+              loading={loading}
             />
           );
       }

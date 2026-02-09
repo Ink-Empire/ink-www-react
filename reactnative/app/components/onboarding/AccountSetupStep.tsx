@@ -17,9 +17,10 @@ interface AccountSetupStepProps {
   }) => void;
   onBack: () => void;
   userType?: 'client' | 'artist' | 'studio';
+  loading?: boolean;
 }
 
-export default function AccountSetupStep({ onComplete, onBack, userType = 'client' }: AccountSetupStepProps) {
+export default function AccountSetupStep({ onComplete, onBack, userType = 'client', loading = false }: AccountSetupStepProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -105,7 +106,7 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
     });
   };
 
-  const isDisabled = emailStatus === 'taken' || emailStatus === 'checking' || !allRequirementsMet(password) || !acceptedToc || !acceptedPrivacy;
+  const isDisabled = loading || emailStatus === 'taken' || emailStatus === 'checking' || !allRequirementsMet(password) || !acceptedToc || !acceptedPrivacy;
 
   const renderEmailIndicator = () => {
     if (emailStatus === 'checking') {
@@ -163,11 +164,12 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
       />
 
       <View style={styles.buttons}>
-        <Button title="Back" onPress={onBack} variant="secondary" style={styles.buttonHalf} />
+        <Button title="Back" onPress={onBack} variant="secondary" style={styles.buttonHalf} disabled={loading} />
         <Button
-          title="Create Account"
+          title={loading ? "Creating..." : "Create Account"}
           onPress={handleComplete}
           disabled={isDisabled}
+          loading={loading}
           style={styles.buttonHalf}
         />
       </View>
