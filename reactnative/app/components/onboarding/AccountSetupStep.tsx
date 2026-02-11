@@ -131,8 +131,9 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
           label="Email Address"
           value={email}
           onChangeText={(text) => {
-            setEmail(text);
-            checkEmailAvailability(text);
+            const trimmed = text.replace(/\s/g, '');
+            setEmail(trimmed);
+            checkEmailAvailability(trimmed);
           }}
           placeholder="your.email@example.com"
           error={errors.email}

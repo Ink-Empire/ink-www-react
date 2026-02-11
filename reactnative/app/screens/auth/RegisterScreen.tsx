@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../../../lib/colors';
 import { api } from '../../../lib/api';
@@ -160,13 +159,14 @@ export default function RegisterScreen({ navigation }: Props) {
     try {
       if (data.studioOwner?.isAuthenticated) {
         // Existing user - create or claim studio directly
+        let studioResponse: any;
         if (studioDetails.studioResult?.id) {
-          await studioService.claim(studioDetails.studioResult.id, {
+          studioResponse = await studioService.claim(studioDetails.studioResult.id, {
             bio: studioDetails.bio,
             phone: studioDetails.phone,
           });
         } else {
-          await studioService.lookupOrCreate({
+          studioResponse = await studioService.lookupOrCreate({
             name: studioDetails.name,
             username: studioDetails.username,
             bio: studioDetails.bio,
@@ -177,19 +177,30 @@ export default function RegisterScreen({ navigation }: Props) {
           });
         }
 
-        // Fire off photo upload in the background
-        if (studioDetails.studioPhoto) {
-          uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio')
-            .catch(() => console.error('Studio photo upload failed'));
+        // Upload photo and associate with both studio and user profile
+        const studioId = studioResponse?.studio?.id;
+        if (studioDetails.studioPhoto && studioId) {
+          try {
+            const uploaded = await uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio');
+            if (uploaded.length > 0) {
+              const imageId = uploaded[0].id;
+              await Promise.all([
+                studioService.uploadImage(studioId, imageId),
+                userService.uploadProfilePhoto(imageId),
+              ]);
+            }
+          } catch (err) {
+            console.error('Studio photo upload/association failed:', err);
+          }
         }
 
         // Refresh user so AuthContext picks up the new studio
         await refreshUser();
       } else {
-        // New user - register first, then handle studio
-        await register({
+        // New user - register first, studio is created in the backend
+        const response = await register({
           name: studioDetails.name,
-          email: studioDetails.email,
+          email: studioDetails.accountEmail || studioDetails.email,
           password: studioDetails.password || '',
           password_confirmation: studioDetails.password_confirmation || '',
           username: studioDetails.username,
@@ -198,26 +209,32 @@ export default function RegisterScreen({ navigation }: Props) {
           location: studioDetails.location,
           location_lat_long: studioDetails.locationLatLong,
           type: 'studio',
+          studio_email: studioDetails.email,
+          studio_phone: studioDetails.phone,
+          claim_studio_id: studioDetails.studioResult?.id,
           has_accepted_toc: true,
           has_accepted_privacy_policy: true,
         });
 
-        // Fire off photo upload in the background
+        // Upload photo to S3 and associate with both user and studio
+        const studioId = response?.studio?.id;
         if (studioDetails.studioPhoto) {
-          uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio')
-            .catch(() => console.error('Studio photo upload failed'));
+          try {
+            const uploaded = await uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio');
+            if (uploaded.length > 0) {
+              const imageId = uploaded[0].id;
+              const promises: Promise<any>[] = [
+                userService.uploadProfilePhoto(imageId),
+              ];
+              if (studioId) {
+                promises.push(studioService.uploadImage(studioId, imageId));
+              }
+              await Promise.all(promises);
+            }
+          } catch (err) {
+            console.error('Studio photo upload/association failed:', err);
+          }
         }
-
-        // Store pending studio data for after verification
-        await AsyncStorage.setItem('pending_studio', JSON.stringify({
-          studioResult: studioDetails.studioResult,
-          name: studioDetails.name,
-          username: studioDetails.username,
-          bio: studioDetails.bio,
-          phone: studioDetails.phone,
-          location: studioDetails.location,
-          locationLatLong: studioDetails.locationLatLong,
-        }));
 
         // Set user in AuthContext — VerifyEmailGate will show automatically
         // and poll until email is verified, then transition to the main app

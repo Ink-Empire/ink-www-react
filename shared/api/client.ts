@@ -170,6 +170,9 @@ export interface RegisterData {
   preferred_styles?: number[];
   experience_level?: string;
   studio_id?: number;
+  studio_email?: string;
+  studio_phone?: string;
+  claim_studio_id?: number;
   has_accepted_toc: boolean;
   has_accepted_privacy_policy: boolean;
 }

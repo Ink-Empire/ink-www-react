@@ -54,7 +54,7 @@ interface AuthContextType {
   isEmailVerified: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  register: (data: RegisterData) => Promise<any>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
   toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number) => Promise<void>;
@@ -69,7 +69,7 @@ const AuthContext = createContext<AuthContextType>({
   isEmailVerified: false,
   error: null,
   login: async () => {},
-  register: async () => {},
+  register: async () => ({}),
   logout: async () => {},
   updateUser: async () => {},
   toggleFavorite: async () => {},
@@ -171,13 +171,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const register = useCallback(async (data: RegisterData) => {
+  const register = useCallback(async (data: RegisterData): Promise<any> => {
     setError(null);
 
     try {
-      await authApi.register(data);
+      const response = await authApi.register(data);
       // Don't set user here — user must verify email first.
       // Token is stored by authApi.register() for polling on the VerifyEmail screen.
+      return response;
     } catch (err: any) {
       throw err;
     }

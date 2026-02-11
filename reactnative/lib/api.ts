@@ -57,8 +57,8 @@ const API_BASE_URL = __DEV__
   ? 'http://localhost/api'
   : 'https://api.getinked.in/api';
 
-// Create and export the API client instance
-export const api = createApiClient({
+// Create the base API client instance
+const baseApi = createApiClient({
   baseUrl: API_BASE_URL,
   getToken,
   setToken,
@@ -69,14 +69,48 @@ export const api = createApiClient({
       : '8c07eab3b9d0a757f0d9208e94831fb9a04d1fa7d96f5540495020082cb7c013',
   },
   onUnauthorized: () => {
-    // Handle unauthorized - navigation will be handled by the app
     console.log('Unauthorized - user needs to log in');
-    // You can emit an event or call a navigation function here
   },
 });
 
-// Create and export the auth API
-export const authApi = createAuthApi(api);
+// Demo mode support — when enabled, is_demo=1 is appended to all requests
+let _demoMode = false;
+
+export function setDemoMode(enabled: boolean) {
+  _demoMode = enabled;
+}
+
+export function isDemoMode(): boolean {
+  return _demoMode;
+}
+
+function injectDemo<T>(body?: any): any {
+  if (!_demoMode) return body;
+  if (body && typeof body === 'object') return { ...body, is_demo: 1 };
+  return { is_demo: 1 };
+}
+
+function injectDemoGet(endpoint: string): string {
+  if (!_demoMode) return endpoint;
+  const separator = endpoint.includes('?') ? '&' : '?';
+  return `${endpoint}${separator}is_demo=1`;
+}
+
+// Wrap the base api to auto-inject is_demo
+export const api = {
+  ...baseApi,
+  get: <T>(endpoint: string, options?: any) =>
+    baseApi.get<T>(injectDemoGet(endpoint), options),
+  post: <T>(endpoint: string, body?: any, options?: any) =>
+    baseApi.post<T>(endpoint, injectDemo(body), options),
+  put: <T>(endpoint: string, body?: any, options?: any) =>
+    baseApi.put<T>(endpoint, injectDemo(body), options),
+  patch: <T>(endpoint: string, body?: any, options?: any) =>
+    baseApi.patch<T>(endpoint, injectDemo(body), options),
+};
+
+// Create and export the auth API (uses base api — auth calls should not inject is_demo)
+export const authApi = createAuthApi(baseApi);
 
 // Export storage for direct access if needed
 export { mobileStorage, getToken, setToken, removeToken, API_BASE_URL };

@@ -181,7 +181,7 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
             ]}
             value={username}
             onChangeText={(text) => {
-              const lower = text.toLowerCase();
+              const lower = text.replace(/\s/g, '').toLowerCase();
               setUsername(lower);
               setUsernameAvailable(null);
               if (lower.length >= 3) checkUsernameAvailability(lower);

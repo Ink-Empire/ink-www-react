@@ -461,6 +461,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 4,
+    flexShrink: 1,
   },
   switchDescription: {
     color: colors.textMuted,

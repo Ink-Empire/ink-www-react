@@ -76,7 +76,7 @@ export default function StudioOwnerCheckStep({ onComplete, onBack }: StudioOwner
         <Input
           label="Email Address"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(text) => setEmail(text.replace(/\s/g, ''))}
           placeholder="your.email@example.com"
           error={errors.email}
           autoCapitalize="none"

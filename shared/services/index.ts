@@ -88,6 +88,9 @@ export function createStudioService(api: ApiClient) {
 
     lookupOrCreate: (data: Record<string, any>) =>
       api.post<any>('/studios/lookup-or-create', data, { requiresAuth: true }),
+
+    uploadImage: (studioId: number, imageId: number) =>
+      api.post<any>(`/studios/${studioId}/image`, { image_id: imageId }, { requiresAuth: true }),
   };
 }
 

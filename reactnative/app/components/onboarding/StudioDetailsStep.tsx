@@ -31,6 +31,7 @@ export interface StudioDetailsData {
   username: string;
   bio: string;
   email: string;
+  accountEmail?: string;
   phone: string;
   location: string;
   locationLatLong: string;
@@ -62,7 +63,10 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [accountEmail, setAccountEmail] = useState('');
+  const [accountEmailStatus, setAccountEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const accountEmailDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const checkUsernameAvailability = useCallback((value: string) => {
     if (value.length < 3) {
@@ -88,6 +92,35 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
         setUsernameAvailable(null);
       } finally {
         setCheckingUsername(false);
+      }
+    }, 500);
+  }, []);
+
+  const checkAccountEmailAvailability = useCallback((value: string) => {
+    if (accountEmailDebounceRef.current) clearTimeout(accountEmailDebounceRef.current);
+
+    if (!value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setAccountEmailStatus('idle');
+      return;
+    }
+
+    setAccountEmailStatus('checking');
+    accountEmailDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await api.post<any>('/check-availability', { email: value });
+        if (response.available) {
+          setAccountEmailStatus('available');
+          setErrors(prev => {
+            const next = { ...prev };
+            delete next.accountEmail;
+            return next;
+          });
+        } else {
+          setAccountEmailStatus('taken');
+          setErrors(prev => ({ ...prev, accountEmail: 'This email is already registered' }));
+        }
+      } catch {
+        setAccountEmailStatus('idle');
       }
     }, 500);
   }, []);
@@ -182,10 +215,14 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
       newErrors.bio = 'Bio must be 500 characters or less';
     }
 
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
+    if (!isAuthenticated) {
+      if (!accountEmail.trim()) {
+        newErrors.accountEmail = 'Account email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
+        newErrors.accountEmail = 'Please enter a valid email';
+      } else if (accountEmailStatus === 'taken') {
+        newErrors.accountEmail = 'This email is already registered';
+      }
     }
 
     if (!isAuthenticated) {
@@ -212,6 +249,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
       username: username.trim().toLowerCase(),
       bio: bio.trim(),
       email: email.trim().toLowerCase(),
+      accountEmail: !isAuthenticated ? accountEmail.trim().toLowerCase() : undefined,
       phone: phone.trim(),
       location: location.trim(),
       locationLatLong,
@@ -303,7 +341,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
                 ]}
                 value={username}
                 onChangeText={(text) => {
-                  const lower = text.toLowerCase();
+                  const lower = text.replace(/\s/g, '').toLowerCase();
                   setUsername(lower);
                   setUsernameAvailable(null);
                   checkUsernameAvailability(lower);
@@ -360,16 +398,16 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
 
           {/* Studio Email */}
           <Input
-            label="Studio Email"
+            label="Studio Contact Email"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(text) => setEmail(text.replace(/\s/g, ''))}
             placeholder="studio@example.com"
             error={errors.email}
             autoCapitalize="none"
             keyboardType="email-address"
           />
           <Text style={styles.fieldHint}>
-            You can reuse your artist or client email if needed.
+            Public contact email for your studio. Can be any email address.
           </Text>
 
           {/* Phone */}
@@ -387,6 +425,24 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
       {showForm && !isAuthenticated && (
         <View style={styles.authSection}>
           <Text style={styles.authSectionTitle}>Create your account</Text>
+
+          <Input
+            label="Account Email"
+            value={accountEmail}
+            onChangeText={(text) => {
+              const trimmed = text.replace(/\s/g, '');
+              setAccountEmail(trimmed);
+              checkAccountEmailAvailability(trimmed);
+            }}
+            placeholder="your.email@example.com"
+            error={errors.accountEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoCorrect={false}
+          />
+          <Text style={styles.fieldHint}>
+            Your personal login email. Can be the same as the studio email.
+          </Text>
 
           <Input
             label="Password"
@@ -415,7 +471,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
         <Button
           title={studioResult?.id ? 'Claim Studio' : 'Create Studio'}
           onPress={handleSubmit}
-          disabled={!showForm || checkingUsername || usernameAvailable === false}
+          disabled={!showForm || checkingUsername || usernameAvailable === false || (!isAuthenticated && (accountEmailStatus === 'taken' || accountEmailStatus === 'checking'))}
           loading={checkingUsername}
           style={styles.buttonHalf}
         />
