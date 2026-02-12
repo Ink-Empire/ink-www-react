@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { setDemoMode } from '../../lib/api';
 
@@ -16,9 +16,9 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const isDemoMode = !!user?.slug && DEMO_SLUGS.includes(user.slug);
 
-  useEffect(() => {
-    setDemoMode(isDemoMode);
-  }, [isDemoMode]);
+  // Set synchronously during render so it's active before children mount
+  // and before any child useEffect hooks fire API calls
+  setDemoMode(isDemoMode);
 
   return (
     <DemoModeContext.Provider value={{ isDemoMode }}>

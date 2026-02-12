@@ -251,7 +251,7 @@ export default function TattooIntentStep({ onComplete, onBack }: TattooIntentSte
 
           <View style={styles.switchRow}>
             <View style={styles.switchTextContainer}>
-              <Text style={styles.switchLabel}>Allow artists in my area to contact me</Text>
+              <Text style={styles.switchLabel}>Allow artists to contact me</Text>
               <Text style={styles.switchDescription}>
                 Artists who match your interests may reach out with portfolio examples
               </Text>

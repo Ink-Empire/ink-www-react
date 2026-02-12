@@ -160,21 +160,27 @@ export default function RegisterScreen({ navigation }: Props) {
       if (data.studioOwner?.isAuthenticated) {
         // Existing user - create or claim studio directly
         let studioResponse: any;
-        if (studioDetails.studioResult?.id) {
-          studioResponse = await studioService.claim(studioDetails.studioResult.id, {
-            bio: studioDetails.bio,
-            phone: studioDetails.phone,
-          });
-        } else {
-          studioResponse = await studioService.lookupOrCreate({
-            name: studioDetails.name,
-            username: studioDetails.username,
-            bio: studioDetails.bio,
-            email: studioDetails.email,
-            phone: studioDetails.phone,
-            location: studioDetails.location,
-            location_lat_long: studioDetails.locationLatLong,
-          });
+        let claimError: string | null = null;
+        try {
+          if (studioDetails.studioResult?.id) {
+            studioResponse = await studioService.claim(studioDetails.studioResult.id, {
+              bio: studioDetails.bio,
+              phone: studioDetails.phone,
+            });
+          } else {
+            studioResponse = await studioService.lookupOrCreate({
+              name: studioDetails.name,
+              username: studioDetails.username,
+              bio: studioDetails.bio,
+              email: studioDetails.email,
+              phone: studioDetails.phone,
+              location: studioDetails.location,
+              location_lat_long: studioDetails.locationLatLong,
+            });
+          }
+        } catch (err: any) {
+          claimError = err.data?.error || err.data?.message || err.message || 'Failed to create studio.';
+          console.error('Studio claim/create failed:', err);
         }
 
         // Upload photo and associate with both studio and user profile
@@ -194,8 +200,14 @@ export default function RegisterScreen({ navigation }: Props) {
           }
         }
 
-        // Refresh user so AuthContext picks up the new studio
+        // Always refresh so AuthContext picks up the authenticated session
         await refreshUser();
+
+        // Show claim error after signing in (so user isn't stuck in a broken state)
+        if (claimError) {
+          Alert.alert('Studio Error', claimError);
+          return;
+        }
       } else {
         // New user - register first, studio is created in the backend
         const response = await register({
