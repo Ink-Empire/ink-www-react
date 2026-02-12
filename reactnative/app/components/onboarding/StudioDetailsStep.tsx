@@ -44,9 +44,10 @@ interface StudioDetailsStepProps {
   onComplete: (data: StudioDetailsData) => void;
   onBack: () => void;
   isAuthenticated: boolean;
+  loading?: boolean;
 }
 
-export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated }: StudioDetailsStepProps) {
+export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated, loading = false }: StudioDetailsStepProps) {
   const [showForm, setShowForm] = useState(false);
   const [studioResult, setStudioOption] = useState<StudioOption | null>(null);
   const [name, setName] = useState('');
@@ -467,12 +468,12 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated 
       )}
 
       <View style={styles.buttons}>
-        <Button title="Back" onPress={onBack} variant="secondary" style={styles.buttonHalf} />
+        <Button title="Back" onPress={onBack} variant="secondary" style={styles.buttonHalf} disabled={loading} />
         <Button
-          title={studioResult?.id ? 'Claim Studio' : 'Create Studio'}
+          title={loading ? 'Creating...' : studioResult?.id ? 'Claim Studio' : 'Create Studio'}
           onPress={handleSubmit}
-          disabled={!showForm || checkingUsername || usernameAvailable === false || (!isAuthenticated && (accountEmailStatus === 'taken' || accountEmailStatus === 'checking'))}
-          loading={checkingUsername}
+          disabled={loading || !showForm || checkingUsername || usernameAvailable === false || (!isAuthenticated && (accountEmailStatus === 'taken' || accountEmailStatus === 'checking'))}
+          loading={loading || checkingUsername}
           style={styles.buttonHalf}
         />
       </View>

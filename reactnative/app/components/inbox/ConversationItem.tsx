@@ -43,7 +43,7 @@ function getPreviewText(conversation: Conversation, currentUserId?: number): str
   if (msg.type === 'system') return msg.content;
 
   const prefix = msg.sender_id === currentUserId ? 'You: ' : '';
-  return `${prefix}${msg.content}`;
+  return prefix + (msg.content || 'Attachment');
 }
 
 export default function ConversationItem({ conversation, currentUserId, onPress }: ConversationItemProps) {

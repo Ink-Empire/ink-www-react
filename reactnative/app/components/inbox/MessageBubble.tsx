@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { colors } from '../../../lib/colors';
 import type { Message } from '@inkedin/shared/types';
 
@@ -22,12 +22,31 @@ export default function MessageBubble({ message, isSent }: MessageBubbleProps) {
     );
   }
 
+  const hasAttachments = message.attachments && message.attachments.length > 0;
+  const hasText = !!message.content;
+
   return (
     <View style={[styles.container, isSent ? styles.containerSent : styles.containerReceived]}>
       <View style={[styles.bubble, isSent ? styles.bubbleSent : styles.bubbleReceived]}>
-        <Text style={[styles.text, isSent ? styles.textSent : styles.textReceived]}>
-          {message.content}
-        </Text>
+        {hasAttachments && (
+          <View style={styles.attachmentsContainer}>
+            {message.attachments.map((attachment) =>
+              attachment.image ? (
+                <Image
+                  key={attachment.id}
+                  source={{ uri: attachment.image.uri }}
+                  style={styles.attachmentImage}
+                  resizeMode="cover"
+                />
+              ) : null
+            )}
+          </View>
+        )}
+        {hasText && (
+          <Text style={[styles.text, isSent ? styles.textSent : styles.textReceived]}>
+            {message.content}
+          </Text>
+        )}
       </View>
       <Text style={[styles.timestamp, isSent ? styles.timestampSent : styles.timestampReceived]}>
         {formatTime(message.created_at)}
@@ -49,9 +68,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   bubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     borderRadius: 18,
+    overflow: 'hidden',
   },
   bubbleSent: {
     backgroundColor: colors.accent,
@@ -61,9 +79,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     borderBottomLeftRadius: 4,
   },
+  attachmentsContainer: {
+    gap: 2,
+  },
+  attachmentImage: {
+    width: 240,
+    height: 180,
+    borderRadius: 0,
+  },
   text: {
     fontSize: 15,
     lineHeight: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   textSent: {
     color: colors.background,

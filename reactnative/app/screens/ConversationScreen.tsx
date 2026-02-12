@@ -8,14 +8,20 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
+  ScrollView,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useConversation } from '@inkedin/shared/hooks';
 import MessageBubble from '../components/inbox/MessageBubble';
+import { uploadImagesToS3, type ImageFile } from '../../lib/s3Upload';
 import type { Message } from '@inkedin/shared/types';
+
+const MAX_ATTACHMENTS = 5;
 
 export default function ConversationScreen({ route }: any) {
   const { conversationId } = route.params;
@@ -31,7 +37,10 @@ export default function ConversationScreen({ route }: any) {
 
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<ImageFile[]>([]);
   const flatListRef = useRef<FlatList>(null);
+
+  const hasContent = inputText.trim().length > 0 || pendingAttachments.length > 0;
 
   // Reverse messages for inverted FlatList (newest first)
   const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
@@ -43,20 +52,64 @@ export default function ConversationScreen({ route }: any) {
     }
   }, [conversationId, markAsRead]);
 
+  const handlePickImages = useCallback(async () => {
+    const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
+    if (remaining <= 0) return;
+
+    try {
+      const results = await ImageCropPicker.openPicker({
+        mediaType: 'photo',
+        multiple: true,
+        maxFiles: remaining,
+        compressImageQuality: 0.8,
+      });
+
+      const newImages: ImageFile[] = results.map((img) => ({
+        uri: img.path,
+        type: img.mime || 'image/jpeg',
+        name: img.filename || `photo_${Date.now()}.jpg`,
+      }));
+
+      setPendingAttachments((prev) => [...prev, ...newImages].slice(0, MAX_ATTACHMENTS));
+    } catch {
+      // User cancelled
+    }
+  }, [pendingAttachments.length]);
+
+  const handleRemoveAttachment = useCallback((index: number) => {
+    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
-    if (!text || sending) return;
+    if (!hasContent || sending) return;
 
     setSending(true);
     setInputText('');
+    const attachments = [...pendingAttachments];
+    setPendingAttachments([]);
 
-    await sendMessage(text);
+    try {
+      if (attachments.length > 0) {
+        const uploaded = await uploadImagesToS3(api, attachments, 'message');
+        const attachmentIds = uploaded.map((img) => img.id);
+        await sendMessage(text || '', 'image', undefined, attachmentIds);
+      } else {
+        await sendMessage(text);
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+      // Restore attachments on failure
+      if (attachments.length > 0) {
+        setPendingAttachments(attachments);
+      }
+    }
+
     setSending(false);
-  }, [inputText, sending, sendMessage]);
+  }, [inputText, hasContent, sending, pendingAttachments, sendMessage]);
 
   const handleLoadMore = useCallback(() => {
     if (!hasMore || loading) return;
-    // In inverted list, "end" is the top = oldest messages
     const oldestMessage = messages[0];
     if (oldestMessage) {
       fetchMoreMessages(oldestMessage.id);
@@ -95,7 +148,36 @@ export default function ConversationScreen({ route }: any) {
         onEndReachedThreshold={0.2}
       />
 
+      {pendingAttachments.length > 0 && (
+        <View style={styles.previewStrip}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {pendingAttachments.map((file, index) => (
+              <View key={`${file.uri}-${index}`} style={styles.previewItem}>
+                <Image source={{ uri: file.uri }} style={styles.previewImage} />
+                <TouchableOpacity
+                  style={styles.previewRemove}
+                  onPress={() => handleRemoveAttachment(index)}
+                >
+                  <MaterialIcons name="close" size={14} color={colors.background} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.inputBar}>
+        <TouchableOpacity
+          style={styles.attachButton}
+          onPress={handlePickImages}
+          disabled={sending || pendingAttachments.length >= MAX_ATTACHMENTS}
+        >
+          <MaterialIcons
+            name="image"
+            size={24}
+            color={sending || pendingAttachments.length >= MAX_ATTACHMENTS ? colors.textMuted : colors.accent}
+          />
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="Type a message..."
@@ -107,15 +189,19 @@ export default function ConversationScreen({ route }: any) {
           returnKeyType="default"
         />
         <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
+          style={[styles.sendButton, (!hasContent || sending) && styles.sendButtonDisabled]}
           onPress={handleSend}
-          disabled={!inputText.trim() || sending}
+          disabled={!hasContent || sending}
         >
-          <MaterialIcons
-            name="send"
-            size={22}
-            color={inputText.trim() && !sending ? colors.background : colors.textMuted}
-          />
+          {sending ? (
+            <ActivityIndicator size="small" color={colors.textMuted} />
+          ) : (
+            <MaterialIcons
+              name="send"
+              size={22}
+              color={hasContent ? colors.background : colors.textMuted}
+            />
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -133,14 +219,48 @@ const styles = StyleSheet.create({
   messageList: {
     paddingVertical: 12,
   },
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+  previewStrip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
+  },
+  previewItem: {
+    marginRight: 8,
+  },
+  previewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  previewRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  attachButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
   },
   input: {
     flex: 1,

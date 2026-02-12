@@ -96,11 +96,11 @@ export function useConversation(api: ApiClient, conversationId?: number) {
     }
   }, [conversationId]);
 
-  const sendMessage = useCallback(async (content: string): Promise<Message | null> => {
+  const sendMessage = useCallback(async (content: string, type?: string, metadata?: any, attachmentIds?: number[]): Promise<Message | null> => {
     if (!conversationId) return null;
 
     try {
-      const response = await serviceRef.current.sendMessage(conversationId, content);
+      const response = await serviceRef.current.sendMessage(conversationId, content, type, metadata, attachmentIds);
       const newMessage = response.message;
       setMessages((prev) => [...prev, newMessage]);
       return newMessage;

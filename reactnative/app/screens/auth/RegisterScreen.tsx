@@ -386,6 +386,7 @@ export default function RegisterScreen({ navigation }: Props) {
               onComplete={handleStudioSubmit}
               onBack={handleBack}
               isAuthenticated={data.studioOwner?.isAuthenticated || false}
+              loading={loading}
             />
           );
       }

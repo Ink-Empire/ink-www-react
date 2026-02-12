@@ -38,10 +38,12 @@ export function createMessageService(api: ApiClient) {
       return api.get<any>(endpoint, { requiresAuth: true, useCache: false });
     },
 
-    sendMessage: (conversationId: number, content: string, type: string = 'text') =>
+    sendMessage: (conversationId: number, content: string, type: string = 'text', metadata?: any, attachmentIds?: number[]) =>
       api.post<any>(`/conversations/${conversationId}/messages`, {
         content,
         type,
+        metadata,
+        attachment_ids: attachmentIds,
       }, { requiresAuth: true }),
 
     markAsRead: (conversationId: number) =>
