@@ -19,6 +19,7 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = InkedinApp/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = InkedinApp/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = InkedinApp/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		365DE24A2F3E4DB000AD6037 /* InkedinApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = InkedinApp.entitlements; path = InkedinApp/InkedinApp.entitlements; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = InkedinApp/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = InkedinApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8510B87A45297B4D9840415C /* libPods-InkedinApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-InkedinApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -42,6 +43,7 @@
 		13B07FAE1A68108700A75B9A /* InkedinApp */ = {
 			isa = PBXGroup;
 			children = (
+				365DE24A2F3E4DB000AD6037 /* InkedinApp.entitlements */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -259,6 +261,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = InkedinApp/InkedinApp.entitlements;
 				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = 72G6X23Y24;
 				ENABLE_BITCODE = NO;
@@ -269,7 +272,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -289,6 +292,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = InkedinApp/InkedinApp.entitlements;
 				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = 72G6X23Y24;
 				INFOPLIST_FILE = InkedinApp/Info.plist;
@@ -298,7 +302,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

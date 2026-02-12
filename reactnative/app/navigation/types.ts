@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AuthStackParamList = {
   Login: undefined;
   Register: { userType?: 'client' | 'artist' | 'studio' } | undefined;
@@ -6,17 +8,17 @@ export type AuthStackParamList = {
 };
 
 export type RootStackParamList = {
-  Main: undefined;
-  InboxStack: undefined;
+  Main: NavigatorScreenParams<MainTabParamList>;
+  InboxStack: NavigatorScreenParams<InboxStackParamList>;
 };
 
 export type MainTabParamList = {
-  HomeTab: undefined;
-  SearchTab: undefined;
-  ArtistsTab: undefined;
-  UploadTab: undefined;
-  FavoritesTab: undefined;
-  ProfileTab: undefined;
+  HomeTab: NavigatorScreenParams<HomeStackParamList>;
+  SearchTab: NavigatorScreenParams<SearchStackParamList>;
+  ArtistsTab: NavigatorScreenParams<ArtistsStackParamList>;
+  UploadTab: NavigatorScreenParams<UploadStackParamList>;
+  FavoritesTab: NavigatorScreenParams<FavoritesStackParamList>;
+  ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 export type HomeStackParamList = {

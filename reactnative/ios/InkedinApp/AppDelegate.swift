@@ -1,6 +1,7 @@
 import UIKit
 import React
 import React_RCTAppDelegate
+import React_RCTLinkingManager
 import ReactAppDependencyProvider
 
 @main
@@ -26,5 +27,13 @@ class AppDelegate: RCTAppDelegate {
 #else
     Bundle.main.url(forResource: "main", withExtension: "jsbundle")
 #endif
+  }
+
+  override func application(_ application: UIApplication,
+                            continue userActivity: NSUserActivity,
+                            restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+    return RCTLinkingManager.application(application,
+                                         continue: userActivity,
+                                         restorationHandler: restorationHandler)
   }
 }

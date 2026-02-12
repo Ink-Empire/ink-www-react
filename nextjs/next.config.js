@@ -33,6 +33,16 @@ const nextConfig = {
 
     return config;
   },
+  async headers() {
+    return [
+      {
+        source: '/.well-known/apple-app-site-association',
+        headers: [
+          { key: 'Content-Type', value: 'application/json' },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     // Use the environment variable for API URL
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';

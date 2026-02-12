@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "72G6X23Y24.com.getinkedin.app",
+        "paths": [
+          "/artists/*",
+          "/tattoos",
+          "/tattoos/*",
+          "/inbox",
+          "/inbox/*"
+        ]
+      }
+    ]
+  }
+}

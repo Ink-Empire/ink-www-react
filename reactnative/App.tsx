@@ -1,15 +1,17 @@
 import React, { useEffect, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef, getStateFromPath } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StatusBar, View, StyleSheet } from 'react-native';
+import { StatusBar, View, StyleSheet, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from './lib/colors';
 import { api } from './lib/api';
 import { AuthProvider, useAuth } from './app/contexts/AuthContext';
 import { DemoModeProvider } from './app/contexts/DemoModeContext';
 import { SnackbarProvider } from './app/contexts/SnackbarContext';
+import { DeepLinkProvider, useDeepLink } from './app/contexts/DeepLinkContext';
 import { createStudioService } from '@inkedin/shared/services';
 import { UnreadCountProvider } from './app/contexts/UnreadCountContext';
+import { parseDeepLink } from './app/utils/deepLinkParser';
 import AuthStack from './app/navigation/AuthStack';
 import MainTabs from './app/navigation/MainTabs';
 import InboxStack from './app/navigation/InboxStack';
@@ -21,7 +23,111 @@ import type { RootStackParamList } from './app/navigation/types';
 
 const RootStack = createStackNavigator<RootStackParamList>();
 
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
+const linking = {
+  prefixes: ['https://getinked.in', 'https://www.getinked.in'],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          HomeTab: {
+            screens: {
+              ArtistDetail: 'artists/:slug',
+              TattooDetail: 'tattoos/:id',
+            },
+          },
+        },
+      },
+      InboxStack: {
+        screens: {
+          Conversation: 'inbox/:conversationId',
+          Inbox: 'inbox',
+        },
+      },
+    },
+  },
+  getStateFromPath: (path: string, config: any) => {
+    // Handle /tattoos?id=123 (the web's current query-param format)
+    if (path.startsWith('/tattoos') && path.includes('?')) {
+      const url = new URL(path, 'https://getinked.in');
+      const id = url.searchParams.get('id');
+      if (id && /^\d+$/.test(id)) {
+        return {
+          routes: [
+            {
+              name: 'Main' as const,
+              state: {
+                routes: [
+                  {
+                    name: 'HomeTab' as const,
+                    state: {
+                      routes: [
+                        { name: 'Home' as const },
+                        { name: 'TattooDetail' as const, params: { id: Number(id) } },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      }
+    }
+    // Fall back to default path parsing for all other URLs
+    return getStateFromPath(path, config);
+  },
+};
+
+function navigateFromDeepLink(url: string) {
+  const target = parseDeepLink(url);
+  if (!target || !navigationRef.isReady()) return;
+
+  switch (target.type) {
+    case 'artist':
+      navigationRef.navigate('Main', {
+        screen: 'HomeTab',
+        params: { screen: 'ArtistDetail', params: { slug: target.slug } },
+      });
+      break;
+    case 'tattoo':
+      navigationRef.navigate('Main', {
+        screen: 'HomeTab',
+        params: { screen: 'TattooDetail', params: { id: target.id } },
+      });
+      break;
+    case 'conversation':
+      navigationRef.navigate('InboxStack', {
+        screen: 'Conversation',
+        params: { conversationId: target.conversationId },
+      });
+      break;
+    case 'inbox':
+      navigationRef.navigate('InboxStack', {
+        screen: 'Inbox',
+      });
+      break;
+  }
+}
+
 function AuthenticatedApp() {
+  const { consumePendingUrl } = useDeepLink();
+  const hasConsumedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasConsumedRef.current) return;
+    // Small delay to ensure navigation is ready after mount
+    const timer = setTimeout(() => {
+      const url = consumePendingUrl();
+      if (url) {
+        hasConsumedRef.current = true;
+        navigateFromDeepLink(url);
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [consumePendingUrl]);
+
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="Main" component={MainTabs} />
@@ -85,11 +191,11 @@ function usePendingStudio() {
       } catch (err: any) {
         console.error('Failed to create/claim studio from pending data:', err);
         if (err?.status >= 500) {
-          // Server error — restore pending data and allow retry
+          // Server error -- restore pending data and allow retry
           await AsyncStorage.setItem('pending_studio', raw);
           processedRef.current = false;
         } else {
-          // 422/4xx — stale data (studio likely already created during registration), discard
+          // 422/4xx -- stale data (studio likely already created during registration), discard
           await AsyncStorage.removeItem('pending_studio');
         }
       }
@@ -120,7 +226,10 @@ function RootNavigator(): React.JSX.Element {
 
   return (
     <View style={styles.flex}>
-      <NavigationContainer>
+      <NavigationContainer
+        ref={navigationRef}
+        linking={isAuthenticated ? linking : undefined}
+      >
         <StatusBar barStyle="light-content" backgroundColor={colors.background} />
         {isAuthenticated ? (
           <UnreadCountProvider>
@@ -139,11 +248,13 @@ function RootNavigator(): React.JSX.Element {
 function App(): React.JSX.Element {
   return (
     <AuthProvider>
-      <DemoModeProvider>
-        <SnackbarProvider>
-          <RootNavigator />
-        </SnackbarProvider>
-      </DemoModeProvider>
+      <DeepLinkProvider>
+        <DemoModeProvider>
+          <SnackbarProvider>
+            <RootNavigator />
+          </SnackbarProvider>
+        </DemoModeProvider>
+      </DeepLinkProvider>
     </AuthProvider>
   );
 }
