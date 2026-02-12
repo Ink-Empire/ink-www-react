@@ -130,6 +130,7 @@ interface UseConversationsReturn {
     page?: number;
     limit?: number;
   }) => Promise<void>;
+  markConversationRead: (conversationId: number) => void;
 }
 
 interface UseConversationReturn {
@@ -196,6 +197,12 @@ export function useConversations(): UseConversationsReturn {
     await fetchConversations();
   }, [fetchConversations]);
 
+  const markConversationRead = useCallback((conversationId: number) => {
+    setConversations((prev) =>
+      prev.map((c) => c.id === conversationId ? { ...c, unread_count: 0 } : c)
+    );
+  }, []);
+
   useEffect(() => {
     fetchConversations();
   }, []);
@@ -229,6 +236,7 @@ export function useConversations(): UseConversationsReturn {
     meta,
     refreshConversations,
     fetchConversations,
+    markConversationRead,
   };
 }
 

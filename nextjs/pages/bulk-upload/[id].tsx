@@ -20,6 +20,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PublishIcon from '@mui/icons-material/Publish';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useBulkUpload, BulkUpload, BulkUploadItem, ItemsResponse } from '@/hooks/useBulkUpload';
@@ -60,6 +61,7 @@ export default function BulkUploadReviewPage() {
     message: '',
     type: 'success',
   });
+  const [publishSuccess, setPublishSuccess] = useState<number | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -161,41 +163,40 @@ export default function BulkUploadReviewPage() {
 
     setPublishing(true);
     setError(null);
+    setPublishSuccess(null);
 
     try {
       const result = await publish(upload.id);
-      // Show success snackbar
+      const publishedCount = result.count || count;
+
       setSnackbar({
         open: true,
-        message: `Publishing ${result.count || count} tattoo${(result.count || count) !== 1 ? 's' : ''}...`,
+        message: `Publishing ${publishedCount} tattoo${publishedCount !== 1 ? 's' : ''}...`,
         type: 'success',
       });
 
       // Poll until publish job completes (ready_count changes)
       const originalReadyCount = upload.ready_count;
-      const pollForCompletion = async (attempts = 0) => {
-        if (attempts > 15) return; // Stop after 30 seconds
+      const pollForCompletion = async (attempts = 0): Promise<void> => {
+        if (attempts > 15) return;
 
         await new Promise(resolve => setTimeout(resolve, 2000));
-        await loadUpload();
-        await loadItems();
 
-        // Check if the upload data has changed
         const currentUpload = await getUpload(Number(id));
         if (currentUpload.ready_count !== originalReadyCount ||
             currentUpload.status === 'completed' ||
             currentUpload.status === 'incomplete') {
-          // Publishing completed, final refresh
           await loadUpload();
           await loadItems();
           return;
         }
 
-        // Continue polling
-        pollForCompletion(attempts + 1);
+        await pollForCompletion(attempts + 1);
       };
 
-      pollForCompletion();
+      await pollForCompletion();
+      setPublishSuccess(publishedCount);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setSnackbar({
         open: true,
@@ -209,6 +210,17 @@ export default function BulkUploadReviewPage() {
 
   const handleItemClick = (item: BulkUploadItem) => {
     setSelectedItem(item);
+  };
+
+  const handleSkipItem = async (item: BulkUploadItem) => {
+    if (!upload) return;
+    try {
+      await updateItem(upload.id, item.id, { is_skipped: true });
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      loadUpload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to skip item');
+    }
   };
 
   const handleItemUpdate = async (itemId: number, data: any) => {
@@ -282,6 +294,48 @@ export default function BulkUploadReviewPage() {
           </IconButton>
         </Box>
 
+        {publishSuccess !== null && (
+          <Box
+            sx={{
+              mb: 3,
+              p: 3,
+              borderRadius: 2,
+              bgcolor: `${colors.success}15`,
+              border: `2px solid ${colors.success}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            <CheckCircleOutlineIcon sx={{ fontSize: 36, color: colors.success }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: colors.success }}>
+                {publishSuccess} tattoo{publishSuccess !== 1 ? 's' : ''} published!
+              </Typography>
+              <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                Your tattoos are now live on your portfolio.
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              onClick={() => router.push('/dashboard')}
+              sx={{
+                borderColor: colors.success,
+                color: colors.success,
+                '&:hover': { bgcolor: `${colors.success}15`, borderColor: colors.success },
+              }}
+            >
+              View Portfolio
+            </Button>
+            <IconButton
+              onClick={() => setPublishSuccess(null)}
+              sx={{ color: colors.textMuted }}
+            >
+              <Box component="span" sx={{ fontSize: 18, lineHeight: 1 }}>&#x2715;</Box>
+            </IconButton>
+          </Box>
+        )}
+
         {error && (
           <Alert
             severity="error"
@@ -344,6 +398,7 @@ export default function BulkUploadReviewPage() {
             meta={meta}
             onItemClick={handleItemClick}
             onPageChange={setPage}
+            onSkipItem={handleSkipItem}
           />
         ) : (upload?.status === 'scanning' || upload?.status === 'processing') ? (
           <Card sx={{ bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>

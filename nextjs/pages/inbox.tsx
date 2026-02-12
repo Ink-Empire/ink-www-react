@@ -123,7 +123,7 @@ export default function InboxPage() {
   const isArtist = user?.type_id === 2 || user?.type === 'artist' || user?.type?.name === 'artist';
 
   // Fetch conversations
-  const { conversations, loading: conversationsLoading, fetchConversations } = useConversations();
+  const { conversations, loading: conversationsLoading, fetchConversations, markConversationRead } = useConversations();
 
   // Fetch selected conversation details
   const {
@@ -154,21 +154,23 @@ export default function InboxPage() {
   // Mark conversation as read when selected or when new messages arrive
   useEffect(() => {
     if (selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
-      markAsRead().then(() => fetchConversations());
+      markConversationRead(selectedConversationId);
+      markAsRead();
     }
-  }, [selectedConversationId, selectedConversation?.unread_count, messages.length, markAsRead]);
+  }, [selectedConversationId, selectedConversation?.unread_count, messages.length, markAsRead, markConversationRead]);
 
   // Mark as read when window regains focus (e.g., switching tabs back)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
-        markAsRead().then(() => fetchConversations());
+        markConversationRead(selectedConversationId);
+        markAsRead();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [selectedConversationId, selectedConversation?.unread_count, markAsRead, fetchConversations]);
+  }, [selectedConversationId, selectedConversation?.unread_count, markAsRead, markConversationRead]);
 
   // Refetch conversations when filter changes
   useEffect(() => {

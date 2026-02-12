@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
-import { useInboxCount } from '../hooks';
+import { useUnreadConversationCount } from '../hooks';
 import {
   AppBar,
   Toolbar,
@@ -41,7 +41,7 @@ const NAV_LINKS = [
 const Navbar: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const router = useRouter();
-  const { count: inboxCount } = useInboxCount(user?.id);
+  const { unreadCount: inboxCount } = useUnreadConversationCount();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 

@@ -131,6 +131,8 @@ export default function ItemDetailModal({
     await handleSave();
     if (hasNext) {
       onNext();
+    } else {
+      onClose();
     }
   };
 
@@ -636,22 +638,40 @@ export default function ItemDetailModal({
               >
                 Cancel
               </Button>
-              <Button
-                variant="contained"
-                onClick={handleSave}
-                disabled={saving}
-                sx={{
-                  flex: 1,
-                  minWidth: 100,
-                  bgcolor: colors.accent,
-                  color: colors.background,
-                  '&:hover': { bgcolor: colors.accentHover },
-                  '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
-                }}
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-              {hasNext && (
+              {hasNext ? (
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={handleSave}
+                    disabled={saving}
+                    sx={{
+                      flex: 1,
+                      minWidth: 100,
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover },
+                      '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleSaveAndNext}
+                    disabled={saving}
+                    sx={{
+                      flex: 1,
+                      minWidth: 100,
+                      bgcolor: colors.success,
+                      color: '#fff',
+                      '&:hover': { bgcolor: '#3d8269' },
+                      '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save & Next'}
+                  </Button>
+                </>
+              ) : (
                 <Button
                   variant="contained"
                   onClick={handleSaveAndNext}
@@ -659,13 +679,13 @@ export default function ItemDetailModal({
                   sx={{
                     flex: 1,
                     minWidth: 100,
-                    bgcolor: colors.success,
-                    color: '#fff',
-                    '&:hover': { bgcolor: '#3d8269' },
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    '&:hover': { bgcolor: colors.accentHover },
                     '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
                   }}
                 >
-                  {saving ? 'Saving...' : 'Save & Next'}
+                  {saving ? 'Saving...' : 'Save'}
                 </Button>
               )}
             </Box>

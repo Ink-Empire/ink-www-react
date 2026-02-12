@@ -11,11 +11,13 @@ import {
   Skeleton,
   CircularProgress,
   Tooltip,
+  IconButton,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
 import CollectionsIcon from '@mui/icons-material/Collections';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { BulkUploadItem, ItemsResponse } from '@/hooks/useBulkUpload';
 import { colors } from '@/styles/colors';
 
@@ -24,6 +26,7 @@ interface ThumbnailGridProps {
   meta: ItemsResponse['meta'] | null;
   onItemClick: (item: BulkUploadItem) => void;
   onPageChange: (page: number) => void;
+  onSkipItem?: (item: BulkUploadItem) => void;
 }
 
 export default function ThumbnailGrid({
@@ -31,6 +34,7 @@ export default function ThumbnailGrid({
   meta,
   onItemClick,
   onPageChange,
+  onSkipItem,
 }: ThumbnailGridProps) {
   // Check if an edited item is missing required details
   const isMissingDetails = (item: BulkUploadItem): boolean => {
@@ -186,6 +190,31 @@ export default function ThumbnailGrid({
 
             {/* Status overlay */}
             {getStatusOverlay(item)}
+
+            {/* Dismiss button */}
+            {!item.is_published && !item.is_skipped && onSkipItem && (
+              <Tooltip title="Remove from queue" arrow placement="top">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSkipItem(item);
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    bottom: 4,
+                    right: 4,
+                    zIndex: 2,
+                    bgcolor: 'rgba(0,0,0,0.6)',
+                    color: 'white',
+                    p: 0.5,
+                    '&:hover': { bgcolor: colors.error },
+                  }}
+                >
+                  <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            )}
 
             {/* Carousel indicator */}
             {item.group_count > 1 && (
