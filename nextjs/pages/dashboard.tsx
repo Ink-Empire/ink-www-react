@@ -58,7 +58,6 @@ import {
   CardLink,
   StatCard,
   DashboardTab,
-  ScheduleItem,
   ActivityItem,
   SavedArtistCard,
   LeadCard,
@@ -67,7 +66,6 @@ import {
 // Dashboard types
 import type {
   DashboardStats,
-  ScheduleItem as ScheduleItemType,
   ActivityItem as ActivityItemType,
   StudioArtist,
   Announcement,
@@ -129,9 +127,8 @@ export default function Dashboard() {
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  // Dashboard stats and schedule (fetched from API)
+  // Dashboard stats (fetched from API)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(defaultStats);
-  const [schedule, setSchedule] = useState<ScheduleItemType[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   // Saved artists (wishlist)
@@ -291,11 +288,6 @@ export default function Dashboard() {
             savesTrend: data.stats.saves_trend || '+0',
             unreadMessages: data.stats.unread_messages || 0
           });
-        }
-
-        // Set schedule
-        if (data.schedule) {
-          setSchedule(Array.isArray(data.schedule) ? data.schedule : []);
         }
 
         // Set tattoos (cached on backend for 5 minutes)
@@ -745,6 +737,7 @@ export default function Dashboard() {
                 label="Upcoming Appointments"
                 trend={dashboardStats.appointmentsTrend}
                 trendUp
+                href="/calendar"
               />
               <StatCard
                 icon={<VisibilityIcon />}
@@ -765,6 +758,7 @@ export default function Dashboard() {
                 value={dashboardStats.unreadMessages}
                 label="Unread Messages"
                 trend="New"
+                href="/inbox"
               />
             </>
           ) : (
@@ -794,6 +788,7 @@ export default function Dashboard() {
                 value={studioStats?.inquiries?.count ?? 0}
                 label="Studio Inquiries"
                 trend={studioStats?.inquiries?.trend_label || ''}
+                href="/inbox"
               />
             </>
           )}
@@ -809,26 +804,6 @@ export default function Dashboard() {
         }}>
           {/* Main Column */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Upcoming Schedule */}
-            <Card
-              title={activeTab === 'artist' ? 'Upcoming Schedule' : 'Studio Schedule'}
-              action={<CardLink href={activeTab === 'artist' ? '/calendar' : '/studio-calendar'}>View Calendar →</CardLink>}
-            >
-              <Box>
-                {schedule.length > 0 ? (
-                  schedule.map((item, index) => (
-                    <ScheduleItem key={item.id} item={item} isLast={index === schedule.length - 1} />
-                  ))
-                ) : (
-                  <Box sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
-                      No upcoming appointments scheduled
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Card>
-
             {/* Clients to Reach Out To */}
             {activeTab === 'artist' && (
               <Card

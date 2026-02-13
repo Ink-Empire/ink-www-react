@@ -202,7 +202,7 @@ export default function UploadScreen({ navigation }: any) {
       setHours('');
       setIsPublic(true);
 
-      showSnackbar('Your tattoo has been published');
+      showSnackbar('Your tattoo has been published! It will appear in search shortly.');
       navigation.navigate('HomeTab');
     } catch (err: any) {
       showSnackbar(err.message || 'Failed to publish. Please try again.', 'error');

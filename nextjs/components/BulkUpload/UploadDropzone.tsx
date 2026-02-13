@@ -6,8 +6,6 @@ import {
   Button,
   Card,
   CardContent,
-  ToggleButton,
-  ToggleButtonGroup,
   Alert,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -70,44 +68,69 @@ export default function UploadDropzone({ onFileSelect, maxSizeMB = 500 }: Upload
       boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 60px ${colors.accent}20`,
     }}>
       <CardContent sx={{ p: 0 }}>
-        {/* Source Toggle */}
-        <Box sx={{ p: 2, borderBottom: source ? `1px solid ${colors.border}` : 'none' }}>
-          <Typography variant="subtitle2" sx={{ mb: 1.5, color: colors.textSecondary }}>
+        {/* Source Selection */}
+        <Box sx={{ p: 3, borderBottom: source ? `1px solid ${colors.border}` : 'none' }}>
+          <Typography variant="h6" sx={{ mb: 2, color: colors.textPrimary, fontWeight: 600 }}>
             What are you uploading?
           </Typography>
-          <ToggleButtonGroup
-            value={source}
-            exclusive
-            onChange={(_, value) => setSource(value)}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                color: colors.textSecondary,
-                borderColor: colors.border,
-                px: 3,
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+            <Box
+              onClick={() => setSource('instagram')}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                cursor: 'pointer',
+                border: `1px solid ${source === 'instagram' ? colors.accent : colors.border}`,
+                bgcolor: source === 'instagram' ? `${colors.accent}15` : 'transparent',
+                boxShadow: source === 'instagram'
+                  ? `0 4px 20px rgba(0, 0, 0, 0.4), 0 0 40px ${colors.accent}25`
+                  : `0 4px 20px rgba(0, 0, 0, 0.4), 0 0 40px ${colors.accent}15`,
+                transition: 'all 0.2s',
                 '&:hover': {
-                  bgcolor: colors.background,
-                },
-                '&.Mui-selected': {
-                  bgcolor: colors.accent,
-                  color: colors.background,
                   borderColor: colors.accent,
-                  '&:hover': {
-                    bgcolor: colors.accentHover,
-                  },
+                  bgcolor: `${colors.accent}10`,
                 },
-              },
-            }}
-          >
-            <ToggleButton value="instagram">
-              <InstagramIcon sx={{ mr: 1, fontSize: 20 }} />
-              Instagram Export
-            </ToggleButton>
-            <ToggleButton value="manual">
-              <FolderZipIcon sx={{ mr: 1, fontSize: 20 }} />
-              ZIP of Images
-            </ToggleButton>
-          </ToggleButtonGroup>
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                <InstagramIcon sx={{ fontSize: 24, color: colors.accent }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 500, color: colors.textPrimary }}>
+                  Instagram Export
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                Import your tattoo portfolio directly from an Instagram data export ZIP file.
+              </Typography>
+            </Box>
+            <Box
+              onClick={() => setSource('manual')}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                cursor: 'pointer',
+                border: `1px solid ${source === 'manual' ? colors.accent : colors.border}`,
+                bgcolor: source === 'manual' ? `${colors.accent}15` : 'transparent',
+                boxShadow: source === 'manual'
+                  ? `0 4px 20px rgba(0, 0, 0, 0.4), 0 0 40px ${colors.accent}25`
+                  : `0 4px 20px rgba(0, 0, 0, 0.4), 0 0 40px ${colors.accent}15`,
+                transition: 'all 0.2s',
+                '&:hover': {
+                  borderColor: colors.accent,
+                  bgcolor: `${colors.accent}10`,
+                },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                <FolderZipIcon sx={{ fontSize: 24, color: colors.accent }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 500, color: colors.textPrimary }}>
+                  ZIP of Images
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                Upload a ZIP file containing your tattoo images (JPG, PNG, WebP, GIF).
+              </Typography>
+            </Box>
+          </Box>
         </Box>
 
         {/* Dropzone - only show when source is selected */}

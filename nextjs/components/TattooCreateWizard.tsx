@@ -16,7 +16,8 @@ import {
   CircularProgress,
   IconButton,
   Switch,
-  Chip
+  Chip,
+  Snackbar
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -101,6 +102,9 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
   const [creatingTag, setCreatingTag] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<{ id: number; url: string }[]>([]);
+
+  // Success snackbar (persists after dialog closes)
+  const [successSnackbar, setSuccessSnackbar] = useState(false);
 
   // AI suggestions modal state (after tattoo creation)
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
@@ -463,7 +467,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         setShowSuggestionsModal(true);
       } else {
         // No immediate suggestions - AI is processing in background
-        // Just close and show success, passing the created tattoo for optimistic updates
+        setSuccessSnackbar(true);
         if (onSuccess) {
           onSuccess(newTattoo);
         }
@@ -498,6 +502,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   // Close suggestions modal and finish
   const handleCloseSuggestions = () => {
     setShowSuggestionsModal(false);
+    setSuccessSnackbar(true);
     if (onSuccess) {
       onSuccess(createdTattoo);
     }
@@ -1348,6 +1353,25 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         </Button>
       </DialogActions>
     </Dialog>
+
+    <Snackbar
+      open={successSnackbar}
+      autoHideDuration={5000}
+      onClose={() => setSuccessSnackbar(false)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      <Alert
+        onClose={() => setSuccessSnackbar(false)}
+        severity="success"
+        sx={{
+          bgcolor: colors.success,
+          color: '#fff',
+          '& .MuiAlert-icon': { color: '#fff' },
+        }}
+      >
+        Tattoo published! It will appear in search shortly.
+      </Alert>
+    </Snackbar>
     </>
   );
 };

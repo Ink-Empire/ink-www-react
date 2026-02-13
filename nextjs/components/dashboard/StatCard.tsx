@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { Box, Typography } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { colors } from '@/styles/colors';
@@ -9,12 +10,13 @@ interface StatCardProps {
   label: string;
   trend?: string;
   trendUp?: boolean;
+  href?: string;
 }
 
 const cardShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 50px ${colors.accent}25`;
 
-export function StatCard({ icon, value, label, trend, trendUp }: StatCardProps) {
-  return (
+export function StatCard({ icon, value, label, trend, trendUp, href }: StatCardProps) {
+  const card = (
     <Box sx={{
       bgcolor: colors.surface,
       border: `1px solid ${colors.accent}35`,
@@ -22,7 +24,8 @@ export function StatCard({ icon, value, label, trend, trendUp }: StatCardProps) 
       p: 2,
       boxShadow: cardShadow,
       transition: 'all 0.2s',
-      '&:hover': { borderColor: colors.accent }
+      '&:hover': { borderColor: colors.accent },
+      ...(href ? { cursor: 'pointer' } : {}),
     }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
         <Box sx={{
@@ -59,6 +62,16 @@ export function StatCard({ icon, value, label, trend, trendUp }: StatCardProps) 
       </Typography>
     </Box>
   );
+
+  if (href) {
+    return (
+      <Link href={href} style={{ textDecoration: 'none' }}>
+        {card}
+      </Link>
+    );
+  }
+
+  return card;
 }
 
 export default StatCard;

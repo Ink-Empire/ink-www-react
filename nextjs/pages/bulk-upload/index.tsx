@@ -430,8 +430,8 @@ export default function BulkUploadPage() {
           </Box>
         )}
 
-        {/* Upload Section */}
-        {uploading ? (
+        {/* Upload Section - hide when there's an active (non-completed/failed) upload */}
+        {uploads.some((u) => !['completed', 'failed'].includes(u.status)) ? null : uploading ? (
           <Card sx={{ mb: 4, bgcolor: colors.surface, border: `1px solid ${colors.border}` }}>
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <CircularProgress size={48} sx={{ mb: 2, color: colors.accent }} />

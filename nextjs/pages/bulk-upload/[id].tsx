@@ -34,7 +34,7 @@ type FilterType = 'all' | 'unprocessed' | 'processed' | 'ready' | 'published' | 
 export default function BulkUploadReviewPage() {
   const router = useRouter();
   const { id } = router.query;
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { showConfirm } = useDialog();
   const {
     getUpload,
@@ -171,7 +171,7 @@ export default function BulkUploadReviewPage() {
 
       setSnackbar({
         open: true,
-        message: `Publishing ${publishedCount} tattoo${publishedCount !== 1 ? 's' : ''}...`,
+        message: `Publishing ${publishedCount} tattoo${publishedCount !== 1 ? 's' : ''}. They will appear in search shortly.`,
         type: 'success',
       });
 
@@ -313,12 +313,12 @@ export default function BulkUploadReviewPage() {
                 {publishSuccess} tattoo{publishSuccess !== 1 ? 's' : ''} published!
               </Typography>
               <Typography variant="body2" sx={{ color: colors.textSecondary }}>
-                Your tattoos are now live on your portfolio.
+                Your tattoos are being processed and will appear in search shortly.
               </Typography>
             </Box>
             <Button
               variant="outlined"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push(`/artists/${user?.slug}`)}
               sx={{
                 borderColor: colors.success,
                 color: colors.success,
