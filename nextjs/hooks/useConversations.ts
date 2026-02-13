@@ -361,6 +361,7 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     try {
       await messageService.markConversationRead(conversationId);
       setConversation((prev) => prev ? { ...prev, unread_count: 0 } : prev);
+      window.dispatchEvent(new Event('conversations:read'));
     } catch (err) {
       console.error('Error marking conversation as read:', err);
     }
@@ -469,6 +470,13 @@ export function useUnreadConversationCount(): UseUnreadCountReturn {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Listen for mark-as-read events from the inbox to refresh immediately
+  useEffect(() => {
+    const handler = () => { fetchCount(); };
+    window.addEventListener('conversations:read', handler);
+    return () => window.removeEventListener('conversations:read', handler);
+  }, [fetchCount]);
 
   return {
     unreadCount,

@@ -33,15 +33,19 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Take photos of your tattoos</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Get Inkedin uses your location to find tattoo artists and studios near you.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Get Inkedin uses your location to find tattoo artists and studios near you.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Get Inkedin uses your location to find tattoo artists and studios near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select photos of your tattoos</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>MaterialIcons.ttf</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

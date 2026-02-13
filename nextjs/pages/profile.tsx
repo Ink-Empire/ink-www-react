@@ -734,10 +734,11 @@ const ProfilePage: React.FC = () => {
     }
   }, [showToast]);
 
-  // Support both object format (image.uri) and string format for backwards compatibility
-  // Prioritize profilePhoto.webviewPath for optimistic updates (shows immediately after crop)
-  const imageUri = profilePhoto?.webviewPath
-    || (typeof userData?.image === 'string' ? userData.image : userData?.image?.uri);
+  // Use blob URLs from useProfilePhoto for optimistic updates (shows immediately after crop),
+  // otherwise use the API data as source of truth
+  const optimisticUri = profilePhoto?.webviewPath?.startsWith('blob:') ? profilePhoto.webviewPath : null;
+  const serverUri = typeof userData?.image === 'string' ? userData.image : userData?.image?.uri;
+  const imageUri = optimisticUri || serverUri;
 
   return (
     <Layout>

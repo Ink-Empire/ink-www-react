@@ -151,18 +151,18 @@ export default function InboxPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mark conversation as read when selected or when new messages arrive
+  // Mark conversation as read when selected
   useEffect(() => {
-    if (selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
+    if (selectedConversationId) {
       markConversationRead(selectedConversationId);
       markAsRead();
     }
-  }, [selectedConversationId, selectedConversation?.unread_count, messages.length, markAsRead, markConversationRead]);
+  }, [selectedConversationId, markAsRead, markConversationRead]);
 
   // Mark as read when window regains focus (e.g., switching tabs back)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
+      if (document.visibilityState === 'visible' && selectedConversationId) {
         markConversationRead(selectedConversationId);
         markAsRead();
       }
@@ -170,7 +170,7 @@ export default function InboxPage() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [selectedConversationId, selectedConversation?.unread_count, markAsRead, markConversationRead]);
+  }, [selectedConversationId, markAsRead, markConversationRead]);
 
   // Refetch conversations when filter changes
   useEffect(() => {
@@ -1247,15 +1247,24 @@ export default function InboxPage() {
                   </Box>
                 ) : messages.length > 0 ? (
                   <>
-                    {messages.map((msg) => (
-                      <MessageBubble
-                        key={msg.id}
-                        message={msg}
-                        isSent={msg.sender_id === user?.id}
-                        senderInitials={msg.sender_id === user?.id ? userInitials : msg.sender?.initials || '??'}
-                        senderImage={msg.sender_id === user?.id ? user?.image?.uri : msg.sender?.image?.uri}
-                      />
-                    ))}
+                    {messages.map((msg, idx) => {
+                      const prevMsg = idx > 0 ? messages[idx - 1] : null;
+                      const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                      const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
+                      const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
+
+                      return (
+                        <MessageBubble
+                          key={msg.id}
+                          message={msg}
+                          isSent={msg.sender_id === user?.id}
+                          senderInitials={msg.sender_id === user?.id ? userInitials : msg.sender?.initials || '??'}
+                          senderImage={msg.sender_id === user?.id ? user?.image?.uri : msg.sender?.image?.uri}
+                          showAvatar={isFirstInGroup}
+                          isLastInGroup={isLastInGroup}
+                        />
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </>
                 ) : (

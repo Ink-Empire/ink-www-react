@@ -38,7 +38,14 @@ class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate, MessagingDe
 
   // Forward APNs token to Firebase
   override func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+    print("[PUSH DEBUG] APNs token received: \(tokenString)")
     Messaging.messaging().apnsToken = deviceToken
+  }
+
+  // APNs registration failed
+  override func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+    print("[PUSH DEBUG] APNs registration FAILED: \(error.localizedDescription)")
   }
 
   // Show push banners while app is in foreground
@@ -55,9 +62,14 @@ class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate, MessagingDe
     completionHandler()
   }
 
+  // Clear badge when app becomes active
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    application.applicationIconBadgeNumber = 0
+  }
+
   // Firebase messaging delegate
   func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-    // Token refresh is handled by JS via @react-native-firebase/messaging
+    print("[PUSH DEBUG] FCM token received: \(fcmToken ?? "nil")")
   }
 
   override func application(_ application: UIApplication,

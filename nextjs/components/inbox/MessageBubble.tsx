@@ -11,6 +11,8 @@ interface MessageBubbleProps {
   isSent: boolean;
   senderInitials: string;
   senderImage?: string;
+  showAvatar?: boolean;
+  isLastInGroup?: boolean;
 }
 
 export function MessageBubble({
@@ -18,6 +20,8 @@ export function MessageBubble({
   isSent,
   senderInitials,
   senderImage,
+  showAvatar = true,
+  isLastInGroup = true,
 }: MessageBubbleProps) {
   const hasBookingCard = message.type === 'booking_card' && message.metadata;
   const hasDepositRequest = message.type === 'deposit_request' && message.metadata;
@@ -27,27 +31,31 @@ export function MessageBubble({
       sx={{
         display: 'flex',
         gap: 1.5,
-        mb: 2,
+        mb: isLastInGroup ? 2 : 0.5,
         maxWidth: '70%',
         flexDirection: isSent ? 'row-reverse' : 'row',
         ml: isSent ? 'auto' : 0,
       }}
     >
-      <Avatar
-        src={senderImage}
-        sx={{
-          width: 32,
-          height: 32,
-          bgcolor: isSent ? colors.accentDim : colors.surface,
-          color: colors.accent,
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          flexShrink: 0,
-          alignSelf: 'flex-end',
-        }}
-      >
-        {senderInitials}
-      </Avatar>
+      {showAvatar ? (
+        <Avatar
+          src={senderImage}
+          sx={{
+            width: 32,
+            height: 32,
+            bgcolor: isSent ? colors.accentDim : colors.surface,
+            color: colors.accent,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            flexShrink: 0,
+            alignSelf: 'flex-start',
+          }}
+        >
+          {senderInitials}
+        </Avatar>
+      ) : (
+        <Box sx={{ width: 32, flexShrink: 0 }} />
+      )}
 
       <Box
         sx={{
@@ -62,7 +70,7 @@ export function MessageBubble({
             sx={{
               px: 2,
               py: 1.5,
-              bgcolor: isSent ? colors.accent : colors.surface,
+              bgcolor: isSent ? colors.accent : colors.accentDim,
               color: isSent ? colors.background : colors.textPrimary,
               borderRadius: '12px',
               borderBottomLeftRadius: isSent ? '12px' : '4px',
@@ -163,22 +171,24 @@ export function MessageBubble({
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 0.5 }}>
-          <Typography sx={{ fontSize: '0.7rem', color: colors.textMuted }}>
-            {formatMessageTime(message.created_at)}
-          </Typography>
-          {isSent && (
-            <Typography
-              sx={{
-                fontSize: '0.65rem',
-                color: message.read_at ? colors.accent : colors.textMuted,
-                fontWeight: message.read_at ? 500 : 400,
-              }}
-            >
-              {message.read_at ? '· Seen' : '· Sent'}
+        {isLastInGroup && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', color: colors.textMuted }}>
+              {formatMessageTime(message.created_at)}
             </Typography>
-          )}
-        </Box>
+            {isSent && (
+              <Typography
+                sx={{
+                  fontSize: '0.65rem',
+                  color: message.read_at ? colors.accent : colors.textMuted,
+                  fontWeight: message.read_at ? 500 : 400,
+                }}
+              >
+                {message.read_at ? '· Seen' : '· Sent'}
+              </Typography>
+            )}
+          </Box>
+        )}
       </Box>
     </Box>
   );

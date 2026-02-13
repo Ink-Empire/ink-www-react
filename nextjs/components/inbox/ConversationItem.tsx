@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Box, Typography, Avatar } from '@mui/material';
 import { colors } from '@/styles/colors';
 import { ApiConversation } from '@/hooks/useConversations';
-import { TypeBadge } from './TypeBadge';
 import { formatTimestamp } from './utils';
 
 interface ConversationItemProps {
@@ -121,27 +120,24 @@ export function ConversationItem({
           {lastMessagePreview}
         </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TypeBadge type={conversation.type} />
-          {isUnread && (
-            <Box
-              sx={{
-                width: 20,
-                height: 20,
-                bgcolor: colors.accent,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: colors.background,
-              }}
-            >
-              {conversation.unread_count}
-            </Box>
-          )}
-        </Box>
+        {isUnread && (
+          <Box
+            sx={{
+              width: 20,
+              height: 20,
+              bgcolor: colors.accent,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              color: colors.background,
+            }}
+          >
+            {conversation.unread_count}
+          </Box>
+        )}
       </Box>
     </Box>
   );
