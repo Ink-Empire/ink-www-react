@@ -108,6 +108,16 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       )}
 
+      {/* Notification Settings */}
+      <TouchableOpacity
+        style={styles.profileLink}
+        onPress={() => navigation.navigate('NotificationSettings')}
+      >
+        <MaterialIcons name="notifications" size={20} color={colors.accent} />
+        <Text style={styles.profileLinkText}>Notification Settings</Text>
+        <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+      </TouchableOpacity>
+
       {/* About */}
       {u.about ? (
         <View style={styles.section}>

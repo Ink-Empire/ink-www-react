@@ -7,6 +7,7 @@ import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { ProfileStackParamList } from './types';
 
@@ -23,6 +24,7 @@ export default function ProfileStack() {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', headerRight: () => <InboxHeaderButton /> }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen
         name="ArtistDetail"
         component={ArtistDetailScreen}

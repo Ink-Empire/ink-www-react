@@ -10,6 +10,7 @@ import React, {
 import { api, authApi, mobileStorage } from '../../lib/api';
 import type { User } from '@inkedin/shared/types';
 import type { RegisterData } from '@inkedin/shared/api/client';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 const USER_KEY = 'user';
 
@@ -87,6 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
   const [hasServerData, setHasServerData] = useState(false);
   const logoutRef = useRef<() => Promise<void>>();
+  const { unregisterToken } = usePushNotifications(Boolean(user));
 
   const fetchUser = useCallback(async (): Promise<User | null> => {
     try {
@@ -186,6 +188,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = useCallback(async () => {
     try {
+      await unregisterToken();
+    } catch (err) {
+      console.error('Push token unregister error:', err);
+    }
+    try {
       await authApi.logout();
     } catch (err) {
       console.error('Logout API error:', err);
@@ -193,7 +200,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     setHasServerData(false);
     await clearAuthStorage();
-  }, []);
+  }, [unregisterToken]);
 
   // Wire onUnauthorized to logout
   logoutRef.current = logout;

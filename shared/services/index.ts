@@ -138,6 +138,13 @@ export { createMessageService } from './messageService';
 export type { ConversationType, ConversationFilters } from './messageService';
 
 // =============================================================================
+// Notification Service
+// =============================================================================
+
+export { createNotificationService } from './notificationService';
+export type { NotificationType, NotificationPreference, NotificationPreferencesResponse } from './notificationService';
+
+// =============================================================================
 // Google Places Service (REST API)
 // =============================================================================
 
@@ -154,3 +161,4 @@ export type StudioService = ReturnType<typeof createStudioService>;
 export type StyleService = ReturnType<typeof createStyleService>;
 export type UserService = ReturnType<typeof createUserService>;
 export type MessageService = ReturnType<typeof createMessageService>;
+export type NotificationService = ReturnType<typeof createNotificationService>;

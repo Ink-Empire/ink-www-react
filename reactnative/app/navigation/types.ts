@@ -64,6 +64,7 @@ export type InboxStackParamList = {
 export type ProfileStackParamList = {
   Profile: undefined;
   EditProfile: undefined;
+  NotificationSettings: undefined;
   ArtistDetail: { slug: string; name?: string };
   TattooDetail: { id: number };
   StudioDetail: { slug: string; name?: string };
