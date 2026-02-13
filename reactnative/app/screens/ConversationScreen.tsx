@@ -16,6 +16,7 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnreadMessageCount } from '../contexts/UnreadCountContext';
 import { useConversation } from '@inkedin/shared/hooks';
 import MessageBubble from '../components/inbox/MessageBubble';
 import { uploadImagesToS3, type ImageFile } from '../../lib/s3Upload';
@@ -26,6 +27,7 @@ const MAX_ATTACHMENTS = 5;
 export default function ConversationScreen({ route }: any) {
   const { conversationId } = route.params;
   const { user } = useAuth();
+  const { refresh: refreshUnreadCount } = useUnreadMessageCount();
   const {
     messages,
     loading,
@@ -45,12 +47,12 @@ export default function ConversationScreen({ route }: any) {
   // Reverse messages for inverted FlatList (newest first)
   const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
-  // Mark as read when conversation opens
+  // Mark as read when conversation opens, then sync the badge
   useEffect(() => {
     if (conversationId) {
-      markAsRead();
+      markAsRead().then(() => refreshUnreadCount());
     }
-  }, [conversationId, markAsRead]);
+  }, [conversationId, markAsRead, refreshUnreadCount]);
 
   const handlePickImages = useCallback(async () => {
     const remaining = MAX_ATTACHMENTS - pendingAttachments.length;

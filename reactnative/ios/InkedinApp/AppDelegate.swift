@@ -62,9 +62,8 @@ class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate, MessagingDe
     completionHandler()
   }
 
-  // Clear badge when app becomes active
   override func applicationDidBecomeActive(_ application: UIApplication) {
-    application.applicationIconBadgeNumber = 0
+    // Badge is managed by UnreadCountContext - not cleared on foreground
   }
 
   // Firebase messaging delegate
