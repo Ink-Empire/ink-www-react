@@ -26,6 +26,13 @@ export const ElasticPanel = () => {
   const [ids, setIds] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [orphanLoading, setOrphanLoading] = useState(false);
+  const [orphanResult, setOrphanResult] = useState<{
+    es_total: number;
+    db_total: number;
+    orphan_count: number;
+    orphan_ids: number[];
+  } | null>(null);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -77,6 +84,41 @@ export const ElasticPanel = () => {
       showMessage('error', error?.message || 'Failed to trigger full reindex');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFindOrphans = async () => {
+    setOrphanLoading(true);
+    setOrphanResult(null);
+    try {
+      const response = await api.post<{ es_total: number; db_total: number; orphan_count: number; orphan_ids: number[] }>('/admin/elastic/find-orphans', { model });
+      setOrphanResult(response);
+      if (response.orphan_count === 0) {
+        showMessage('success', `No orphans found in ${model} index`);
+      }
+    } catch (error: any) {
+      showMessage('error', error?.message || 'Failed to scan for orphans');
+    } finally {
+      setOrphanLoading(false);
+    }
+  };
+
+  const handleDeleteOrphans = async () => {
+    if (!orphanResult || orphanResult.orphan_ids.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${orphanResult.orphan_count} orphaned documents from the ${model} index?`)) return;
+
+    setOrphanLoading(true);
+    try {
+      const response = await api.post<{ deleted: number; errors: number[] }>('/admin/elastic/delete-orphans', {
+        model,
+        ids: orphanResult.orphan_ids,
+      });
+      showMessage('success', `Deleted ${response.deleted} orphaned documents`);
+      setOrphanResult(null);
+    } catch (error: any) {
+      showMessage('error', error?.message || 'Failed to delete orphans');
+    } finally {
+      setOrphanLoading(false);
     }
   };
 
@@ -197,6 +239,66 @@ export const ElasticPanel = () => {
           >
             {loading ? <CircularProgress size={24} /> : `Reindex All ${model} Records`}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Orphan Cleanup
+          </Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            Scan for documents in Elasticsearch that no longer exist in the database and remove them.
+          </Typography>
+
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Model</InputLabel>
+            <Select
+              value={model}
+              label="Model"
+              onChange={(e) => { setModel(e.target.value); setOrphanResult(null); }}
+            >
+              {MODELS.map((m) => (
+                <MenuItem key={m.id} value={m.id}>
+                  {m.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleFindOrphans}
+            disabled={orphanLoading || loading}
+            sx={{ mb: 2 }}
+          >
+            {orphanLoading ? <CircularProgress size={24} /> : 'Scan for Orphans'}
+          </Button>
+
+          {orphanResult && (
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="body2">
+                ES documents: <strong>{orphanResult.es_total}</strong> | DB records: <strong>{orphanResult.db_total}</strong> | Orphans: <strong>{orphanResult.orphan_count}</strong>
+              </Typography>
+
+              {orphanResult.orphan_ids.length > 0 && (
+                <>
+                  <Box sx={{ mt: 1, mb: 2, maxHeight: 200, overflow: 'auto', bgcolor: 'grey.100', p: 1, borderRadius: 1, fontFamily: 'monospace', fontSize: 13 }}>
+                    {orphanResult.orphan_ids.join(', ')}
+                  </Box>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={handleDeleteOrphans}
+                    disabled={orphanLoading}
+                  >
+                    {orphanLoading ? <CircularProgress size={24} /> : `Delete ${orphanResult.orphan_count} Orphans`}
+                  </Button>
+                </>
+              )}
+            </Box>
+          )}
         </CardContent>
       </Card>
 
