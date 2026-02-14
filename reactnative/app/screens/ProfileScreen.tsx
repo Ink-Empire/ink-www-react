@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import DeviceInfo from 'react-native-device-info';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,6 +18,7 @@ import { useStyles } from '@inkedin/shared/hooks';
 import Avatar from '../components/common/Avatar';
 import StyleTag from '../components/common/StyleTag';
 import Button from '../components/common/Button';
+import { BUILD_GIT_SHA, BUILD_DATE } from '../buildInfo';
 
 const SOCIAL_ICONS: Record<string, string> = {
   instagram: 'camera-alt',
@@ -95,6 +97,22 @@ export default function ProfileScreen({ navigation }: any) {
         <Text style={styles.profileLinkText}>Edit Profile</Text>
         <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
       </TouchableOpacity>
+
+      {/* My Calendar (Artists) */}
+      {isArtist && (
+        <TouchableOpacity
+          style={styles.profileLink}
+          onPress={() => navigation.navigate('Calendar', {
+            artistId: u.id,
+            artistName: u.name,
+            artistSlug: u.slug,
+          })}
+        >
+          <MaterialIcons name="event" size={20} color={colors.accent} />
+          <Text style={styles.profileLinkText}>My Calendar</Text>
+          <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      )}
 
       {/* View Public Profile (Artists) */}
       {isArtist && u.slug && (
@@ -243,6 +261,19 @@ export default function ProfileScreen({ navigation }: any) {
             <Text style={styles.infoLabel}>Member since</Text>
             <Text style={styles.infoValue}>{formatDate(u.created_at)}</Text>
           </View>
+        ) : null}
+      </View>
+
+      {/* Build Info */}
+      <View style={styles.buildInfo}>
+        <Text style={styles.buildText}>
+          v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
+          {BUILD_GIT_SHA !== 'dev' ? ` - ${BUILD_GIT_SHA}` : ''}
+        </Text>
+        {BUILD_DATE ? (
+          <Text style={styles.buildText}>
+            Built {new Date(BUILD_DATE).toLocaleDateString()}
+          </Text>
         ) : null}
       </View>
 
@@ -413,6 +444,18 @@ const styles = StyleSheet.create({
   },
   capitalize: {
     textTransform: 'capitalize',
+  },
+
+  // Build Info
+  buildInfo: {
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingHorizontal: 16,
+  },
+  buildText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
 
   // Actions

@@ -21,6 +21,7 @@ import ErrorView from '../components/common/ErrorView';
 import StyleTag from '../components/common/StyleTag';
 import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
+import ArtistOwnerDashboard from '../components/artist/ArtistOwnerDashboard';
 
 const screenWidth = Dimensions.get('window').width;
 const GRID_PADDING = 12;
@@ -111,25 +112,34 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
       </View>
 
       {/* Actions */}
-      <View style={styles.actions}>
-        <Button
-          title="Book"
-          onPress={() => navigation.navigate('Calendar', {
-            artistId: artist.id,
-            artistName: artist.name,
-            artistSlug: slug,
-          })}
-          style={styles.actionButton}
+      {user?.id === artist?.id ? (
+        <ArtistOwnerDashboard
+          artistId={artist.id}
+          artistName={artist.name}
+          artistSlug={slug}
+          navigation={navigation}
         />
-        {user && (
+      ) : (
+        <View style={styles.actions}>
           <Button
-            title={isFavorited ? 'Saved' : 'Save'}
-            onPress={handleToggleFavorite}
-            variant={isFavorited ? 'secondary' : 'outline'}
+            title="Book"
+            onPress={() => navigation.navigate('Calendar', {
+              artistId: artist.id,
+              artistName: artist.name,
+              artistSlug: slug,
+            })}
             style={styles.actionButton}
           />
-        )}
-      </View>
+          {user && (
+            <Button
+              title={isFavorited ? 'Saved' : 'Save'}
+              onPress={handleToggleFavorite}
+              variant={isFavorited ? 'secondary' : 'outline'}
+              style={styles.actionButton}
+            />
+          )}
+        </View>
+      )}
 
       {/* About */}
       {a.about ? (

@@ -13,21 +13,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { CalendarDayInfo } from '@inkedin/shared/types';
+import { colors } from '../../../lib/colors';
 
 const { width } = Dimensions.get('window');
 const CELL_SIZE = Math.floor((width - 32 - 12) / 7); // Account for padding and gaps
-
-// Color palette matching the web app
-const colors = {
-  background: '#0D0D0D',
-  surface: '#1A1A1A',
-  border: '#2A2A2A',
-  textPrimary: '#E8E8E8',
-  textSecondary: '#888888',
-  accent: '#C9A962',
-  success: '#4CAF50',
-  googleBlue: '#4285F4',
-};
 
 const WEEKDAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -36,6 +25,7 @@ interface CalendarGridProps {
   firstDayOfMonth: number;
   closedDays: number[];
   onDayPress: (date: string) => void;
+  isOwnProfile?: boolean;
 }
 
 export function CalendarGrid({
@@ -43,6 +33,7 @@ export function CalendarGrid({
   firstDayOfMonth,
   closedDays,
   onDayPress,
+  isOwnProfile = false,
 }: CalendarGridProps) {
   // Create padding days for the start of the month
   const paddingDays = Array.from({ length: firstDayOfMonth }, (_, i) => ({
@@ -82,7 +73,12 @@ export function CalendarGrid({
           <CalendarDay
             key={day.date}
             day={day}
-            onPress={() => day.isAvailable && onDayPress(day.date)}
+            isOwnProfile={isOwnProfile}
+            onPress={() => {
+              if (isOwnProfile || day.isAvailable) {
+                onDayPress(day.date);
+              }
+            }}
           />
         ))}
       </View>
@@ -93,10 +89,11 @@ export function CalendarGrid({
 interface CalendarDayProps {
   day: CalendarDayInfo;
   onPress: () => void;
+  isOwnProfile?: boolean;
 }
 
-function CalendarDay({ day, onPress }: CalendarDayProps) {
-  const canPress = day.isAvailable || day.hasAppointments || day.hasExternalEvents;
+function CalendarDay({ day, onPress, isOwnProfile = false }: CalendarDayProps) {
+  const canPress = isOwnProfile || day.isAvailable || day.hasAppointments || day.hasExternalEvents;
 
   const getCellStyle = () => {
     if (day.isClosed) {
@@ -189,12 +186,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   dayCellAvailable: {
-    backgroundColor: `${colors.accent}15`,
+    backgroundColor: `${colors.available}15`,
     borderWidth: 1.5,
-    borderColor: colors.accent,
+    borderColor: colors.available,
   },
   dayCellUnavailable: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   dayCellClosed: {
     backgroundColor: colors.background,
@@ -235,7 +232,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.googleBlue,
+    backgroundColor: colors.info,
   },
   appointmentDot: {
     position: 'absolute',

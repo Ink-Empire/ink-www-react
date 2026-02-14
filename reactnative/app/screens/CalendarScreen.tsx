@@ -16,20 +16,13 @@ import {
 } from 'react-native';
 import { useCalendar } from '@inkedin/shared/hooks';
 import { WorkingHour, Appointment, ExternalCalendarEvent } from '@inkedin/shared/types';
+import type { UpcomingAppointment } from '@inkedin/shared/services';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { colors } from '../../lib/colors';
+import { artistService } from '../../lib/services';
+import { useAuth } from '../contexts/AuthContext';
 import { CalendarGrid } from '../components/Calendar/CalendarGrid';
 import { CalendarDayModal } from '../components/Calendar/CalendarDayModal';
-
-// Color palette matching the web app
-const colors = {
-  background: '#0D0D0D',
-  surface: '#1A1A1A',
-  border: '#2A2A2A',
-  textPrimary: '#E8E8E8',
-  textSecondary: '#888888',
-  accent: '#C9A962',
-  success: '#4CAF50',
-  error: '#FF5252',
-};
 
 interface CalendarScreenProps {
   route: {
@@ -44,6 +37,8 @@ interface CalendarScreenProps {
 
 export default function CalendarScreen({ route, navigation }: CalendarScreenProps) {
   const { artistId, artistName = 'Artist', artistSlug } = route.params;
+  const { user } = useAuth();
+  const isOwnProfile = user?.id === artistId;
 
   // State
   const [loading, setLoading] = useState(true);
@@ -51,6 +46,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
 
   // Use the shared calendar hook
   const calendar = useCalendar({
@@ -64,27 +60,47 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     fetchCalendarData();
   }, [artistId]);
 
+  // Fetch upcoming appointments once we know it's the artist's own calendar
+  useEffect(() => {
+    if (isOwnProfile) {
+      fetchUpcomingAppointments();
+    }
+  }, [isOwnProfile, artistId]);
+
   const fetchCalendarData = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API calls
-      // const response = await api.get(`/artists/${artistSlug}/working-hours`);
-      // setWorkingHours(response.data);
-
-      // Mock data for now
-      setWorkingHours([
-        { artist_id: artistId, day_of_week: 0, start_time: '09:00', end_time: '17:00', is_day_off: true },
-        { artist_id: artistId, day_of_week: 1, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 2, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 3, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 4, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 5, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 6, start_time: '09:00', end_time: '17:00', is_day_off: true },
-      ]);
+      const idOrSlug = artistSlug || artistId;
+      const response = await artistService.getWorkingHours(idOrSlug);
+      const data = (response as any)?.data ?? response ?? [];
+      setWorkingHours(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch calendar data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUpcomingAppointments = async () => {
+    try {
+      const response = await artistService.getUpcomingSchedule(artistId);
+      const data = (response as any)?.data ?? [];
+      const upcoming = data.slice(0, 5);
+      setUpcomingAppointments(upcoming);
+
+      // Convert to Appointment[] so the calendar hook knows which days have appointments
+      setAppointments(upcoming.map((ua: UpcomingAppointment) => ({
+        id: ua.id,
+        title: ua.title,
+        date: ua.date,
+        start_time: ua.time.split(' \u2013 ')[0] || '',
+        end_time: ua.time.split(' \u2013 ')[1] || '',
+        type: (ua.type || 'appointment') as 'consultation' | 'appointment' | 'other',
+        status: 'booked' as const,
+        artist_id: artistId,
+      })));
+    } catch (err) {
+      console.error('Failed to fetch upcoming appointments:', err);
     }
   };
 
@@ -143,41 +159,43 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           </View>
         </View>
 
-        {/* Booking Type Toggle */}
-        <View style={styles.bookingTypeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.bookingTypeButton,
-              calendar.bookingType === 'consultation' && styles.bookingTypeButtonActive,
-            ]}
-            onPress={() => calendar.setBookingType('consultation')}
-          >
-            <Text
+        {/* Booking Type Toggle - hidden for own profile */}
+        {!isOwnProfile && (
+          <View style={styles.bookingTypeContainer}>
+            <TouchableOpacity
               style={[
-                styles.bookingTypeText,
-                calendar.bookingType === 'consultation' && styles.bookingTypeTextActive,
+                styles.bookingTypeButton,
+                calendar.bookingType === 'consultation' && styles.bookingTypeButtonActive,
               ]}
+              onPress={() => calendar.setBookingType('consultation')}
             >
-              Consultation
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.bookingTypeButton,
-              calendar.bookingType === 'appointment' && styles.bookingTypeButtonActive,
-            ]}
-            onPress={() => calendar.setBookingType('appointment')}
-          >
-            <Text
+              <Text
+                style={[
+                  styles.bookingTypeText,
+                  calendar.bookingType === 'consultation' && styles.bookingTypeTextActive,
+                ]}
+              >
+                Consultation
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[
-                styles.bookingTypeText,
-                calendar.bookingType === 'appointment' && styles.bookingTypeTextActive,
+                styles.bookingTypeButton,
+                calendar.bookingType === 'appointment' && styles.bookingTypeButtonActive,
               ]}
+              onPress={() => calendar.setBookingType('appointment')}
             >
-              Appointment
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Text
+                style={[
+                  styles.bookingTypeText,
+                  calendar.bookingType === 'appointment' && styles.bookingTypeTextActive,
+                ]}
+              >
+                Appointment
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Calendar Grid */}
         <CalendarGrid
@@ -185,12 +203,13 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           firstDayOfMonth={calendar.firstDayOfMonth}
           closedDays={calendar.closedDays}
           onDayPress={handleDayPress}
+          isOwnProfile={isOwnProfile}
         />
 
         {/* Legend */}
         <View style={styles.legend}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+            <View style={[styles.legendDot, { backgroundColor: colors.available }]} />
             <Text style={styles.legendText}>Available</Text>
           </View>
           <View style={styles.legendItem}>
@@ -198,6 +217,32 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
             <Text style={styles.legendText}>Unavailable</Text>
           </View>
         </View>
+
+        {/* Upcoming Appointments - own profile only */}
+        {isOwnProfile && upcomingAppointments.length > 0 && (
+          <View style={styles.upcomingSection}>
+            <Text style={styles.upcomingSectionTitle}>Upcoming Appointments</Text>
+            {upcomingAppointments.map((apt) => (
+              <TouchableOpacity key={apt.id} style={styles.appointmentCard} onPress={() => handleDayPress(apt.date)}>
+                <View style={styles.appointmentDate}>
+                  <Text style={styles.appointmentDay}>{apt.day}</Text>
+                  <Text style={styles.appointmentMonth}>{apt.month}</Text>
+                </View>
+                <View style={styles.appointmentInfo}>
+                  <Text style={styles.appointmentTitle}>{apt.title}</Text>
+                  <Text style={styles.appointmentTime}>
+                    <MaterialIcons name="schedule" size={12} color={colors.textMuted} />
+                    {'  '}{apt.time}
+                  </Text>
+                  <Text style={styles.appointmentClient}>{apt.clientName}</Text>
+                </View>
+                <View style={styles.appointmentTypeBadge}>
+                  <Text style={styles.appointmentTypeText}>{apt.type}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* Day Detail Modal */}
@@ -209,6 +254,14 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         artistName={artistName}
         appointments={calendar.selectedDate ? calendar.getAppointmentsForDate(calendar.selectedDate) : []}
         externalEvents={calendar.selectedDate ? calendar.getExternalEventsForDate(calendar.selectedDate) : []}
+        isOwnProfile={isOwnProfile}
+        ownerAppointments={calendar.selectedDate ? upcomingAppointments.filter(a => {
+          if (a.date) return a.date === calendar.selectedDate;
+          // Fallback: match by day/month from selectedDate
+          const d = new Date(calendar.selectedDate + 'T00:00:00');
+          const monthShort = d.toLocaleString('en-US', { month: 'short' });
+          return a.day === d.getDate() && a.month === monthShort;
+        }) : []}
       />
     </SafeAreaView>
   );
@@ -288,7 +341,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookingTypeButtonActive: {
-    backgroundColor: `${colors.accent}20`,
+    backgroundColor: colors.accentDim,
     borderColor: colors.accent,
   },
   bookingTypeText: {
@@ -318,5 +371,75 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+
+  // Upcoming Appointments
+  upcomingSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  upcomingSectionTitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  appointmentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  appointmentDate: {
+    width: 44,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    paddingVertical: 6,
+  },
+  appointmentDay: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  appointmentMonth: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  appointmentInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  appointmentTitle: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  appointmentTime: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  appointmentClient: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  appointmentTypeBadge: {
+    backgroundColor: colors.accentDim,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  appointmentTypeText: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
 });

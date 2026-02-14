@@ -1777,6 +1777,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - RNDeviceInfo (15.0.1):
+    - React-Core
   - RNFBApp (21.14.0):
     - Firebase/CoreOnly (= 11.11.0)
     - React-Core
@@ -2044,6 +2046,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
+  - RNDeviceInfo (from `../node_modules/react-native-device-info`)
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
@@ -2212,6 +2215,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNCAsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
+  RNDeviceInfo:
+    :path: "../node_modules/react-native-device-info"
   RNFBApp:
     :path: "../node_modules/@react-native-firebase/app"
   RNFBMessaging:
@@ -2311,6 +2316,7 @@ SPEC CHECKSUMS:
   ReactCodegen: 82d5bc3e3ad2c8496848554cb2d3b64b03b53420
   ReactCommon: 269d0d36423fad044eaea49900e88684ac670a16
   RNCAsyncStorage: 62fdbd7e63312228d4868779026248c2677911e1
+  RNDeviceInfo: 36d7f232bfe7c9b5c494cb7793230424ed32c388
   RNFBApp: a448037d2df74af9d374a0b765be12ff1e844dc0
   RNFBMessaging: 0f0498a95c605e3afcf13ac5f349d0b201ea65f6
   RNGestureHandler: 8b1080a6db0be82dbca18550d6212b885bfab6b2

@@ -61,5 +61,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>INSendMessageIntent</string>
+	</array>
 </dict>
 </plist>

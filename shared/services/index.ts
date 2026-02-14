@@ -4,6 +4,18 @@
 import type { ApiClient } from '../api';
 import type { Artist, Tattoo, Studio, Style, SearchFilters, User } from '../types';
 
+export interface UpcomingAppointment {
+  id: number;
+  date: string; // YYYY-MM-DD
+  day: number;
+  month: string;
+  time: string;
+  title: string;
+  clientName: string;
+  clientInitials: string;
+  type: 'consultation' | 'appointment' | string;
+}
+
 // =============================================================================
 // Artist Service
 // =============================================================================
@@ -21,6 +33,9 @@ export function createArtistService(api: ApiClient) {
     getPortfolio: (idOrSlug: string | number) =>
       api.get<Tattoo[]>(`/artists/${idOrSlug}/portfolio`),
 
+    getWorkingHours: (idOrSlug: string | number) =>
+      api.get(`/artists/${idOrSlug}/working-hours`),
+
     update: (id: number, data: Partial<Artist>) =>
       api.put<{ artist: Artist }>(`/artists/${id}`, data, { requiresAuth: true }),
 
@@ -31,6 +46,18 @@ export function createArtistService(api: ApiClient) {
       api.post<{ artist: { id: number; name: string; username: string; slug?: string; image?: any } }>(
         '/artists/lookup',
         { username: identifier },
+        { requiresAuth: true },
+      ),
+
+    getDashboardStats: (id: number) =>
+      api.get<{ data: { profile_views: number; saves_this_week: number; upcoming_appointments: number; unread_messages: number } }>(
+        `/artists/${id}/dashboard-stats`,
+        { requiresAuth: true },
+      ),
+
+    getUpcomingSchedule: (id: number) =>
+      api.get<{ data: UpcomingAppointment[] }>(
+        `/artists/${id}/upcoming-schedule`,
         { requiresAuth: true },
       ),
   };
