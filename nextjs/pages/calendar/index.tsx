@@ -7,9 +7,23 @@ import ArtistProfileCalendar, { ArtistProfileCalendarRef } from '@/components/Ar
 import { useAuth } from '@/contexts/AuthContext';
 import { Box, Typography, Button, Snackbar, Alert } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 import { colors } from '@/styles/colors';
 import GoogleCalendarButton from '@/components/GoogleCalendarButton';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { artistService } from '@/services/artistService';
+
+interface UpcomingAppointment {
+  id: number;
+  date: string;
+  day: number;
+  month: string;
+  time: string;
+  title: string;
+  clientName: string;
+  clientInitials: string;
+  type: string;
+}
 
 const MyCalendarPage: React.FC = () => {
   const router = useRouter();
@@ -18,6 +32,7 @@ const MyCalendarPage: React.FC = () => {
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const calendarRef = useRef<ArtistProfileCalendarRef>(null);
   const initialSyncDone = useRef(false);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -25,6 +40,21 @@ const MyCalendarPage: React.FC = () => {
       router.push('/login');
     }
   }, [authLoading, isAuthenticated, router]);
+
+  // Fetch upcoming appointments
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchUpcoming = async () => {
+      try {
+        const response = await artistService.getUpcomingSchedule(user.id);
+        const data = (response as any)?.data ?? response ?? [];
+        setUpcomingAppointments(Array.isArray(data) ? data.slice(0, 5) : []);
+      } catch (err) {
+        console.error('Failed to fetch upcoming appointments:', err);
+      }
+    };
+    fetchUpcoming();
+  }, [user?.id]);
 
   // Handle OAuth callback success/error from URL params
   useEffect(() => {
@@ -52,6 +82,10 @@ const MyCalendarPage: React.FC = () => {
 
   const handleSyncComplete = () => {
     calendarRef.current?.refreshEvents?.();
+  };
+
+  const handleUpcomingClick = (apt: UpcomingAppointment) => {
+    calendarRef.current?.selectDay(apt.date);
   };
 
   if (authLoading) {
@@ -144,6 +178,108 @@ const MyCalendarPage: React.FC = () => {
             <Typography sx={{ color: colors.textMuted }}>
               Unable to load calendar. Please try again.
             </Typography>
+          </Box>
+        )}
+
+        {/* Upcoming Appointments - below calendar, stacked vertically like RN */}
+        {upcomingAppointments.length > 0 && (
+          <Box sx={{ pb: 3, mt: 3 }}>
+            <Typography sx={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: colors.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              mb: 1.5,
+            }}>
+              Upcoming Appointments
+            </Typography>
+            {upcomingAppointments.map((apt) => (
+              <Box
+                key={apt.id}
+                onClick={() => handleUpcomingClick(apt)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  p: 1.5,
+                  mb: 1,
+                  bgcolor: colors.surfaceElevated,
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  border: `1px solid transparent`,
+                  '&:hover': {
+                    borderColor: colors.accent,
+                    bgcolor: colors.surface,
+                  },
+                }}
+              >
+                {/* Date block */}
+                <Box sx={{
+                  minWidth: 44,
+                  textAlign: 'center',
+                  bgcolor: colors.surface,
+                  borderRadius: '8px',
+                  py: 0.75,
+                  px: 1,
+                }}>
+                  <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: colors.textPrimary, lineHeight: 1.2 }}>
+                    {apt.day}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase' }}>
+                    {apt.month}
+                  </Typography>
+                </Box>
+
+                {/* Info */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: colors.textPrimary,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {apt.title}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                    <ScheduleIcon sx={{ fontSize: 12, color: colors.textMuted }} />
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted }}>
+                      {apt.time}
+                    </Typography>
+                  </Box>
+                  <Typography sx={{
+                    fontSize: '0.75rem',
+                    color: colors.textSecondary,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {apt.clientName}
+                  </Typography>
+                </Box>
+
+                {/* Type badge */}
+                <Box sx={{
+                  px: 1,
+                  py: 0.25,
+                  bgcolor: colors.accentDim,
+                  borderRadius: '4px',
+                  flexShrink: 0,
+                }}>
+                  <Typography sx={{
+                    fontSize: '0.6rem',
+                    fontWeight: 600,
+                    color: colors.accent,
+                    textTransform: 'uppercase',
+                  }}>
+                    {apt.type}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
           </Box>
         )}
       </Box>

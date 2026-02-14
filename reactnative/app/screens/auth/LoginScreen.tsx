@@ -27,7 +27,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      setError('Please enter your email and password');
+      setError('Please enter your email or username and password');
       return;
     }
 
@@ -72,12 +72,12 @@ export default function LoginScreen({ navigation }: Props) {
         )}
 
         <Input
-          label="Email"
+          label="Email or Username"
           value={email}
           onChangeText={setEmail}
-          placeholder="your@email.com"
+          placeholder="Email or username"
           autoCapitalize="none"
-          keyboardType="email-address"
+          keyboardType="default"
           autoCorrect={false}
         />
 

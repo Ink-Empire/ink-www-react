@@ -25,7 +25,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      setError('Please enter your email');
+      setError('Please enter your email or username');
       return;
     }
 
@@ -68,7 +68,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Reset Password</Text>
         <Text style={styles.subtitle}>
-          Enter your email and we'll send you a link to reset your password
+          Enter your email or username and we'll send you a link to reset your password
         </Text>
 
         {error && (
@@ -78,12 +78,12 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
         )}
 
         <Input
-          label="Email"
+          label="Email or Username"
           value={email}
           onChangeText={setEmail}
-          placeholder="your@email.com"
+          placeholder="Email or username"
           autoCapitalize="none"
-          keyboardType="email-address"
+          keyboardType="default"
           autoCorrect={false}
         />
 

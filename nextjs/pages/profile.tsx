@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -22,6 +22,8 @@ import {
   Button,
   Alert,
   CircularProgress,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import PersonIcon from '@mui/icons-material/Person';
@@ -128,6 +130,7 @@ const ProfilePage: React.FC = () => {
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
+  const pendingBooksOpen = useRef(false);
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [fieldName, setFieldName] = useState('');
 
@@ -164,6 +167,7 @@ const ProfilePage: React.FC = () => {
     minimum_session: '',
     deposit_amount: '',
     consultation_fee: '',
+    consultation_duration: '30',
     watermark_enabled: false,
     watermark_opacity: 50,
     watermark_position: 'bottom-right',
@@ -284,6 +288,7 @@ const ProfilePage: React.FC = () => {
           minimum_session: toDisplayValue(response.data.minimum_session),
           deposit_amount: toDisplayValue(response.data.deposit_amount),
           consultation_fee: toDisplayValue(response.data.consultation_fee),
+          consultation_duration: String(response.data.consultation_duration || '30'),
           watermark_enabled: response.data.watermark_enabled ?? false,
           watermark_opacity: response.data.watermark_opacity ?? 50,
           watermark_position: response.data.watermark_position ?? 'bottom-right',
@@ -308,6 +313,18 @@ const ProfilePage: React.FC = () => {
     const newValue = !artistSettings[key];
     const previousSettings = { ...artistSettings };
 
+    // If toggling books_open ON, check for available hours first
+    if (key === 'books_open' && newValue) {
+      const hasAvailableHours = workingHours.some(h => !h.is_day_off);
+      if (!hasAvailableHours) {
+        // Optimistically show as on, open modal to set hours
+        setArtistSettings(prev => ({ ...prev, books_open: true }));
+        pendingBooksOpen.current = true;
+        setWorkingHoursModalOpen(true);
+        return;
+      }
+    }
+
     // Optimistic update
     setArtistSettings(prev => ({ ...prev, [key]: newValue }));
 
@@ -317,7 +334,13 @@ const ProfilePage: React.FC = () => {
 
       setToastMessage('Settings updated successfully');
       setShowToast(true);
-    } catch (err) {
+    } catch (err: any) {
+      // If API returns requires_availability, open the working hours modal
+      if (err?.status === 422 && err?.data?.requires_availability) {
+        pendingBooksOpen.current = true;
+        setWorkingHoursModalOpen(true);
+        return;
+      }
       // Revert on error
       setArtistSettings(previousSettings);
       setToastMessage('Failed to update setting');
@@ -328,7 +351,7 @@ const ProfilePage: React.FC = () => {
   };
 
   // Handle rate field changes (string settings)
-  const handleRateChange = (key: 'hourly_rate' | 'minimum_session' | 'deposit_amount' | 'consultation_fee', value: string) => {
+  const handleRateChange = (key: 'hourly_rate' | 'minimum_session' | 'deposit_amount' | 'consultation_fee' | 'consultation_duration', value: string) => {
     console.log('Rate changed:', key, value);
     setArtistSettings(prev => ({ ...prev, [key]: value }));
     setHasUnsavedSettings(true);
@@ -349,7 +372,8 @@ const ProfilePage: React.FC = () => {
       hourly_rate: artistSettings.hourly_rate ? parseFloat(artistSettings.hourly_rate) : 0,
       minimum_session: artistSettings.minimum_session ? parseFloat(artistSettings.minimum_session) : 0,
       deposit_amount: artistSettings.deposit_amount ? parseFloat(artistSettings.deposit_amount) : 0,
-      consultation_fee: artistSettings.consultation_fee ? parseFloat(artistSettings.consultation_fee) : 0
+      consultation_fee: artistSettings.consultation_fee ? parseFloat(artistSettings.consultation_fee) : 0,
+      consultation_duration: Number(artistSettings.consultation_duration) || 30,
     };
 
     console.log('Saving settings:', {
@@ -628,12 +652,49 @@ const ProfilePage: React.FC = () => {
   const handleSaveWorkingHours = async (hours: any[]) => {
     try {
       await saveWorkingHours(hours);
+
+      // If we were waiting to open books, do it now
+      if (pendingBooksOpen.current && artistId) {
+        pendingBooksOpen.current = false;
+        const hasAvailableHours = hours.some((h: any) => !h.is_day_off);
+        if (hasAvailableHours) {
+          try {
+            await artistService.updateSettings(artistId, { books_open: true });
+            setArtistSettings(prev => ({ ...prev, books_open: true }));
+            setToastMessage('Working hours saved and books opened');
+            setShowToast(true);
+            return;
+          } catch (err) {
+            setArtistSettings(prev => ({ ...prev, books_open: false }));
+            setToastMessage('Hours saved but failed to open books');
+            setShowToast(true);
+            return;
+          }
+        } else {
+          // Saved hours but all are day-off, revert books_open
+          setArtistSettings(prev => ({ ...prev, books_open: false }));
+        }
+      }
+
       setToastMessage('Working hours updated successfully');
       setShowToast(true);
     } catch (err) {
+      if (pendingBooksOpen.current) {
+        pendingBooksOpen.current = false;
+        setArtistSettings(prev => ({ ...prev, books_open: false }));
+      }
       setToastMessage('Failed to update working hours');
       setShowToast(true);
     }
+  };
+
+  // Handle working hours modal close (revert books_open if pending)
+  const handleWorkingHoursModalClose = () => {
+    if (pendingBooksOpen.current) {
+      pendingBooksOpen.current = false;
+      setArtistSettings(prev => ({ ...prev, books_open: false }));
+    }
+    setWorkingHoursModalOpen(false);
   };
 
   // Logout
@@ -1571,6 +1632,40 @@ const ProfilePage: React.FC = () => {
                 />
               </FormGroup>
             </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem', mb: '1.5rem' }}>
+              <FormGroup label="Consultation Duration">
+                <Select
+                  fullWidth
+                  size="small"
+                  value={artistSettings.consultation_duration}
+                  onChange={(e) => handleRateChange('consultation_duration', e.target.value)}
+                  sx={inputStyles}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        bgcolor: colors.surface,
+                        border: `1px solid ${colors.border}`,
+                        '& .MuiMenuItem-root': {
+                          fontSize: '0.85rem',
+                          color: colors.textPrimary,
+                          '&:hover': { bgcolor: colors.background },
+                          '&.Mui-selected': {
+                            bgcolor: `${colors.accent}26`,
+                            '&:hover': { bgcolor: `${colors.accent}33` },
+                          },
+                        },
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="15">15 minutes</MenuItem>
+                  <MenuItem value="30">30 minutes</MenuItem>
+                  <MenuItem value="45">45 minutes</MenuItem>
+                  <MenuItem value="60">60 minutes</MenuItem>
+                </Select>
+              </FormGroup>
+              <Box />
+            </Box>
 
             {/* Save Rates Button */}
             {hasUnsavedSettings && (
@@ -1613,7 +1708,7 @@ const ProfilePage: React.FC = () => {
                     '&:hover': { bgcolor: colors.accentHover }
                   }}
                 >
-                  {savingSettings ? 'Saving...' : 'Save Rates'}
+                  {savingSettings ? 'Saving...' : 'Save'}
                 </Box>
               </Box>
             )}
@@ -1690,10 +1785,20 @@ const ProfilePage: React.FC = () => {
                   <line x1="12" y1="8" x2="12.01" y2="8"></line>
                 </svg>
               </Box>
-              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5 }}>
-                <Box component="span" sx={{ color: colors.accent, fontWeight: 500 }}>Note:</Box>{' '}
-                Turning off "Books Open" will hide your calendar from potential clients and prevent new bookings.
-              </Typography>
+              <Box>
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5, mb: '0.5rem' }}>
+                  <Box component="span" sx={{ color: colors.accent, fontWeight: 500 }}>Note:</Box>{' '}
+                  Turning off "Books Open" will hide your calendar from potential clients and prevent new bookings.
+                </Typography>
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5 }}>
+                  <Box component="span" sx={{ color: colors.accent, fontWeight: 500 }}>Consultation windows:</Box>{' '}
+                  Set dedicated consultation hours per day in{' '}
+                  <Box component="a" href="#hours" sx={{ color: colors.accent, textDecoration: 'underline', cursor: 'pointer' }}>
+                    Your Hours
+                  </Box>{' '}
+                  below. When enabled, consultations can only be booked within those hours, keeping the rest of your day free for tattoo sessions.
+                </Typography>
+              </Box>
             </Box>
           </SettingsSection>
           )}
@@ -2327,7 +2432,7 @@ const ProfilePage: React.FC = () => {
       {isArtist && artistId && (
         <WorkingHoursModal
           isOpen={workingHoursModalOpen}
-          onClose={() => setWorkingHoursModalOpen(false)}
+          onClose={handleWorkingHoursModalClose}
           onSave={handleSaveWorkingHours}
           artistId={artistId}
           initialWorkingHours={workingHours}

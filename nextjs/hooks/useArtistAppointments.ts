@@ -68,7 +68,13 @@ export function useArtistAppointments(
       console.log('Fetching artist appointments:', requestBody);
 
       // Call the service
-      const normalizedAppointments = await appointmentService.getArtistAppointments(requestBody);
+      const rawAppointments = await appointmentService.getArtistAppointments(requestBody);
+
+      // Map API fields to interface fields
+      const normalizedAppointments = rawAppointments.map((apt: any) => ({
+        ...apt,
+        clientId: apt.client_id ?? apt.client?.id ?? null,
+      }));
 
       setAppointments(normalizedAppointments);
       setError(null);

@@ -122,12 +122,13 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
       ) : (
         <View style={styles.actions}>
           <Button
-            title="Book"
+            title={!settings.books_open ? 'Not Currently Booking' : 'Book'}
             onPress={() => navigation.navigate('Calendar', {
               artistId: artist.id,
               artistName: artist.name,
               artistSlug: slug,
             })}
+            disabled={!settings.books_open}
             style={styles.actionButton}
           />
           {user && (

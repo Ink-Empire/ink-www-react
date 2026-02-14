@@ -155,19 +155,15 @@ const LoginPage: React.FC = () => {
 
             {/* Email Field */}
             <TextField
-              label="Email Address"
-              type="email"
-              autoComplete="email"
+              label="Email or Username"
+              type="text"
+              autoComplete="username"
               error={!!errors.email}
               helperText={errors.email?.message}
               fullWidth
               required
-              {...register('email', { 
-                required: 'Email is required',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address'
-                }
+              {...register('email', {
+                required: 'Email or username is required',
               })}
               sx={{
                 '& .MuiOutlinedInput-root': {

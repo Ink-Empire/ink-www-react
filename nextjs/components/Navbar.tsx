@@ -29,6 +29,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { colors } from '@/styles/colors';
 
@@ -267,6 +268,22 @@ const Navbar: React.FC = () => {
                         <PersonIcon sx={{ color: colors.textSecondary }} />
                       </ListItemIcon>
                       <ListItemText primary="My Profile" />
+                    </MenuItem>
+                  )}
+                  {user?.type_id === 2 && user?.slug && (
+                    <MenuItem
+                      component={Link}
+                      href={"/calendar"}
+                      onClick={() => setProfileMenuAnchor(null)}
+                      sx={{
+                        color: colors.textPrimary,
+                        '&:hover': { bgcolor: `${colors.accent}1A` }
+                      }}
+                    >
+                      <ListItemIcon>
+                        <CalendarMonthIcon sx={{ color: colors.textSecondary }} />
+                      </ListItemIcon>
+                      <ListItemText primary="My Calendar" />
                     </MenuItem>
                   )}
                   <MenuItem
@@ -516,6 +533,21 @@ const Navbar: React.FC = () => {
                     }}
                   >
                     <ListItemText primary="My Profile" />
+                  </ListItem>
+                )}
+                {/* My Calendar - artists only */}
+                {user?.type_id === 2 && user?.slug && (
+                  <ListItem
+                    component={Link}
+                    href={"/calendar"}
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 1,
+                      '&:hover': { backgroundColor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemText primary="My Calendar" />
                   </ListItem>
                 )}
 

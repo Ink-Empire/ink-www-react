@@ -23,6 +23,7 @@ import { artistService } from '../../lib/services';
 import { useAuth } from '../contexts/AuthContext';
 import { CalendarGrid } from '../components/Calendar/CalendarGrid';
 import { CalendarDayModal } from '../components/Calendar/CalendarDayModal';
+import { BookingFormModal } from '../components/Calendar/BookingFormModal';
 
 interface CalendarScreenProps {
   route: {
@@ -46,6 +47,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [bookingFormVisible, setBookingFormVisible] = useState(false);
   const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
 
   // Use the shared calendar hook
@@ -112,6 +114,10 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const handleCloseModal = () => {
     setModalVisible(false);
     calendar.setSelectedDate(null);
+  };
+
+  const handleRequestBooking = () => {
+    setBookingFormVisible(true);
   };
 
   if (loading) {
@@ -257,12 +263,24 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         isOwnProfile={isOwnProfile}
         ownerAppointments={calendar.selectedDate ? upcomingAppointments.filter(a => {
           if (a.date) return a.date === calendar.selectedDate;
-          // Fallback: match by day/month from selectedDate
           const d = new Date(calendar.selectedDate + 'T00:00:00');
           const monthShort = d.toLocaleString('en-US', { month: 'short' });
           return a.day === d.getDate() && a.month === monthShort;
         }) : []}
+        onRequestBooking={handleRequestBooking}
       />
+
+      {/* Booking Form Modal */}
+      {!isOwnProfile && (
+        <BookingFormModal
+          visible={bookingFormVisible}
+          onClose={() => setBookingFormVisible(false)}
+          artistId={artistId}
+          artistName={artistName}
+          selectedDate={calendar.selectedDate}
+          bookingType={calendar.bookingType}
+        />
+      )}
     </SafeAreaView>
   );
 }

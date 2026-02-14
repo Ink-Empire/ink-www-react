@@ -216,4 +216,45 @@ export const messageService = {
       skipDemoMode: true,
     });
   },
+
+  // Send a cancellation message (requires auth)
+  sendCancellation: async (
+    conversationId: number,
+    appointmentId: number,
+    reason?: string
+  ): Promise<{ message: any }> => {
+    return api.post(`/conversations/${conversationId}/messages/cancellation`, {
+      appointment_id: appointmentId,
+      reason,
+    }, { requiresAuth: true });
+  },
+
+  // Send a reschedule request message (requires auth)
+  sendReschedule: async (
+    conversationId: number,
+    appointmentId: number,
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string
+  ): Promise<{ message: any }> => {
+    return api.post(`/conversations/${conversationId}/messages/reschedule`, {
+      appointment_id: appointmentId,
+      proposed_date: proposedDate,
+      proposed_start_time: proposedStartTime,
+      proposed_end_time: proposedEndTime,
+      reason,
+    }, { requiresAuth: true });
+  },
+
+  // Respond to a reschedule request (requires auth)
+  respondToMessage: async (
+    conversationId: number,
+    messageId: number,
+    action: 'accept' | 'decline'
+  ): Promise<{ message: any }> => {
+    return api.put(`/conversations/${conversationId}/messages/${messageId}/respond`, {
+      action,
+    }, { requiresAuth: true });
+  },
 };

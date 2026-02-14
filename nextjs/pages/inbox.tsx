@@ -34,6 +34,8 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SendIcon from '@mui/icons-material/Send';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import DescriptionIcon from '@mui/icons-material/Description';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
+import UpdateIcon from '@mui/icons-material/Update';
 import PersonIcon from '@mui/icons-material/Person';
 import BlockIcon from '@mui/icons-material/Block';
 import ReportIcon from '@mui/icons-material/Report';
@@ -57,11 +59,13 @@ import {
   ConversationItem,
   MessageBubble,
   QuickAction,
+  CancelAppointmentModal,
+  RescheduleAppointmentModal,
 } from '../components/inbox';
 
 export default function InboxPage() {
   const router = useRouter();
-  const { artistId } = router.query;
+  const { artistId, conversation: conversationParam } = router.query;
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [creatingConversation, setCreatingConversation] = useState(false);
@@ -109,6 +113,10 @@ export default function InboxPage() {
   // Deposit form state
   const [depositAmount, setDepositAmount] = useState('');
 
+  // Cancel/Reschedule modal states
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+
   // Pending attachments state (files waiting to be sent)
   interface PendingAttachment {
     id: string; // Unique ID for React key
@@ -133,6 +141,9 @@ export default function InboxPage() {
     sendMessage,
     sendBookingCard,
     sendDepositRequest,
+    sendCancellation,
+    sendReschedule,
+    respondToMessage,
     markAsRead,
     updateAppointmentStatus,
   } = useConversation(selectedConversationId || undefined);
@@ -237,6 +248,18 @@ export default function InboxPage() {
         });
     }
   }, [artistId, isAuthenticated, conversations, conversationsLoading, creatingConversation, router, fetchConversations]);
+
+  // Deep-link support: ?conversation=<id> opens that conversation directly
+  useEffect(() => {
+    if (!conversationParam || !isAuthenticated || conversationsLoading) return;
+
+    const convId = parseInt(conversationParam as string, 10);
+    if (isNaN(convId)) return;
+
+    setSelectedConversationId(convId);
+    setMobileShowConversation(true);
+    router.replace('/inbox', undefined, { shallow: true });
+  }, [conversationParam, isAuthenticated, conversationsLoading, router]);
 
   const unreadCount = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations]);
 
@@ -366,6 +389,60 @@ export default function InboxPage() {
     await sendDepositRequest(depositAmount, selectedConversation?.appointment?.id);
     setDepositModalOpen(false);
     setSnackbar({ open: true, message: 'Deposit request sent!', severity: 'success' });
+  };
+
+  const handleSendCancellation = async (reason?: string) => {
+    if (!selectedConversation?.appointment?.id) return;
+
+    const previousStatus = selectedConversation.appointment.status;
+    updateAppointmentStatus('cancelled');
+
+    try {
+      await sendCancellation(selectedConversation.appointment.id, reason);
+      setSnackbar({ open: true, message: 'Appointment cancelled. The client has been notified.', severity: 'success' });
+      fetchConversations();
+    } catch (error: any) {
+      updateAppointmentStatus(previousStatus);
+      setSnackbar({ open: true, message: error?.message || 'Failed to cancel appointment.', severity: 'error' });
+    }
+  };
+
+  const handleSendReschedule = async (
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string
+  ) => {
+    if (!selectedConversation?.appointment?.id) return;
+
+    try {
+      await sendReschedule(
+        selectedConversation.appointment.id,
+        proposedDate,
+        proposedStartTime,
+        proposedEndTime,
+        reason
+      );
+      setSnackbar({ open: true, message: 'Reschedule request sent!', severity: 'success' });
+    } catch (error: any) {
+      setSnackbar({ open: true, message: error?.message || 'Failed to send reschedule request.', severity: 'error' });
+    }
+  };
+
+  const handleRespondToReschedule = async (messageId: number, action: 'accept' | 'decline') => {
+    try {
+      await respondToMessage(messageId, action);
+      setSnackbar({
+        open: true,
+        message: action === 'accept'
+          ? 'Reschedule accepted. The appointment has been updated.'
+          : 'Reschedule declined.',
+        severity: 'success',
+      });
+      fetchConversations();
+    } catch (error: any) {
+      setSnackbar({ open: true, message: error?.message || `Failed to ${action} reschedule.`, severity: 'error' });
+    }
   };
 
   // File upload handlers
@@ -1181,7 +1258,7 @@ export default function InboxPage() {
                 </Box>
               )}
 
-              {/* Declined Banner for cancelled appointments */}
+              {/* Cancelled Banner for cancelled appointments */}
               {selectedConversation.appointment?.status === 'cancelled' && (
                 <Box
                   sx={{
@@ -1210,7 +1287,7 @@ export default function InboxPage() {
                   </Box>
                   <Box>
                     <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: colors.error }}>
-                      Declined
+                      Cancelled
                     </Typography>
                     <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
                       {(() => {
@@ -1262,6 +1339,7 @@ export default function InboxPage() {
                           senderImage={msg.sender_id === user?.id ? user?.image?.uri : msg.sender?.image?.uri}
                           showAvatar={isFirstInGroup}
                           isLastInGroup={isLastInGroup}
+                          onRespondToReschedule={handleRespondToReschedule}
                         />
                       );
                     })}
@@ -1492,6 +1570,20 @@ export default function InboxPage() {
                         label="Request Deposit"
                         onClick={handleOpenDepositModal}
                       />
+                      {selectedConversation?.appointment && selectedConversation.appointment.status !== 'cancelled' && (
+                        <>
+                          <QuickAction
+                            icon={<EventBusyIcon sx={{ fontSize: 14 }} />}
+                            label="Cancel Appointment"
+                            onClick={() => setCancelModalOpen(true)}
+                          />
+                          <QuickAction
+                            icon={<UpdateIcon sx={{ fontSize: 14 }} />}
+                            label="Reschedule"
+                            onClick={() => setRescheduleModalOpen(true)}
+                          />
+                        </>
+                      )}
                     </>
                   )}
                   <QuickAction
@@ -1833,6 +1925,22 @@ export default function InboxPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Cancel Appointment Modal */}
+      <CancelAppointmentModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onSubmit={handleSendCancellation}
+        clientName={selectedConversation?.participant?.name || undefined}
+      />
+
+      {/* Reschedule Appointment Modal */}
+      <RescheduleAppointmentModal
+        open={rescheduleModalOpen}
+        onClose={() => setRescheduleModalOpen(false)}
+        onSubmit={handleSendReschedule}
+        clientName={selectedConversation?.participant?.name || undefined}
+      />
 
       {/* Snackbar for notifications */}
       <Snackbar

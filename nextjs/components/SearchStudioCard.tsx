@@ -337,7 +337,7 @@ const SearchStudioCard: React.FC<SearchStudioCardProps> = ({ studio }) => {
           sx={{
             p: '0.75rem 1rem',
             display: 'flex',
-            justifyContent: 'flex-end',
+            justifyContent: 'flex-start',
             alignItems: 'center',
             borderTop: `1px solid ${colors.border}`,
           }}
@@ -349,8 +349,8 @@ const SearchStudioCard: React.FC<SearchStudioCardProps> = ({ studio }) => {
               py: '0.3rem',
               borderRadius: '100px',
               fontWeight: 500,
-              bgcolor: `${colors.accent}1A`,
-              color: colors.accent,
+              bgcolor: colors.warningDim,
+              color: colors.warning,
             }}
           >
             Studio

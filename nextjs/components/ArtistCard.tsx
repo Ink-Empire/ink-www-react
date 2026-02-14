@@ -76,7 +76,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
         if (artist.settings?.books_open) {
             return { label: 'Books Open', status: 'open' };
         }
-        return { label: 'Limited', status: 'limited' };
+        return { label: 'Not Currently Booking', status: 'closed' };
     };
 
     const availability = getAvailability();
@@ -297,10 +297,22 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                 <Box sx={{
                     p: '0.75rem 1rem',
                     display: 'flex',
-                    justifyContent: 'flex-end',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     borderTop: `1px solid ${colors.border}`
                 }}>
+                    {/* Type Badge */}
+                    <Box sx={{
+                        fontSize: '0.75rem',
+                        px: '0.6rem',
+                        py: '0.3rem',
+                        borderRadius: '100px',
+                        fontWeight: 500,
+                        bgcolor: colors.successDim,
+                        color: colors.success
+                    }}>
+                        Artist
+                    </Box>
                     {/* Availability */}
                     <Box sx={{
                         fontSize: '0.75rem',

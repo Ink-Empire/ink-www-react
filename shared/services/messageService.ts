@@ -70,5 +70,32 @@ export function createMessageService(api: ApiClient) {
         `/conversations/search-users?q=${encodeURIComponent(query)}`,
         { requiresAuth: true, useCache: false, skipDemoMode: true },
       ),
+
+    sendCancellation: (conversationId: number, appointmentId: number, reason?: string) =>
+      api.post<any>(`/conversations/${conversationId}/messages/cancellation`, {
+        appointment_id: appointmentId,
+        reason,
+      }, { requiresAuth: true }),
+
+    sendReschedule: (
+      conversationId: number,
+      appointmentId: number,
+      proposedDate: string,
+      proposedStartTime: string,
+      proposedEndTime: string,
+      reason?: string
+    ) =>
+      api.post<any>(`/conversations/${conversationId}/messages/reschedule`, {
+        appointment_id: appointmentId,
+        proposed_date: proposedDate,
+        proposed_start_time: proposedStartTime,
+        proposed_end_time: proposedEndTime,
+        reason,
+      }, { requiresAuth: true }),
+
+    respondToMessage: (conversationId: number, messageId: number, action: 'accept' | 'decline') =>
+      api.put(`/conversations/${conversationId}/messages/${messageId}/respond`, {
+        action,
+      }, { requiresAuth: true }),
   };
 }

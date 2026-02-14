@@ -90,6 +90,11 @@ export interface ApiMessage {
     items?: { description: string; amount: string }[];
     total?: string;
     valid_until?: string;
+    reason?: string;
+    proposed_date?: string;
+    proposed_start_time?: string;
+    proposed_end_time?: string;
+    status?: 'pending' | 'accepted' | 'declined';
   } | null;
   attachments: MessageAttachment[];
   read_at: string | null;
@@ -144,6 +149,9 @@ interface UseConversationReturn {
   sendMessage: (content: string, type?: string, metadata?: any, attachmentIds?: number[]) => Promise<ApiMessage | null>;
   sendBookingCard: (date: string, time: string, duration: string, depositAmount: string) => Promise<ApiMessage | null>;
   sendDepositRequest: (amount: string, appointmentId?: number) => Promise<ApiMessage | null>;
+  sendCancellation: (appointmentId: number, reason?: string) => Promise<ApiMessage | null>;
+  sendReschedule: (appointmentId: number, proposedDate: string, proposedStartTime: string, proposedEndTime: string, reason?: string) => Promise<ApiMessage | null>;
+  respondToMessage: (messageId: number, action: 'accept' | 'decline') => Promise<ApiMessage | null>;
   markAsRead: () => Promise<void>;
   updateAppointmentStatus: (status: string) => void;
 }
@@ -355,6 +363,63 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     }
   }, [conversationId]);
 
+  const sendCancellation = useCallback(async (
+    appointmentId: number,
+    reason?: string
+  ): Promise<ApiMessage | null> => {
+    if (!conversationId) return null;
+
+    try {
+      const response = await messageService.sendCancellation(conversationId, appointmentId, reason);
+      const newMessage = response.message;
+      setMessages((prev) => [...prev, newMessage]);
+      return newMessage;
+    } catch (err) {
+      console.error('Error sending cancellation:', err);
+      return null;
+    }
+  }, [conversationId]);
+
+  const sendReschedule = useCallback(async (
+    appointmentId: number,
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string
+  ): Promise<ApiMessage | null> => {
+    if (!conversationId) return null;
+
+    try {
+      const response = await messageService.sendReschedule(
+        conversationId, appointmentId, proposedDate, proposedStartTime, proposedEndTime, reason
+      );
+      const newMessage = response.message;
+      setMessages((prev) => [...prev, newMessage]);
+      return newMessage;
+    } catch (err) {
+      console.error('Error sending reschedule request:', err);
+      return null;
+    }
+  }, [conversationId]);
+
+  const respondToMessage = useCallback(async (
+    messageId: number,
+    action: 'accept' | 'decline'
+  ): Promise<ApiMessage | null> => {
+    if (!conversationId) return null;
+
+    try {
+      const response = await messageService.respondToMessage(conversationId, messageId, action);
+      const updatedMessage = response.message;
+      // Update the message in place
+      setMessages((prev) => prev.map((m) => m.id === messageId ? updatedMessage : m));
+      return updatedMessage;
+    } catch (err) {
+      console.error('Error responding to message:', err);
+      return null;
+    }
+  }, [conversationId]);
+
   const markAsRead = useCallback(async () => {
     if (!conversationId) return;
 
@@ -422,6 +487,9 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     sendMessage,
     sendBookingCard,
     sendDepositRequest,
+    sendCancellation,
+    sendReschedule,
+    respondToMessage,
     markAsRead,
     updateAppointmentStatus,
   };

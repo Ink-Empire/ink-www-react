@@ -165,6 +165,19 @@ export { createMessageService } from './messageService';
 export type { ConversationType, ConversationFilters } from './messageService';
 
 // =============================================================================
+// Appointment Service
+// =============================================================================
+
+export { createAppointmentService } from './appointmentService';
+export type {
+  CreateAppointmentData,
+  AvailableSlotsResponse,
+  AppointmentResponse as AppointmentResponseData,
+  CalendarEventData,
+  AppointmentInviteData,
+} from './appointmentService';
+
+// =============================================================================
 // Notification Service
 // =============================================================================
 
@@ -189,3 +202,4 @@ export type StyleService = ReturnType<typeof createStyleService>;
 export type UserService = ReturnType<typeof createUserService>;
 export type MessageService = ReturnType<typeof createMessageService>;
 export type NotificationService = ReturnType<typeof createNotificationService>;
+export type AppointmentService = ReturnType<typeof createAppointmentService>;

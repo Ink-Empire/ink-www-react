@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Paper, Typography, FormControl, InputLabel, Select, MenuItem, TextField, Button, Alert } from '@mui/material';
+import { Modal, Paper, Typography, FormControl, InputLabel, Select, MenuItem, TextField, Button, Alert, CircularProgress } from '@mui/material';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialog } from '../contexts/DialogContext';
 import { appointmentService } from '@/services/appointmentService';
 import { colors, modalStyles } from '@/styles/colors';
 import { formatTimeSlotWithClientTime, getClientTimezone, getTimezoneLabel, areTimezonesEqual } from '../utils/timezone';
+import type { AvailableSlotsResponse } from '@/services/appointmentService';
 
 interface ArtistSettings {
   id: number;
@@ -42,6 +43,8 @@ export default function BookingModal({
 }: BookingModalProps) {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
+  const [slotsResponse, setSlotsResponse] = useState<AvailableSlotsResponse | null>(null);
   const [notes, setNotes] = useState<string>('');
   const [bookingType, setBookingType] = useState<string>(initialBookingType || '');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -66,30 +69,55 @@ export default function BookingModal({
     router.push('/register');
   };
 
-  useEffect(() => {
-    if (selectedWorkingHours && open) {
-      // Generate available time slots based on working hours
-      const startTime = selectedWorkingHours.start_time.split(':');
-      const endTime = selectedWorkingHours.end_time.split(':');
-      
-      const startHour = parseInt(startTime[0]);
-      const endHour = parseInt(endTime[0]);
-      
-      const slots = [];
-      for (let hour = startHour; hour < endHour; hour++) {
-        slots.push(`${hour.toString().padStart(2, '0')}:00`);
-        slots.push(`${hour.toString().padStart(2, '0')}:30`);
-      }
-      
-      setAvailableTimeSlots(slots);
-      setSelectedTimeSlot(slots[0] || '');
-    }
+  // Helper functions to determine what artist accepts
+  const acceptsConsultations = Boolean(settings?.accepts_consultations);
+  const acceptsAppointments = Boolean(settings?.accepts_appointments);
+  const acceptsBoth = acceptsConsultations && acceptsAppointments;
+  const booksOpen = Boolean(settings?.books_open);
 
-    // Set booking type from prop when modal opens
+  // Determine the effective booking type for slot fetching
+  const effectiveBookingType = bookingType || (acceptsConsultations && !acceptsAppointments ? 'consultation' : 'appointment');
+
+  // Fetch available slots from API when modal opens or booking type changes
+  useEffect(() => {
+    if (!open || !artistId || !selectedDate || !booksOpen) return;
+
+    const fetchSlots = async () => {
+      setLoadingSlots(true);
+      setAvailableTimeSlots([]);
+      setSelectedTimeSlot('');
+      try {
+        const dateStr = selectedDate instanceof Date
+          ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+          : String(selectedDate);
+
+        const response = await appointmentService.getAvailableSlots(
+          artistId,
+          dateStr,
+          effectiveBookingType as 'consultation' | 'appointment'
+        );
+        const data = (response as any)?.data ?? response;
+        setSlotsResponse(data);
+        const slots = data.slots || [];
+        setAvailableTimeSlots(slots);
+        setSelectedTimeSlot(slots[0] || '');
+      } catch (error) {
+        console.error('Error fetching available slots:', error);
+        setAvailableTimeSlots([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    fetchSlots();
+  }, [open, artistId, selectedDate, effectiveBookingType, booksOpen]);
+
+  // Set booking type from prop when modal opens
+  useEffect(() => {
     if (open && initialBookingType) {
       setBookingType(initialBookingType);
     }
-  }, [selectedWorkingHours, open, initialBookingType]);
+  }, [open, initialBookingType]);
 
   const handleBookAppointment = async () => {
     if (!selectedDate || !selectedTimeSlot) {
@@ -97,16 +125,11 @@ export default function BookingModal({
       return;
     }
 
-    // Check if booking type is required and selected
-    const acceptsConsultations = settings?.accepts_consultations === 1;
-    const acceptsAppointments = settings?.accepts_appointments === 1;
-    
-    if (acceptsConsultations && acceptsAppointments && !bookingType) {
+    if (acceptsBoth && !bookingType) {
       showError('Please select booking type', 'Missing Information');
       return;
     }
 
-    // Check if user is authenticated
     if (!user) {
       showError('You must be logged in to book an appointment', 'Authentication Required');
       return;
@@ -115,23 +138,21 @@ export default function BookingModal({
     setIsSubmitting(true);
 
     try {
-      // Determine the final booking type
-      const finalBookingType = bookingType || (acceptsConsultations ? 'consultation' : 'tattoo');
-      
-      // Format start and end times as plain HH:mm strings (naive local time)
-      const [timeHour, timeMinute] = selectedTimeSlot.split(':').map(Number);
-      const startTime = `${String(timeHour).padStart(2, '0')}:${String(timeMinute).padStart(2, '0')}`;
-      const endHour = timeHour + 1;
-      const endTime = `${String(endHour).padStart(2, '0')}:${String(timeMinute).padStart(2, '0')}`;
+      const finalBookingType = effectiveBookingType === 'consultation' ? 'consultation' : 'tattoo';
+      const startTime = selectedTimeSlot;
 
-      console.log(user);
+      // For consultations, compute end_time from consultation_duration
+      let endTime: string | undefined;
+      if (finalBookingType === 'consultation' && slotsResponse?.consultation_duration) {
+        const [h, m] = startTime.split(':').map(Number);
+        const totalMinutes = h * 60 + m + slotsResponse.consultation_duration;
+        endTime = `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+      }
 
-      // Prepare appointment data
-      const appointmentData = {
+      const appointmentData: any = {
         artist_id: artistId,
         title: `${finalBookingType} request from ${user?.username}`,
         start_time: startTime,
-        end_time: endTime,
         date: selectedDate,
         all_day: false,
         description: notes || '',
@@ -139,22 +160,21 @@ export default function BookingModal({
         client_id: user?.id,
       };
 
-      // Make API request to create appointment
+      if (endTime) {
+        appointmentData.end_time = endTime;
+      }
+
       await appointmentService.create(appointmentData);
 
-      // Close the modal and reset form
       handleClose();
 
-      // Show success message
       showSuccess(
-        `Your ${finalBookingType} request has been sent successfully! The artist will contact you soon.`,
+        `Your ${effectiveBookingType} request has been sent successfully! The artist will contact you soon.`,
         'Request Sent'
       );
 
     } catch (error) {
       console.error('Error creating appointment:', error);
-      
-      // Show error message
       const errorMessage = error instanceof Error ? error.message : 'Failed to create appointment request';
       showError(errorMessage, 'Booking Failed');
     } finally {
@@ -164,16 +184,12 @@ export default function BookingModal({
 
   const handleClose = () => {
     setSelectedTimeSlot('');
+    setAvailableTimeSlots([]);
+    setSlotsResponse(null);
     setNotes('');
     setBookingType('');
     onClose();
   };
-
-  // Helper functions to determine what artist accepts
-  const acceptsConsultations = Boolean(settings?.accepts_consultations);
-  const acceptsAppointments = Boolean(settings?.accepts_appointments);
-  const acceptsBoth = acceptsConsultations && acceptsAppointments;
-  const booksOpen = Boolean(settings?.books_open);
 
   return (
     <Modal
@@ -201,15 +217,15 @@ export default function BookingModal({
             <Typography variant="h5" component="h2" sx={{ mb: 2, color: colors.accent }}>
               Account Required
             </Typography>
-            
+
             <Typography variant="body1" sx={{ mb: 3, color: '#ccc' }}>
               Please log in or create an account to book {acceptsBoth ? 'appointments and consultations' : acceptsConsultations ? 'consultations' : 'appointments'} with this artist.
             </Typography>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
               <Button
                 onClick={handleClose}
-                sx={{ 
+                sx={{
                   color: '#888',
                   '&:hover': { color: 'white' }
                 }}
@@ -267,14 +283,29 @@ export default function BookingModal({
                 This artist accepts {acceptsConsultations ? 'consultations' : 'appointments'} only.
               </Alert>
             )}
-            
+
             {selectedDate && (
               <Typography variant="body1" sx={{ mb: 1 }}>
-                Date: {selectedDate.toLocaleDateString()}
+                Date: {selectedDate instanceof Date ? selectedDate.toLocaleDateString() : selectedDate}
               </Typography>
             )}
 
-            {selectedWorkingHours && (
+            {slotsResponse?.working_hours && (
+              <Typography variant="body2" sx={{ mb: 1, color: '#888' }}>
+                Artist's hours: {slotsResponse.working_hours.start} - {slotsResponse.working_hours.end}
+                {artistTimezone && showTimezoneConversion && (
+                  <span style={{ marginLeft: 4 }}>({getTimezoneLabel(artistTimezone)})</span>
+                )}
+              </Typography>
+            )}
+
+            {slotsResponse?.consultation_window && effectiveBookingType === 'consultation' && (
+              <Typography variant="body2" sx={{ mb: 2, color: colors.accent, fontSize: '0.8rem' }}>
+                Consultation window: {slotsResponse.consultation_window.start} - {slotsResponse.consultation_window.end}
+              </Typography>
+            )}
+
+            {!slotsResponse?.working_hours && !loadingSlots && selectedWorkingHours && (
               <Typography variant="body2" sx={{ mb: 3, color: '#888' }}>
                 Artist's hours: {selectedWorkingHours.start_time?.slice(0, 5)} - {selectedWorkingHours.end_time?.slice(0, 5)}
                 {artistTimezone && showTimezoneConversion && (
@@ -310,47 +341,59 @@ export default function BookingModal({
                 </Select>
               </FormControl>
             )}
-            
+
             {/* Time slot selection - only show if books are open */}
             {booksOpen && (
               <FormControl fullWidth sx={{ mb: 1 }}>
                 <InputLabel id="time-slot-label" sx={{ color: '#888' }}>Select Time</InputLabel>
-                <Select
-                  labelId="time-slot-label"
-                  value={selectedTimeSlot}
-                  onChange={(e) => setSelectedTimeSlot(e.target.value)}
-                  label="Select Time"
-                  sx={{
-                    color: 'white',
-                    '.MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#444'
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: colors.accent
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: colors.accent
-                    }
-                  }}
-                >
-                  {availableTimeSlots.map((slot) => (
-                    <MenuItem key={slot} value={slot}>
-                      {selectedDate
-                        ? formatTimeSlotWithClientTime(slot, selectedDate, artistTimezone, clientTimezone)
-                        : slot}
-                    </MenuItem>
-                  ))}
-                </Select>
-                <Typography variant="caption" sx={{ color: '#666', mt: 0.5, mb: 2, display: 'block' }}>
-                  {showTimezoneConversion
-                    ? 'Times shown in artist\'s timezone with your local time in parentheses'
-                    : 'The artist may suggest a different time based on their availability'}
-                </Typography>
+                {loadingSlots ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+                    <CircularProgress size={24} sx={{ color: colors.accent }} />
+                  </div>
+                ) : availableTimeSlots.length === 0 ? (
+                  <Typography variant="body2" sx={{ color: colors.textSecondary, py: 2, textAlign: 'center' }}>
+                    No available times for this date
+                  </Typography>
+                ) : (
+                  <Select
+                    labelId="time-slot-label"
+                    value={selectedTimeSlot}
+                    onChange={(e) => setSelectedTimeSlot(e.target.value)}
+                    label="Select Time"
+                    sx={{
+                      color: 'white',
+                      '.MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#444'
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: colors.accent
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: colors.accent
+                      }
+                    }}
+                  >
+                    {availableTimeSlots.map((slot) => (
+                      <MenuItem key={slot} value={slot}>
+                        {selectedDate
+                          ? formatTimeSlotWithClientTime(slot, selectedDate, artistTimezone, clientTimezone)
+                          : slot}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                )}
+                {!loadingSlots && availableTimeSlots.length > 0 && (
+                  <Typography variant="caption" sx={{ color: '#666', mt: 0.5, mb: 2, display: 'block' }}>
+                    {showTimezoneConversion
+                      ? 'Times shown in artist\'s timezone with your local time in parentheses'
+                      : 'The artist may suggest a different time based on their availability'}
+                  </Typography>
+                )}
               </FormControl>
             )}
-            
-            {/* Notes field - only show if books are open */}
-            {booksOpen && (
+
+            {/* Notes field - only show if books are open and slots available */}
+            {booksOpen && !loadingSlots && availableTimeSlots.length > 0 && (
               <TextField
                 fullWidth
                 multiline
@@ -374,22 +417,22 @@ export default function BookingModal({
                 }}
               />
             )}
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Button
                 onClick={handleClose}
-                sx={{ 
+                sx={{
                   color: '#888',
                   '&:hover': { color: 'white' }
                 }}
               >
                 Cancel
               </Button>
-              {booksOpen && (
+              {booksOpen && !loadingSlots && availableTimeSlots.length > 0 && (
                 <Button
                   variant="contained"
                   onClick={handleBookAppointment}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !selectedTimeSlot}
                   sx={{
                     bgcolor: colors.accent,
                     '&:hover': { bgcolor: colors.accentDark },

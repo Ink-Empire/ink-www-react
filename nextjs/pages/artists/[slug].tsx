@@ -54,6 +54,7 @@ export default function ArtistDetail() {
     const [bookingInfoError, setBookingInfoError] = useState('');
     const [bookingInfoForm, setBookingInfoForm] = useState({
         consultation_fee: '',
+        consultation_duration: '30',
         hourly_rate: '',
         minimum_session: '',
         deposit_amount: '',
@@ -71,6 +72,7 @@ export default function ArtistDetail() {
                 if (settings) {
                     setBookingInfoForm({
                         consultation_fee: String(settings.consultation_fee || ''),
+                        consultation_duration: String(settings.consultation_duration || '30'),
                         hourly_rate: String(settings.hourly_rate || ''),
                         minimum_session: String(settings.minimum_session || ''),
                         deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
@@ -84,6 +86,7 @@ export default function ArtistDetail() {
                 if (settings) {
                     setBookingInfoForm({
                         consultation_fee: String(settings.consultation_fee || ''),
+                        consultation_duration: String(settings.consultation_duration || '30'),
                         hourly_rate: String(settings.hourly_rate || ''),
                         minimum_session: String(settings.minimum_session || ''),
                         deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
@@ -134,6 +137,7 @@ export default function ArtistDetail() {
                 if (settings) {
                     setBookingInfoForm({
                         consultation_fee: String(settings.consultation_fee || ''),
+                        consultation_duration: String(settings.consultation_duration || '30'),
                         hourly_rate: String(settings.hourly_rate || ''),
                         minimum_session: String(settings.minimum_session || ''),
                         deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
@@ -949,6 +953,20 @@ export default function ArtistDetail() {
 
                                         <Box sx={{ mb: 1.5 }}>
                                             <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.5 }}>
+                                                Consultation Duration
+                                            </Typography>
+                                            <Typography sx={{ color: colors.textPrimary, fontSize: '0.9rem' }}>
+                                                {bookingInfoForm.consultation_duration || 30} min
+                                            </Typography>
+                                            <Link href="/profile#booking">
+                                                <Typography sx={{ color: colors.accent, fontSize: '0.75rem', mt: 0.25, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                                                    Change in Settings
+                                                </Typography>
+                                            </Link>
+                                        </Box>
+
+                                        <Box sx={{ mb: 1.5 }}>
+                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.5 }}>
                                                 Hourly Rate
                                             </Typography>
                                             <TextField
@@ -1084,11 +1102,17 @@ export default function ArtistDetail() {
                                     /* Display Mode */
                                     <>
                                         {[
-                                            ...(bookingInfoForm.accepts_consultations ? [{
-                                                label: 'Consultation',
-                                                value: Number(bookingInfoForm.consultation_fee) > 0 ? `$${bookingInfoForm.consultation_fee}` : 'Free',
-                                                accent: !bookingInfoForm.consultation_fee || Number(bookingInfoForm.consultation_fee) === 0
-                                            }] : []),
+                                            ...(bookingInfoForm.accepts_consultations ? [
+                                                {
+                                                    label: 'Consultation',
+                                                    value: Number(bookingInfoForm.consultation_fee) > 0 ? `$${bookingInfoForm.consultation_fee}` : 'Free',
+                                                    accent: !bookingInfoForm.consultation_fee || Number(bookingInfoForm.consultation_fee) === 0
+                                                },
+                                                {
+                                                    label: 'Consult Duration',
+                                                    value: `${bookingInfoForm.consultation_duration || 30} min`
+                                                },
+                                            ] : []),
                                             { label: 'Hourly Rate', value: Number(bookingInfoForm.hourly_rate) > 0 ? `$${bookingInfoForm.hourly_rate} USD` : 'Not set' },
                                             { label: 'Min. Session', value: Number(bookingInfoForm.minimum_session) > 0 ? `${bookingInfoForm.minimum_session} hours` : 'Not set' },
                                             { label: 'Deposit', value: Number(bookingInfoForm.deposit_amount) > 0 ? `$${bookingInfoForm.deposit_amount} USD` : 'Not set' }

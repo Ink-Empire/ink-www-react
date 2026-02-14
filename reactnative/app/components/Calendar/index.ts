@@ -6,3 +6,4 @@
 
 export { CalendarGrid } from './CalendarGrid';
 export { CalendarDayModal } from './CalendarDayModal';
+export { BookingFormModal } from './BookingFormModal';

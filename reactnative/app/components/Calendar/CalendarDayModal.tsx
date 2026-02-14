@@ -33,6 +33,7 @@ interface CalendarDayModalProps {
   externalEvents: ExternalCalendarEvent[];
   isOwnProfile?: boolean;
   ownerAppointments?: UpcomingAppointment[];
+  onRequestBooking?: () => void;
 }
 
 export function CalendarDayModal({
@@ -45,13 +46,13 @@ export function CalendarDayModal({
   externalEvents,
   isOwnProfile = false,
   ownerAppointments = [],
+  onRequestBooking,
 }: CalendarDayModalProps) {
   if (!selectedDate) return null;
 
   const handleBooking = () => {
-    // TODO: Navigate to booking flow or show booking form
-    console.log('Request booking for', selectedDate);
     onClose();
+    onRequestBooking?.();
   };
 
   return (
