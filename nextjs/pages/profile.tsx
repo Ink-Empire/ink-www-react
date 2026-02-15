@@ -652,6 +652,7 @@ const ProfilePage: React.FC = () => {
   const handleSaveWorkingHours = async (hours: any[]) => {
     try {
       await saveWorkingHours(hours);
+      setWorkingHoursModalOpen(false);
 
       // If we were waiting to open books, do it now
       if (pendingBooksOpen.current && artistId) {
@@ -688,11 +689,15 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  // Handle working hours modal close (revert books_open if pending)
+  // Handle working hours modal close — if no valid working hours exist, books must stay closed
   const handleWorkingHoursModalClose = () => {
-    if (pendingBooksOpen.current) {
-      pendingBooksOpen.current = false;
+    pendingBooksOpen.current = false;
+    const hasAvailableHours = workingHours.some(h => !h.is_day_off);
+    if (!hasAvailableHours) {
       setArtistSettings(prev => ({ ...prev, books_open: false }));
+      if (artistId) {
+        artistService.updateSettings(artistId, { books_open: false }).catch(() => {});
+      }
     }
     setWorkingHoursModalOpen(false);
   };

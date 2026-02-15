@@ -40,11 +40,11 @@ const WorkingHoursModal: React.FC<WorkingHoursModalProps> = ({
     setPendingHours(hours);
   };
 
-  // Handle save
+  // Handle save — only call onSave, not onClose.
+  // The parent's save handler manages closing the modal after async work completes.
+  // Calling onClose here would clear pendingBooksOpen before the save finishes.
   const handleSave = () => {
-    // API uses 0-6 (0 = Sunday), same as editor
     onSave(pendingHours);
-    onClose();
   };
 
   return (

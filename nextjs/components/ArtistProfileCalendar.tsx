@@ -421,11 +421,15 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     }
   };
 
-  // Handle working hours modal close (revert books_open if pending)
+  // Handle working hours modal close — if no valid working hours exist, books must stay closed
   const handleWorkingHoursModalClose = () => {
-    if (pendingBooksOpen.current) {
-      pendingBooksOpen.current = false;
+    pendingBooksOpen.current = false;
+    const hasAvailableHours = workingHours.some(h => !h.is_day_off);
+    if (!hasAvailableHours) {
       setBooksOpen(false);
+      if (resolvedArtistId) {
+        artistService.updateSettings(resolvedArtistId, { books_open: false }).catch(() => {});
+      }
     }
     setWorkingHoursModalOpen(false);
   };
