@@ -21,6 +21,7 @@ import {
   formatDateForDisplay,
 } from '@inkedin/shared/types';
 import type { UpcomingAppointment } from '@inkedin/shared/services';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
 
 interface CalendarDayModalProps {
@@ -34,6 +35,9 @@ interface CalendarDayModalProps {
   isOwnProfile?: boolean;
   ownerAppointments?: UpcomingAppointment[];
   onRequestBooking?: () => void;
+  onCancelAppointment?: (apt: UpcomingAppointment) => void;
+  onRescheduleAppointment?: (apt: UpcomingAppointment) => void;
+  onContactClient?: (apt: UpcomingAppointment) => void;
 }
 
 export function CalendarDayModal({
@@ -47,6 +51,9 @@ export function CalendarDayModal({
   isOwnProfile = false,
   ownerAppointments = [],
   onRequestBooking,
+  onCancelAppointment,
+  onRescheduleAppointment,
+  onContactClient,
 }: CalendarDayModalProps) {
   if (!selectedDate) return null;
 
@@ -96,15 +103,40 @@ export function CalendarDayModal({
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Appointments</Text>
                     {ownerAppointments.map((apt) => (
-                      <View key={apt.id} style={styles.eventCard}>
-                        <View style={styles.eventCardHeader}>
-                          <Text style={styles.eventTitle}>{apt.title}</Text>
-                          <View style={[styles.statusBadge, styles.statusBadgeBooked]}>
-                            <Text style={styles.statusBadgeText}>{apt.type}</Text>
+                      <View key={apt.id} style={styles.ownerEventCard}>
+                        <View style={styles.ownerEventCardInner}>
+                          <View style={styles.eventCardHeader}>
+                            <Text style={styles.eventTitle}>{apt.title}</Text>
+                            <View style={[styles.statusBadge, styles.statusBadgeBooked]}>
+                              <Text style={styles.statusBadgeText}>{apt.type}</Text>
+                            </View>
                           </View>
+                          <Text style={styles.eventTime}>{apt.time}</Text>
+                          <Text style={styles.eventClient}>{apt.clientName}</Text>
                         </View>
-                        <Text style={styles.eventTime}>{apt.time}</Text>
-                        <Text style={styles.eventClient}>{apt.clientName}</Text>
+                        <View style={styles.eventActions}>
+                          <TouchableOpacity
+                            style={styles.eventActionButton}
+                            onPress={() => onContactClient?.(apt)}
+                          >
+                            <MaterialIcons name="chat-bubble-outline" size={14} color={colors.accent} />
+                            <Text style={styles.eventActionText}>Contact</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.eventActionButton}
+                            onPress={() => onRescheduleAppointment?.(apt)}
+                          >
+                            <MaterialIcons name="update" size={14} color={colors.accent} />
+                            <Text style={styles.eventActionText}>Reschedule</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.eventActionButton}
+                            onPress={() => onCancelAppointment?.(apt)}
+                          >
+                            <MaterialIcons name="event-busy" size={14} color={colors.error} />
+                            <Text style={[styles.eventActionText, { color: colors.error }]}>Cancel</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ))}
                   </View>
@@ -324,6 +356,35 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.info,
+  },
+  ownerEventCard: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  ownerEventCardInner: {
+    padding: 12,
+  },
+  eventActions: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  eventActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 4,
+  },
+  eventActionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.accent,
   },
   eventCard: {
     backgroundColor: colors.background,

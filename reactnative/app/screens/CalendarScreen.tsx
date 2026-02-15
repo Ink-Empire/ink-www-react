@@ -13,17 +13,21 @@ import {
   ScrollView,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useCalendar } from '@inkedin/shared/hooks';
 import { WorkingHour, Appointment, ExternalCalendarEvent } from '@inkedin/shared/types';
 import type { UpcomingAppointment } from '@inkedin/shared/services';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
-import { artistService } from '../../lib/services';
+import { artistService, appointmentService } from '../../lib/services';
+import { getCachedCalendarData, fetchAndCacheCalendarData, isCacheStale } from '../../lib/calendarCache';
 import { useAuth } from '../contexts/AuthContext';
 import { CalendarGrid } from '../components/Calendar/CalendarGrid';
 import { CalendarDayModal } from '../components/Calendar/CalendarDayModal';
 import { BookingFormModal } from '../components/Calendar/BookingFormModal';
+import { CancelAppointmentModal } from '../components/Calendar/CancelAppointmentModal';
+import { RescheduleAppointmentModal } from '../components/Calendar/RescheduleAppointmentModal';
 
 interface CalendarScreenProps {
   route: {
@@ -49,7 +53,9 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const [modalVisible, setModalVisible] = useState(false);
   const [bookingFormVisible, setBookingFormVisible] = useState(false);
   const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
-
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<UpcomingAppointment | null>(null);
   // Use the shared calendar hook
   const calendar = useCalendar({
     workingHours,
@@ -57,52 +63,69 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     externalEvents,
   });
 
-  // Fetch data on mount
-  useEffect(() => {
-    fetchCalendarData();
-  }, [artistId]);
-
-  // Fetch upcoming appointments once we know it's the artist's own calendar
-  useEffect(() => {
-    if (isOwnProfile) {
-      fetchUpcomingAppointments();
-    }
-  }, [isOwnProfile, artistId]);
-
-  const fetchCalendarData = async () => {
-    setLoading(true);
-    try {
-      const idOrSlug = artistSlug || artistId;
-      const response = await artistService.getWorkingHours(idOrSlug);
-      const data = (response as any)?.data ?? response ?? [];
-      setWorkingHours(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to fetch calendar data:', error);
-    } finally {
-      setLoading(false);
-    }
+  const applyUpcoming = (upcoming: UpcomingAppointment[]) => {
+    setUpcomingAppointments(upcoming);
+    setAppointments(upcoming.map((ua) => ({
+      id: ua.id,
+      title: ua.title,
+      date: ua.date,
+      start_time: ua.time.split(' \u2013 ')[0] || '',
+      end_time: ua.time.split(' \u2013 ')[1] || '',
+      type: (ua.type || 'appointment') as 'consultation' | 'appointment' | 'other',
+      status: 'booked' as const,
+      artist_id: artistId,
+    })));
   };
 
-  const fetchUpcomingAppointments = async () => {
-    try {
-      const response = await artistService.getUpcomingSchedule(artistId);
-      const data = (response as any)?.data ?? [];
-      const upcoming = data.slice(0, 5);
-      setUpcomingAppointments(upcoming);
+  // Load from cache first, then refresh from API
+  useEffect(() => {
+    let mounted = true;
 
-      // Convert to Appointment[] so the calendar hook knows which days have appointments
-      setAppointments(upcoming.map((ua: UpcomingAppointment) => ({
-        id: ua.id,
-        title: ua.title,
-        date: ua.date,
-        start_time: ua.time.split(' \u2013 ')[0] || '',
-        end_time: ua.time.split(' \u2013 ')[1] || '',
-        type: (ua.type || 'appointment') as 'consultation' | 'appointment' | 'other',
-        status: 'booked' as const,
-        artist_id: artistId,
-      })));
+    const loadCalendar = async () => {
+      // 1. Try cache for instant render
+      const cached = await getCachedCalendarData(artistId);
+      if (cached && mounted) {
+        setWorkingHours(cached.workingHours);
+        if (isOwnProfile) {
+          applyUpcoming(cached.upcomingAppointments);
+        }
+        setLoading(false);
+
+        // If cache is fresh, we're done
+        if (!isCacheStale(cached)) return;
+      }
+
+      // 2. Fetch fresh data (either no cache or stale)
+      try {
+        if (isOwnProfile) {
+          const fresh = await fetchAndCacheCalendarData(artistId, artistSlug);
+          if (mounted) {
+            setWorkingHours(fresh.workingHours);
+            applyUpcoming(fresh.upcomingAppointments);
+          }
+        } else {
+          const idOrSlug = artistSlug || artistId;
+          const response = await artistService.getWorkingHours(idOrSlug);
+          const data = (response as any)?.data ?? response ?? [];
+          if (mounted) setWorkingHours(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch calendar data:', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadCalendar();
+    return () => { mounted = false; };
+  }, [artistId, isOwnProfile]);
+
+  const refreshUpcomingAppointments = async () => {
+    try {
+      const fresh = await fetchAndCacheCalendarData(artistId, artistSlug);
+      applyUpcoming(fresh.upcomingAppointments);
     } catch (err) {
-      console.error('Failed to fetch upcoming appointments:', err);
+      console.error('Failed to refresh appointments:', err);
     }
   };
 
@@ -118,6 +141,51 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
 
   const handleRequestBooking = () => {
     setBookingFormVisible(true);
+  };
+
+  const handleCancelPress = (apt: UpcomingAppointment) => {
+    setSelectedAppointment(apt);
+    setCancelModalVisible(true);
+  };
+
+  const handleReschedulePress = (apt: UpcomingAppointment) => {
+    setSelectedAppointment(apt);
+    setRescheduleModalVisible(true);
+  };
+
+  const handleCancelSubmit = async (reason?: string) => {
+    if (!selectedAppointment) return;
+    await appointmentService.cancel(selectedAppointment.id, reason);
+    Alert.alert('Cancelled', 'The appointment has been cancelled.');
+    refreshUpcomingAppointments();
+  };
+
+  const handleRescheduleSubmit = async (
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string,
+  ) => {
+    if (!selectedAppointment) return;
+    await appointmentService.update(selectedAppointment.id, {
+      date: proposedDate,
+      start_time: proposedStartTime,
+      end_time: proposedEndTime,
+      reason,
+    });
+    Alert.alert('Rescheduled', 'The reschedule request has been sent.');
+    refreshUpcomingAppointments();
+  };
+
+  const handleContactPress = (apt: UpcomingAppointment) => {
+    if (!apt.client_id) {
+      Alert.alert('Unavailable', 'Client information is not available for this appointment.');
+      return;
+    }
+    navigation.navigate('InboxStack', {
+      screen: 'Conversation',
+      params: { clientId: apt.client_id, participantName: apt.clientName },
+    });
   };
 
   if (loading) {
@@ -229,23 +297,48 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           <View style={styles.upcomingSection}>
             <Text style={styles.upcomingSectionTitle}>Upcoming Appointments</Text>
             {upcomingAppointments.map((apt) => (
-              <TouchableOpacity key={apt.id} style={styles.appointmentCard} onPress={() => handleDayPress(apt.date)}>
-                <View style={styles.appointmentDate}>
-                  <Text style={styles.appointmentDay}>{apt.day}</Text>
-                  <Text style={styles.appointmentMonth}>{apt.month}</Text>
+              <View key={apt.id} style={styles.appointmentCard}>
+                <TouchableOpacity style={styles.appointmentCardContent} onPress={() => handleDayPress(apt.date)}>
+                  <View style={styles.appointmentDate}>
+                    <Text style={styles.appointmentDay}>{apt.day}</Text>
+                    <Text style={styles.appointmentMonth}>{apt.month}</Text>
+                  </View>
+                  <View style={styles.appointmentInfo}>
+                    <Text style={styles.appointmentTitle}>{apt.title}</Text>
+                    <Text style={styles.appointmentTime}>
+                      <MaterialIcons name="schedule" size={12} color={colors.textMuted} />
+                      {'  '}{apt.time}
+                    </Text>
+                    <Text style={styles.appointmentClient}>{apt.clientName}</Text>
+                  </View>
+                  <View style={styles.appointmentTypeBadge}>
+                    <Text style={styles.appointmentTypeText}>{apt.type}</Text>
+                  </View>
+                </TouchableOpacity>
+                <View style={styles.appointmentActions}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleContactPress(apt)}
+                  >
+                    <MaterialIcons name="chat-bubble-outline" size={16} color={colors.accent} />
+                    <Text style={styles.actionButtonText}>Contact</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleReschedulePress(apt)}
+                  >
+                    <MaterialIcons name="update" size={16} color={colors.accent} />
+                    <Text style={styles.actionButtonText}>Reschedule</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.actionButtonCancel]}
+                    onPress={() => handleCancelPress(apt)}
+                  >
+                    <MaterialIcons name="event-busy" size={16} color={colors.error} />
+                    <Text style={[styles.actionButtonText, styles.actionButtonTextCancel]}>Cancel</Text>
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.appointmentInfo}>
-                  <Text style={styles.appointmentTitle}>{apt.title}</Text>
-                  <Text style={styles.appointmentTime}>
-                    <MaterialIcons name="schedule" size={12} color={colors.textMuted} />
-                    {'  '}{apt.time}
-                  </Text>
-                  <Text style={styles.appointmentClient}>{apt.clientName}</Text>
-                </View>
-                <View style={styles.appointmentTypeBadge}>
-                  <Text style={styles.appointmentTypeText}>{apt.type}</Text>
-                </View>
-              </TouchableOpacity>
+              </View>
             ))}
           </View>
         )}
@@ -268,6 +361,9 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           return a.day === d.getDate() && a.month === monthShort;
         }) : []}
         onRequestBooking={handleRequestBooking}
+        onCancelAppointment={(apt) => handleCancelPress(apt)}
+        onRescheduleAppointment={(apt) => handleReschedulePress(apt)}
+        onContactClient={(apt) => handleContactPress(apt)}
       />
 
       {/* Booking Form Modal */}
@@ -281,6 +377,22 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           bookingType={calendar.bookingType}
         />
       )}
+
+      {/* Cancel Modal */}
+      <CancelAppointmentModal
+        visible={cancelModalVisible}
+        onClose={() => { setCancelModalVisible(false); setSelectedAppointment(null); }}
+        onSubmit={handleCancelSubmit}
+        clientName={selectedAppointment?.clientName}
+      />
+
+      {/* Reschedule Modal */}
+      <RescheduleAppointmentModal
+        visible={rescheduleModalVisible}
+        onClose={() => { setRescheduleModalVisible(false); setSelectedAppointment(null); }}
+        onSubmit={handleRescheduleSubmit}
+        clientName={selectedAppointment?.clientName}
+      />
     </SafeAreaView>
   );
 }
@@ -405,12 +517,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   appointmentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: colors.surfaceElevated,
     borderRadius: 10,
-    padding: 12,
     marginBottom: 8,
+    overflow: 'hidden',
+  },
+  appointmentCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
     gap: 12,
   },
   appointmentDate: {
@@ -459,5 +574,30 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
+  },
+  appointmentActions: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 4,
+  },
+  actionButtonCancel: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.border,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  actionButtonTextCancel: {
+    color: colors.error,
   },
 });

@@ -58,7 +58,7 @@ export type UploadStackParamList = {
 
 export type InboxStackParamList = {
   Inbox: undefined;
-  Conversation: { conversationId: number; participantName?: string };
+  Conversation: { conversationId?: number; clientId?: number; participantName?: string };
 };
 
 export type ProfileStackParamList = {

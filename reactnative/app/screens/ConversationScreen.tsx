@@ -15,6 +15,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
+import { messageService } from '../../lib/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnreadMessageCount } from '../contexts/UnreadCountContext';
 import { useConversation } from '@inkedin/shared/hooks';
@@ -24,35 +25,104 @@ import type { Message } from '@inkedin/shared/types';
 
 const MAX_ATTACHMENTS = 5;
 
+interface OptimisticMessage {
+  tempId: string;
+  content: string;
+  status: 'sending' | 'failed';
+  attachmentUris?: string[];
+}
+
 export default function ConversationScreen({ route }: any) {
-  const { conversationId } = route.params;
+  const { conversationId: initialConversationId, clientId } = route.params;
+  const [resolvedId, setResolvedId] = useState<number | undefined>(
+    initialConversationId ?? undefined,
+  );
+  const resolvedIdRef = useRef(resolvedId);
+  resolvedIdRef.current = resolvedId;
+  const resolvePromiseRef = useRef<{ resolve: (id: number) => void } | null>(null);
   const { user } = useAuth();
   const { refresh: refreshUnreadCount } = useUnreadMessageCount();
+
+  // Resolve conversation from clientId if no conversationId was provided
+  useEffect(() => {
+    if (resolvedId || !clientId) return;
+    let cancelled = false;
+    messageService.createConversation(clientId).then((response: any) => {
+      if (cancelled) return;
+      const id = response?.conversation?.id || response?.id;
+      if (id) {
+        setResolvedId(id);
+        // Flush any queued sends waiting for resolution
+        if (resolvePromiseRef.current) {
+          resolvePromiseRef.current.resolve(id);
+          resolvePromiseRef.current = null;
+        }
+      }
+    }).catch((err: any) => {
+      console.error('Failed to resolve conversation:', err);
+    });
+    return () => { cancelled = true; };
+  }, [clientId, resolvedId]);
+
+  // Returns the resolved conversation ID, waiting if necessary
+  const waitForConversationId = useCallback((): Promise<number> => {
+    if (resolvedIdRef.current) return Promise.resolve(resolvedIdRef.current);
+    return new Promise((resolve) => {
+      resolvePromiseRef.current = { resolve };
+    });
+  }, []);
+
   const {
     messages,
     loading,
     hasMore,
-    sendMessage,
+    sendMessage: hookSendMessage,
     markAsRead,
     fetchMoreMessages,
-  } = useConversation(api, conversationId);
+  } = useConversation(api, resolvedId);
+
+  // Keep a ref so handleSend always uses the latest hookSendMessage
+  const sendMessageRef = useRef(hookSendMessage);
+  sendMessageRef.current = hookSendMessage;
 
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<ImageFile[]>([]);
+  const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
   const flatListRef = useRef<FlatList>(null);
 
   const hasContent = inputText.trim().length > 0 || pendingAttachments.length > 0;
 
-  // Reverse messages for inverted FlatList (newest first)
-  const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
+  // Combine real messages with optimistic ones for display
+  const invertedMessages = useMemo(() => {
+    const real = [...messages].reverse();
+    // Optimistic messages show at the top (newest) of the inverted list
+    const optimistic = optimisticMessages.map((om) => ({
+      id: om.tempId as any,
+      conversation_id: resolvedId || 0,
+      sender_id: user?.id || 0,
+      sender: { id: user?.id || 0, name: user?.name || '', username: '', initials: '', image: null },
+      content: om.content,
+      type: om.attachmentUris?.length ? 'image' : 'text',
+      metadata: null,
+      attachments: (om.attachmentUris || []).map((uri, i) => ({
+        id: -(i + 1),
+        image: { id: -(i + 1), uri },
+      })),
+      read_at: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      _optimistic: om.status,
+    }));
+    return [...optimistic, ...real];
+  }, [messages, optimisticMessages, resolvedId, user]);
 
   // Mark as read when conversation opens, then sync the badge
   useEffect(() => {
-    if (conversationId) {
+    if (resolvedId) {
       markAsRead().then(() => refreshUnreadCount());
     }
-  }, [conversationId, markAsRead, refreshUnreadCount]);
+  }, [resolvedId, markAsRead, refreshUnreadCount]);
 
   const handlePickImages = useCallback(async () => {
     const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
@@ -86,29 +156,44 @@ export default function ConversationScreen({ route }: any) {
     const text = inputText.trim();
     if (!hasContent || sending) return;
 
+    const attachments = [...pendingAttachments];
+    const tempId = `opt_${Date.now()}`;
+
+    // Show optimistic bubble immediately
+    setOptimisticMessages((prev) => [...prev, {
+      tempId,
+      content: text,
+      status: 'sending',
+      attachmentUris: attachments.map((a) => a.uri),
+    }]);
+
     setSending(true);
     setInputText('');
-    const attachments = [...pendingAttachments];
     setPendingAttachments([]);
 
     try {
+      await waitForConversationId();
+
       if (attachments.length > 0) {
         const uploaded = await uploadImagesToS3(api, attachments, 'message');
         const attachmentIds = uploaded.map((img) => img.id);
-        await sendMessage(text || '', 'image', undefined, attachmentIds);
+        await sendMessageRef.current(text || '', 'image', undefined, attachmentIds);
       } else {
-        await sendMessage(text);
+        await sendMessageRef.current(text);
       }
+
+      // Success — remove optimistic message (real one is in hook state now)
+      setOptimisticMessages((prev) => prev.filter((m) => m.tempId !== tempId));
     } catch (err) {
       console.error('Error sending message:', err);
-      // Restore attachments on failure
-      if (attachments.length > 0) {
-        setPendingAttachments(attachments);
-      }
+      // Mark as failed so user sees the error
+      setOptimisticMessages((prev) =>
+        prev.map((m) => m.tempId === tempId ? { ...m, status: 'failed' as const } : m),
+      );
     }
 
     setSending(false);
-  }, [inputText, hasContent, sending, pendingAttachments, sendMessage]);
+  }, [inputText, hasContent, sending, pendingAttachments, waitForConversationId]);
 
   const handleLoadMore = useCallback(() => {
     if (!hasMore || loading) return;
@@ -118,10 +203,11 @@ export default function ConversationScreen({ route }: any) {
     }
   }, [hasMore, loading, messages, fetchMoreMessages]);
 
-  const renderItem = useCallback(({ item }: { item: Message }) => (
+  const renderItem = useCallback(({ item }: { item: any }) => (
     <MessageBubble
       message={item}
       isSent={item.sender_id === user?.id}
+      status={(item as any)._optimistic}
     />
   ), [user?.id]);
 

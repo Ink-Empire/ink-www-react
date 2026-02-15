@@ -9,6 +9,7 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
 import { artistService } from '../../../lib/services';
+import { prefetchCalendarData } from '../../../lib/calendarCache';
 import Button from '../common/Button';
 
 interface DashboardStats {
@@ -37,6 +38,7 @@ export default function ArtistOwnerDashboard({
 
   useEffect(() => {
     fetchStats();
+    prefetchCalendarData(artistId, artistSlug);
   }, [artistId]);
 
   const fetchStats = async () => {

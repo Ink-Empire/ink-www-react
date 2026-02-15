@@ -14,6 +14,8 @@ export interface UpcomingAppointment {
   clientName: string;
   clientInitials: string;
   type: 'consultation' | 'appointment' | string;
+  client_id?: number;
+  status?: string;
 }
 
 // =============================================================================

@@ -6,6 +6,7 @@ import type { Message } from '@inkedin/shared/types';
 interface MessageBubbleProps {
   message: Message;
   isSent: boolean;
+  status?: 'sending' | 'failed';
 }
 
 function formatTime(dateString: string): string {
@@ -13,7 +14,7 @@ function formatTime(dateString: string): string {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function MessageBubble({ message, isSent }: MessageBubbleProps) {
+export default function MessageBubble({ message, isSent, status }: MessageBubbleProps) {
   if (message.type === 'system') {
     return (
       <View style={styles.systemContainer}>
@@ -27,7 +28,11 @@ export default function MessageBubble({ message, isSent }: MessageBubbleProps) {
 
   return (
     <View style={[styles.container, isSent ? styles.containerSent : styles.containerReceived]}>
-      <View style={[styles.bubble, isSent ? styles.bubbleSent : styles.bubbleReceived]}>
+      <View style={[
+        styles.bubble,
+        isSent ? styles.bubbleSent : styles.bubbleReceived,
+        status === 'sending' && styles.bubbleSending,
+      ]}>
         {hasAttachments && (
           <View style={styles.attachmentsContainer}>
             {message.attachments.map((attachment) =>
@@ -48,9 +53,19 @@ export default function MessageBubble({ message, isSent }: MessageBubbleProps) {
           </Text>
         )}
       </View>
-      <Text style={[styles.timestamp, isSent ? styles.timestampSent : styles.timestampReceived]}>
-        {formatTime(message.created_at)}
-      </Text>
+      {status === 'sending' && (
+        <Text style={[styles.statusText, styles.timestampSent]}>Sending...</Text>
+      )}
+      {status === 'failed' && (
+        <Text style={[styles.statusText, styles.statusFailed, styles.timestampSent]}>
+          Failed to send
+        </Text>
+      )}
+      {!status && (
+        <Text style={[styles.timestamp, isSent ? styles.timestampSent : styles.timestampReceived]}>
+          {formatTime(message.created_at)}
+        </Text>
+      )}
     </View>
   );
 }
@@ -112,6 +127,20 @@ const styles = StyleSheet.create({
   timestampReceived: {
     textAlign: 'left',
     marginLeft: 4,
+  },
+  bubbleSending: {
+    opacity: 0.7,
+  },
+  statusText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 3,
+    marginBottom: 4,
+    fontStyle: 'italic',
+  },
+  statusFailed: {
+    color: colors.error,
+    fontStyle: 'normal',
   },
   systemContainer: {
     alignSelf: 'center',
