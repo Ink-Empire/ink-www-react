@@ -125,7 +125,7 @@ export function useTattoos(searchParams?: Record<string, any>, blockedUserIds?: 
     const requestBody = buildRequestBody(1);
     const locationCoords = requestBody.locationCoords;
     const useAnyLocation = requestBody.useAnyLocation;
-    const isDemoData = requestBody.is_demo;
+    const isDemoData = requestBody.include_demo;
 
     if (!locationCoords || useAnyLocation || isDemoData) {
       setUnclaimedStudios([]);

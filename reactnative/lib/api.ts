@@ -71,7 +71,7 @@ const baseApi = createApiClient({
   },
 });
 
-// Demo mode support — when enabled, is_demo=1 is appended to all requests
+// Demo mode support — when enabled, include_demo=1 is appended to all requests
 let _demoMode = false;
 
 export function setDemoMode(enabled: boolean) {
@@ -84,17 +84,17 @@ export function isDemoMode(): boolean {
 
 function injectDemo<T>(body?: any): any {
   if (!_demoMode) return body;
-  if (body && typeof body === 'object') return { ...body, is_demo: 1 };
-  return { is_demo: 1 };
+  if (body && typeof body === 'object') return { ...body, include_demo: 1 };
+  return { include_demo: 1 };
 }
 
 function injectDemoGet(endpoint: string): string {
   if (!_demoMode) return endpoint;
   const separator = endpoint.includes('?') ? '&' : '?';
-  return `${endpoint}${separator}is_demo=1`;
+  return `${endpoint}${separator}include_demo=1`;
 }
 
-// Wrap the base api to auto-inject is_demo
+// Wrap the base api to auto-inject include_demo
 export const api = {
   ...baseApi,
   get: <T>(endpoint: string, options?: any) =>

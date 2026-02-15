@@ -17,7 +17,7 @@ interface ApiOptions {
   cacheTTL?: number;         // Cache time-to-live in milliseconds
   invalidateCache?: boolean; // Force a fresh request even if cache exists
   // Demo mode - if not specified, uses global demo mode setting
-  skipDemoMode?: boolean;    // Set to true to skip adding is_demo parameter
+  skipDemoMode?: boolean;    // Set to true to skip adding include_demo parameter
 }
 
 // Check if demo mode is enabled (reads from localStorage)
@@ -136,18 +136,18 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   // Use a mutable variable for the body so we can modify it
   let body = initialBody;
 
-  // Append is_demo parameter if demo mode is enabled
+  // Append include_demo parameter if demo mode is enabled (show all data including demo)
   let finalEndpoint = endpoint;
   const demoModeEnabled = !skipDemoMode && isDemoModeEnabled();
 
   if (demoModeEnabled) {
     if (method === 'GET') {
       const separator = endpoint.includes('?') ? '&' : '?';
-      finalEndpoint = `${endpoint}${separator}is_demo=1`;
+      finalEndpoint = `${endpoint}${separator}include_demo=1`;
     } else if (body && typeof body === 'object' && !(body instanceof FormData)) {
-      body = { ...body, is_demo: 1 };
+      body = { ...body, include_demo: 1 };
     } else if (!body) {
-      body = { is_demo: 1 };
+      body = { include_demo: 1 };
     }
   }
   
