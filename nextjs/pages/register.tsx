@@ -88,6 +88,17 @@ const RegisterPage: React.FC = () => {
         // If user logged in with existing account, create studio and redirect to dashboard
         if (data.studioOwner?.isAuthenticated && data.studioOwner?.existingAccountId) {
 
+          // Upload studio image first so we can include image_id in the creation payload
+          let uploadedImageId: number | undefined;
+          if (data.studioDetails?.profileImage) {
+            try {
+              const uploaded = await imageService.upload(data.studioDetails.profileImage, 'studio');
+              uploadedImageId = uploaded.id;
+            } catch (imgErr) {
+              // Continue with registration even if image upload fails
+            }
+          }
+
           // Create or claim the studio for the authenticated user
           const studioPayload: Record<string, unknown> = {
             name: data.studioDetails?.name || '',
@@ -104,24 +115,15 @@ const RegisterPage: React.FC = () => {
           if (data.studioDetails?.phone) {
             studioPayload.phone = data.studioDetails.phone;
           }
-
-          let studioResponse: { studio?: { id?: number } };
+          if (uploadedImageId) {
+            studioPayload.image_id = uploadedImageId;
+          }
 
           // If claiming an existing unclaimed studio from Google Places, use claim endpoint
           if (data.studioDetails?.existingStudioId) {
-            studioResponse = await studioService.claim(data.studioDetails.existingStudioId, studioPayload) as { studio?: { id?: number } };
+            await studioService.claim(data.studioDetails.existingStudioId, studioPayload);
           } else {
-            studioResponse = await studioService.create(studioPayload) as { studio?: { id?: number } };
-          }
-
-          // Handle studio image upload
-          const studioId = studioResponse?.studio?.id;
-          if (data.studioDetails?.profileImage && studioId) {
-            try {
-              await imageService.uploadStudioImage(data.studioDetails.profileImage, studioId);
-            } catch (imgErr) {
-              // Continue with registration even if image upload fails
-            }
+            await studioService.create(studioPayload);
           }
 
           // Refresh user and redirect to dashboard
@@ -144,6 +146,8 @@ const RegisterPage: React.FC = () => {
           location: data.studioDetails?.location || '',
           location_lat_long: data.studioDetails?.locationLatLong || '',
           type: 'studio',
+          studio_email: data.studioDetails?.email || '',
+          studio_phone: data.studioDetails?.phone || '',
           has_accepted_toc: data.credentials?.has_accepted_toc ?? true,
           has_accepted_privacy_policy: data.credentials?.has_accepted_privacy_policy ?? true,
         };

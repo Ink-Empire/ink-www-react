@@ -173,72 +173,66 @@ export default function Dashboard() {
     }
   }, [isStudioAccount]);
 
-  // Create or claim studio from pending data for newly verified studio accounts
+  // Handle pending studio data from registration (create studio or link image)
   useEffect(() => {
-    const createPendingStudio = async () => {
-      // Only run for studio accounts without an existing owned_studio
-      if (!isStudioAccount || ownedStudio || !user?.id) return;
+    const processPendingStudioData = async () => {
+      if (!isStudioAccount || !user?.id) return;
 
-      // Check for pending studio data from registration
       const pendingDataStr = localStorage.getItem('pendingStudioData');
       if (!pendingDataStr) return;
 
-      // IMMEDIATELY clear pending data to prevent duplicate creation
-      // (React 18 strict mode or rapid re-renders could cause double execution)
+      // IMMEDIATELY clear pending data to prevent duplicate processing
       localStorage.removeItem('pendingStudioData');
 
       try {
         const pendingData = JSON.parse(pendingDataStr);
 
-        // Generate slug from username or name
-        const generateSlug = (text: string) => {
-          return text.toLowerCase()
-            .replace(/[^a-z0-9]/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '');
-        };
-
-        const studioPayload = {
-          name: pendingData.name || '',
-          slug: generateSlug(pendingData.username || pendingData.name || ''),
-          about: pendingData.bio || '',
-          location: pendingData.location || '',
-          location_lat_long: pendingData.locationLatLong || '',
-          owner_id: user.id,
-          email: pendingData.email || undefined,
-          phone: pendingData.phone || undefined,
-        };
-
-        // Check if this is claiming an existing studio or creating a new one
-        let studioResponse: { studio?: { id?: number } };
-        if (pendingData.existingStudioId) {
-          // Claim existing Google Places studio
-          studioResponse = await studioService.claim(pendingData.existingStudioId, studioPayload) as { studio?: { id?: number } };
-        } else {
-          // Create new studio
-          studioResponse = await studioService.create(studioPayload) as { studio?: { id?: number } };
-        }
-
-        // Associate uploaded image with the new studio if we have one
-        const studioId = studioResponse?.studio?.id;
-        if (studioId && pendingData.uploadedImageId) {
-          try {
-            await studioService.uploadImage(studioId, pendingData.uploadedImageId);
-          } catch (imgErr) {
-            // Continue even if image association fails
+        if (ownedStudio) {
+          // Studio already exists (created by AuthController during registration).
+          // Just link the uploaded image if we have one.
+          if (ownedStudio.id && pendingData.uploadedImageId) {
+            await studioService.uploadImage(ownedStudio.id, pendingData.uploadedImageId);
+            await refreshUser();
           }
-        }
+        } else {
+          // Studio doesn't exist yet — create or claim it with image_id included
+          const generateSlug = (text: string) => {
+            return text.toLowerCase()
+              .replace(/[^a-z0-9]/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '');
+          };
 
-        // Refresh user to get the owned_studio
-        await refreshUser();
+          const studioPayload: Record<string, unknown> = {
+            name: pendingData.name || '',
+            slug: generateSlug(pendingData.username || pendingData.name || ''),
+            about: pendingData.bio || '',
+            location: pendingData.location || '',
+            location_lat_long: pendingData.locationLatLong || '',
+            owner_id: user.id,
+            email: pendingData.email || undefined,
+            phone: pendingData.phone || undefined,
+          };
+
+          if (pendingData.uploadedImageId) {
+            studioPayload.image_id = pendingData.uploadedImageId;
+          }
+
+          if (pendingData.existingStudioId) {
+            await studioService.claim(pendingData.existingStudioId, studioPayload);
+          } else {
+            await studioService.create(studioPayload);
+          }
+
+          await refreshUser();
+        }
       } catch (err) {
-        console.error('Failed to create/claim studio from pending data:', err);
-        // Restore pending data on error so it can be retried
+        console.error('Failed to process pending studio data:', err);
         localStorage.setItem('pendingStudioData', pendingDataStr);
       }
     };
 
-    createPendingStudio();
+    processPendingStudioData();
   }, [isStudioAccount, ownedStudio, user?.id, refreshUser]);
 
   // Load studio data when tab switches to studio (or on mount for studio accounts)

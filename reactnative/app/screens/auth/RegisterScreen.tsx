@@ -158,6 +158,19 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       if (data.studioOwner?.isAuthenticated) {
+        // Upload studio photo first so we can include image_id in the payload
+        let uploadedImageId: number | undefined;
+        if (studioDetails.studioPhoto) {
+          try {
+            const uploaded = await uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio');
+            if (uploaded.length > 0) {
+              uploadedImageId = uploaded[0].id;
+            }
+          } catch (err) {
+            console.error('Studio photo upload failed:', err);
+          }
+        }
+
         // Existing user - create or claim studio directly
         let studioResponse: any;
         let claimError: string | null = null;
@@ -166,6 +179,7 @@ export default function RegisterScreen({ navigation }: Props) {
             studioResponse = await studioService.claim(studioDetails.studioResult.id, {
               bio: studioDetails.bio,
               phone: studioDetails.phone,
+              ...(uploadedImageId && { image_id: uploadedImageId }),
             });
           } else {
             studioResponse = await studioService.lookupOrCreate({
@@ -176,6 +190,7 @@ export default function RegisterScreen({ navigation }: Props) {
               phone: studioDetails.phone,
               location: studioDetails.location,
               location_lat_long: studioDetails.locationLatLong,
+              ...(uploadedImageId && { image_id: uploadedImageId }),
             });
           }
         } catch (err: any) {
@@ -183,20 +198,12 @@ export default function RegisterScreen({ navigation }: Props) {
           console.error('Studio claim/create failed:', err);
         }
 
-        // Upload photo and associate with both studio and user profile
-        const studioId = studioResponse?.studio?.id;
-        if (studioDetails.studioPhoto && studioId) {
+        // Also set user profile photo if we uploaded an image
+        if (uploadedImageId) {
           try {
-            const uploaded = await uploadImagesToS3(api, [studioDetails.studioPhoto], 'studio');
-            if (uploaded.length > 0) {
-              const imageId = uploaded[0].id;
-              await Promise.all([
-                studioService.uploadImage(studioId, imageId),
-                userService.uploadProfilePhoto(imageId),
-              ]);
-            }
+            await userService.uploadProfilePhoto(uploadedImageId);
           } catch (err) {
-            console.error('Studio photo upload/association failed:', err);
+            console.error('Profile photo association failed:', err);
           }
         }
 
@@ -228,7 +235,7 @@ export default function RegisterScreen({ navigation }: Props) {
           has_accepted_privacy_policy: true,
         });
 
-        // Upload photo to S3 and associate with both user and studio
+        // Upload photo to S3 and link to both studio and user profile
         const studioId = response?.studio?.id;
         if (studioDetails.studioPhoto) {
           try {
@@ -239,7 +246,8 @@ export default function RegisterScreen({ navigation }: Props) {
                 userService.uploadProfilePhoto(imageId),
               ];
               if (studioId) {
-                promises.push(studioService.uploadImage(studioId, imageId));
+                // Set image_id directly on the studio record
+                promises.push(studioService.update(studioId, { image_id: imageId } as any));
               }
               await Promise.all(promises);
             }
