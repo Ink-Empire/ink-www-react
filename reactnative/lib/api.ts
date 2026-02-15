@@ -53,9 +53,7 @@ const removeToken = async (): Promise<void> => {
   return mobileStorage.removeItem(TOKEN_KEY);
 };
 
-const API_BASE_URL = __DEV__
-  ? 'http://localhost/api'
-  : 'https://api.getinked.in/api';
+const API_BASE_URL = 'https://api.getinked.in/api';
 
 // Create the base API client instance
 const baseApi = createApiClient({

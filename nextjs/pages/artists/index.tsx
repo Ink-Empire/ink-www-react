@@ -185,8 +185,13 @@ export default function ArtistList() {
         setSearchParams(newParams);
     };
 
-    // Update searchParams when sort changes
+    // Update searchParams when sort changes (skip initial mount)
+    const sortMountRef = useRef(true);
     useEffect(() => {
+        if (sortMountRef.current) {
+            sortMountRef.current = false;
+            return;
+        }
         const sortParam = getSortParam(sortBy);
         setSearchParams((prev) => {
             const newParams = { ...prev };

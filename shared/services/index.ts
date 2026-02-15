@@ -27,8 +27,10 @@ export function createArtistService(api: ApiClient) {
         headers: { 'X-Account-Type': 'artist' },
       }),
 
-    getById: (idOrSlug: string | number) =>
-      api.get<{ artist: Artist }>(`/artists/${idOrSlug}`),
+    getById: (idOrSlug: string | number) => {
+      const param = typeof idOrSlug === 'number' ? { id: idOrSlug } : { slug: idOrSlug };
+      return api.post<{ artist: Artist }>('/artists', param);
+    },
 
     getPortfolio: (idOrSlug: string | number) =>
       api.get<Tattoo[]>(`/artists/${idOrSlug}/portfolio`),

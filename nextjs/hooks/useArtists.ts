@@ -197,14 +197,27 @@ export function useArtist(idOrSlug: string | null) {
 }
 
 // Hook for fetching artist portfolio (tattoos by artist) with pagination
-export function useArtistPortfolio(artistIdOrSlug: string | null) {
-  const [portfolio, setPortfolio] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(!!artistIdOrSlug);
+// Pass initialData to skip the first fetch (e.g., when tattoos come from artist detail response)
+export function useArtistPortfolio(artistIdOrSlug: string | null, initialData?: any[]) {
+  const [portfolio, setPortfolio] = useState<any[]>(initialData || []);
+  const [loading, setLoading] = useState<boolean>(initialData ? false : !!artistIdOrSlug);
   const [error, setError] = useState<Error | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const mountedRef = useRef(true);
+  const initialDataUsedRef = useRef(!!initialData);
+
+  // Seed portfolio when initialData arrives (e.g., after artist detail loads)
+  useEffect(() => {
+    if (initialData && initialData.length > 0) {
+      setPortfolio(initialData);
+      setLoading(false);
+      initialDataUsedRef.current = true;
+      // If we got a full page (25), there's likely more
+      setHasMore(initialData.length >= 25);
+    }
+  }, [initialData]);
 
   const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
     if (!artistIdOrSlug) return;
@@ -236,8 +249,14 @@ export function useArtistPortfolio(artistIdOrSlug: string | null) {
     }
   }, [artistIdOrSlug]);
 
+  // Only fetch page 1 if no initialData was provided
   useEffect(() => {
     mountedRef.current = true;
+
+    if (initialDataUsedRef.current) {
+      return;
+    }
+
     setPage(1);
     setPortfolio([]);
 
@@ -263,6 +282,7 @@ export function useArtistPortfolio(artistIdOrSlug: string | null) {
   const refetch = useCallback(() => {
     setPage(1);
     setPortfolio([]);
+    initialDataUsedRef.current = false;
     fetchPage(1, false);
   }, [fetchPage]);
 

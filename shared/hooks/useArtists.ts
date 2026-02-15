@@ -100,7 +100,8 @@ export function useArtist(
       setError(null);
 
       try {
-        const response = await api.get<any>(`/artists/${idOrSlug}`);
+        const param = typeof idOrSlug === 'number' ? { id: idOrSlug } : { slug: String(idOrSlug) };
+        const response = await api.post<any>('/artists', param);
         if (mountedRef.current) {
           setArtist(response?.artist as Artist);
         }
@@ -126,17 +127,30 @@ export function useArtist(
 }
 
 // Hook for fetching artist portfolio (tattoos)
+// Pass initialData to skip the first fetch (e.g., when tattoos come from artist detail response)
 export function useArtistPortfolio(
   api: ApiClient,
-  artistIdOrSlug: string | number | null
+  artistIdOrSlug: string | number | null,
+  initialData?: any[]
 ): { portfolio: any[]; loading: boolean; error: Error | null; hasMore: boolean; loadMore: () => void } {
-  const [portfolio, setPortfolio] = useState<any[]>([]);
-  const [loading, setLoading] = useState(!!artistIdOrSlug);
+  const [portfolio, setPortfolio] = useState<any[]>(initialData || []);
+  const [loading, setLoading] = useState(initialData ? false : !!artistIdOrSlug);
   const [error, setError] = useState<Error | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const mountedRef = useRef(true);
+  const initialDataUsedRef = useRef(!!initialData);
+
+  // Seed portfolio when initialData arrives
+  useEffect(() => {
+    if (initialData && initialData.length > 0) {
+      setPortfolio(initialData);
+      setLoading(false);
+      initialDataUsedRef.current = true;
+      setHasMore(initialData.length >= 25);
+    }
+  }, [initialData]);
 
   const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
     if (!artistIdOrSlug) return;
@@ -168,8 +182,14 @@ export function useArtistPortfolio(
     }
   }, [api, artistIdOrSlug]);
 
+  // Only fetch page 1 if no initialData was provided
   useEffect(() => {
     mountedRef.current = true;
+
+    if (initialDataUsedRef.current) {
+      return;
+    }
+
     setPage(1);
     setPortfolio([]);
 

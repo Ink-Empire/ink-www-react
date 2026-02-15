@@ -11,8 +11,8 @@ export const artistService = {
 
   // Get artist by ID or slug (public access, but sends auth if available for block filtering)
   getById: async (idOrSlug: number | string, options?: { useCache?: boolean }): Promise<IArtist> => {
-    const response = await api.get<{ artist: IArtist }>(`/artists/${idOrSlug}`, {
-      useCache: options?.useCache ?? true,
+    const param = typeof idOrSlug === 'number' ? { id: idOrSlug } : { slug: idOrSlug };
+    const response = await api.post<{ artist: IArtist }>('/artists', param, {
       requiresAuth: true, // Send token if available to filter blocked artists
     });
     return response.artist;
@@ -118,7 +118,7 @@ export const artistService = {
 
   // Get artist by slug with full data including tattoos (public)
   getBySlug: async (slug: string): Promise<{ artist: IArtist & { tattoos?: any[] } }> => {
-    return api.get(`/artists/${slug}`, { useCache: false });
+    return api.post('/artists', { slug }, { requiresAuth: true });
   },
 
   // Get full dashboard data for an artist (requires auth) - includes cached tattoos

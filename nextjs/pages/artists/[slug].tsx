@@ -33,7 +33,7 @@ export default function ArtistDetail() {
     const { slug } = router.query;
     const slugString = typeof slug === 'string' ? slug : null;
     const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString);
-    const { portfolio, loading: portfolioLoading, refetch: fetchPortfolio } = useArtistPortfolio(slugString);
+    const { portfolio, loading: portfolioLoading, refetch: fetchPortfolio } = useArtistPortfolio(slugString, artist?.tattoos);
     const { user, isAuthenticated } = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
@@ -61,42 +61,21 @@ export default function ArtistDetail() {
         accepts_consultations: false,
     });
 
-    // Fetch fresh settings from database (not ES) when artist loads
+    // Populate booking info form from ES artist.settings data
     useEffect(() => {
         if (!artist?.id) return;
 
-        const fetchSettings = async () => {
-            try {
-                const response = await artistService.getSettings(artist.id);
-                const settings = response?.data;
-                if (settings) {
-                    setBookingInfoForm({
-                        consultation_fee: String(settings.consultation_fee || ''),
-                        consultation_duration: String(settings.consultation_duration || '30'),
-                        hourly_rate: String(settings.hourly_rate || ''),
-                        minimum_session: String(settings.minimum_session || ''),
-                        deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
-                        accepts_consultations: settings.accepts_consultations || false,
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to fetch artist settings:', err);
-                // Fallback to ES data if available
-                const settings = artist?.settings || (artist as any)?.artist_settings;
-                if (settings) {
-                    setBookingInfoForm({
-                        consultation_fee: String(settings.consultation_fee || ''),
-                        consultation_duration: String(settings.consultation_duration || '30'),
-                        hourly_rate: String(settings.hourly_rate || ''),
-                        minimum_session: String(settings.minimum_session || ''),
-                        deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
-                        accepts_consultations: settings.accepts_consultations || false,
-                    });
-                }
-            }
-        };
-
-        fetchSettings();
+        const settings = artist?.settings || (artist as any)?.artist_settings;
+        if (settings) {
+            setBookingInfoForm({
+                consultation_fee: String(settings.consultation_fee || ''),
+                consultation_duration: String(settings.consultation_duration || '30'),
+                hourly_rate: String(settings.hourly_rate || ''),
+                minimum_session: String(settings.minimum_session || ''),
+                deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
+                accepts_consultations: settings.accepts_consultations || false,
+            });
+        }
     }, [artist?.id]);
 
     // Redirect to artists page if artist not found (e.g., blocked user)
@@ -126,27 +105,20 @@ export default function ArtistDetail() {
         setIsEditingBookingInfo(true);
     };
 
-    const handleCancelEditBookingInfo = async () => {
+    const handleCancelEditBookingInfo = () => {
         setIsEditingBookingInfo(false);
         setBookingInfoError('');
-        // Re-fetch from DB to reset to saved values
-        if (artist?.id) {
-            try {
-                const response = await artistService.getSettings(artist.id);
-                const settings = response?.data;
-                if (settings) {
-                    setBookingInfoForm({
-                        consultation_fee: String(settings.consultation_fee || ''),
-                        consultation_duration: String(settings.consultation_duration || '30'),
-                        hourly_rate: String(settings.hourly_rate || ''),
-                        minimum_session: String(settings.minimum_session || ''),
-                        deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
-                        accepts_consultations: settings.accepts_consultations || false,
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to reset settings:', err);
-            }
+        // Reset form to current artist.settings from ES
+        const settings = artist?.settings || (artist as any)?.artist_settings;
+        if (settings) {
+            setBookingInfoForm({
+                consultation_fee: String(settings.consultation_fee || ''),
+                consultation_duration: String(settings.consultation_duration || '30'),
+                hourly_rate: String(settings.hourly_rate || ''),
+                minimum_session: String(settings.minimum_session || ''),
+                deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
+                accepts_consultations: settings.accepts_consultations || false,
+            });
         }
     };
 

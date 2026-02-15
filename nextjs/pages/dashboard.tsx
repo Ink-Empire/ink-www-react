@@ -769,6 +769,7 @@ export default function Dashboard() {
                 label="Studio Bookings This Week"
                 trend={studioStats?.bookings?.trend_label || ''}
                 trendUp={(studioStats?.bookings?.trend ?? 0) >= 0}
+                href="/calendar"
               />
               <StatCard
                 icon={<VisibilityIcon />}

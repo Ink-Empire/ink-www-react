@@ -229,13 +229,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     }
   }, [currentFilters]);
 
-  // Apply filters when component mounts if initial filters are provided
+  // Cleanup timeouts on unmount
   useEffect(() => {
-    if (initialFilters.searchString || (initialFilters.styles && initialFilters.styles.length > 0) || initialFilters.distance) {
-      handleApplyFilters();
-    }
-
-    // Cleanup timeout on unmount
     return () => {
       if (searchTimerRef.current) {
         clearTimeout(searchTimerRef.current);
