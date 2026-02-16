@@ -313,18 +313,6 @@ const ProfilePage: React.FC = () => {
     const newValue = !artistSettings[key];
     const previousSettings = { ...artistSettings };
 
-    // If toggling books_open ON, check for available hours first
-    if (key === 'books_open' && newValue) {
-      const hasAvailableHours = workingHours.some(h => !h.is_day_off);
-      if (!hasAvailableHours) {
-        // Optimistically show as on, open modal to set hours
-        setArtistSettings(prev => ({ ...prev, books_open: true }));
-        pendingBooksOpen.current = true;
-        setWorkingHoursModalOpen(true);
-        return;
-      }
-    }
-
     // Optimistic update
     setArtistSettings(prev => ({ ...prev, [key]: newValue }));
 
