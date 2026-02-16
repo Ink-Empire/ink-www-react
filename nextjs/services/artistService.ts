@@ -48,7 +48,7 @@ export const artistService = {
   
   // Get artist's working hours/availability (public access)
   getWorkingHours: async (artistIdOrSlug: number | string): Promise<any[]> => {
-    return api.get<any[]>(`/artists/${artistIdOrSlug}/working-hours`);
+    return api.get<any[]>(`/artists/${artistIdOrSlug}/working-hours`, { useCache: false });
   },
 
   // Update artist profile (requires auth)

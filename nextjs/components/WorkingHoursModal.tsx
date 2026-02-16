@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Modal } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, IconButton, Modal, CircularProgress } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import WorkingHoursEditor from './WorkingHoursEditor';
 import { colors, modalStyles } from '@/styles/colors';
@@ -11,7 +11,7 @@ export type { WorkingHour } from '@inkedin/shared/types';
 interface WorkingHoursModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (workingHours: WorkingHour[]) => void;
+  onSave: (workingHours: WorkingHour[]) => Promise<void> | void;
   artistId?: number;
   studioId?: number;
   initialWorkingHours?: WorkingHour[];
@@ -30,6 +30,7 @@ const WorkingHoursModal: React.FC<WorkingHoursModalProps> = ({
   infoText,
 }) => {
   const [pendingHours, setPendingHours] = useState<WorkingHour[]>([]);
+  const [saving, setSaving] = useState(false);
 
   // Determine entity type and ID
   const entityType = studioId ? 'studio' : 'artist';
@@ -40,11 +41,14 @@ const WorkingHoursModal: React.FC<WorkingHoursModalProps> = ({
     setPendingHours(hours);
   };
 
-  // Handle save — only call onSave, not onClose.
-  // The parent's save handler manages closing the modal after async work completes.
-  // Calling onClose here would clear pendingBooksOpen before the save finishes.
-  const handleSave = () => {
-    onSave(pendingHours);
+  // Handle save with loading state
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(pendingHours);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -128,21 +132,23 @@ const WorkingHoursModal: React.FC<WorkingHoursModalProps> = ({
           <Box
             component="button"
             onClick={onClose}
+            disabled={saving}
             sx={{
               px: '1.5rem',
               py: '0.7rem',
               borderRadius: '6px',
               fontSize: '0.9rem',
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: saving ? 'not-allowed' : 'pointer',
               border: `1px solid ${colors.borderLight}`,
               bgcolor: 'transparent',
               color: colors.textPrimary,
               fontFamily: 'inherit',
               transition: 'all 0.2s ease',
+              opacity: saving ? 0.5 : 1,
               '&:hover': {
-                borderColor: colors.accent,
-                color: colors.accent
+                borderColor: saving ? colors.borderLight : colors.accent,
+                color: saving ? colors.textPrimary : colors.accent
               }
             }}
           >
@@ -151,22 +157,28 @@ const WorkingHoursModal: React.FC<WorkingHoursModalProps> = ({
           <Box
             component="button"
             onClick={handleSave}
+            disabled={saving}
             sx={{
               px: '1.5rem',
               py: '0.7rem',
               borderRadius: '6px',
               fontSize: '0.9rem',
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: saving ? 'not-allowed' : 'pointer',
               border: 'none',
               bgcolor: colors.accent,
               color: colors.background,
               fontFamily: 'inherit',
               transition: 'all 0.2s ease',
-              '&:hover': { bgcolor: colors.accentHover }
+              opacity: saving ? 0.7 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              '&:hover': { bgcolor: saving ? colors.accent : colors.accentHover }
             }}
           >
-            Save Hours
+            {saving && <CircularProgress size={16} sx={{ color: colors.background }} />}
+            {saving ? 'Saving...' : 'Save Hours'}
           </Box>
         </Box>
       </Box>

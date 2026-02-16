@@ -509,8 +509,7 @@ export function useUnreadConversationCount(): UseUnreadCountReturn {
 
       setUnreadCount(response.unread_count || 0);
     } catch (err) {
-      console.error('Error fetching unread count:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch unread count');
+      // Silent fail for auth errors (user not logged in)
       setUnreadCount(0);
     } finally {
       setLoading(false);

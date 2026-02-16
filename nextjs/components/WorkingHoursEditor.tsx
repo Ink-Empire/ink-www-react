@@ -86,6 +86,7 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
   });
 
   const [appliedFeedback, setAppliedFeedback] = useState<string | null>(null);
+  const [activePresets, setActivePresets] = useState<Set<string>>(new Set());
 
   const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -121,8 +122,30 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
         }
       });
       setSchedule(newSchedule);
+      setActivePresets(detectPresets(newSchedule));
     }
   }, [initialHours]);
+
+  // Detect which presets match the current schedule
+  const detectPresets = useCallback((s: Schedule): Set<string> => {
+    const matched = new Set<string>();
+    const activeDays = dayKeys.filter(d => s[d].active);
+    const allActiveMatch = (start: string, end: string) =>
+      activeDays.length > 0 && activeDays.every(d => s[d].start === start && s[d].end === end);
+
+    if (allActiveMatch('09:00', '17:00')) matched.add('9to5');
+    if (allActiveMatch('10:00', '18:00')) matched.add('10to6');
+    if (allActiveMatch('11:00', '19:00')) matched.add('11to7');
+
+    const weekdaysOnly = dayKeys.every(d => {
+      const isWeekend = d === 'sunday' || d === 'saturday';
+      return s[d].active === !isWeekend;
+    });
+    if (weekdaysOnly) matched.add('weekdays');
+    if (dayKeys.every(d => s[d].active)) matched.add('alldays');
+
+    return matched;
+  }, []);
 
   // Convert schedule to WorkingHour format and notify parent
   const notifyChange = useCallback((newSchedule: Schedule) => {
@@ -140,7 +163,8 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
       } as WorkingHour;
     });
     onChange(hours);
-  }, [onChange, entityId, entityType]);
+    setActivePresets(detectPresets(newSchedule));
+  }, [onChange, entityId, entityType, detectPresets]);
 
   const toggleDay = (day: string) => {
     const newSchedule = {
@@ -323,11 +347,12 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
             sx={{
               px: '1rem',
               py: '0.5rem',
-              bgcolor: colors.surfaceElevated,
-              border: `1px solid ${colors.borderLight}`,
+              bgcolor: activePresets.has(preset.id) ? `${colors.accent}1A` : colors.surfaceElevated,
+              border: `1px solid ${activePresets.has(preset.id) ? colors.accent : colors.borderLight}`,
               borderRadius: '100px',
               fontSize: '0.8rem',
-              color: colors.textSecondary,
+              color: activePresets.has(preset.id) ? colors.accent : colors.textSecondary,
+              fontWeight: activePresets.has(preset.id) ? 600 : 400,
               cursor: 'pointer',
               fontFamily: 'inherit',
               transition: 'all 0.2s ease',

@@ -252,8 +252,11 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     credentialsMode = 'omit';
     console.log(`Using Bearer token for ${method} ${endpoint} (not sending cookies)`);
   } else if (requiresAuth) {
-    // No token found but auth required - warn about this
-    console.warn(`No auth token found for ${method} ${endpoint} - falling back to session auth`);
+    // No token and auth required — reject immediately to avoid wasted network calls
+    const error = new Error('Authentication required') as any;
+    error.status = 401;
+    error.data = { message: 'Not authenticated' };
+    throw error;
   }
 
   const requestOptions: RequestInit = {
