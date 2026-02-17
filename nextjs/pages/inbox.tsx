@@ -30,7 +30,6 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ImageIcon from '@mui/icons-material/Image';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SendIcon from '@mui/icons-material/Send';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -82,7 +81,6 @@ export default function InboxPage() {
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const designInputRef = useRef<HTMLInputElement>(null);
 
   // Sort state
@@ -450,9 +448,6 @@ export default function InboxPage() {
     imageInputRef.current?.click();
   };
 
-  const handleFileClick = () => {
-    fileInputRef.current?.click();
-  };
 
   // Allowed image types for upload
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -525,19 +520,6 @@ export default function InboxPage() {
     setPendingAttachments([]);
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    // TODO: Implement actual file upload
-    setSnackbar({
-      open: true,
-      message: 'File attachment coming soon! This feature is under development.',
-      severity: 'info',
-    });
-
-    event.target.value = '';
-  };
 
   // Header action handlers
   const handleMoreMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -1375,12 +1357,6 @@ export default function InboxPage() {
                 />
                 <input
                   type="file"
-                  ref={fileInputRef}
-                  style={{ display: 'none' }}
-                  onChange={handleFileUpload}
-                />
-                <input
-                  type="file"
                   ref={designInputRef}
                   style={{ display: 'none' }}
                   accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
@@ -1492,17 +1468,6 @@ export default function InboxPage() {
                       }}
                     >
                       <ImageIcon sx={{ fontSize: 20 }} />
-                    </IconButton>
-                    <IconButton
-                      onClick={handleFileClick}
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        color: colors.textMuted,
-                        '&:hover': { bgcolor: colors.surfaceElevated, color: colors.accent },
-                      }}
-                    >
-                      <AttachFileIcon sx={{ fontSize: 20 }} />
                     </IconButton>
                   </Box>
 
