@@ -11,7 +11,11 @@ import {
   CircularProgress,
   Stack,
   Paper,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '@/styles/colors';
 
@@ -25,6 +29,7 @@ const LoginPage: React.FC = () => {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>();
@@ -192,13 +197,26 @@ const LoginPage: React.FC = () => {
             {/* Password Field */}
             <TextField
               label="Password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               error={!!errors.password}
               helperText={errors.password?.message}
               fullWidth
               required
               {...register('password', { required: 'Password is required' })}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                      sx={{ color: colors.textSecondary }}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   '& fieldset': {
