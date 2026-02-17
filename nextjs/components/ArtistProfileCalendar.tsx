@@ -387,7 +387,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   // Handle saving working hours from modal
   const handleSaveWorkingHours = async (hours: any[]) => {
     try {
-      await saveWorkingHours(hours);
+      const result = await saveWorkingHours(hours);
       // Update local state with new hours
       setWorkingHours(hours);
       setWorkingHoursModalOpen(false);
@@ -411,6 +411,12 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         } else {
           setBooksOpen(false);
         }
+        return;
+      }
+
+      if (result.booksClosed) {
+        setBooksOpen(false);
+        booksOpenLocalUpdate.current = Date.now();
       }
     } catch (err) {
       console.error('Failed to save working hours:', err);
@@ -1655,6 +1661,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
           onSave={handleSaveWorkingHours}
           artistId={resolvedArtistId || undefined}
           initialWorkingHours={workingHours}
+          infoText={pendingBooksOpen.current ? 'In order to set your books to open you must have working hours set.' : undefined}
         />
       )}
 

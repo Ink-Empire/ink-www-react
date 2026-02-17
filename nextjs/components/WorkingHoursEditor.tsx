@@ -238,8 +238,12 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
   const setPreset = (preset: string) => {
     const newSchedule = { ...schedule };
 
+    // If no days are active, activate all days first for time presets
+    const hasActiveDays = dayKeys.some(day => newSchedule[day].active);
+
     switch (preset) {
       case '9to5':
+        if (!hasActiveDays) dayKeys.forEach(day => { newSchedule[day].active = true; });
         dayKeys.forEach(day => {
           if (newSchedule[day].active) {
             newSchedule[day].start = '09:00';
@@ -248,6 +252,7 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
         });
         break;
       case '10to6':
+        if (!hasActiveDays) dayKeys.forEach(day => { newSchedule[day].active = true; });
         dayKeys.forEach(day => {
           if (newSchedule[day].active) {
             newSchedule[day].start = '10:00';
@@ -256,6 +261,7 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
         });
         break;
       case '11to7':
+        if (!hasActiveDays) dayKeys.forEach(day => { newSchedule[day].active = true; });
         dayKeys.forEach(day => {
           if (newSchedule[day].active) {
             newSchedule[day].start = '11:00';

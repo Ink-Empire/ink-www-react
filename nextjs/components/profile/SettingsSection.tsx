@@ -73,7 +73,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({
       {/* Section Content */}
       <Box sx={{
         display: isExpanded ? 'block' : 'none',
-        p: '0 1.25rem 1.25rem 1.25rem',
+        p: '1rem 1.25rem 1.25rem 1.25rem',
         borderTop: `1px solid ${colors.border}`
       }}>
         {children}

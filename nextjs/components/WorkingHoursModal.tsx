@@ -112,12 +112,34 @@ const WorkingHoursModal: React.FC<WorkingHoursModalProps> = ({
             borderRadius: 3
           }
         }}>
+          {infoText && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.75rem',
+              p: '1rem',
+              mb: '1rem',
+              bgcolor: `${colors.accent}26`,
+              border: `1px solid ${colors.accent}33`,
+              borderRadius: '8px'
+            }}>
+              <Box sx={{ color: colors.accent, flexShrink: 0, mt: '2px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+              </Box>
+              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5 }}>
+                {infoText}
+              </Typography>
+            </Box>
+          )}
           <WorkingHoursEditor
             initialHours={initialWorkingHours}
             onChange={handleEditorChange}
             entityId={entityId}
             entityType={entityType}
-            infoText={infoText}
           />
         </Box>
 

@@ -639,7 +639,7 @@ const ProfilePage: React.FC = () => {
   // Save working hours
   const handleSaveWorkingHours = async (hours: any[]) => {
     try {
-      await saveWorkingHours(hours);
+      const result = await saveWorkingHours(hours);
       setWorkingHoursModalOpen(false);
 
       // If we were waiting to open books, do it now
@@ -663,6 +663,13 @@ const ProfilePage: React.FC = () => {
           // Saved hours but all are day-off, revert books_open
           setArtistSettings(prev => ({ ...prev, books_open: false }));
         }
+      }
+
+      if (result.booksClosed) {
+        setArtistSettings(prev => ({ ...prev, books_open: false }));
+        setToastMessage('Working hours updated. Books have been closed until available hours are set.');
+        setShowToast(true);
+        return;
       }
 
       setToastMessage('Working hours updated successfully');
@@ -1544,7 +1551,7 @@ const ProfilePage: React.FC = () => {
           {isArtist && (
             <SettingsSection id="hours" title="Your Hours" icon={<AccessTimeIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '1rem' }}>
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary }}>
+              <Typography variant="h3" sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, py: '0.5rem' }}>
                 Weekly Schedule
               </Typography>
               <Box
@@ -1578,7 +1585,7 @@ const ProfilePage: React.FC = () => {
           {isArtist && (
             <SettingsSection id="booking" title="Booking & Rates" icon={<EventIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
             {/* Rates Section */}
-            <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, mb: '0.75rem' }}>
+            <Typography variant="h3" sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, py: '0.5rem', mb: '0.75rem' }}>
               Your Rates
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem', mb: '1.5rem' }}>
@@ -1710,7 +1717,7 @@ const ProfilePage: React.FC = () => {
             <Box sx={{ height: '1px', bgcolor: colors.border, mb: '1.5rem' }} />
 
             {/* Booking Preferences */}
-            <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, mb: '0.5rem' }}>
+            <Typography variant="h3" sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, py: '0.5rem', mb: '0.5rem' }}>
               Booking Preferences
             </Typography>
             <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: '1rem', opacity: 0.7 }}>
@@ -2429,6 +2436,7 @@ const ProfilePage: React.FC = () => {
           onSave={handleSaveWorkingHours}
           artistId={artistId}
           initialWorkingHours={workingHours}
+          infoText={pendingBooksOpen.current ? 'In order to set your books to open you must have working hours set.' : undefined}
         />
       )}
 
