@@ -134,6 +134,7 @@ export default function ConversationScreen({ route }: any) {
         multiple: true,
         maxFiles: remaining,
         compressImageQuality: 0.8,
+        forceJpg: true,
       });
 
       const newImages: ImageFile[] = results.map((img) => ({

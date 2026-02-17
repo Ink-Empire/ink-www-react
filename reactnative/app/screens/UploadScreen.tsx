@@ -91,6 +91,7 @@ export default function UploadScreen({ navigation }: any) {
         multiple: true,
         maxFiles: remaining,
         compressImageQuality: 0.8,
+        forceJpg: true,
       });
 
       const newImages: ImageFile[] = results.map((img) => ({
@@ -113,6 +114,7 @@ export default function UploadScreen({ navigation }: any) {
       const image = await ImageCropPicker.openCamera({
         mediaType: 'photo',
         compressImageQuality: 0.8,
+        forceJpg: true,
       });
 
       setImages(prev => [

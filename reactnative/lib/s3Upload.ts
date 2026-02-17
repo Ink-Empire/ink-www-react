@@ -101,14 +101,13 @@ export async function uploadImagesToS3(
       const { upload_url, filename } = uploads[index];
       const contentType = normalizeContentType(file.type || 'image/jpeg');
 
-      // React Native fetch supports file URIs natively
+      // Read the file as a blob first, then PUT raw bytes to S3
+      const fileResponse = await fetch(file.uri);
+      const blob = await fileResponse.blob();
+
       const response = await fetch(upload_url, {
         method: 'PUT',
-        body: {
-          uri: file.uri,
-          type: contentType,
-          name: file.name || filename,
-        } as any,
+        body: blob,
         headers: {
           'Content-Type': contentType,
         },
