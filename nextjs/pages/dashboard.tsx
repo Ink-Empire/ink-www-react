@@ -29,6 +29,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PhoneIcon from '@mui/icons-material/Phone';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import StarIcon from '@mui/icons-material/Star';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,6 +39,7 @@ import { studioService } from '@/services/studioService';
 import { artistService } from '@/services/artistService';
 import { leadService } from '@/services/leadService';
 import { userService } from '@/services/userService';
+import { messageService } from '@/services/messageService';
 import { tattooService } from '@/services/tattooService';
 import { StudioType } from '@/models/studio.interface';
 import type { WorkingHour } from '../components/WorkingHoursModal';
@@ -617,6 +619,33 @@ export default function Dashboard() {
               Upload
             </Button>
             )}
+            <Button
+              onClick={async () => {
+                try {
+                  const { user_id } = await messageService.getSupportContact();
+                  if (user_id) {
+                    router.push(`/inbox?contactId=${user_id}`);
+                    return;
+                  }
+                } catch {}
+                router.push('/contact');
+              }}
+              sx={{
+                flex: { xs: 1, md: 'none' },
+                px: 2,
+                py: 1,
+                color: colors.textPrimary,
+                border: `1px solid ${colors.border}`,
+                borderRadius: '6px',
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '0.9rem',
+                '&:hover': { borderColor: colors.accent, color: colors.accent }
+              }}
+              startIcon={<HelpOutlineIcon sx={{ fontSize: 18 }} />}
+            >
+              Get Help
+            </Button>
             <Menu
               anchorEl={uploadMenuAnchor}
               open={Boolean(uploadMenuAnchor)}

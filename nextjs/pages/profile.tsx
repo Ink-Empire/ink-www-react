@@ -63,6 +63,7 @@ import { colors, modalStyles } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
 import { userService } from '@/services/userService';
 import { imageService } from '@/services/imageService';
+import { messageService } from '@/services/messageService';
 import ComingSoonBadge from '@/components/ui/ComingSoonBadge';
 import {
   navItems,
@@ -2174,15 +2175,23 @@ const ProfilePage: React.FC = () => {
               <ExpandMoreIcon sx={{ fontSize: 20, color: colors.textSecondary, transform: 'rotate(-90deg)' }} />
             </Box>
             <Box
-              component={Link}
-              href="/contact"
+              onClick={async () => {
+                try {
+                  const { user_id } = await messageService.getSupportContact();
+                  if (user_id) {
+                    router.push(`/inbox?contactId=${user_id}`);
+                    return;
+                  }
+                } catch {}
+                router.push('/contact');
+              }}
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 p: '0.75rem',
                 borderRadius: '6px',
-                textDecoration: 'none',
+                cursor: 'pointer',
                 transition: 'background 0.15s ease',
                 '&:hover': { bgcolor: colors.background }
               }}

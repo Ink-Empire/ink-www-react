@@ -42,7 +42,6 @@ setInterval(() => {
 
 interface ContactFormData {
   email: string;
-  isArtist: boolean;
   message: string;
   timestamp: number;
 }
@@ -66,10 +65,10 @@ export default async function handler(
   }
 
   try {
-    const { email, isArtist, message, timestamp } = req.body as ContactFormData;
+    const { email, message, timestamp } = req.body as ContactFormData;
 
     // Validate required fields
-    if (!email || message === undefined || isArtist === undefined) {
+    if (!email || message === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -128,10 +127,6 @@ export default async function handler(
         <div class="value"><a href="mailto:${email}">${email}</a></div>
       </div>
       <div class="field">
-        <div class="label">Is Tattoo Artist:</div>
-        <div class="value">${isArtist ? 'Yes' : 'No'}</div>
-      </div>
-      <div class="field">
         <div class="label">Submitted:</div>
         <div class="value">${new Date().toLocaleString()}</div>
       </div>
@@ -153,7 +148,7 @@ export default async function handler(
       from: process.env.RESEND_FROM_EMAIL || 'info <info@getinked.in>',
       to: ['info@getinked.in'],
       replyTo: email,
-      subject: `InkedIn Contact: ${isArtist ? 'Artist' : 'User'} Inquiry`,
+      subject: `InkedIn Contact Form Submission`,
       html: htmlContent,
     });
 

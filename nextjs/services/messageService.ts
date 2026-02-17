@@ -247,6 +247,11 @@ export const messageService = {
     }, { requiresAuth: true });
   },
 
+  // Get support contact user ID (requires auth)
+  getSupportContact: async (): Promise<{ user_id: number | null }> => {
+    return api.get('/support/contact', { requiresAuth: true, useCache: false });
+  },
+
   // Respond to a reschedule request (requires auth)
   respondToMessage: async (
     conversationId: number,

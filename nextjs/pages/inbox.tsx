@@ -64,7 +64,7 @@ import {
 
 export default function InboxPage() {
   const router = useRouter();
-  const { artistId, conversation: conversationParam } = router.query;
+  const { artistId, contactId, conversation: conversationParam } = router.query;
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [creatingConversation, setCreatingConversation] = useState(false);
@@ -195,10 +195,10 @@ export default function InboxPage() {
 
   // Select first conversation by default
   useEffect(() => {
-    if (conversations.length > 0 && !selectedConversationId && !artistId) {
+    if (conversations.length > 0 && !selectedConversationId && !artistId && !contactId) {
       setSelectedConversationId(conversations[0].id);
     }
-  }, [conversations, selectedConversationId, artistId]);
+  }, [conversations, selectedConversationId, artistId, contactId]);
 
   // Handle artistId query parameter - find or create conversation with artist
   useEffect(() => {
@@ -246,6 +246,47 @@ export default function InboxPage() {
         });
     }
   }, [artistId, isAuthenticated, conversations, conversationsLoading, creatingConversation, router, fetchConversations]);
+
+  // Handle contactId query parameter - find or create conversation with any user
+  useEffect(() => {
+    if (!contactId || !isAuthenticated || conversationsLoading || creatingConversation) return;
+
+    const contactIdNum = parseInt(contactId as string, 10);
+    if (isNaN(contactIdNum)) return;
+
+    const existingConversation = conversations.find(
+      (conv) => conv.participant?.id === contactIdNum
+    );
+
+    if (existingConversation) {
+      setSelectedConversationId(existingConversation.id);
+      setMobileShowConversation(true);
+      router.replace('/inbox', undefined, { shallow: true });
+    } else {
+      setCreatingConversation(true);
+      createConversation(contactIdNum, 'consultation')
+        .then((newConversation) => {
+          if (newConversation) {
+            fetchConversations().then(() => {
+              setSelectedConversationId(newConversation.id);
+              setMobileShowConversation(true);
+            });
+          }
+          router.replace('/inbox', undefined, { shallow: true });
+        })
+        .catch((err) => {
+          console.error('Failed to create conversation:', err);
+          setSnackbar({
+            open: true,
+            message: 'Failed to start conversation. Please try again.',
+            severity: 'error',
+          });
+        })
+        .finally(() => {
+          setCreatingConversation(false);
+        });
+    }
+  }, [contactId, isAuthenticated, conversations, conversationsLoading, creatingConversation, router, fetchConversations]);
 
   // Deep-link support: ?conversation=<id> opens that conversation directly
   useEffect(() => {

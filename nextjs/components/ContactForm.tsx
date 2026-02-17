@@ -3,11 +3,6 @@ import {
   Box,
   TextField,
   Button,
-  FormControl,
-  FormLabel,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
   Alert,
   CircularProgress,
   Typography,
@@ -23,7 +18,6 @@ interface ContactFormProps {
 export default function ContactForm({ onSuccess }: ContactFormProps) {
   const [formData, setFormData] = useState({
     email: '',
-    isArtist: '',
     message: '',
     // Honeypot field for spam protection
     website: '',
@@ -83,10 +77,6 @@ export default function ContactForm({ onSuccess }: ContactFormProps) {
     if (!validateEmail(formData.email)) {
       return;
     }
-    if (!formData.isArtist) {
-      setError('Please indicate if you are an artist');
-      return;
-    }
     if (!formData.message) {
       setError('Please enter your message');
       return;
@@ -102,7 +92,6 @@ export default function ContactForm({ onSuccess }: ContactFormProps) {
         },
         body: JSON.stringify({
           email: formData.email,
-          isArtist: formData.isArtist === 'yes',
           message: formData.message,
           timestamp: Date.now(),
         }),
@@ -115,7 +104,7 @@ export default function ContactForm({ onSuccess }: ContactFormProps) {
       }
 
       setSuccess(true);
-      setFormData({ email: '', isArtist: '', message: '', website: '' });
+      setFormData({ email: '', message: '', website: '' });
       setEmailError(null);
       onSuccess?.();
     } catch (err) {
@@ -198,57 +187,6 @@ export default function ContactForm({ onSuccess }: ContactFormProps) {
           },
         }}
       />
-
-      <FormControl component="fieldset" sx={{ mb: 2, width: '100%' }}>
-        <FormLabel
-          component="legend"
-          sx={{
-            color: colors.textSecondary,
-            '&.Mui-focused': {
-              color: colors.accent,
-            },
-          }}
-        >
-          Are you a tattoo artist?
-        </FormLabel>
-        <RadioGroup
-          row
-          name="isArtist"
-          value={formData.isArtist}
-          onChange={handleChange}
-        >
-          <FormControlLabel
-            value="yes"
-            control={
-              <Radio
-                sx={{
-                  color: colors.textSecondary,
-                  '&.Mui-checked': {
-                    color: colors.accent,
-                  },
-                }}
-              />
-            }
-            label="Yes"
-            sx={{ color: colors.textPrimary }}
-          />
-          <FormControlLabel
-            value="no"
-            control={
-              <Radio
-                sx={{
-                  color: colors.textSecondary,
-                  '&.Mui-checked': {
-                    color: colors.accent,
-                  },
-                }}
-              />
-            }
-            label="No"
-            sx={{ color: colors.textPrimary }}
-          />
-        </RadioGroup>
-      </FormControl>
 
       <TextField
         fullWidth

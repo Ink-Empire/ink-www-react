@@ -97,5 +97,8 @@ export function createMessageService(api: ApiClient) {
       api.put(`/conversations/${conversationId}/messages/${messageId}/respond`, {
         action,
       }, { requiresAuth: true }),
+
+    getSupportContact: () =>
+      api.get<{ user_id: number | null }>('/support/contact', { requiresAuth: true }),
   };
 }
