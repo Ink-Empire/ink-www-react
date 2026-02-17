@@ -251,9 +251,9 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           <Button
             onClick={async () => {
               try {
-                const { user_id } = await messageService.getSupportContact();
-                if (user_id) {
-                  router.push(`/inbox?contactId=${user_id}`);
+                const { conversation_id } = await messageService.sendSupportMessage();
+                if (conversation_id) {
+                  router.push(`/inbox?conversation=${conversation_id}`);
                   return;
                 }
               } catch {}

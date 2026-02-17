@@ -123,8 +123,15 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
       });
       setSchedule(newSchedule);
       setActivePresets(detectPresets(newSchedule));
+      notifyChange(newSchedule);
     }
   }, [initialHours]);
+
+  // Notify parent of default schedule on mount so pendingHours is never empty
+  useEffect(() => {
+    notifyChange(schedule);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Detect which presets match the current schedule
   const detectPresets = useCallback((s: Schedule): Set<string> => {

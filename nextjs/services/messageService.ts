@@ -252,6 +252,11 @@ export const messageService = {
     return api.get('/support/contact', { requiresAuth: true, useCache: false });
   },
 
+  // Send support message and fire Slack notification (requires auth)
+  sendSupportMessage: async (message?: string): Promise<{ notified: boolean; conversation_id: number | null }> => {
+    return api.post('/support/message', { message }, { requiresAuth: true });
+  },
+
   // Respond to a reschedule request (requires auth)
   respondToMessage: async (
     conversationId: number,

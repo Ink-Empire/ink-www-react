@@ -251,16 +251,12 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
           setConsultationDuration(settings.consultation_duration || 30);
         }
 
-        if (booksAreOpen) {
-          const workingHoursResponse = await artistService.getWorkingHours(artist.slug);
-          // Handle both array and { data: [...] } response formats
-          const workingHoursData = Array.isArray(workingHoursResponse)
-            ? workingHoursResponse
-            : (workingHoursResponse?.data || []);
-          setWorkingHours(workingHoursData);
-        } else {
-          setWorkingHours([]);
-        }
+        // Always fetch working hours regardless of books status
+        const workingHoursResponse = await artistService.getWorkingHours(artist.slug);
+        const workingHoursData = Array.isArray(workingHoursResponse)
+          ? workingHoursResponse
+          : (workingHoursResponse?.data || []);
+        setWorkingHours(workingHoursData);
       } catch (error) {
         console.error('Error fetching artist data or working hours:', error);
         setWorkingHours([]);
@@ -349,20 +345,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     const newValue = !booksOpen;
     const previousValue = booksOpen;
 
-    // If toggling ON, check for available hours first
-    if (newValue) {
-      const hasAvailableHours = workingHours.some(h => !h.is_day_off);
-      if (!hasAvailableHours) {
-        // Optimistically show as on, open modal to set hours
-        setBooksOpen(true);
-        booksOpenLocalUpdate.current = Date.now();
-        pendingBooksOpen.current = true;
-        setWorkingHoursModalOpen(true);
-        return;
-      }
-    }
-
-    // Optimistic update - mark timestamp to prevent ES data from overwriting
+    // Optimistic update
     setBooksOpen(newValue);
     booksOpenLocalUpdate.current = Date.now();
     setIsTogglingBooks(true);
@@ -379,6 +362,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       }
       // Revert on error
       setBooksOpen(previousValue);
+      booksOpenLocalUpdate.current = Date.now();
     } finally {
       setIsTogglingBooks(false);
     }
@@ -752,8 +736,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     return baseConfig;
   }, [bookingType, bookingSettings, consultationDuration, baseConfig]);
 
-  // Render books closed warning with notification signup
-  if (!workingHoursLoading && booksOpen === false) {
+  // Render books closed warning with notification signup (skip for own calendar page)
+  if (!workingHoursLoading && booksOpen === false && !isOwnCalendar) {
     return (
       <Box sx={{
         bgcolor: colors.surface,
@@ -1234,7 +1218,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {isOwnProfile ? (
           <>
-            {/* Books Status Card - Owner View */}
+            {/* Books Status Card - Owner View (hidden on /calendar page, handled by page-level toggle) */}
+            {!isOwnCalendar && (
             <Box sx={{
               bgcolor: colors.surface,
               borderRadius: '12px',
@@ -1289,6 +1274,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 />
               </Box>
             </Box>
+            )}
 
             {/* Working Hours Card - Owner View */}
             <Box sx={{
