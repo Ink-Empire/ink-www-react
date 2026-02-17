@@ -1,5 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import { Box, Typography, Button, Avatar, Skeleton, Switch, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
@@ -22,11 +23,13 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { colors } from '@/styles/colors';
 import { useClientDashboard, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { clientService } from '@/services/clientService';
 import { ApiConversation } from '@/hooks/useConversations';
 import { leadService } from '@/services/leadService';
+import { messageService } from '@/services/messageService';
 import { useStyles } from '@/contexts/StyleContext';
 import { useUser } from '@/contexts/AuthContext';
 import InfoTooltip from './InfoTooltip';
@@ -48,6 +51,7 @@ interface LeadData {
 }
 
 export default function ClientDashboardContent({ userName, userId }: ClientDashboardContentProps) {
+  const router = useRouter();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [leadActive, setLeadActive] = useState(false);
   const [leadData, setLeadData] = useState<LeadData | null>(null);
@@ -224,24 +228,54 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             Welcome back, {userName}!
           </Typography>
         </Box>
-        <Button
-          component={Link}
-          href="/inbox"
-          sx={{
-            px: 2.5,
-            py: 1,
-            bgcolor: colors.accent,
-            color: colors.background,
-            borderRadius: '8px',
-            textTransform: 'none',
-            fontWeight: 500,
-            fontSize: '0.9rem',
-            '&:hover': { bgcolor: colors.accentHover }
-          }}
-          startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />}
-        >
-          View Messages
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap' }}>
+          <Button
+            component={Link}
+            href="/inbox"
+            sx={{
+              flex: { xs: 1, md: 'none' },
+              px: 2.5,
+              py: 1,
+              bgcolor: colors.accent,
+              color: colors.background,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.9rem',
+              '&:hover': { bgcolor: colors.accentHover }
+            }}
+            startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />}
+          >
+            View Messages
+          </Button>
+          <Button
+            onClick={async () => {
+              try {
+                const { user_id } = await messageService.getSupportContact();
+                if (user_id) {
+                  router.push(`/inbox?contactId=${user_id}`);
+                  return;
+                }
+              } catch {}
+              router.push('/contact');
+            }}
+            sx={{
+              flex: { xs: 1, md: 'none' },
+              px: 2,
+              py: 1,
+              color: colors.textPrimary,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.9rem',
+              '&:hover': { borderColor: colors.accent, color: colors.accent }
+            }}
+            startIcon={<HelpOutlineIcon sx={{ fontSize: 18 }} />}
+          >
+            Get Help
+          </Button>
+        </Box>
       </Box>
 
       {/* Appointments Row with Open to New Work */}
