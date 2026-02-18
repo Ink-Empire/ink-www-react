@@ -33,4 +33,4 @@ export { usePlacements } from './usePlacements';
 
 export { useCalendar } from './useCalendar';
 
-export { useConversations, useConversation, useUnreadCount } from './useMessages';
+export { useConversations, useConversation, useUnreadCount, type RealtimeConfig } from './useMessages';

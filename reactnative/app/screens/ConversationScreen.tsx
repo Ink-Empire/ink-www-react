@@ -18,7 +18,8 @@ import { api } from '../../lib/api';
 import { messageService } from '../../lib/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnreadMessageCount } from '../contexts/UnreadCountContext';
-import { useConversation } from '@inkedin/shared/hooks';
+import { useConversation, type RealtimeConfig } from '@inkedin/shared/hooks';
+import { getEcho } from '../utils/echo';
 import MessageBubble from '../components/inbox/MessageBubble';
 import { uploadImagesToS3, type ImageFile } from '../../lib/s3Upload';
 import type { Message } from '@inkedin/shared/types';
@@ -72,6 +73,7 @@ export default function ConversationScreen({ route }: any) {
     });
   }, []);
 
+  const realtime: RealtimeConfig | undefined = { getEcho };
   const {
     messages,
     loading,
@@ -79,7 +81,7 @@ export default function ConversationScreen({ route }: any) {
     sendMessage: hookSendMessage,
     markAsRead,
     fetchMoreMessages,
-  } = useConversation(api, resolvedId);
+  } = useConversation(api, resolvedId, realtime);
 
   // Keep a ref so handleSend always uses the latest hookSendMessage
   const sendMessageRef = useRef(hookSendMessage);

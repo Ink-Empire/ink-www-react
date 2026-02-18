@@ -29,7 +29,9 @@
     "react-native-screens": "^4.9.2",
     "react-native-svg": "^15.11.2",
     "react-native-vector-icons": "^10.3.0",
-    "react-native-device-info": "^15.0.1"
+    "react-native-device-info": "^15.0.1",
+    "laravel-echo": "^1.16.1",
+    "pusher-js": "^8.4.0-rc2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, ReactNode, useMemo } from 'react';
 import { NativeModules, Platform } from 'react-native';
 import { api } from '../../lib/api';
-import { createMessageService } from '@inkedin/shared/services';
-
-const POLL_INTERVAL = 15000;
+import { useUnreadCount, type RealtimeConfig } from '@inkedin/shared/hooks';
+import { useAuth } from './AuthContext';
+import { getEcho } from '../utils/echo';
 
 interface UnreadCountContextType {
   unreadCount: number;
@@ -15,38 +15,20 @@ const UnreadCountContext = createContext<UnreadCountContextType>({
   refresh: async () => {},
 });
 
-const messageService = createMessageService(api);
-
 export const UnreadCountProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [unreadCount, setUnreadCount] = useState(0);
-  const mountedRef = useRef(true);
+  const { user } = useAuth();
+  const realtime: RealtimeConfig | undefined = useMemo(
+    () => user?.id ? { getEcho, userId: user.id } : undefined,
+    [user?.id],
+  );
+  const { unreadCount, refresh } = useUnreadCount(api, realtime);
 
-  const refresh = useCallback(async () => {
-    try {
-      const response = await messageService.getUnreadCount();
-      if (mountedRef.current) {
-        const count = response.unread_count || 0;
-        setUnreadCount(count);
-        if (Platform.OS === 'ios' && NativeModules.BadgeModule) {
-          NativeModules.BadgeModule.setBadgeCount(count);
-        }
-      }
-    } catch {
-      // Silent fail
-    }
-  }, []);
-
+  // Sync iOS badge count whenever unreadCount changes
   useEffect(() => {
-    mountedRef.current = true;
-    refresh();
-
-    const interval = setInterval(refresh, POLL_INTERVAL);
-
-    return () => {
-      mountedRef.current = false;
-      clearInterval(interval);
-    };
-  }, [refresh]);
+    if (Platform.OS === 'ios' && NativeModules.BadgeModule) {
+      NativeModules.BadgeModule.setBadgeCount(unreadCount);
+    }
+  }, [unreadCount]);
 
   return (
     <UnreadCountContext.Provider value={{ unreadCount, refresh }}>

@@ -58,6 +58,14 @@ export function createApiClient(config: ApiConfig) {
       console.warn(`Auth required for ${endpoint} but no token available`);
     }
 
+    // Add socket ID for Pusher's toOthers() exclusion
+    if (typeof globalThis !== 'undefined' && (globalThis as any).__echoSocketId) {
+      const socketId = (globalThis as any).__echoSocketId();
+      if (socketId) {
+        requestHeaders['X-Socket-Id'] = socketId;
+      }
+    }
+
     const requestOptions: RequestInit = {
       method,
       headers: requestHeaders,

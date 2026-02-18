@@ -4,14 +4,22 @@ import { createMessageService, type ConversationFilters } from '../services/mess
 import type { Conversation, Message } from '../types';
 
 const CONVERSATION_LIST_POLL_INTERVAL = 15000;
+const CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO = 60000;
 const MESSAGE_POLL_INTERVAL = 5000;
+const MESSAGE_POLL_INTERVAL_WITH_ECHO = 30000;
 
-export function useConversations(api: ApiClient) {
+export interface RealtimeConfig {
+  getEcho: () => any;
+  userId?: number;
+}
+
+export function useConversations(api: ApiClient, realtime?: RealtimeConfig) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastParamsRef = useRef<ConversationFilters | undefined>(undefined);
   const serviceRef = useRef(createMessageService(api));
+  const echoConnectedRef = useRef(false);
 
   const fetchConversations = useCallback(async (params?: ConversationFilters) => {
     try {
@@ -34,6 +42,53 @@ export function useConversations(api: ApiClient) {
     fetchConversations();
   }, [fetchConversations]);
 
+  // Subscribe to Echo for real-time conversation updates
+  useEffect(() => {
+    if (!realtime?.getEcho || !realtime?.userId) return;
+
+    let channelName: string | null = null;
+    try {
+      const echo = realtime.getEcho();
+      if (!echo) return;
+
+      channelName = `user.${realtime.userId}.conversations`;
+      echoConnectedRef.current = true;
+
+      echo.private(channelName).listen('.conversation.updated', (event: any) => {
+        setConversations((prev) => {
+          const idx = prev.findIndex((c) => c.id === event.conversation_id);
+          if (idx === -1) {
+            fetchConversations(lastParamsRef.current);
+            return prev;
+          }
+          const updated = [...prev];
+          updated[idx] = {
+            ...updated[idx],
+            last_message: event.last_message,
+            unread_count: event.unread_count,
+            updated_at: event.last_message.created_at,
+          };
+          updated.sort(
+            (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+          );
+          return updated;
+        });
+      });
+    } catch (err) {
+      console.error('Echo subscription failed (conversations):', err);
+      return;
+    }
+
+    return () => {
+      try {
+        const echo = realtime.getEcho();
+        if (echo && channelName) echo.leave(channelName);
+      } catch { /* ignore */ }
+      echoConnectedRef.current = false;
+    };
+  }, [realtime?.getEcho, realtime?.userId, fetchConversations]);
+
+  // Poll for conversation list updates (slower when Echo is connected)
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -42,7 +97,7 @@ export function useConversations(api: ApiClient) {
       } catch {
         // Silent fail on poll
       }
-    }, CONVERSATION_LIST_POLL_INTERVAL);
+    }, echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL);
 
     return () => clearInterval(interval);
   }, []);
@@ -50,7 +105,7 @@ export function useConversations(api: ApiClient) {
   return { conversations, loading, error, fetchConversations };
 }
 
-export function useConversation(api: ApiClient, conversationId?: number) {
+export function useConversation(api: ApiClient, conversationId?: number, realtime?: RealtimeConfig) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,6 +114,7 @@ export function useConversation(api: ApiClient, conversationId?: number) {
   const serviceRef = useRef(createMessageService(api));
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const echoConnectedRef = useRef(false);
 
   const fetchConversation = useCallback(async (id: number) => {
     try {
@@ -127,7 +183,40 @@ export function useConversation(api: ApiClient, conversationId?: number) {
     }
   }, [conversationId, fetchConversation]);
 
-  // Poll for new messages
+  // Subscribe to Echo for real-time messages in the active conversation
+  useEffect(() => {
+    if (!conversationId || !realtime?.getEcho) return;
+
+    let channelName: string | null = null;
+    try {
+      const echo = realtime.getEcho();
+      if (!echo) return;
+
+      channelName = `conversation.${conversationId}`;
+      echoConnectedRef.current = true;
+
+      echo.private(channelName).listen('.message.sent', (event: any) => {
+        const newMessage: Message = event.message;
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+      });
+    } catch (err) {
+      console.error('Echo subscription failed (messages):', err);
+      return;
+    }
+
+    return () => {
+      try {
+        const echo = realtime.getEcho();
+        if (echo && channelName) echo.leave(channelName);
+      } catch { /* ignore */ }
+      echoConnectedRef.current = false;
+    };
+  }, [conversationId, realtime?.getEcho]);
+
+  // Poll for new messages (slower when Echo is connected)
   useEffect(() => {
     if (!conversationId) return;
 
@@ -141,12 +230,16 @@ export function useConversation(api: ApiClient, conversationId?: number) {
 
         const response = await serviceRef.current.getMessages(conversationId, undefined, latestId);
         if (response.messages && response.messages.length > 0) {
-          setMessages((prev) => [...prev, ...response.messages]);
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const newMsgs = response.messages.filter((m: Message) => !existingIds.has(m.id));
+            return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
+          });
         }
       } catch {
         // Silent fail on poll
       }
-    }, MESSAGE_POLL_INTERVAL);
+    }, echoConnectedRef.current ? MESSAGE_POLL_INTERVAL_WITH_ECHO : MESSAGE_POLL_INTERVAL);
 
     return () => clearInterval(interval);
   }, [conversationId]);
@@ -163,11 +256,12 @@ export function useConversation(api: ApiClient, conversationId?: number) {
   };
 }
 
-export function useUnreadCount(api: ApiClient) {
+export function useUnreadCount(api: ApiClient, realtime?: RealtimeConfig) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const serviceRef = useRef(createMessageService(api));
+  const echoConnectedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -188,6 +282,36 @@ export function useUnreadCount(api: ApiClient) {
     refresh();
   }, [refresh]);
 
+  // Subscribe to Echo for real-time unread count updates
+  useEffect(() => {
+    if (!realtime?.getEcho || !realtime?.userId) return;
+
+    let channelName: string | null = null;
+    try {
+      const echo = realtime.getEcho();
+      if (!echo) return;
+
+      channelName = `user.${realtime.userId}.conversations`;
+      echoConnectedRef.current = true;
+
+      echo.private(channelName).listen('.conversation.updated', () => {
+        refresh();
+      });
+    } catch (err) {
+      console.error('Echo subscription failed (unread count):', err);
+      return;
+    }
+
+    return () => {
+      try {
+        const echo = realtime.getEcho();
+        if (echo && channelName) echo.leave(channelName);
+      } catch { /* ignore */ }
+      echoConnectedRef.current = false;
+    };
+  }, [realtime?.getEcho, realtime?.userId, refresh]);
+
+  // Poll unread count (slower when Echo is connected)
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -196,7 +320,7 @@ export function useUnreadCount(api: ApiClient) {
       } catch {
         // Silent fail on poll
       }
-    }, CONVERSATION_LIST_POLL_INTERVAL);
+    }, echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL);
 
     return () => clearInterval(interval);
   }, []);

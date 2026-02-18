@@ -11,6 +11,7 @@ import { api, authApi, mobileStorage } from '../../lib/api';
 import type { User } from '@inkedin/shared/types';
 import type { RegisterData } from '@inkedin/shared/api/client';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { disconnectEcho } from '../utils/echo';
 
 const USER_KEY = 'user';
 
@@ -192,6 +193,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       console.error('Push token unregister error:', err);
     }
+    disconnectEcho();
     try {
       await authApi.logout();
     } catch (err) {

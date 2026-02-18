@@ -19,7 +19,8 @@ import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { messageService } from '../../lib/services';
 import { useAuth } from '../contexts/AuthContext';
-import { useConversations } from '@inkedin/shared/hooks';
+import { useConversations, type RealtimeConfig } from '@inkedin/shared/hooks';
+import { getEcho } from '../utils/echo';
 import ConversationItem from '../components/inbox/ConversationItem';
 import type { Conversation } from '@inkedin/shared/types';
 
@@ -33,7 +34,10 @@ interface UserResult {
 
 export default function InboxScreen({ navigation }: any) {
   const { user } = useAuth();
-  const { conversations, loading, fetchConversations } = useConversations(api);
+  const realtime: RealtimeConfig | undefined = user?.id
+    ? { getEcho, userId: user.id }
+    : undefined;
+  const { conversations, loading, fetchConversations } = useConversations(api, realtime);
   const [refreshing, setRefreshing] = useState(false);
   const mountedRef = useRef(true);
 
