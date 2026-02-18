@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { TattooType } from '@/models/tattoo.interface';
 import { tattooService } from '@/services/tattooService';
+import { clearCache } from '@/utils/apiCache';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 
 // Unclaimed studio type (same as in useArtists)
@@ -17,11 +18,14 @@ export interface UnclaimedStudio {
 export async function deleteTattoo(id: number | string): Promise<{ success: boolean; message: string; images_deleted: number }> {
   const response = await tattooService.delete(id);
 
-  // Clear any cached data for this tattoo
+  // Clear all caches that might contain this tattoo
+  clearCache('portfolio');
+  clearCache('tattoo');
+  clearCache('artist');
+
   if (typeof window !== 'undefined') {
     try {
       localStorage.removeItem(`tattoo_cache:${id}`);
-      // Also clear artist tattoos cache entries that might contain this tattoo
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('artist_tattoos_cache:') || key.startsWith('tattoos_cache:')) {
           localStorage.removeItem(key);

@@ -9,6 +9,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
+import UpdateIcon from '@mui/icons-material/Update';
 import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +24,8 @@ import { colors } from '@/styles/colors';
 import WorkingHoursModal from './WorkingHoursModal';
 import { ResponsiveModal } from './ui/ResponsiveModal';
 import { LoginRequiredModal, BookingConfirmModal } from './calendar';
+import { CancelAppointmentModal } from './inbox/CancelAppointmentModal';
+import { RescheduleAppointmentModal } from './inbox/RescheduleAppointmentModal';
 import {
   ExternalCalendarEvent,
   WorkingHour,
@@ -104,6 +107,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   const [guestName, setGuestName] = useState('');
   const [inviteNote, setInviteNote] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
+
+  // Cancel/Reschedule modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [actionAppointment, setActionAppointment] = useState<{ id: number | string; conversationId: number; clientName?: string } | null>(null);
 
   // Calendar event form state
   const [eventType, setEventType] = useState<'appointment' | 'consultation' | 'other'>('appointment');
@@ -597,6 +605,52 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     setEventStartTime('09:00');
     setEventEndTime('10:00');
     setEventDescription('');
+  };
+
+  const openActionModal = async (apt: any, action: 'cancel' | 'reschedule') => {
+    try {
+      const response = await messageService.createConversation(
+        apt.clientId as number,
+        'booking',
+        undefined,
+        typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id
+      );
+      const conversationId = response.conversation?.id;
+      if (!conversationId) return;
+      setActionAppointment({
+        id: typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id,
+        conversationId,
+        clientName: apt.extendedProps?.clientName || apt.clientName || undefined,
+      });
+      if (action === 'cancel') setCancelModalOpen(true);
+      else setRescheduleModalOpen(true);
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+    }
+  };
+
+  const handleCancelSubmit = async (reason?: string) => {
+    if (!actionAppointment) return;
+    await messageService.sendCancellation(actionAppointment.conversationId, actionAppointment.id as number, reason);
+    refreshAppointments();
+  };
+
+  const handleRescheduleSubmit = async (
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string
+  ) => {
+    if (!actionAppointment) return;
+    await messageService.sendReschedule(
+      actionAppointment.conversationId,
+      actionAppointment.id as number,
+      proposedDate,
+      proposedStartTime,
+      proposedEndTime,
+      reason
+    );
+    refreshAppointments();
   };
 
   // Get appointments for a specific date
@@ -1651,6 +1705,20 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         />
       )}
 
+      {/* Cancel / Reschedule Modals */}
+      <CancelAppointmentModal
+        open={cancelModalOpen}
+        onClose={() => { setCancelModalOpen(false); setActionAppointment(null); }}
+        onSubmit={handleCancelSubmit}
+        clientName={actionAppointment?.clientName}
+      />
+      <RescheduleAppointmentModal
+        open={rescheduleModalOpen}
+        onClose={() => { setRescheduleModalOpen(false); setActionAppointment(null); }}
+        onSubmit={handleRescheduleSubmit}
+        clientName={actionAppointment?.clientName}
+      />
+
       {/* Artist Day Management Modal */}
       <ResponsiveModal
         open={artistDayModalOpen}
@@ -1682,23 +1750,26 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <Box sx={{ flex: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem' }}>
-                            {apt.title || 'Appointment'}
-                          </Typography>
-                          <Box sx={{
-                            px: 1,
-                            py: 0.25,
-                            bgcolor: apt.extendedProps?.status === 'booked' ? `${colors.success}22` : `${colors.accent}22`,
-                            color: apt.extendedProps?.status === 'booked' ? colors.success : colors.accent,
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase'
-                          }}>
-                            {apt.extendedProps?.status || apt.status || 'pending'}
-                          </Box>
-                        </Box>
+                        <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem' }}>
+                          {apt.title || 'Appointment'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{
+                        px: 1,
+                        py: 0.25,
+                        bgcolor: apt.extendedProps?.status === 'booked' ? `${colors.success}22` : apt.extendedProps?.status === 'cancelled' ? `${colors.error}22` : `${colors.accent}22`,
+                        color: apt.extendedProps?.status === 'booked' ? colors.success : apt.extendedProps?.status === 'cancelled' ? colors.error : colors.accent,
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        flexShrink: 0,
+                        ml: 1,
+                      }}>
+                        {apt.extendedProps?.status || apt.status || 'pending'}
+                      </Box>
+                    </Box>
+                    <Box>
                         {apt.start && (
                           <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.5 }}>
                             {new Date(apt.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
@@ -1715,8 +1786,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                             {apt.extendedProps.description}
                           </Typography>
                         )}
-                      </Box>
-                      {apt.clientId && (
+                    </Box>
+                    {apt.clientId && isOwnCalendar && (
+                      <Box sx={{ display: 'flex', gap: 0.75, mt: 1, pt: 1, borderTop: `1px solid ${colors.border}` }}>
                         <Button
                           size="small"
                           startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />}
@@ -1739,21 +1811,52 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                           sx={{
                             fontSize: '0.75rem',
                             textTransform: 'none',
+                            color: colors.success,
+                            border: `1px solid ${colors.success}44`,
+                            borderRadius: '6px',
+                            px: 1.5,
+                            py: 0.5,
+                            '&:hover': { bgcolor: `${colors.success}15`, borderColor: colors.success },
+                          }}
+                        >
+                          Contact
+                        </Button>
+                        <Button
+                          size="small"
+                          startIcon={<UpdateIcon sx={{ fontSize: 14 }} />}
+                          onClick={() => openActionModal(apt, 'reschedule')}
+                          sx={{
+                            fontSize: '0.75rem',
+                            textTransform: 'none',
                             color: colors.accent,
-                            borderColor: colors.accent,
                             border: `1px solid ${colors.accent}44`,
                             borderRadius: '6px',
                             px: 1.5,
                             py: 0.5,
-                            ml: 1,
-                            flexShrink: 0,
                             '&:hover': { bgcolor: `${colors.accent}15`, borderColor: colors.accent },
                           }}
                         >
-                          Contact Client
+                          Reschedule
                         </Button>
-                      )}
-                    </Box>
+                        <Button
+                          size="small"
+                          startIcon={<EventBusyIcon sx={{ fontSize: 14 }} />}
+                          onClick={() => openActionModal(apt, 'cancel')}
+                          sx={{
+                            fontSize: '0.75rem',
+                            textTransform: 'none',
+                            color: colors.error,
+                            border: `1px solid ${colors.error}44`,
+                            borderRadius: '6px',
+                            px: 1.5,
+                            py: 0.5,
+                            '&:hover': { bgcolor: `${colors.error}15`, borderColor: colors.error },
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </Box>
+                    )}
                   </Box>
                 ))}
               </Box>
