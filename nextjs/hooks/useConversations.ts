@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { messageService, ConversationType } from '../services/messageService';
+import { useAuth } from '../contexts/AuthContext';
+import { getEcho } from '../utils/echo';
 
 const CONVERSATION_LIST_POLL_INTERVAL = 15000; // 15s for sidebar
+const CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO = 60000; // 60s fallback when Echo connected
 const MESSAGE_POLL_INTERVAL = 5000; // 5s for active conversation
+const MESSAGE_POLL_INTERVAL_WITH_ECHO = 30000; // 30s fallback when Echo connected
 
 // Re-export ConversationType for external use
 export type { ConversationType } from '../services/messageService';
@@ -164,11 +168,13 @@ interface UseUnreadCountReturn {
 }
 
 export function useConversations(): UseConversationsReturn {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<ConversationsResponse['meta'] | null>(null);
   const lastParamsRef = useRef<any>(undefined);
+  const echoConnectedRef = useRef(false);
 
   const fetchConversations = useCallback(async (params?: {
     type?: ConversationType;
@@ -215,7 +221,51 @@ export function useConversations(): UseConversationsReturn {
     fetchConversations();
   }, []);
 
-  // Poll for conversation list updates
+  // Subscribe to Echo for real-time conversation updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let channelName: string | null = null;
+    try {
+      const echo = getEcho();
+      if (!echo) return;
+
+      channelName = `user.${user.id}.conversations`;
+      echoConnectedRef.current = true;
+
+      echo.private(channelName).listen('.conversation.updated', (event: any) => {
+        setConversations((prev) => {
+          const idx = prev.findIndex((c) => c.id === event.conversation_id);
+          if (idx === -1) {
+            fetchConversations(lastParamsRef.current);
+            return prev;
+          }
+          const updated = [...prev];
+          updated[idx] = {
+            ...updated[idx],
+            last_message: event.last_message,
+            unread_count: event.unread_count,
+            updated_at: event.last_message.created_at,
+          };
+          updated.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+          return updated;
+        });
+      });
+    } catch (err) {
+      console.error('Echo subscription failed (conversations):', err);
+      return;
+    }
+
+    return () => {
+      try {
+        const echo = getEcho();
+        if (echo && channelName) echo.leave(channelName);
+      } catch { /* ignore */ }
+      echoConnectedRef.current = false;
+    };
+  }, [user?.id, fetchConversations]);
+
+  // Poll for conversation list updates (slower when Echo is connected)
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -230,9 +280,9 @@ export function useConversations(): UseConversationsReturn {
         setConversations(response.conversations || []);
         setMeta(response.meta || null);
       } catch {
-        // Silent fail on poll — don't overwrite existing data
+        // Silent fail on poll
       }
-    }, CONVERSATION_LIST_POLL_INTERVAL);
+    }, echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL);
 
     return () => clearInterval(interval);
   }, []);
@@ -254,6 +304,7 @@ export function useConversation(conversationId?: number): UseConversationReturn 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(false);
+  const echoConnectedRef = useRef(false);
 
   const fetchConversation = useCallback(async (id: number) => {
     try {
@@ -451,7 +502,40 @@ export function useConversation(conversationId?: number): UseConversationReturn 
     }
   }, [conversationId, fetchConversation]);
 
-  // Poll for new messages in the active conversation
+  // Subscribe to Echo for real-time messages in the active conversation
+  useEffect(() => {
+    if (!conversationId) return;
+
+    let channelName: string | null = null;
+    try {
+      const echo = getEcho();
+      if (!echo) return;
+
+      channelName = `conversation.${conversationId}`;
+      echoConnectedRef.current = true;
+
+      echo.private(channelName).listen('.message.sent', (event: any) => {
+        const newMessage: ApiMessage = event.message;
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+      });
+    } catch (err) {
+      console.error('Echo subscription failed (messages):', err);
+      return;
+    }
+
+    return () => {
+      try {
+        const echo = getEcho();
+        if (echo && channelName) echo.leave(channelName);
+      } catch { /* ignore */ }
+      echoConnectedRef.current = false;
+    };
+  }, [conversationId]);
+
+  // Poll for new messages in the active conversation (slower when Echo connected)
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
@@ -466,12 +550,17 @@ export function useConversation(conversationId?: number): UseConversationReturn 
 
         const response = await messageService.getConversationMessages(conversationId, undefined, latestId);
         if (response.messages && response.messages.length > 0) {
-          setMessages((prev) => [...prev, ...response.messages]);
+          // Deduplicate by message ID
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const newMessages = response.messages.filter((m: ApiMessage) => !existingIds.has(m.id));
+            return newMessages.length > 0 ? [...prev, ...newMessages] : prev;
+          });
         }
       } catch {
         // Silent fail on poll
       }
-    }, MESSAGE_POLL_INTERVAL);
+    }, echoConnectedRef.current ? MESSAGE_POLL_INTERVAL_WITH_ECHO : MESSAGE_POLL_INTERVAL);
 
     return () => clearInterval(interval);
   }, [conversationId]);
@@ -496,9 +585,11 @@ export function useConversation(conversationId?: number): UseConversationReturn 
 }
 
 export function useUnreadConversationCount(): UseUnreadCountReturn {
+  const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const echoConnectedRef = useRef(false);
 
   const fetchCount = useCallback(async () => {
     try {
@@ -524,7 +615,36 @@ export function useUnreadConversationCount(): UseUnreadCountReturn {
     fetchCount();
   }, []);
 
-  // Poll unread count
+  // Subscribe to Echo for real-time unread count updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let channelName: string | null = null;
+    try {
+      const echo = getEcho();
+      if (!echo) return;
+
+      channelName = `user.${user.id}.conversations`;
+      echoConnectedRef.current = true;
+
+      echo.private(channelName).listen('.conversation.updated', () => {
+        fetchCount();
+      });
+    } catch (err) {
+      console.error('Echo subscription failed (unread count):', err);
+      return;
+    }
+
+    return () => {
+      try {
+        const echo = getEcho();
+        if (echo && channelName) echo.leave(channelName);
+      } catch { /* ignore */ }
+      echoConnectedRef.current = false;
+    };
+  }, [user?.id, fetchCount]);
+
+  // Poll unread count (slower when Echo connected)
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -533,7 +653,7 @@ export function useUnreadConversationCount(): UseUnreadCountReturn {
       } catch {
         // Silent fail on poll
       }
-    }, CONVERSATION_LIST_POLL_INTERVAL);
+    }, echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL);
 
     return () => clearInterval(interval);
   }, []);

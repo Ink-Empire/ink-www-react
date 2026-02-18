@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useRouter } from 'next/router';
 import { api } from '../utils/api';
 import { setToken, removeToken } from '../utils/auth';
+import { disconnectEcho } from '../utils/echo';
 
 // User interface - complete user data
 interface User {
@@ -342,6 +343,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       console.error('Logout API error:', err);
     }
+
+    // Disconnect WebSocket before clearing auth
+    disconnectEcho();
 
     // Remove the auth token
     removeToken();

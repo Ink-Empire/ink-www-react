@@ -259,6 +259,14 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     throw error;
   }
 
+  try {
+    if (typeof window !== 'undefined' && window.Echo?.socketId?.()) {
+      requestHeaders['X-Socket-Id'] = window.Echo.socketId();
+    }
+  } catch {
+    // Echo not available yet
+  }
+
   const requestOptions: RequestInit = {
     method,
     headers: requestHeaders,
