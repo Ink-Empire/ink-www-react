@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -45,6 +45,8 @@ import { StudioType } from '@/models/studio.interface';
 import type { WorkingHour } from '../components/WorkingHoursModal';
 import ComingSoonBadge from '../components/ui/ComingSoonBadge';
 
+import { useProfilePhoto } from '@/hooks';
+
 // Lazy load heavy modals - only loaded when needed
 const EditStudioModal = dynamic(() => import('../components/EditStudioModal'), { ssr: false });
 const WorkingHoursModal = dynamic(() => import('../components/WorkingHoursModal'), { ssr: false });
@@ -53,6 +55,7 @@ const ClientDashboardContent = dynamic(() => import('../components/ClientDashboa
 const ChangePasswordModal = dynamic(() => import('../components/ChangePasswordModal'), { ssr: false });
 const TattooCreateWizard = dynamic(() => import('../components/TattooCreateWizard'), { ssr: false });
 const StudioInvitations = dynamic(() => import('../components/StudioInvitations'), { ssr: false });
+const ImageCropperModal = dynamic(() => import('../components/ImageCropperModal'), { ssr: false });
 
 // Dashboard components
 import {
@@ -120,7 +123,14 @@ export default function Dashboard() {
 
   // Artist data states
   const [artistSeekingSpots, setArtistSeekingSpots] = useState(false);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const {
+    loading: isUploadingAvatar,
+    cropperImage,
+    isCropperOpen,
+    takeProfilePhoto,
+    handleCropComplete,
+    handleCropCancel,
+  } = useProfilePhoto({ onSuccess: refreshUser });
   const [artistTattoos, setArtistTattoos] = useState<Tattoo[]>([]);
   const [isLoadingTattoos, setIsLoadingTattoos] = useState(false);
 
@@ -139,9 +149,6 @@ export default function Dashboard() {
   // Announcement form
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
   const [isAddingAnnouncement, setIsAddingAnnouncement] = useState(false);
-
-  // File input refs
-  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const userName = user?.name?.split(' ')[0] || user?.username || '';
   const userInitials = user?.name
@@ -496,22 +503,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingAvatar(true);
-    try {
-      const formData = new FormData();
-      formData.append('profile_photo', file);
-      await userService.uploadProfilePhoto(formData);
-      await refreshUser();
-    } catch (err) {
-      console.error('Failed to upload avatar:', err);
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  };
 
   const handleToggleFeatured = async (tattooId: number) => {
     // Optimistically update
@@ -578,9 +569,9 @@ export default function Dashboard() {
           <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap' }}>
             <Button
               component={Link}
-              href={isStudioAccount || (activeTab === 'studio' && (studioData?.slug || ownedStudio?.slug))
-                ? `/studios/${studioData?.slug || ownedStudio?.slug}`
-                : (user?.slug ? `/artists/${user.slug}` : '#')}
+              href={isStudioAccount || activeTab === 'studio'
+                ? `/studios/${studioData?.slug || ownedStudio?.slug || user?.slug}`
+                : `/artists/${user?.slug}`}
               sx={{
                 flex: { xs: 1, md: 'none' },
                 px: 2,
@@ -1141,7 +1132,7 @@ export default function Dashboard() {
                   }}>
                     <Box
                       sx={{ position: 'relative', cursor: 'pointer' }}
-                      onClick={() => avatarInputRef.current?.click()}
+                      onClick={takeProfilePhoto}
                     >
                       <Avatar
                         src={userAvatarUrl}
@@ -2528,14 +2519,15 @@ export default function Dashboard() {
         )}
       </Dialog>
 
-      {/* Hidden file input for avatar upload */}
-      <input
-        ref={avatarInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleAvatarUpload}
-        style={{ display: 'none' }}
-      />
+      {/* Image cropper modal for avatar upload */}
+      {cropperImage && (
+        <ImageCropperModal
+          isOpen={isCropperOpen}
+          imageSrc={cropperImage}
+          onClose={handleCropCancel}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </Layout>
   );
 }

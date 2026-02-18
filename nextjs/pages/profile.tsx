@@ -61,6 +61,7 @@ import { useProfilePhoto } from '@/hooks';
 import { withAuth } from '@/components/WithAuth';
 import { colors, modalStyles } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
+import { studioService } from '@/services/studioService';
 import { userService } from '@/services/userService';
 import { imageService } from '@/services/imageService';
 import { messageService } from '@/services/messageService';
@@ -406,10 +407,28 @@ const ProfilePage: React.FC = () => {
   const handleSaveChanges = async () => {
     try {
       const name = `${formData.firstName} ${formData.lastName}`.trim();
+      const { studioName, address, city, state, country, postalCode, ...userFields } = formData;
+
+      // Save user fields
       await updateUser({
         name,
-        ...formData
+        ...userFields,
       });
+
+      // Save studio fields if user has a studio
+      const studioId = (userData as any)?.studio?.id;
+      if (studioId && (studioName || address || city || state || country || postalCode)) {
+        await studioService.update(studioId, {
+          name: studioName,
+          address,
+          city,
+          state,
+          country,
+          postal_code: postalCode,
+        } as any);
+        await refreshUser();
+      }
+
       setHasUnsavedChanges(false);
       setToastMessage('Changes saved successfully');
       setShowToast(true);
