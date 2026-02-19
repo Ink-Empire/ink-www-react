@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '../../../lib/colors';
 import type { Message } from '@inkedin/shared/types';
 
@@ -7,6 +7,7 @@ interface MessageBubbleProps {
   message: Message;
   isSent: boolean;
   status?: 'sending' | 'failed';
+  onViewCalendar?: () => void;
 }
 
 function formatTime(dateString: string): string {
@@ -14,26 +15,58 @@ function formatTime(dateString: string): string {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function MessageBubble({ message, isSent, status }: MessageBubbleProps) {
+export default function MessageBubble({ message, isSent, status, onViewCalendar }: MessageBubbleProps) {
   if (message.type === 'system') {
+    const calendarLink = message.metadata?.calendar_link;
+    const isArtist = isSent;
+    const displayContent = isArtist && message.metadata?.artist_content
+      ? message.metadata.artist_content
+      : message.content;
     return (
       <View style={styles.systemContainer}>
-        <Text style={styles.systemText}>{message.content}</Text>
+        <Text style={styles.systemText}>
+          {displayContent}
+          {isArtist && calendarLink && onViewCalendar && (
+            <>
+              {'  '}
+              <Text style={styles.calendarLink} onPress={onViewCalendar}>
+                View calendar
+              </Text>
+            </>
+          )}
+        </Text>
       </View>
     );
   }
 
   const hasAttachments = message.attachments && message.attachments.length > 0;
   const hasText = !!message.content;
+  const hasBookingCard = message.type === 'booking_card' && message.metadata;
+  const hasCancellation = message.type === 'cancellation' && message.metadata;
+  const hasReschedule = message.type === 'reschedule' && message.metadata;
 
   return (
     <View style={[styles.container, isSent ? styles.containerSent : styles.containerReceived]}>
-      <View style={[
-        styles.bubble,
-        isSent ? styles.bubbleSent : styles.bubbleReceived,
-        status === 'sending' && styles.bubbleSending,
-      ]}>
-        {hasAttachments && (
+      {/* Text bubble - hide for booking_card, cancellation, reschedule */}
+      {hasText && !hasBookingCard && !hasCancellation && !hasReschedule && (
+        <View style={[
+          styles.bubble,
+          isSent ? styles.bubbleSent : styles.bubbleReceived,
+          status === 'sending' && styles.bubbleSending,
+        ]}>
+          <Text style={[styles.text, isSent ? styles.textSent : styles.textReceived]}>
+            {message.content}
+          </Text>
+        </View>
+      )}
+
+      {/* Image attachments */}
+      {hasAttachments && (
+        <View style={[
+          styles.bubble,
+          isSent ? styles.bubbleSent : styles.bubbleReceived,
+          status === 'sending' && styles.bubbleSending,
+        ]}>
           <View style={styles.attachmentsContainer}>
             {message.attachments.map((attachment) =>
               attachment.image ? (
@@ -46,13 +79,88 @@ export default function MessageBubble({ message, isSent, status }: MessageBubble
               ) : null
             )}
           </View>
-        )}
-        {hasText && (
-          <Text style={[styles.text, isSent ? styles.textSent : styles.textReceived]}>
-            {message.content}
-          </Text>
-        )}
-      </View>
+        </View>
+      )}
+
+      {/* Booking card */}
+      {hasBookingCard && message.metadata && (
+        <View style={styles.bookingCard}>
+          <View style={styles.bookingCardHeader}>
+            <Text style={styles.bookingCardTitle}>Booking Details</Text>
+          </View>
+          {[
+            { label: 'Date', value: message.metadata.date },
+            { label: 'Time', value: message.metadata.time },
+            { label: 'Duration', value: message.metadata.duration },
+            { label: 'Deposit', value: message.metadata.deposit },
+          ].map(({ label, value }) =>
+            value ? (
+              <View key={label} style={styles.bookingCardRow}>
+                <Text style={styles.bookingCardLabel}>{label}</Text>
+                <Text style={styles.bookingCardValue}>{value}</Text>
+              </View>
+            ) : null
+          )}
+          {message.content ? (
+            <View style={styles.bookingCardMessageContainer}>
+              <Text style={styles.bookingCardMessage}>{message.content}</Text>
+            </View>
+          ) : null}
+        </View>
+      )}
+
+      {/* Cancellation card */}
+      {hasCancellation && message.metadata && (
+        <View style={styles.cancellationCard}>
+          <Text style={styles.cancellationTitle}>Appointment Cancelled</Text>
+          {message.metadata.reason ? (
+            <Text style={styles.cancellationReason}>{message.metadata.reason}</Text>
+          ) : null}
+          <View style={styles.cancellationBadge}>
+            <Text style={styles.cancellationBadgeText}>CANCELLED</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Reschedule card */}
+      {hasReschedule && message.metadata && (
+        <View style={[
+          styles.rescheduleCard,
+          message.metadata.status === 'accepted' && styles.rescheduleAccepted,
+          message.metadata.status === 'declined' && styles.rescheduleDeclined,
+        ]}>
+          <Text style={styles.rescheduleTitle}>Reschedule Request</Text>
+          <View style={styles.bookingCardRow}>
+            <Text style={styles.bookingCardLabel}>Proposed</Text>
+            <Text style={styles.bookingCardValue}>
+              {formatProposedDateTime(
+                message.metadata.proposed_date,
+                message.metadata.proposed_start_time,
+                message.metadata.proposed_end_time,
+              )}
+            </Text>
+          </View>
+          {message.metadata.reason ? (
+            <Text style={styles.rescheduleReason}>{message.metadata.reason}</Text>
+          ) : null}
+          {message.metadata.status === 'accepted' && (
+            <View style={[styles.statusBadge, styles.acceptedBadge]}>
+              <Text style={[styles.statusBadgeText, styles.acceptedBadgeText]}>ACCEPTED</Text>
+            </View>
+          )}
+          {message.metadata.status === 'declined' && (
+            <View style={[styles.statusBadge, styles.declinedBadge]}>
+              <Text style={[styles.statusBadgeText, styles.declinedBadgeText]}>DECLINED</Text>
+            </View>
+          )}
+          {message.metadata.status === 'pending' && (
+            <View style={[styles.statusBadge, styles.pendingBadge]}>
+              <Text style={[styles.statusBadgeText, styles.pendingBadgeText]}>PENDING</Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {status === 'sending' && (
         <Text style={[styles.statusText, styles.timestampSent]}>Sending...</Text>
       )}
@@ -68,6 +176,28 @@ export default function MessageBubble({ message, isSent, status }: MessageBubble
       )}
     </View>
   );
+}
+
+function formatProposedDateTime(date?: string, startTime?: string, endTime?: string): string {
+  if (!date) return '';
+  try {
+    const dateObj = new Date(`${date}T${startTime || '00:00'}`);
+    const formatted = dateObj.toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    });
+    if (startTime) {
+      const start = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      if (endTime) {
+        const endObj = new Date(`${date}T${endTime}`);
+        const end = endObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        return `${formatted}, ${start} - ${end}`;
+      }
+      return `${formatted} at ${start}`;
+    }
+    return formatted;
+  } catch {
+    return date;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -153,5 +283,147 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  calendarLink: {
+    color: colors.accent,
+    fontStyle: 'normal',
+    fontWeight: '500',
+  },
+  // Booking card
+  bookingCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 4,
+    minWidth: 260,
+  },
+  bookingCardHeader: {
+    marginBottom: 12,
+  },
+  bookingCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  bookingCardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  bookingCardLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  bookingCardValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    textAlign: 'right',
+    flexShrink: 1,
+  },
+  bookingCardMessageContainer: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: 8,
+    paddingTop: 8,
+  },
+  bookingCardMessage: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  // Cancellation card
+  cancellationCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 4,
+    minWidth: 260,
+  },
+  cancellationTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.error,
+    marginBottom: 8,
+  },
+  cancellationReason: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 10,
+  },
+  cancellationBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderRadius: 6,
+  },
+  cancellationBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.error,
+  },
+  // Reschedule card
+  rescheduleCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 4,
+    minWidth: 260,
+  },
+  rescheduleAccepted: {
+    borderColor: 'rgba(74, 155, 127, 0.3)',
+  },
+  rescheduleDeclined: {
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  rescheduleTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 10,
+  },
+  rescheduleReason: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  acceptedBadge: {
+    backgroundColor: 'rgba(74, 155, 127, 0.12)',
+  },
+  acceptedBadgeText: {
+    color: colors.success,
+  },
+  declinedBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+  },
+  declinedBadgeText: {
+    color: colors.error,
+  },
+  pendingBadge: {
+    backgroundColor: `${colors.accent}18`,
+  },
+  pendingBadgeText: {
+    color: colors.accent,
   },
 });

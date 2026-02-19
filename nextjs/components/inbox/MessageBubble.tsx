@@ -76,6 +76,9 @@ export function MessageBubble({
   if (message.type === 'system') {
     const calendarLink = message.metadata?.calendar_link;
     const isArtist = isSent;
+    const displayContent = isArtist && message.metadata?.artist_content
+      ? message.metadata.artist_content
+      : message.content;
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, px: 2 }}>
         <Typography component="span" sx={{
@@ -84,7 +87,7 @@ export function MessageBubble({
           fontStyle: 'italic',
           textAlign: 'center',
         }}>
-          {message.content}
+          {displayContent}
           {isArtist && calendarLink && (
             <>
               {' '}
