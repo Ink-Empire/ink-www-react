@@ -141,11 +141,19 @@ export default function BookingModal({
       const finalBookingType = effectiveBookingType === 'consultation' ? 'consultation' : 'tattoo';
       const startTime = selectedTimeSlot;
 
-      // For consultations, compute end_time from consultation_duration
-      let endTime: string | undefined;
+      // Format date as YYYY-MM-DD string to avoid timezone shifting
+      const dateStr = selectedDate instanceof Date
+        ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+        : String(selectedDate);
+
+      // Compute end_time: consultation uses consultation_duration, tattoo defaults to 3 hours
+      const [h, m] = startTime.split(':').map(Number);
+      let endTime: string;
       if (finalBookingType === 'consultation' && slotsResponse?.consultation_duration) {
-        const [h, m] = startTime.split(':').map(Number);
         const totalMinutes = h * 60 + m + slotsResponse.consultation_duration;
+        endTime = `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+      } else {
+        const totalMinutes = h * 60 + m + 180;
         endTime = `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
       }
 
@@ -153,16 +161,13 @@ export default function BookingModal({
         artist_id: artistId,
         title: `${finalBookingType} request from ${user?.username}`,
         start_time: startTime,
-        date: selectedDate,
+        end_time: endTime,
+        date: dateStr,
         all_day: false,
         description: notes || '',
         type: finalBookingType,
         client_id: user?.id,
       };
-
-      if (endTime) {
-        appointmentData.end_time = endTime;
-      }
 
       await appointmentService.create(appointmentData);
 
@@ -274,8 +279,11 @@ export default function BookingModal({
               </Alert>
             )}
 
-            {/* Show what artist accepts if not both */}
+            {/* Warn if the selected booking type doesn't match what the artist accepts */}
             {!acceptsBoth && booksOpen && (
+              (effectiveBookingType === 'consultation' && !acceptsConsultations) ||
+              (effectiveBookingType !== 'consultation' && !acceptsAppointments)
+            ) && (
               <Alert
                 severity="info"
                 sx={{ mb: 2, bgcolor: colors.surface, border: `1px solid ${colors.accent}`, color: colors.accent }}

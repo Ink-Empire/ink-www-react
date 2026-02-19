@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Box, Typography, Avatar, Button, CircularProgress } from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -71,6 +72,32 @@ export function MessageBubble({
 
   const rescheduleStatus = message.metadata?.status;
 
+  // System messages render centered
+  if (message.type === 'system') {
+    const calendarLink = message.metadata?.calendar_link;
+    const isArtist = isSent;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, px: 2 }}>
+        <Typography component="span" sx={{
+          fontSize: '0.8rem',
+          color: colors.textSecondary,
+          fontStyle: 'italic',
+          textAlign: 'center',
+        }}>
+          {message.content}
+          {isArtist && calendarLink && (
+            <>
+              {' '}
+              <Link href={calendarLink} style={{ color: colors.accent, textDecoration: 'none' }}>
+                View calendar
+              </Link>
+            </>
+          )}
+        </Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -110,7 +137,7 @@ export function MessageBubble({
           alignItems: isSent ? 'flex-end' : 'flex-start',
         }}
       >
-        {message.content && !hasCancellation && !hasReschedule && (
+        {message.content && !hasCancellation && !hasReschedule && !hasBookingCard && (
           <Box
             sx={{
               px: 2,
@@ -187,6 +214,19 @@ export function MessageBubble({
                 ) : null
               )}
             </Box>
+            {message.content && (
+              <Typography sx={{
+                fontSize: '0.85rem',
+                color: colors.textSecondary,
+                mt: 2,
+                pt: 2,
+                borderTop: `1px solid ${isSent ? 'rgba(255,255,255,0.1)' : colors.border}`,
+                fontStyle: 'italic',
+                lineHeight: 1.5,
+              }}>
+                {message.content}
+              </Typography>
+            )}
           </Box>
         )}
 

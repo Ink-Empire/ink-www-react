@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -81,6 +82,7 @@ export default function InboxPage() {
     severity: 'success',
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const designInputRef = useRef<HTMLInputElement>(null);
 
@@ -156,10 +158,12 @@ export default function InboxPage() {
         .slice(0, 2)
     : user?.username?.slice(0, 2).toUpperCase() || 'ME';
 
-  // Auto-scroll to bottom of messages
+  // Auto-scroll to bottom of messages when a conversation is open
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (selectedConversationId && messages.length > 0 && messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages, selectedConversationId]);
 
   // Mark conversation as read when selected
   useEffect(() => {
@@ -785,7 +789,7 @@ export default function InboxPage() {
         <Head>
           <title>Messages | InkedIn</title>
         </Head>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 64px)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 80px)' } }}>
           <CircularProgress sx={{ color: colors.accent }} />
         </Box>
       </Layout>
@@ -804,7 +808,7 @@ export default function InboxPage() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            height: 'calc(100vh - 64px)',
+            height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 80px)' },
             p: 3,
           }}
         >
@@ -840,7 +844,7 @@ export default function InboxPage() {
         <meta name="description" content="Your messages and conversations" />
       </Head>
 
-      <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 80px)' }, overflow: 'hidden' }}>
         {/* Inbox Sidebar */}
         <Box
           sx={{
@@ -1048,25 +1052,54 @@ export default function InboxPage() {
                   >
                     <ArrowBackIcon />
                   </IconButton>
-                  <Avatar
-                    src={selectedConversation.participant?.image?.uri}
-                    sx={{
-                      width: 44,
-                      height: 44,
-                      bgcolor: colors.surfaceElevated,
-                      color: colors.accent,
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {selectedConversation.participant?.initials || '??'}
-                  </Avatar>
+                  {selectedConversation.participant?.type === 2 && selectedConversation.participant?.slug ? (
+                    <Link href={`/artists/${selectedConversation.participant.slug}`} style={{ textDecoration: 'none', display: 'contents' }}>
+                      <Avatar
+                        src={selectedConversation.participant?.image?.uri}
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          bgcolor: colors.surfaceElevated,
+                          color: colors.accent,
+                          fontSize: '1rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {selectedConversation.participant?.initials || '??'}
+                      </Avatar>
+                    </Link>
+                  ) : (
+                    <Avatar
+                      src={selectedConversation.participant?.image?.uri}
+                      sx={{
+                        width: 44,
+                        height: 44,
+                        bgcolor: colors.surfaceElevated,
+                        color: colors.accent,
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {selectedConversation.participant?.initials || '??'}
+                    </Avatar>
+                  )}
                   <Box>
-                    <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: colors.textPrimary }}>
-                      {selectedConversation.participant?.name ||
-                        selectedConversation.participant?.username ||
-                        'Unknown User'}
-                    </Typography>
+                    {selectedConversation.participant?.type === 2 && selectedConversation.participant?.slug ? (
+                      <Link href={`/artists/${selectedConversation.participant.slug}`} style={{ textDecoration: 'none' }}>
+                        <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: colors.textPrimary, '&:hover': { color: colors.accent } }}>
+                          {selectedConversation.participant?.name ||
+                            selectedConversation.participant?.username ||
+                            'Unknown User'}
+                        </Typography>
+                      </Link>
+                    ) : (
+                      <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: colors.textPrimary }}>
+                        {selectedConversation.participant?.name ||
+                          selectedConversation.participant?.username ||
+                          'Unknown User'}
+                      </Typography>
+                    )}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, fontSize: '0.8rem', color: colors.textMuted }}>
                       <Box
                         sx={{
@@ -1361,7 +1394,7 @@ export default function InboxPage() {
               )}
 
               {/* Messages */}
-              <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+              <Box ref={messagesContainerRef} sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
                 {messagesLoading ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                     <CircularProgress size={24} sx={{ color: colors.accent }} />

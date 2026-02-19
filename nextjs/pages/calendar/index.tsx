@@ -86,6 +86,15 @@ const MyCalendarPage: React.FC = () => {
     fetchUpcoming();
   }, [user?.id]);
 
+  // Handle date query param from deep links (e.g., "View calendar" after booking accepted)
+  useEffect(() => {
+    const { date } = router.query;
+    if (date && typeof date === 'string' && calendarRef.current) {
+      calendarRef.current.selectDay(date);
+      router.replace('/calendar', undefined, { shallow: true });
+    }
+  }, [router.query, router]);
+
   // Handle OAuth callback success/error from URL params
   useEffect(() => {
     const { calendar_connected, calendar_error } = router.query;

@@ -80,10 +80,14 @@ export function BookingFormModal({
     try {
       const finalType = bookingType === 'consultation' ? 'consultation' : 'tattoo';
 
-      let endTime: string | undefined;
+      // Compute end_time: consultation uses consultation_duration, tattoo defaults to 3 hours
+      const [h, m] = selectedSlot.split(':').map(Number);
+      let endTime: string;
       if (finalType === 'consultation' && slotsResponse?.consultation_duration) {
-        const [h, m] = selectedSlot.split(':').map(Number);
         const total = h * 60 + m + slotsResponse.consultation_duration;
+        endTime = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+      } else {
+        const total = h * 60 + m + 180;
         endTime = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
       }
 
@@ -91,16 +95,13 @@ export function BookingFormModal({
         artist_id: artistId,
         title: `${finalType} request from ${user.username || user.name}`,
         start_time: selectedSlot,
+        end_time: endTime,
         date: selectedDate,
         all_day: false,
         description: notes || '',
         type: finalType,
         client_id: user.id,
       };
-
-      if (endTime) {
-        data.end_time = endTime;
-      }
 
       await appointmentService.create(data);
 

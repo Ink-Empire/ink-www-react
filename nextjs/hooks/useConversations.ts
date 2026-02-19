@@ -16,6 +16,7 @@ export interface Participant {
   name: string | null;
   username: string;
   slug: string | null;
+  type: number | null;
   initials: string;
   image: {
     id: number;
