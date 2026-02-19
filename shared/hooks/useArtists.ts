@@ -81,49 +81,48 @@ export function useArtists(
 export function useArtist(
   api: ApiClient,
   idOrSlug: string | number | null
-): { artist: Artist | null; loading: boolean; error: Error | null } {
+): { artist: Artist | null; loading: boolean; error: Error | null; refetch: () => Promise<void> } {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [loading, setLoading] = useState(!!idOrSlug);
   const [error, setError] = useState<Error | null>(null);
   const mountedRef = useRef(true);
 
-  useEffect(() => {
+  const fetchArtist = useCallback(async () => {
     if (!idOrSlug) {
       setLoading(false);
       return;
     }
 
-    mountedRef.current = true;
+    setLoading(true);
+    setError(null);
 
-    const fetchArtist = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const param = typeof idOrSlug === 'number' ? { id: idOrSlug } : { slug: String(idOrSlug) };
-        const response = await api.post<any>('/artists', param);
-        if (mountedRef.current) {
-          setArtist(response?.artist as Artist);
-        }
-      } catch (err) {
-        if (mountedRef.current) {
-          setError(err instanceof Error ? err : new Error(`Failed to fetch artist ${idOrSlug}`));
-        }
-      } finally {
-        if (mountedRef.current) {
-          setLoading(false);
-        }
+    try {
+      const param = typeof idOrSlug === 'number' ? { id: idOrSlug } : { slug: String(idOrSlug) };
+      const response = await api.post<any>('/artists', param);
+      if (mountedRef.current) {
+        setArtist(response?.artist as Artist);
       }
-    };
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err : new Error(`Failed to fetch artist ${idOrSlug}`));
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [api, idOrSlug]);
 
+  useEffect(() => {
+    mountedRef.current = true;
     fetchArtist();
 
     return () => {
       mountedRef.current = false;
     };
-  }, [api, idOrSlug]);
+  }, [fetchArtist]);
 
-  return { artist, loading, error };
+  return { artist, loading, error, refetch: fetchArtist };
 }
 
 // Hook for fetching artist portfolio (tattoos)

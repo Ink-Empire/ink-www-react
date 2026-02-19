@@ -17,11 +17,14 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
+import { tagService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
 import { useStyles, useTags, usePlacements } from '@inkedin/shared/hooks';
+import type { AiTagSuggestion } from '@inkedin/shared/services';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import StepIndicator from '../components/upload/StepIndicator';
 import StyleTag from '../components/common/StyleTag';
+import MultiSelectPicker from '../components/common/MultiSelectPicker';
 
 const MAX_IMAGES = 5;
 const screenWidth = Dimensions.get('window').width;
@@ -69,13 +72,19 @@ export default function UploadScreen({ navigation }: any) {
   const { tags: tagsList } = useTags(api);
   const { placements } = usePlacements(api);
 
-  // Search/filter state
-  const [styleSearch, setStyleSearch] = useState('');
-  const [tagSearch, setTagSearch] = useState('');
-
   // Pickers expanded state
   const [showPlacementPicker, setShowPlacementPicker] = useState(false);
   const [showSizePicker, setShowSizePicker] = useState(false);
+  const [showStylesPicker, setShowStylesPicker] = useState(false);
+  const [showTagsPicker, setShowTagsPicker] = useState(false);
+
+  // AI tag suggestions
+  const [uploadedImageIds, setUploadedImageIds] = useState<number[]>([]);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<AiTagSuggestion[]>([]);
+  const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
+  const [addingAiTag, setAddingAiTag] = useState<string | null>(null);
+  const [tagNameMap] = useState(() => new Map<number, string>());
 
   // -- Image handling --
 
@@ -144,6 +153,73 @@ export default function UploadScreen({ navigation }: any) {
     );
   }, []);
 
+  // -- AI tag suggestions --
+
+  const uploadAndFetchSuggestions = useCallback(async () => {
+    setLoadingAiSuggestions(true);
+    try {
+      const uploaded = await uploadImagesToS3(api, images, 'tattoo', setUploadProgress);
+      const ids = uploaded.map(img => img.id);
+      const urls = uploaded.map(img => img.uri);
+      setUploadedImageIds(ids);
+      setUploadedImageUrls(urls);
+
+      const response = await tagService.suggest(urls);
+      if (response.success && response.data) {
+        setAiSuggestions(response.data.filter(
+          tag => !selectedTags.includes(tag.id as number),
+        ));
+      }
+    } catch {
+      // Don't block the flow
+    } finally {
+      setLoadingAiSuggestions(false);
+      setUploadProgress(null);
+    }
+  }, [images, selectedTags]);
+
+  const handleAddAiSuggestion = useCallback(async (tag: AiTagSuggestion) => {
+    let tagId = tag.id;
+
+    if (tagId === null || tag.is_new_suggestion) {
+      setAddingAiTag(tag.name);
+      try {
+        const response = await tagService.createFromAi(tag.name);
+        if (response.success && response.data) {
+          tagId = response.data.id;
+          tagNameMap.set(response.data.id, response.data.name);
+        } else {
+          setAddingAiTag(null);
+          return;
+        }
+      } catch {
+        setAddingAiTag(null);
+        return;
+      }
+      setAddingAiTag(null);
+    }
+
+    if (tagId) {
+      setSelectedTags(prev => prev.includes(tagId as number) ? prev : [...prev, tagId as number]);
+      if (tag.name) tagNameMap.set(tagId as number, tag.name);
+      setAiSuggestions(prev => prev.filter(t => t.name !== tag.name));
+    }
+  }, [tagNameMap]);
+
+  const handleCreateTag = useCallback(async (name: string) => {
+    try {
+      const response = await tagService.create(name);
+      if (response.success && response.data) {
+        const newTag = response.data;
+        tagNameMap.set(newTag.id, newTag.name);
+        return { id: newTag.id, name: newTag.name };
+      }
+    } catch (err: any) {
+      showSnackbar(err.message || 'Failed to create tag', 'error');
+    }
+    return null;
+  }, [tagNameMap, showSnackbar]);
+
   // -- Navigation --
 
   const canProceed = step === 0
@@ -153,6 +229,10 @@ export default function UploadScreen({ navigation }: any) {
     : true;
 
   const handleNext = () => {
+    // Upload images + fetch AI suggestions when moving from step 0 to step 1
+    if (step === 0 && uploadedImageIds.length === 0) {
+      uploadAndFetchSuggestions();
+    }
     if (step < 3) setStep(step + 1);
   };
 
@@ -167,9 +247,14 @@ export default function UploadScreen({ navigation }: any) {
     setUploadProgress(null);
 
     try {
-      // Upload images to S3
-      const uploadedImages = await uploadImagesToS3(api, images, 'tattoo', setUploadProgress);
-      const imageIds = uploadedImages.map(img => img.id);
+      // Use already-uploaded images if available, otherwise upload now
+      let imageIds: number[];
+      if (uploadedImageIds.length > 0) {
+        imageIds = uploadedImageIds;
+      } else {
+        const uploadedImages = await uploadImagesToS3(api, images, 'tattoo', setUploadProgress);
+        imageIds = uploadedImages.map(img => img.id);
+      }
 
       // Create tattoo
       const tattooData: Record<string, any> = {
@@ -203,6 +288,10 @@ export default function UploadScreen({ navigation }: any) {
       setSize('');
       setHours('');
       setIsPublic(true);
+      setUploadedImageIds([]);
+      setUploadedImageUrls([]);
+      setAiSuggestions([]);
+      setLoadingAiSuggestions(false);
 
       showSnackbar('Your tattoo has been published! It will appear in search shortly.');
       navigation.navigate('HomeTab');
@@ -263,12 +352,8 @@ export default function UploadScreen({ navigation }: any) {
     </ScrollView>
   );
 
-  const filteredStyles = styleSearch
-    ? stylesList.filter(s => s.name.toLowerCase().includes(styleSearch.toLowerCase()))
-    : stylesList;
-
   const renderStep1 = () => (
-    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Text style={styles.stepTitle}>Details</Text>
 
       <Text style={styles.fieldLabel}>Title *</Text>
@@ -291,11 +376,17 @@ export default function UploadScreen({ navigation }: any) {
         numberOfLines={3}
       />
 
-      <Text style={styles.fieldLabel}>
-        Styles{selectedStyles.length > 0 ? ` (${selectedStyles.length})` : ''}
-      </Text>
+      <Text style={styles.fieldLabel}>Styles</Text>
+      <TouchableOpacity
+        style={styles.pickerButton}
+        onPress={() => setShowStylesPicker(true)}
+      >
+        <Text style={selectedStyles.length > 0 ? styles.pickerText : styles.pickerPlaceholder}>
+          {selectedStyles.length > 0 ? `${selectedStyles.length} selected` : 'Select styles'}
+        </Text>
+        <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
+      </TouchableOpacity>
 
-      {/* Selected styles as chips */}
       {selectedStyles.length > 0 && (
         <View style={styles.selectedChips}>
           {stylesList
@@ -312,80 +403,84 @@ export default function UploadScreen({ navigation }: any) {
             ))}
         </View>
       )}
-
-      <TextInput
-        style={styles.filterInput}
-        value={styleSearch}
-        onChangeText={setStyleSearch}
-        placeholder="Filter styles..."
-        placeholderTextColor={colors.textMuted}
-      />
-
-      {filteredStyles.map(style => (
-        <CheckboxRow
-          key={style.id}
-          label={style.name}
-          checked={selectedStyles.includes(style.id)}
-          onToggle={() => toggleStyle(style.id)}
-        />
-      ))}
-      {filteredStyles.length === 0 && (
-        <Text style={styles.emptyText}>No styles match</Text>
-      )}
     </ScrollView>
   );
 
-  const filteredTags = tagSearch
-    ? tagsList.filter((t: any) => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
-    : tagsList.slice(0, 30);
-
   const renderStep2 = () => (
-    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Text style={styles.stepTitle}>Tags & Info</Text>
 
-      <Text style={styles.fieldLabel}>
-        Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
-      </Text>
+      <Text style={styles.fieldLabel}>Tags</Text>
+      <TouchableOpacity
+        style={styles.pickerButton}
+        onPress={() => setShowTagsPicker(true)}
+      >
+        <Text style={selectedTags.length > 0 ? styles.pickerText : styles.pickerPlaceholder}>
+          {selectedTags.length > 0 ? `${selectedTags.length} selected` : 'Select tags'}
+        </Text>
+        <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
+      </TouchableOpacity>
 
-      {/* Selected tags as chips */}
       {selectedTags.length > 0 && (
         <View style={styles.selectedChips}>
-          {tagsList
-            .filter((t: any) => selectedTags.includes(t.id))
-            .map((tag: any) => (
+          {selectedTags.map(id => {
+            const tag = tagsList.find((t: any) => t.id === id);
+            const name = tag?.name || tagNameMap.get(id);
+            if (!name) return null;
+            return (
               <TouchableOpacity
-                key={tag.id}
-                style={styles.selectedChip}
-                onPress={() => toggleTag(tag.id)}
+                key={id}
+                style={styles.selectedTagChip}
+                onPress={() => toggleTag(id)}
               >
-                <Text style={styles.selectedChipText}>{tag.name}</Text>
-                <MaterialIcons name="close" size={14} color={colors.accent} style={{ marginLeft: 4 }} />
+                <Text style={styles.selectedTagChipText}>{name}</Text>
+                <MaterialIcons name="close" size={14} color={colors.tag} style={{ marginLeft: 4 }} />
               </TouchableOpacity>
-            ))}
+            );
+          })}
         </View>
       )}
 
-      <TextInput
-        style={styles.filterInput}
-        value={tagSearch}
-        onChangeText={setTagSearch}
-        placeholder="Search tags..."
-        placeholderTextColor={colors.textMuted}
-      />
-
-      {filteredTags.map((tag: any) => (
-        <CheckboxRow
-          key={tag.id}
-          label={tag.name}
-          checked={selectedTags.includes(tag.id)}
-          onToggle={() => toggleTag(tag.id)}
-        />
-      ))}
-      {filteredTags.length === 0 && (
-        <Text style={styles.emptyText}>No tags match</Text>
-      )}
-      {!tagSearch && tagsList.length > 30 && (
-        <Text style={styles.hintText}>Type to search more tags...</Text>
+      {/* AI Tag Suggestions */}
+      {(loadingAiSuggestions || aiSuggestions.length > 0) && (
+        <View style={styles.aiSection}>
+          <View style={styles.aiHeader}>
+            <MaterialIcons name="auto-awesome" size={16} color={colors.aiSuggestion} />
+            <Text style={styles.aiHeaderText}>AI SUGGESTIONS</Text>
+            {loadingAiSuggestions && (
+              <ActivityIndicator size="small" color={colors.aiSuggestion} />
+            )}
+          </View>
+          {aiSuggestions.length > 0 ? (
+            <View style={styles.aiChips}>
+              {aiSuggestions.map(tag => {
+                const isNew = tag.id === null || tag.is_new_suggestion;
+                const isCreating = addingAiTag === tag.name;
+                return (
+                  <TouchableOpacity
+                    key={tag.name}
+                    style={[styles.aiChip, isNew && styles.aiChipNew]}
+                    onPress={() => !isCreating && handleAddAiSuggestion(tag)}
+                    disabled={isCreating}
+                    activeOpacity={0.7}
+                  >
+                    {isCreating ? (
+                      <ActivityIndicator size={12} color={colors.aiSuggestion} />
+                    ) : (
+                      <MaterialIcons name="add" size={14} color={colors.aiSuggestion} />
+                    )}
+                    <Text style={styles.aiChipText}>{tag.name}</Text>
+                    {isNew && !isCreating && (
+                      <Text style={styles.aiChipNewLabel}>NEW</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : loadingAiSuggestions ? (
+            <Text style={styles.aiLoadingText}>Analyzing your images...</Text>
+          ) : null}
+        </View>
       )}
 
       <Text style={styles.fieldLabel}>Placement</Text>
@@ -554,6 +649,30 @@ export default function UploadScreen({ navigation }: any) {
         )}
       </View>
 
+      {/* Styles picker modal */}
+      <MultiSelectPicker
+        visible={showStylesPicker}
+        title="Select Styles"
+        options={stylesList}
+        selected={selectedStyles}
+        onToggle={toggleStyle}
+        onClose={() => setShowStylesPicker(false)}
+        searchPlaceholder="Filter styles..."
+      />
+
+      {/* Tags picker modal */}
+      <MultiSelectPicker
+        visible={showTagsPicker}
+        title="Select Tags"
+        options={tagsList}
+        selected={selectedTags}
+        onToggle={toggleTag}
+        onClose={() => setShowTagsPicker(false)}
+        searchPlaceholder="Search tags..."
+        initialDisplayCount={30}
+        onCreateNew={handleCreateTag}
+      />
+
       {/* Publishing overlay */}
       {publishing && (
         <View style={styles.overlay}>
@@ -573,58 +692,6 @@ export default function UploadScreen({ navigation }: any) {
     </SafeAreaView>
   );
 }
-
-// -- Sub-components --
-
-function CheckboxRow({
-  label,
-  checked,
-  onToggle,
-}: {
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <TouchableOpacity style={checkStyles.row} onPress={onToggle} activeOpacity={0.7}>
-      <View style={[checkStyles.box, checked && checkStyles.boxChecked]}>
-        {checked && <MaterialIcons name="check" size={16} color={colors.background} />}
-      </View>
-      <Text style={[checkStyles.label, checked && checkStyles.labelChecked]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-const checkStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  box: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: colors.textMuted,
-    marginRight: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  boxChecked: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  label: {
-    color: colors.textPrimary,
-    fontSize: 16,
-  },
-  labelChecked: {
-    color: colors.accent,
-  },
-});
 
 // -- Picker modal sub-component --
 
@@ -799,6 +866,7 @@ const styles = StyleSheet.create({
   selectedChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginTop: 10,
     marginBottom: 8,
   },
   selectedChip: {
@@ -818,29 +886,72 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  filterInput: {
-    backgroundColor: colors.surface,
+  selectedTagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.tagDim,
     borderWidth: 1,
-    borderColor: colors.inputBorder,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: colors.textPrimary,
-    fontSize: 14,
-    marginBottom: 4,
+    borderColor: colors.tag,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
   },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    paddingVertical: 12,
+  selectedTagChipText: {
+    color: colors.tag,
+    fontSize: 13,
+    fontWeight: '600',
   },
-  hintText: {
+  // AI suggestions
+  aiSection: {
+    marginTop: 12,
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  aiHeaderText: {
+    color: colors.aiSuggestion,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  aiChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  aiChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.aiSuggestion,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  aiChipNew: {
+    borderStyle: 'dashed',
+  },
+  aiChipText: {
+    color: colors.aiSuggestion,
+    fontSize: 13,
+  },
+  aiChipNewLabel: {
+    color: colors.aiSuggestion,
+    fontSize: 9,
+    opacity: 0.7,
+  },
+  aiLoadingText: {
     color: colors.textMuted,
     fontSize: 13,
-    paddingVertical: 8,
     fontStyle: 'italic',
   },
-
   // Picker button
   pickerButton: {
     flexDirection: 'row',

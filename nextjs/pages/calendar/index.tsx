@@ -71,17 +71,18 @@ const MyCalendarPage: React.FC = () => {
   }, [authLoading, isAuthenticated, router]);
 
   // Fetch upcoming appointments
-  useEffect(() => {
+  const fetchUpcoming = async () => {
     if (!user?.id) return;
-    const fetchUpcoming = async () => {
-      try {
-        const response = await artistService.getUpcomingSchedule(user.id);
-        const data = (response as any)?.data ?? response ?? [];
-        setUpcomingAppointments(Array.isArray(data) ? data.slice(0, 5) : []);
-      } catch (err) {
-        console.error('Failed to fetch upcoming appointments:', err);
-      }
-    };
+    try {
+      const response = await artistService.getUpcomingSchedule(user.id);
+      const data = (response as any)?.data ?? response ?? [];
+      setUpcomingAppointments(Array.isArray(data) ? data.slice(0, 5) : []);
+    } catch (err) {
+      console.error('Failed to fetch upcoming appointments:', err);
+    }
+  };
+
+  useEffect(() => {
     fetchUpcoming();
   }, [user?.id]);
 
@@ -308,6 +309,7 @@ const MyCalendarPage: React.FC = () => {
             artistName={user.name || 'Artist'}
             showExternalEvents={true}
             isOwnCalendar={true}
+            onAppointmentChanged={fetchUpcoming}
           />
         ) : (
           <Box sx={{ textAlign: 'center', py: 4 }}>

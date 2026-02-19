@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,13 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Alert,
+  DeviceEventEmitter,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
+import { tattooService } from '../../lib/services';
 import { useTattoo } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -27,12 +30,57 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function TattooDetailScreen({ navigation, route }: any) {
   const { id } = route.params;
-  const { tattoo, loading, error } = useTattoo(api, id);
+  const { tattoo, loading, error, refetch } = useTattoo(api, id);
   const { user, toggleFavorite } = useAuth();
   const { showSnackbar } = useSnackbar();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  console.log(tattoo);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      refetch();
+    });
+    return unsubscribe;
+  }, [navigation, refetch]);
+
+  const isOwner = user?.id === tattoo?.artist_id;
+
+  const handleEditPress = useCallback(() => {
+    if (!tattoo) return;
+    Alert.alert('Manage Tattoo', undefined, [
+      {
+        text: 'Edit',
+        onPress: () => navigation.push('EditTattoo', { id: tattoo.id }),
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Delete Tattoo',
+            'Are you sure you want to delete this tattoo? This cannot be undone.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await tattooService.delete(tattoo.id);
+                    DeviceEventEmitter.emit('tattoo-deleted', { id: tattoo.id });
+                    showSnackbar('Tattoo deleted');
+                    navigation.goBack();
+                  } catch {
+                    showSnackbar('Failed to delete tattoo', 'error');
+                  }
+                },
+              },
+            ],
+          );
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [tattoo, navigation, showSnackbar]);
 
   const allImages = useMemo(() => {
     if (!tattoo) return [];
@@ -71,7 +119,6 @@ export default function TattooDetailScreen({ navigation, route }: any) {
   if (loading) return <LoadingScreen />;
   if (error || !tattoo) return <ErrorView message={error?.message || 'Tattoo not found'} />;
 
-  console.log('TATTOO DATA:', JSON.stringify({ studio: tattoo.studio, studio_name: (tattoo as any).studio_name, artist_location: (tattoo as any).artist_location }));
   const artist = tattoo.artist;
   const artistName = artist?.name || (tattoo as any).artist_name;
   const artistSlug = artist?.slug || (tattoo as any).artist_slug;
@@ -141,6 +188,11 @@ export default function TattooDetailScreen({ navigation, route }: any) {
               />
             )}
           />
+          {isOwner && (
+            <TouchableOpacity onPress={handleEditPress} style={styles.editButton}>
+              <MaterialIcons name="edit" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+          )}
           {allImages.length > 1 && (
             <View style={styles.dots}>
               {allImages.map((_, i) => (
@@ -182,7 +234,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
                       style={styles.tag}
                       onPress={() => tagId
                         ? navigation.navigate('Home', { filterTags: [tagId] })
-                        : undefined
+                        : navigation.navigate('Home', { filterTagNames: [name] })
                       }
                     >
                       <Text style={styles.tagText}>{name}</Text>
@@ -299,6 +351,17 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 13,
     marginTop: 1,
+  },
+  editButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   saveButton: {
     paddingVertical: 8,

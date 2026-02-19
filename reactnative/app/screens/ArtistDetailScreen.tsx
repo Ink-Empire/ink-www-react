@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  DeviceEventEmitter,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -38,11 +39,18 @@ const SOCIAL_ICONS: Record<string, string> = {
 
 export default function ArtistDetailScreen({ navigation, route }: any) {
   const { slug, name: routeName } = route.params;
-  const { artist, loading, error } = useArtist(api, slug);
+  const { artist, loading, error, refetch } = useArtist(api, slug);
   const { user, toggleFavorite } = useAuth();
   const { showSnackbar } = useSnackbar();
 
   const [activeStyleFilter, setActiveStyleFilter] = useState<number | null>(null);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('tattoo-deleted', () => {
+      refetch();
+    });
+    return () => sub.remove();
+  }, [refetch]);
 
   const a = artist as any;
   const portfolio = (a?.tattoos as any[]) || [];

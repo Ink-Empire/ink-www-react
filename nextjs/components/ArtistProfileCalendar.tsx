@@ -12,6 +12,7 @@ import EventBusyIcon from '@mui/icons-material/EventBusy';
 import UpdateIcon from '@mui/icons-material/Update';
 import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { api } from '@/utils/api';
@@ -40,6 +41,7 @@ interface ArtistProfileCalendarProps {
   onDateSelected?: (date: Date, workingHours: any, bookingType: 'consultation' | 'appointment') => void;
   showExternalEvents?: boolean;
   isOwnCalendar?: boolean;
+  onAppointmentChanged?: () => void;
 }
 
 export interface ArtistProfileCalendarRef {
@@ -54,6 +56,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   onDateSelected,
   showExternalEvents = false,
   isOwnCalendar = false,
+  onAppointmentChanged,
 }, ref) => {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -175,7 +178,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     appointments: fetchedAppointments,
     loading: appointmentsLoading,
     refresh: refreshAppointments,
-  } = useArtistAppointments(artistIdOrSlug);
+  } = useArtistAppointments(artistIdOrSlug, { enabled: isOwnCalendar });
 
   // Working hours hook for saving (only used when viewing own profile)
   const { saveWorkingHours } = useWorkingHours(resolvedArtistId);
@@ -632,7 +635,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   const handleCancelSubmit = async (reason?: string) => {
     if (!actionAppointment) return;
     await messageService.sendCancellation(actionAppointment.conversationId, actionAppointment.id as number, reason);
+    setCancelModalOpen(false);
+    setActionAppointment(null);
+    closeArtistDayModal();
     refreshAppointments();
+    onAppointmentChanged?.();
   };
 
   const handleRescheduleSubmit = async (
@@ -653,11 +660,32 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     refreshAppointments();
   };
 
+  const handleDeleteAppointment = async (apt: any) => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to permanently delete this appointment? This cannot be undone.',
+      'Delete Appointment',
+    );
+    if (!confirmed) return;
+    try {
+      const aptId = typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id;
+      await appointmentService.delete(aptId);
+      refreshAppointments();
+      closeArtistDayModal();
+      onAppointmentChanged?.();
+    } catch (err) {
+      console.error('Failed to delete appointment:', err);
+    }
+  };
+
   // Get appointments for a specific date
   const getAppointmentsForDate = (dateStr: string) => {
     return fetchedAppointments.filter(apt => {
-      const aptDate = new Date(apt.start).toISOString().split('T')[0];
-      return aptDate === dateStr;
+      if (apt.date) return apt.date === dateStr;
+      if (apt.start) {
+        const aptDate = new Date(apt.start).toISOString().split('T')[0];
+        return aptDate === dateStr;
+      }
+      return false;
     });
   };
 
@@ -1770,15 +1798,16 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                       </Box>
                     </Box>
                     <Box>
-                        {apt.start && (
+                        {(apt.time || apt.start) && (
                           <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.5 }}>
-                            {new Date(apt.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                            {apt.end && ` - ${new Date(apt.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                            {apt.time || (
+                              `${new Date(apt.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${apt.end ? ` - ${new Date(apt.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}`
+                            )}
                           </Typography>
                         )}
-                        {apt.extendedProps?.clientName && (
+                        {(apt.extendedProps?.clientName || apt.clientName) && (
                           <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.25 }}>
-                            Client: {apt.extendedProps.clientName}
+                            Client: {apt.extendedProps?.clientName || apt.clientName}
                           </Typography>
                         )}
                         {apt.extendedProps?.description && (
@@ -1787,74 +1816,112 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                           </Typography>
                         )}
                     </Box>
-                    {apt.clientId && isOwnCalendar && (
-                      <Box sx={{ display: 'flex', gap: 0.75, mt: 1, pt: 1, borderTop: `1px solid ${colors.border}` }}>
-                        <Button
-                          size="small"
-                          startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />}
-                          onClick={async () => {
-                            try {
-                              const response = await messageService.createConversation(
-                                apt.clientId as number,
-                                'booking',
-                                undefined,
-                                typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id
-                              );
-                              const conversationId = response.conversation?.id;
-                              if (conversationId) {
-                                router.push(`/inbox?conversation=${conversationId}`);
-                              }
-                            } catch (err) {
-                              console.error('Failed to open conversation:', err);
-                            }
-                          }}
-                          sx={{
-                            fontSize: '0.75rem',
-                            textTransform: 'none',
-                            color: colors.success,
-                            border: `1px solid ${colors.success}44`,
-                            borderRadius: '6px',
-                            px: 1.5,
-                            py: 0.5,
-                            '&:hover': { bgcolor: `${colors.success}15`, borderColor: colors.success },
-                          }}
-                        >
-                          Contact
-                        </Button>
-                        <Button
-                          size="small"
-                          startIcon={<UpdateIcon sx={{ fontSize: 14 }} />}
-                          onClick={() => openActionModal(apt, 'reschedule')}
-                          sx={{
-                            fontSize: '0.75rem',
-                            textTransform: 'none',
-                            color: colors.accent,
-                            border: `1px solid ${colors.accent}44`,
-                            borderRadius: '6px',
-                            px: 1.5,
-                            py: 0.5,
-                            '&:hover': { bgcolor: `${colors.accent}15`, borderColor: colors.accent },
-                          }}
-                        >
-                          Reschedule
-                        </Button>
-                        <Button
-                          size="small"
-                          startIcon={<EventBusyIcon sx={{ fontSize: 14 }} />}
-                          onClick={() => openActionModal(apt, 'cancel')}
-                          sx={{
-                            fontSize: '0.75rem',
-                            textTransform: 'none',
-                            color: colors.error,
-                            border: `1px solid ${colors.error}44`,
-                            borderRadius: '6px',
-                            px: 1.5,
-                            py: 0.5,
-                            '&:hover': { bgcolor: `${colors.error}15`, borderColor: colors.error },
-                          }}
-                        >
-                          Cancel
-                        </Button>
+                    {isOwnCalendar && (
+                      <Box sx={{ display: 'flex', gap: 0.75, mt: 1, pt: 1, borderTop: `1px solid ${colors.border}`, flexWrap: 'wrap' }}>
+                        {apt.clientId && (
+                          <>
+                            <Button
+                              size="small"
+                              startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />}
+                              onClick={async () => {
+                                try {
+                                  const response = await messageService.createConversation(
+                                    apt.clientId as number,
+                                    'booking',
+                                    undefined,
+                                    typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id
+                                  );
+                                  const conversationId = response.conversation?.id;
+                                  if (conversationId) {
+                                    router.push(`/inbox?conversation=${conversationId}`);
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to open conversation:', err);
+                                }
+                              }}
+                              sx={{
+                                fontSize: '0.75rem',
+                                textTransform: 'none',
+                                color: colors.success,
+                                border: `1px solid ${colors.success}44`,
+                                borderRadius: '6px',
+                                px: 1.5,
+                                py: 0.5,
+                                '&:hover': { bgcolor: `${colors.success}15`, borderColor: colors.success },
+                              }}
+                            >
+                              Contact
+                            </Button>
+                            <Button
+                              size="small"
+                              startIcon={<UpdateIcon sx={{ fontSize: 14 }} />}
+                              onClick={async () => {
+                                try {
+                                  const response = await messageService.createConversation(
+                                    apt.clientId as number,
+                                    'booking',
+                                    undefined,
+                                    typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id
+                                  );
+                                  const conversationId = response.conversation?.id;
+                                  if (conversationId) {
+                                    router.push(`/inbox?conversation=${conversationId}&action=reschedule`);
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to open conversation:', err);
+                                }
+                              }}
+                              sx={{
+                                fontSize: '0.75rem',
+                                textTransform: 'none',
+                                color: colors.accent,
+                                border: `1px solid ${colors.accent}44`,
+                                borderRadius: '6px',
+                                px: 1.5,
+                                py: 0.5,
+                                '&:hover': { bgcolor: `${colors.accent}15`, borderColor: colors.accent },
+                              }}
+                            >
+                              Reschedule
+                            </Button>
+                            <Button
+                              size="small"
+                              startIcon={<EventBusyIcon sx={{ fontSize: 14 }} />}
+                              onClick={() => openActionModal(apt, 'cancel')}
+                              sx={{
+                                fontSize: '0.75rem',
+                                textTransform: 'none',
+                                color: colors.error,
+                                border: `1px solid ${colors.error}44`,
+                                borderRadius: '6px',
+                                px: 1.5,
+                                py: 0.5,
+                                '&:hover': { bgcolor: `${colors.error}15`, borderColor: colors.error },
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                        {!apt.clientId && (
+                          <Button
+                            size="small"
+                            startIcon={<DeleteOutlineIcon sx={{ fontSize: 14 }} />}
+                            onClick={() => handleDeleteAppointment(apt)}
+                            sx={{
+                              fontSize: '0.75rem',
+                              textTransform: 'none',
+                              color: colors.error,
+                              border: `1px solid ${colors.error}44`,
+                              borderRadius: '6px',
+                              px: 1.5,
+                              py: 0.5,
+                              '&:hover': { bgcolor: `${colors.error}15`, borderColor: colors.error },
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        )}
                       </Box>
                     )}
                   </Box>

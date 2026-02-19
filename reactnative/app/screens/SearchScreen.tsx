@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  DeviceEventEmitter,
 } from 'react-native';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
@@ -29,7 +30,7 @@ export default function SearchScreen({ navigation, route }: any) {
     styles: selectedStyles.length > 0 ? selectedStyles : undefined,
   };
 
-  const { tattoos, loading: tattoosLoading } = useTattoos(
+  const { tattoos, loading: tattoosLoading, refetch: refetchTattoos } = useTattoos(
     api,
     activeTab === 'tattoos' ? searchParams : undefined,
     { skip: activeTab !== 'tattoos' },
@@ -40,7 +41,14 @@ export default function SearchScreen({ navigation, route }: any) {
     { skip: activeTab !== 'artists' },
   );
 
-  const { data: stylesData } = useStyles(api);
+  const { styles: stylesData } = useStyles(api);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('tattoo-deleted', () => {
+      refetchTattoos();
+    });
+    return () => sub.remove();
+  }, [refetchTattoos]);
   const stylesList = Array.isArray(stylesData) ? stylesData : [];
 
   const handleSearch = useCallback((query: string) => {

@@ -189,6 +189,13 @@ export { createNotificationService } from './notificationService';
 export type { NotificationType, NotificationPreference, NotificationPreferencesResponse } from './notificationService';
 
 // =============================================================================
+// Tag Service
+// =============================================================================
+
+export { createTagService } from './tagService';
+export type { AiTagSuggestion } from './tagService';
+
+// =============================================================================
 // Google Places Service (REST API)
 // =============================================================================
 
@@ -207,3 +214,4 @@ export type UserService = ReturnType<typeof createUserService>;
 export type MessageService = ReturnType<typeof createMessageService>;
 export type NotificationService = ReturnType<typeof createNotificationService>;
 export type AppointmentService = ReturnType<typeof createAppointmentService>;
+export type TagService = ReturnType<typeof createTagService>;

@@ -5,6 +5,7 @@ import SearchScreen from '../screens/SearchScreen';
 import ArtistListScreen from '../screens/ArtistListScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
+import EditTattooScreen from '../screens/EditTattooScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
 import type { SearchStackParamList } from './types';
 
@@ -27,6 +28,7 @@ export default function SearchStack() {
         options={({ route }) => ({ title: route.params?.name || 'Artist' })}
       />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo' }} />
+      <Stack.Screen name="EditTattoo" component={EditTattooScreen} options={{ title: 'Edit Tattoo' }} />
       <Stack.Screen
         name="StudioDetail"
         component={StudioDetailScreen}

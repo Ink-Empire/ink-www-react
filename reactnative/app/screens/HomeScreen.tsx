@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  DeviceEventEmitter,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -33,21 +34,33 @@ export default function HomeScreen({ navigation, route }: any) {
       setFilters(prev => ({ ...prev, tags: params.filterTags }));
       navigation.setParams({ filterTags: undefined });
     }
-  }, [route?.params?.filterStyles, route?.params?.filterTags]);
+    if (params?.filterTagNames) {
+      setFilters(prev => ({ ...prev, tagNames: params.filterTagNames }));
+      navigation.setParams({ filterTagNames: undefined });
+    }
+  }, [route?.params?.filterStyles, route?.params?.filterTags, route?.params?.filterTagNames]);
 
   const searchParams = {
     searchString: searchQuery || undefined,
     sort: filters.sort,
     styles: filters.styles,
     tags: filters.tags,
+    tagNames: filters.tagNames,
     distance: filters.distance,
     distanceUnit: filters.distanceUnit,
     useAnyLocation: filters.useAnyLocation,
   };
 
-  const { tattoos, loading } = useTattoos(api, searchParams as any);
+  const { tattoos, loading, refetch } = useTattoos(api, searchParams as any);
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('tattoo-deleted', () => {
+      refetch();
+    });
+    return () => sub.remove();
+  }, [refetch]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -60,7 +73,8 @@ export default function HomeScreen({ navigation, route }: any) {
   const activeFilterCount =
     (filters.sort ? 1 : 0) +
     (filters.styles?.length || 0) +
-    (filters.tags?.length || 0);
+    (filters.tags?.length || 0) +
+    (filters.tagNames?.length || 0);
 
   const renderItem = ({ item }: any) => (
     <TattooCard

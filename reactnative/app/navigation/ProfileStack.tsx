@@ -5,6 +5,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
+import EditTattooScreen from '../screens/EditTattooScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
@@ -35,6 +36,7 @@ export default function ProfileStack() {
         component={TattooDetailScreen}
         options={{ title: 'Tattoo' }}
       />
+      <Stack.Screen name="EditTattoo" component={EditTattooScreen} options={{ title: 'Edit Tattoo' }} />
       <Stack.Screen
         name="StudioDetail"
         component={StudioDetailScreen}

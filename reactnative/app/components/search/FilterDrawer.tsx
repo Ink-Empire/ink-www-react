@@ -26,6 +26,7 @@ export interface AppliedFilters {
   sort?: string;
   styles?: number[];
   tags?: number[];
+  tagNames?: string[];
   distance?: number;
   distanceUnit?: 'mi' | 'km';
   useAnyLocation?: boolean;

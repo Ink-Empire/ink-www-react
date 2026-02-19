@@ -38,6 +38,7 @@ import UpdateIcon from '@mui/icons-material/Update';
 import PersonIcon from '@mui/icons-material/Person';
 import BlockIcon from '@mui/icons-material/Block';
 import ReportIcon from '@mui/icons-material/Report';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -64,7 +65,7 @@ import {
 
 export default function InboxPage() {
   const router = useRouter();
-  const { artistId, contactId, conversation: conversationParam } = router.query;
+  const { artistId, contactId, conversation: conversationParam, action: actionParam } = router.query;
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [creatingConversation, setCreatingConversation] = useState(false);
@@ -288,7 +289,7 @@ export default function InboxPage() {
     }
   }, [contactId, isAuthenticated, conversations, conversationsLoading, creatingConversation, router, fetchConversations]);
 
-  // Deep-link support: ?conversation=<id> opens that conversation directly
+  // Deep-link support: ?conversation=<id>&action=reschedule opens that conversation directly
   useEffect(() => {
     if (!conversationParam || !isAuthenticated || conversationsLoading) return;
 
@@ -297,8 +298,13 @@ export default function InboxPage() {
 
     setSelectedConversationId(convId);
     setMobileShowConversation(true);
+
+    if (actionParam === 'reschedule') {
+      setRescheduleModalOpen(true);
+    }
+
     router.replace('/inbox', undefined, { shallow: true });
-  }, [conversationParam, isAuthenticated, conversationsLoading, router]);
+  }, [conversationParam, actionParam, isAuthenticated, conversationsLoading, router]);
 
   const unreadCount = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations]);
 
@@ -481,6 +487,21 @@ export default function InboxPage() {
       fetchConversations();
     } catch (error: any) {
       setSnackbar({ open: true, message: error?.message || `Failed to ${action} reschedule.`, severity: 'error' });
+    }
+  };
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  const handleDeleteAppointment = async () => {
+    if (!selectedConversation?.appointment?.id) return;
+
+    try {
+      await appointmentService.delete(selectedConversation.appointment.id);
+      setDeleteConfirmOpen(false);
+      setSnackbar({ open: true, message: 'Appointment deleted.', severity: 'success' });
+      fetchConversations();
+    } catch (error: any) {
+      setSnackbar({ open: true, message: error?.message || 'Failed to delete appointment.', severity: 'error' });
     }
   };
 
@@ -1576,7 +1597,7 @@ export default function InboxPage() {
                         label="Request Deposit"
                         onClick={handleOpenDepositModal}
                       />
-                      {selectedConversation?.appointment && selectedConversation.appointment.status !== 'cancelled' && (
+                      {selectedConversation?.appointment && selectedConversation.appointment.status !== 'cancelled' && selectedConversation.participant && (
                         <>
                           <QuickAction
                             icon={<EventBusyIcon sx={{ fontSize: 14 }} />}
@@ -1589,6 +1610,13 @@ export default function InboxPage() {
                             onClick={() => setRescheduleModalOpen(true)}
                           />
                         </>
+                      )}
+                      {selectedConversation?.appointment && !selectedConversation.participant && (
+                        <QuickAction
+                          icon={<DeleteOutlineIcon sx={{ fontSize: 14 }} />}
+                          label="Delete Appointment"
+                          onClick={() => setDeleteConfirmOpen(true)}
+                        />
                       )}
                     </>
                   )}
@@ -1947,6 +1975,24 @@ export default function InboxPage() {
         onSubmit={handleSendReschedule}
         clientName={selectedConversation?.participant?.name || undefined}
       />
+
+      {/* Delete Appointment Confirmation */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        PaperProps={{ sx: { bgcolor: colors.surface, color: colors.textPrimary, borderRadius: 3, maxWidth: 400 } }}
+      >
+        <DialogTitle sx={{ color: colors.textPrimary }}>Delete Appointment</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: colors.textSecondary }}>
+            Are you sure you want to permanently delete this appointment? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)} sx={{ color: colors.textMuted }}>Cancel</Button>
+          <Button onClick={handleDeleteAppointment} sx={{ color: colors.error }}>Delete</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar for notifications */}
       <Snackbar

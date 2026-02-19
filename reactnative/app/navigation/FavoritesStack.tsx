@@ -4,6 +4,7 @@ import { colors } from '../../lib/colors';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
+import EditTattooScreen from '../screens/EditTattooScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { FavoritesStackParamList } from './types';
@@ -26,6 +27,7 @@ export default function FavoritesStack() {
         options={({ route }) => ({ title: route.params?.name || 'Artist' })}
       />
       <Stack.Screen name="TattooDetail" component={TattooDetailScreen} options={{ title: 'Tattoo' }} />
+      <Stack.Screen name="EditTattoo" component={EditTattooScreen} options={{ title: 'Edit Tattoo' }} />
       <Stack.Screen
         name="StudioDetail"
         component={StudioDetailScreen}

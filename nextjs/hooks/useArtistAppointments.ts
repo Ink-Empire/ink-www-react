@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { artistService } from '@/services/artistService';
 import { appointmentService } from '@/services/appointmentService';
 
 export interface AppointmentType {
@@ -6,6 +7,8 @@ export interface AppointmentType {
   title: string;
   start: string;
   end: string;
+  date?: string;
+  time?: string;
   allDay: boolean;
   status: 'pending' | 'booked' | 'completed' | 'cancelled';
   description?: string;
@@ -23,9 +26,7 @@ export interface AppointmentType {
 }
 
 interface UseArtistAppointmentsOptions {
-  status?: 'pending' | 'booked' | 'completed' | 'cancelled' | 'all';
-  startDate?: Date;
-  endDate?: Date;
+  enabled?: boolean;
 }
 
 export function useArtistAppointments(
@@ -36,10 +37,11 @@ export function useArtistAppointments(
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const { status = 'all', startDate, endDate } = options;
+  const { enabled = true } = options;
 
   const fetchAppointments = useCallback(async () => {
-    if (!artistId) {
+    if (!artistId || !enabled) {
+      setAppointments([]);
       setLoading(false);
       return;
     }
@@ -47,33 +49,25 @@ export function useArtistAppointments(
     try {
       setLoading(true);
 
-      // Build request body
-      const requestBody: Record<string, any> = {
-        artist_id: artistId
-      };
+      const response = await artistService.getUpcomingSchedule(artistId);
+      const rawData = (response as any)?.data ?? response ?? [];
+      const data = Array.isArray(rawData) ? rawData : [];
 
-      // Add filters if specified
-      if (status && status !== 'all') {
-        requestBody.status = status;
-      }
-
-      if (startDate) {
-        requestBody.start_date = startDate.toISOString().split('T')[0];
-      }
-
-      if (endDate) {
-        requestBody.end_date = endDate.toISOString().split('T')[0];
-      }
-
-      console.log('Fetching artist appointments:', requestBody);
-
-      // Call the service
-      const rawAppointments = await appointmentService.getArtistAppointments(requestBody);
-
-      // Map API fields to interface fields
-      const normalizedAppointments = rawAppointments.map((apt: any) => ({
-        ...apt,
-        clientId: apt.client_id ?? apt.client?.id ?? null,
+      const normalizedAppointments: AppointmentType[] = data.map((apt: any) => ({
+        id: apt.id,
+        title: apt.title || 'Appointment',
+        start: apt.date ? `${apt.date}T00:00:00` : '',
+        end: apt.date ? `${apt.date}T00:00:00` : '',
+        date: apt.date,
+        time: apt.time,
+        allDay: false,
+        status: apt.status || 'booked',
+        clientName: apt.clientName,
+        clientId: apt.client_id ?? null,
+        extendedProps: {
+          status: apt.status || 'booked',
+          clientName: apt.clientName,
+        },
       }));
 
       setAppointments(normalizedAppointments);
@@ -84,17 +78,15 @@ export function useArtistAppointments(
     } finally {
       setLoading(false);
     }
-  }, [artistId, status, startDate, endDate]);
+  }, [artistId, enabled]);
 
   useEffect(() => {
     fetchAppointments();
   }, [fetchAppointments]);
 
-  // Function to delete an appointment
   const deleteAppointment = useCallback(async (appointmentId: number | string) => {
     try {
       await appointmentService.delete(appointmentId);
-      // Refresh the list after deletion
       await fetchAppointments();
       return true;
     } catch (err) {

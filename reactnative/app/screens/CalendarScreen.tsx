@@ -177,6 +177,29 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     refreshUpcomingAppointments();
   };
 
+  const handleDeletePress = (apt: UpcomingAppointment) => {
+    Alert.alert(
+      'Delete Appointment',
+      'Are you sure you want to permanently delete this appointment? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await appointmentService.delete(apt.id);
+              Alert.alert('Deleted', 'The appointment has been deleted.');
+              refreshUpcomingAppointments();
+            } catch {
+              Alert.alert('Error', 'Failed to delete the appointment. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleContactPress = (apt: UpcomingAppointment) => {
     if (!apt.client_id) {
       Alert.alert('Unavailable', 'Client information is not available for this appointment.');
@@ -316,27 +339,40 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
                   </View>
                 </TouchableOpacity>
                 <View style={styles.appointmentActions}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => handleContactPress(apt)}
-                  >
-                    <MaterialIcons name="chat-bubble-outline" size={16} color={colors.accent} />
-                    <Text style={styles.actionButtonText}>Contact</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => handleReschedulePress(apt)}
-                  >
-                    <MaterialIcons name="update" size={16} color={colors.accent} />
-                    <Text style={styles.actionButtonText}>Reschedule</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.actionButtonCancel]}
-                    onPress={() => handleCancelPress(apt)}
-                  >
-                    <MaterialIcons name="event-busy" size={16} color={colors.error} />
-                    <Text style={[styles.actionButtonText, styles.actionButtonTextCancel]}>Cancel</Text>
-                  </TouchableOpacity>
+                  {apt.client_id && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleContactPress(apt)}
+                      >
+                        <MaterialIcons name="chat-bubble-outline" size={16} color={colors.accent} />
+                        <Text style={styles.actionButtonText}>Contact</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleReschedulePress(apt)}
+                      >
+                        <MaterialIcons name="update" size={16} color={colors.accent} />
+                        <Text style={styles.actionButtonText}>Reschedule</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.actionButtonCancel]}
+                        onPress={() => handleCancelPress(apt)}
+                      >
+                        <MaterialIcons name="event-busy" size={16} color={colors.error} />
+                        <Text style={[styles.actionButtonText, styles.actionButtonTextCancel]}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  {!apt.client_id && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.actionButtonCancel]}
+                      onPress={() => handleDeletePress(apt)}
+                    >
+                      <MaterialIcons name="delete-outline" size={16} color={colors.error} />
+                      <Text style={[styles.actionButtonText, styles.actionButtonTextCancel]}>Delete</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             ))}
@@ -363,6 +399,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         onRequestBooking={handleRequestBooking}
         onCancelAppointment={(apt) => handleCancelPress(apt)}
         onRescheduleAppointment={(apt) => handleReschedulePress(apt)}
+        onDeleteAppointment={(apt) => handleDeletePress(apt)}
         onContactClient={(apt) => handleContactPress(apt)}
       />
 

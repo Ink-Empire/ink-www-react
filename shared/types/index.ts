@@ -382,6 +382,7 @@ export interface SearchFilters {
   searchString?: string;
   styles?: number[];
   tags?: number[];
+  tagNames?: string[];
   distance?: number;
   distanceUnit?: 'mi' | 'km';
   locationCoords?: string;

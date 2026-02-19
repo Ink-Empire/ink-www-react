@@ -79,46 +79,45 @@ export function useTattoos(
 export function useTattoo(
   api: ApiClient,
   id: string | number | null
-): { tattoo: Tattoo | null; loading: boolean; error: Error | null } {
+): { tattoo: Tattoo | null; loading: boolean; error: Error | null; refetch: () => Promise<void> } {
   const [tattoo, setTattoo] = useState<Tattoo | null>(null);
   const [loading, setLoading] = useState(!!id);
   const [error, setError] = useState<Error | null>(null);
   const mountedRef = useRef(true);
 
-  useEffect(() => {
+  const fetchTattoo = useCallback(async () => {
     if (!id) {
       setLoading(false);
       return;
     }
 
-    mountedRef.current = true;
+    setLoading(true);
+    setError(null);
 
-    const fetchTattoo = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await api.get<{ tattoo: Tattoo }>(`/tattoos/${id}`);
-        if (mountedRef.current) {
-          setTattoo(response.tattoo || response as any);
-        }
-      } catch (err) {
-        if (mountedRef.current) {
-          setError(err instanceof Error ? err : new Error(`Failed to fetch tattoo ${id}`));
-        }
-      } finally {
-        if (mountedRef.current) {
-          setLoading(false);
-        }
+    try {
+      const response = await api.get<{ tattoo: Tattoo }>(`/tattoos/${id}`);
+      if (mountedRef.current) {
+        setTattoo(response.tattoo || response as any);
       }
-    };
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err : new Error(`Failed to fetch tattoo ${id}`));
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [api, id]);
 
+  useEffect(() => {
+    mountedRef.current = true;
     fetchTattoo();
 
     return () => {
       mountedRef.current = false;
     };
-  }, [api, id]);
+  }, [fetchTattoo]);
 
-  return { tattoo, loading, error };
+  return { tattoo, loading, error, refetch: fetchTattoo };
 }

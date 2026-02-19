@@ -37,6 +37,7 @@ interface CalendarDayModalProps {
   onRequestBooking?: () => void;
   onCancelAppointment?: (apt: UpcomingAppointment) => void;
   onRescheduleAppointment?: (apt: UpcomingAppointment) => void;
+  onDeleteAppointment?: (apt: UpcomingAppointment) => void;
   onContactClient?: (apt: UpcomingAppointment) => void;
 }
 
@@ -53,6 +54,7 @@ export function CalendarDayModal({
   onRequestBooking,
   onCancelAppointment,
   onRescheduleAppointment,
+  onDeleteAppointment,
   onContactClient,
 }: CalendarDayModalProps) {
   if (!selectedDate) return null;
@@ -115,27 +117,40 @@ export function CalendarDayModal({
                           <Text style={styles.eventClient}>{apt.clientName}</Text>
                         </View>
                         <View style={styles.eventActions}>
-                          <TouchableOpacity
-                            style={styles.eventActionButton}
-                            onPress={() => onContactClient?.(apt)}
-                          >
-                            <MaterialIcons name="chat-bubble-outline" size={14} color={colors.accent} />
-                            <Text style={styles.eventActionText}>Contact</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.eventActionButton}
-                            onPress={() => onRescheduleAppointment?.(apt)}
-                          >
-                            <MaterialIcons name="update" size={14} color={colors.accent} />
-                            <Text style={styles.eventActionText}>Reschedule</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.eventActionButton}
-                            onPress={() => onCancelAppointment?.(apt)}
-                          >
-                            <MaterialIcons name="event-busy" size={14} color={colors.error} />
-                            <Text style={[styles.eventActionText, { color: colors.error }]}>Cancel</Text>
-                          </TouchableOpacity>
+                          {apt.client_id && (
+                            <>
+                              <TouchableOpacity
+                                style={styles.eventActionButton}
+                                onPress={() => onContactClient?.(apt)}
+                              >
+                                <MaterialIcons name="chat-bubble-outline" size={14} color={colors.accent} />
+                                <Text style={styles.eventActionText}>Contact</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.eventActionButton}
+                                onPress={() => onRescheduleAppointment?.(apt)}
+                              >
+                                <MaterialIcons name="update" size={14} color={colors.accent} />
+                                <Text style={styles.eventActionText}>Reschedule</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.eventActionButton}
+                                onPress={() => onCancelAppointment?.(apt)}
+                              >
+                                <MaterialIcons name="event-busy" size={14} color={colors.error} />
+                                <Text style={[styles.eventActionText, { color: colors.error }]}>Cancel</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                          {!apt.client_id && (
+                            <TouchableOpacity
+                              style={styles.eventActionButton}
+                              onPress={() => onDeleteAppointment?.(apt)}
+                            >
+                              <MaterialIcons name="delete-outline" size={14} color={colors.error} />
+                              <Text style={[styles.eventActionText, { color: colors.error }]}>Delete</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
                     ))}
