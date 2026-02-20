@@ -158,6 +158,9 @@ export function createUserService(api: ApiClient) {
 
     deleteProfilePhoto: () =>
       api.delete('/users/profile-photo', { requiresAuth: true }),
+
+    deleteAccount: () =>
+      api.post('/users/me/delete', {}, { requiresAuth: true }),
   };
 }
 

@@ -13,6 +13,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DeviceInfo from 'react-native-device-info';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
+import { userService } from '../../lib/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useStyles } from '@inkedin/shared/hooks';
 import Avatar from '../components/common/Avatar';
@@ -50,6 +51,41 @@ export default function ProfileScreen({ navigation }: any) {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: logout },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This will remove all your data including your profile, tattoos, conversations, and appointments. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Final Confirmation',
+              'This is permanent. Your account and all associated data will be deleted immediately.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Delete My Account',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await userService.deleteAccount();
+                      logout();
+                    } catch (err) {
+                      Alert.alert('Error', 'Failed to delete account. Please try again.');
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
   };
 
   if (!user) return null;
@@ -281,6 +317,11 @@ export default function ProfileScreen({ navigation }: any) {
       <View style={styles.actions}>
         <Button title="Sign Out" onPress={handleLogout} variant="destructive" />
       </View>
+
+      {/* Delete Account */}
+      <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
+        <Text style={styles.deleteAccountText}>Delete Account</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -461,6 +502,20 @@ const styles = StyleSheet.create({
   // Actions
   actions: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 8,
+  },
+  deleteAccountButton: {
+    marginHorizontal: 16,
+    marginBottom: 40,
+    paddingVertical: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.error,
+    alignItems: 'center',
+  },
+  deleteAccountText: {
+    color: colors.error,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

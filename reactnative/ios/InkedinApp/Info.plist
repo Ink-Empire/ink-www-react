@@ -32,13 +32,13 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Take photos of your tattoos</string>
+	<string>InkedIn uses your camera to take photos of your tattoos for uploading to your artist portfolio, sharing tattoo designs in conversations with clients, and updating your profile picture.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Get Inkedin uses your location to find tattoo artists and studios near you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Get Inkedin uses your location to find tattoo artists and studios near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Select photos of your tattoos</string>
+	<string>InkedIn accesses your photo library to select tattoo images for uploading to your artist portfolio, sharing reference photos and designs in conversations, and setting your profile picture.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>MaterialIcons.ttf</string>
@@ -60,6 +60,8 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSUserActivityTypes</key>
 	<array>
