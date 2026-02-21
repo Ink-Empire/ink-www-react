@@ -159,7 +159,7 @@ export default function BookingModal({
 
       const appointmentData: any = {
         artist_id: artistId,
-        title: `${finalBookingType} request from ${user?.username}`,
+        title: `Tattoo ${finalBookingType === 'consultation' ? 'Consultation' : 'Appointment'}`,
         start_time: startTime,
         end_time: endTime,
         date: dateStr,
@@ -169,14 +169,20 @@ export default function BookingModal({
         client_id: user?.id,
       };
 
-      await appointmentService.create(appointmentData);
+      const rawResponse = await appointmentService.create(appointmentData) as any;
+      const response = rawResponse?.data ?? rawResponse;
+      const conversationId = response?.conversation_id;
 
       handleClose();
 
-      showSuccess(
-        `Your ${effectiveBookingType} request has been sent successfully! The artist will contact you soon.`,
-        'Request Sent'
-      );
+      if (conversationId) {
+        router.push(`/inbox?conversation=${conversationId}`);
+      } else {
+        showSuccess(
+          `Your ${effectiveBookingType} request has been sent successfully! The artist will contact you soon.`,
+          'Request Sent'
+        );
+      }
 
     } catch (error) {
       console.error('Error creating appointment:', error);

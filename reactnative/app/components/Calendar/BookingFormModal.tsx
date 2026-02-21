@@ -23,6 +23,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 interface BookingFormModalProps {
   visible: boolean;
   onClose: () => void;
+  onSuccess?: (conversationId: number) => void;
   artistId: number;
   artistName: string;
   selectedDate: string | null;
@@ -32,6 +33,7 @@ interface BookingFormModalProps {
 export function BookingFormModal({
   visible,
   onClose,
+  onSuccess,
   artistId,
   artistName,
   selectedDate,
@@ -93,7 +95,7 @@ export function BookingFormModal({
 
       const data: any = {
         artist_id: artistId,
-        title: `${finalType} request from ${user.username || user.name}`,
+        title: `Tattoo ${finalType === 'consultation' ? 'Consultation' : 'Appointment'}`,
         start_time: selectedSlot,
         end_time: endTime,
         date: selectedDate,
@@ -103,10 +105,16 @@ export function BookingFormModal({
         client_id: user.id,
       };
 
-      await appointmentService.create(data);
-
-      onClose();
-      showSnackbar(`Your ${bookingType} request has been sent!`, 'success');
+      const rawResponse = await appointmentService.create(data) as any;
+      const response = rawResponse?.data ?? rawResponse;
+      const conversationId = response?.conversation_id;
+      if (conversationId && onSuccess) {
+        onClose();
+        setTimeout(() => onSuccess(conversationId), 100);
+      } else {
+        onClose();
+        showSnackbar(`Your ${bookingType} request has been sent!`, 'success');
+      }
     } catch (error) {
       console.error('Failed to create appointment:', error);
       showSnackbar('Failed to send booking request. Please try again.', 'error');

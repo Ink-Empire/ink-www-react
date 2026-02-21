@@ -140,6 +140,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   };
 
   const handleRequestBooking = () => {
+    setModalVisible(false);
     setBookingFormVisible(true);
   };
 
@@ -407,7 +408,23 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
       {!isOwnProfile && (
         <BookingFormModal
           visible={bookingFormVisible}
-          onClose={() => setBookingFormVisible(false)}
+          onClose={() => {
+            setBookingFormVisible(false);
+            calendar.setSelectedDate(null);
+          }}
+          onSuccess={(conversationId) => {
+            try {
+              navigation.navigate('InboxStack', {
+                screen: 'Conversation',
+                params: {
+                  conversationId,
+                  participantName: artistName,
+                },
+              });
+            } catch (e) {
+              console.error('Navigation to inbox failed:', e);
+            }
+          }}
           artistId={artistId}
           artistName={artistName}
           selectedDate={calendar.selectedDate}

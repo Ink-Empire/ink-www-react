@@ -892,7 +892,11 @@ function AppointmentCard({ appointment }: { appointment: DashboardAppointment })
   const day = date.getDate();
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const time = formatTime(appointment.start_time);
-  const appointmentTitle = appointment.title || (appointment.type === 'consultation' ? 'Consultation' : 'Tattoo Session');
+  const typeLabel = appointment.type === 'consultation' ? 'Consultation' : 'Appointment';
+  const artistName = appointment.artist?.name || appointment.artist?.username;
+  const appointmentTitle = artistName
+    ? `Tattoo ${typeLabel} with ${artistName}`
+    : appointment.title || `Tattoo ${typeLabel}`;
 
   const artistInitials = appointment.artist.name
     ? appointment.artist.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)

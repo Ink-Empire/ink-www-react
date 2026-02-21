@@ -60,7 +60,6 @@ export function CalendarDayModal({
   if (!selectedDate) return null;
 
   const handleBooking = () => {
-    onClose();
     onRequestBooking?.();
   };
 

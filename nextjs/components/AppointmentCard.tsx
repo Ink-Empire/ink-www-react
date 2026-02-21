@@ -302,7 +302,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
         {/* Appointment title */}
         <Typography variant="h6" sx={{ color: colors.accent, mb: 1, fontWeight: 'bold' }}>
-          {appointment.title}
+          {`Tattoo ${appointment.type === 'consultation' ? 'Consultation' : 'Appointment'} with ${displayUser?.name || displayUsername}`}
         </Typography>
 
         {/* Date and time */}
