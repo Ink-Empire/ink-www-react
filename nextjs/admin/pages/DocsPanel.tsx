@@ -326,7 +326,7 @@ const DocsPanel: React.FC = () => {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h4" gutterBottom sx={{ color: '#000' }}>
         Documentation
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>

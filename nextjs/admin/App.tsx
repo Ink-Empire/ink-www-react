@@ -9,6 +9,7 @@ import BlockIcon from '@mui/icons-material/Block';
 import BrushIcon from '@mui/icons-material/Brush';
 import EmailIcon from '@mui/icons-material/Email';
 import DescriptionIcon from '@mui/icons-material/Description';
+import TerminalIcon from '@mui/icons-material/Terminal';
 
 import authProvider from './authProvider';
 import dataProvider from './dataProvider';
@@ -22,6 +23,7 @@ import { TattooList, TattooEdit } from './resources/tattoos';
 import ElasticPanel from './pages/ElasticPanel';
 import EmailTestPanel from './pages/EmailTestPanel';
 import DocsPanel from './pages/DocsPanel';
+import CommandRunnerPanel from './pages/CommandRunnerPanel';
 
 const CustomMenu = () => (
     <Menu>
@@ -35,6 +37,7 @@ const CustomMenu = () => (
         <Menu.Item to="/elastic" primaryText="Elasticsearch" leftIcon={<StorageIcon />} />
         <Menu.Item to="/email-test" primaryText="Email Testing" leftIcon={<EmailIcon />} />
         <Menu.Item to="/docs" primaryText="Documentation" leftIcon={<DescriptionIcon />} />
+        <Menu.Item to="/commands" primaryText="Commands" leftIcon={<TerminalIcon />} />
     </Menu>
 );
 
@@ -62,6 +65,7 @@ const Dashboard = () => (
                     <li><a href="#/tags?filter=%7B%22is_pending%22%3Atrue%7D">Review Pending Tags</a></li>
                     <li><a href="#/elastic">Elasticsearch Management</a></li>
                     <li><a href="#/email-test">Email Testing</a></li>
+                    <li><a href="#/commands">Commands</a></li>
                 </ul>
             </div>
         </div>
@@ -80,6 +84,7 @@ const AdminApp = () => (
             <Route path="/elastic" element={<ElasticPanel />} />
             <Route path="/email-test" element={<EmailTestPanel />} />
             <Route path="/docs" element={<DocsPanel />} />
+            <Route path="/commands" element={<CommandRunnerPanel />} />
         </CustomRoutes>
         <Resource
             name="users"

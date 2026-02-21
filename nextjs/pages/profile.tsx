@@ -315,12 +315,19 @@ const ProfilePage: React.FC = () => {
     const newValue = !artistSettings[key];
     const previousSettings = { ...artistSettings };
 
+    // When disabling books, also turn off appointments and consultations
+    const payload: Record<string, any> = { [key]: newValue };
+    if (key === 'books_open' && !newValue) {
+      payload.accepts_appointments = false;
+      payload.accepts_consultations = false;
+    }
+
     // Optimistic update
-    setArtistSettings(prev => ({ ...prev, [key]: newValue }));
+    setArtistSettings(prev => ({ ...prev, ...payload }));
 
     try {
       setSavingSettings(true);
-      await artistService.updateSettings(artistId, { [key]: newValue });
+      await artistService.updateSettings(artistId, payload);
 
       setToastMessage('Settings updated successfully');
       setShowToast(true);

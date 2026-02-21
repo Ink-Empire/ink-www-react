@@ -4,7 +4,7 @@
  * Uses shared types and hooks from @inkedin/shared
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCalendar } from '@inkedin/shared/hooks';
 import { WorkingHour, Appointment, ExternalCalendarEvent } from '@inkedin/shared/types';
 import type { UpcomingAppointment } from '@inkedin/shared/services';
@@ -60,6 +61,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<UpcomingAppointment | null>(null);
+  const lastFetchTime = useRef<number>(0);
   // Use the shared calendar hook
   const calendar = useCalendar({
     workingHours,
@@ -106,6 +108,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           if (mounted) {
             setWorkingHours(fresh.workingHours);
             applyUpcoming(fresh.upcomingAppointments);
+            lastFetchTime.current = Date.now();
           }
         } else {
           const idOrSlug = artistSlug || artistId;
@@ -137,10 +140,21 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     try {
       const fresh = await fetchAndCacheCalendarData(artistId, artistSlug);
       applyUpcoming(fresh.upcomingAppointments);
+      lastFetchTime.current = Date.now();
     } catch (err) {
       console.error('Failed to refresh appointments:', err);
     }
   };
+
+  // Silently refresh when screen regains focus (skip if fetched < 30s ago)
+  useFocusEffect(
+    useCallback(() => {
+      if (!isOwnProfile) return;
+      const elapsed = Date.now() - lastFetchTime.current;
+      if (elapsed < 30000) return;
+      refreshUpcomingAppointments();
+    }, [artistId, isOwnProfile]),
+  );
 
   const handleDayPress = (date: string) => {
     calendar.setSelectedDate(date);

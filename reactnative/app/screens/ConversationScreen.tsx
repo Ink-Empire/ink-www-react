@@ -24,6 +24,7 @@ import { useConversation, type RealtimeConfig } from '@inkedin/shared/hooks';
 import { getEcho } from '../utils/echo';
 import MessageBubble from '../components/inbox/MessageBubble';
 import { uploadImagesToS3, type ImageFile } from '../../lib/s3Upload';
+import { clearCalendarCache } from '../../lib/calendarCache';
 import type { Message } from '@inkedin/shared/types';
 
 const MAX_ATTACHMENTS = 5;
@@ -96,6 +97,7 @@ export default function ConversationScreen({ route, navigation }: any) {
     try {
       await appointmentService.respond(appointmentId, { action });
       setRespondedBookings(prev => ({ ...prev, [appointmentId]: action === 'accept' ? 'accepted' : 'declined' }));
+      clearCalendarCache();
       // Refetch messages so the system message appears immediately
       await fetchMoreMessages();
       showSnackbar(

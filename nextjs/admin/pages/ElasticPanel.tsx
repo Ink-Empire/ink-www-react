@@ -141,7 +141,7 @@ export const ElasticPanel = () => {
 
   return (
     <Box sx={{ padding: 2, maxWidth: 800 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h4" gutterBottom sx={{ color: '#000' }}>
         Elasticsearch Management
       </Typography>
 

@@ -61,7 +61,7 @@ export async function prefetchCalendarData(artistId: number, artistSlug?: string
 
     saveToCache({
       workingHours: Array.isArray(whData) ? whData : [],
-      upcomingAppointments: scheduleData.slice(0, 5),
+      upcomingAppointments: scheduleData,
       artistId,
       timestamp: Date.now(),
     });
@@ -85,7 +85,7 @@ export async function fetchAndCacheCalendarData(
 
   const data: CalendarCacheData = {
     workingHours: Array.isArray(whData) ? whData : [],
-    upcomingAppointments: scheduleData.slice(0, 5),
+    upcomingAppointments: scheduleData,
     artistId,
     timestamp: Date.now(),
   };

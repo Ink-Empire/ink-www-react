@@ -40,11 +40,17 @@ export function createArtistService(api: ApiClient) {
     getWorkingHours: (idOrSlug: string | number) =>
       api.get(`/artists/${idOrSlug}/working-hours`),
 
+    getSettings: (artistId: number | string) =>
+      api.get(`/artists/${artistId}/settings`, { useCache: false }),
+
     update: (id: number, data: Partial<Artist>) =>
       api.put<{ artist: Artist }>(`/artists/${id}`, data, { requiresAuth: true }),
 
-    updateSettings: (artistId: number, settings: Partial<Artist['settings']>) =>
+    updateSettings: (artistId: number | string, settings: Record<string, any>) =>
       api.put(`/artists/${artistId}/settings`, settings, { requiresAuth: true }),
+
+    setWorkingHours: (artistId: number | string, workingHours: any[]) =>
+      api.post(`/artists/${artistId}/working-hours`, { availability: workingHours }, { requiresAuth: true }),
 
     lookupByIdentifier: (identifier: string) =>
       api.post<{ artist: { id: number; name: string; username: string; slug?: string; image?: any } }>(

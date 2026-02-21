@@ -150,6 +150,18 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       )}
 
+      {/* My Booking Settings (Artists) */}
+      {isArtist && (
+        <TouchableOpacity
+          style={styles.profileLink}
+          onPress={() => navigation.navigate('BookingSettings')}
+        >
+          <MaterialIcons name="settings" size={20} color={colors.accent} />
+          <Text style={styles.profileLinkText}>My Booking Settings</Text>
+          <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      )}
+
       {/* View Public Profile (Artists) */}
       {isArtist && u.slug && (
         <TouchableOpacity
