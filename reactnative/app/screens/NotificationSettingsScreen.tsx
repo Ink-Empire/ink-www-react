@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { colors } from '../../lib/colors';
 import { useNotificationPreferences } from '../hooks/useNotificationPreferences';
+import { useAuth } from '../contexts/AuthContext';
 import type { NotificationType } from '@inkedin/shared/services';
 
-const NOTIFICATION_LABELS: Record<NotificationType, { title: string; description: string }> = {
+const ARTIST_LABELS: Record<NotificationType, { title: string; description: string }> = {
   new_message: {
     title: 'New Messages',
     description: 'When someone sends you a message',
@@ -38,7 +39,33 @@ const NOTIFICATION_LABELS: Record<NotificationType, { title: string; description
   },
 };
 
+const CLIENT_LABELS: Record<string, { title: string; description: string }> = {
+  new_message: {
+    title: 'New Messages',
+    description: 'When someone sends you a message',
+  },
+  booking_accepted: {
+    title: 'Booking Accepted',
+    description: 'When your booking is confirmed',
+  },
+  booking_declined: {
+    title: 'Booking Declined',
+    description: 'When your booking request is declined',
+  },
+  books_open: {
+    title: 'Books Open',
+    description: 'When a wishlisted artist opens their books',
+  },
+  beacon_request: {
+    title: 'Tattoo Beacon',
+    description: 'When a tattoo artist accepts your beacon request',
+  },
+};
+
 export default function NotificationSettingsScreen() {
+  const { user } = useAuth();
+  const isArtist = user?.type === 'artist' || user?.type_id === 2;
+  const labels = isArtist ? ARTIST_LABELS : CLIENT_LABELS;
   const { preferences, loading, error, togglePreference } = useNotificationPreferences();
 
   if (loading) {
@@ -67,7 +94,7 @@ export default function NotificationSettingsScreen() {
       </View>
 
       {preferences.map(pref => {
-        const label = NOTIFICATION_LABELS[pref.type];
+        const label = labels[pref.type];
         if (!label) return null;
 
         return (

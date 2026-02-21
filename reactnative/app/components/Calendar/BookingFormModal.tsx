@@ -43,7 +43,6 @@ export function BookingFormModal({
 }: BookingFormModalProps) {
   const { user, isAuthenticated } = useAuth();
   const { showSnackbar } = useSnackbar();
-
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsResponse, setSlotsResponse] = useState<AvailableSlotsResponse | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -182,6 +181,19 @@ export function BookingFormModal({
                       <View style={styles.windowInfo}>
                         <Text style={styles.windowInfoText}>
                           Consultation window: {slotsResponse.consultation_window.start} - {slotsResponse.consultation_window.end}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Deposit info */}
+                    {bookingType === 'appointment' && slotsResponse?.deposit_amount && (
+                      <View style={styles.depositInfo}>
+                        <Text style={styles.depositInfoLabel}>Deposit Required</Text>
+                        <Text style={styles.depositInfoAmount}>
+                          ${slotsResponse.deposit_amount}
+                        </Text>
+                        <Text style={styles.depositInfoNote}>
+                          Applied toward your final total
                         </Text>
                       </View>
                     )}
@@ -372,6 +384,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  depositInfo: {
+    backgroundColor: colors.accentDim,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  depositInfoLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  depositInfoAmount: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  depositInfoNote: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   windowInfo: {
     backgroundColor: colors.accentDim,

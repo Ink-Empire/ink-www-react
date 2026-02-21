@@ -45,7 +45,7 @@ export default function ProfileStack() {
       <Stack.Screen
         name="Calendar"
         component={CalendarScreen}
-        options={({ route }) => ({ title: `${route.params.artistName || 'Artist'}'s Calendar` })}
+        options={{ title: '', headerBackTitle: 'Back' }}
       />
     </Stack.Navigator>
   );

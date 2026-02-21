@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { colors } from '../../../lib/colors';
 import type { Message } from '@inkedin/shared/types';
 
@@ -8,6 +8,8 @@ interface MessageBubbleProps {
   isSent: boolean;
   status?: 'sending' | 'failed';
   onViewCalendar?: () => void;
+  onRespondToBooking?: (appointmentId: number, action: 'accept' | 'decline') => void;
+  respondingToBooking?: number | null;
 }
 
 function formatTime(dateString: string): string {
@@ -15,7 +17,7 @@ function formatTime(dateString: string): string {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function MessageBubble({ message, isSent, status, onViewCalendar }: MessageBubbleProps) {
+export default function MessageBubble({ message, isSent, status, onViewCalendar, onRespondToBooking, respondingToBooking }: MessageBubbleProps) {
   if (message.type === 'system') {
     const calendarLink = message.metadata?.calendar_link;
     const isArtist = isSent;
@@ -24,17 +26,12 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar 
       : message.content;
     return (
       <View style={styles.systemContainer}>
-        <Text style={styles.systemText}>
-          {displayContent}
-          {isArtist && calendarLink && onViewCalendar && (
-            <>
-              {'  '}
-              <Text style={styles.calendarLink} onPress={onViewCalendar}>
-                View calendar
-              </Text>
-            </>
-          )}
-        </Text>
+        <Text style={styles.systemText}>{displayContent}</Text>
+        {isArtist && calendarLink && onViewCalendar && (
+          <Text style={styles.calendarLink} onPress={onViewCalendar}>
+            View calendar
+          </Text>
+        )}
       </View>
     );
   }
@@ -86,7 +83,22 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar 
       {hasBookingCard && message.metadata && (
         <View style={styles.bookingCard}>
           <View style={styles.bookingCardHeader}>
-            <Text style={styles.bookingCardTitle}>Booking Details</Text>
+            <Text style={styles.bookingCardTitle}>Booking Request</Text>
+            {message.metadata.status === 'pending' && (
+              <View style={[styles.statusBadge, styles.pendingBadge]}>
+                <Text style={[styles.statusBadgeText, styles.pendingBadgeText]}>PENDING</Text>
+              </View>
+            )}
+            {message.metadata.status === 'accepted' && (
+              <View style={[styles.statusBadge, styles.acceptedBadge]}>
+                <Text style={[styles.statusBadgeText, styles.acceptedBadgeText]}>CONFIRMED</Text>
+              </View>
+            )}
+            {message.metadata.status === 'declined' && (
+              <View style={[styles.statusBadge, styles.declinedBadge]}>
+                <Text style={[styles.statusBadgeText, styles.declinedBadgeText]}>DECLINED</Text>
+              </View>
+            )}
           </View>
           {[
             { label: 'Date', value: message.metadata.date },
@@ -106,6 +118,33 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar 
               <Text style={styles.bookingCardMessage}>{message.content}</Text>
             </View>
           ) : null}
+          {/* Accept/Decline for artist on pending booking */}
+          {message.metadata.status === 'pending' && !isSent && onRespondToBooking && message.metadata.appointment_id && (
+            <View style={styles.bookingCardActions}>
+              <TouchableOpacity
+                style={styles.bookingDeclineButton}
+                onPress={() => onRespondToBooking(message.metadata!.appointment_id, 'decline')}
+                disabled={respondingToBooking === message.metadata.appointment_id}
+              >
+                {respondingToBooking === message.metadata.appointment_id ? (
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                ) : (
+                  <Text style={styles.bookingDeclineText}>Decline</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bookingAcceptButton, respondingToBooking === message.metadata.appointment_id && styles.buttonDisabled]}
+                onPress={() => onRespondToBooking(message.metadata!.appointment_id, 'accept')}
+                disabled={respondingToBooking === message.metadata.appointment_id}
+              >
+                {respondingToBooking === message.metadata.appointment_id ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.bookingAcceptText}>Accept</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -286,8 +325,10 @@ const styles = StyleSheet.create({
   },
   calendarLink: {
     color: colors.accent,
-    fontStyle: 'normal',
+    fontSize: 12,
     fontWeight: '500',
+    marginTop: 4,
+    textAlign: 'center',
   },
   // Booking card
   bookingCard: {
@@ -300,6 +341,9 @@ const styles = StyleSheet.create({
     minWidth: 260,
   },
   bookingCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
   },
   bookingCardTitle: {
@@ -335,6 +379,42 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     lineHeight: 18,
+  },
+  bookingCardActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  bookingDeclineButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  bookingDeclineText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  bookingAcceptButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+  },
+  bookingAcceptText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   // Cancellation card
   cancellationCard: {

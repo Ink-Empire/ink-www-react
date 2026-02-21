@@ -8,6 +8,9 @@ import {
   TouchableWithoutFeedback,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { colors } from '../../../lib/colors';
 
@@ -47,97 +50,95 @@ export function CancelAppointmentModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent
       onRequestClose={handleClose}
     >
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-              <View style={styles.dragHandleContainer}>
-                <View style={styles.dragHandle} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <View style={styles.overlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Cancel Appointment</Text>
+                  <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+                    <Text style={styles.closeButtonText}>x</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView contentContainerStyle={styles.scrollContentInner} keyboardShouldPersistTaps="handled">
+                  <Text style={styles.description}>
+                    This will cancel the appointment{clientName ? ` with ${clientName}` : ''} and notify them.
+                  </Text>
+
+                  <TextInput
+                    style={styles.input}
+                    value={reason}
+                    onChangeText={setReason}
+                    placeholder="Reason (optional)"
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={styles.keepButton}
+                      onPress={handleClose}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.keepButtonText}>Keep Appointment</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.cancelButton, submitting && styles.buttonDisabled]}
+                      onPress={handleSubmit}
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.cancelButtonText}>Cancel Appointment</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
               </View>
-
-              <View style={styles.header}>
-                <Text style={styles.title}>Cancel Appointment</Text>
-                <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-                  <Text style={styles.closeButtonText}>x</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.description}>
-                This will cancel the appointment{clientName ? ` with ${clientName}` : ''} and notify them.
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                value={reason}
-                onChangeText={setReason}
-                placeholder="Reason (optional)"
-                placeholderTextColor={colors.textMuted}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.keepButton}
-                  onPress={handleClose}
-                  disabled={submitting}
-                >
-                  <Text style={styles.keepButtonText}>Keep Appointment</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.cancelButton, submitting && styles.buttonDisabled]}
-                  onPress={handleSubmit}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.cancelButtonText}>Cancel Appointment</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-  },
-  dragHandleContainer: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  dragHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
+    borderRadius: 20,
+    maxHeight: '80%',
+    width: '90%',
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   title: {
     fontSize: 20,
@@ -158,6 +159,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.textSecondary,
     lineHeight: 22,
+  },
+  scrollContentInner: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   description: {
     fontSize: 14,

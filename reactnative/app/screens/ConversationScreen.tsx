@@ -88,24 +88,16 @@ export default function ConversationScreen({ route, navigation }: any) {
     fetchMoreMessages,
   } = useConversation(api, resolvedId, realtime);
 
-  const [acceptingBooking, setAcceptingBooking] = useState(false);
-  const [decliningBooking, setDecliningBooking] = useState(false);
-  const [localAppointmentStatus, setLocalAppointmentStatus] = useState<string | null>(null);
+  const [respondingToBooking, setRespondingToBooking] = useState<number | null>(null);
+  const [respondedBookings, setRespondedBookings] = useState<Record<number, 'accepted' | 'declined'>>({});
 
-  const appointmentStatus = localAppointmentStatus || conversation?.appointment?.status;
-
-  const handleRespondToBooking = useCallback(async (action: 'accept' | 'decline') => {
-    if (!conversation?.appointment?.id) return;
-
-    if (action === 'accept') {
-      setAcceptingBooking(true);
-    } else {
-      setDecliningBooking(true);
-    }
-
+  const handleRespondToBooking = useCallback(async (appointmentId: number, action: 'accept' | 'decline') => {
+    setRespondingToBooking(appointmentId);
     try {
-      await appointmentService.respond(conversation.appointment.id, { action });
-      setLocalAppointmentStatus(action === 'accept' ? 'booked' : 'cancelled');
+      await appointmentService.respond(appointmentId, { action });
+      setRespondedBookings(prev => ({ ...prev, [appointmentId]: action === 'accept' ? 'accepted' : 'declined' }));
+      // Refetch messages so the system message appears immediately
+      await fetchMoreMessages();
       showSnackbar(
         action === 'accept'
           ? 'Booking accepted! The client has been notified.'
@@ -116,10 +108,9 @@ export default function ConversationScreen({ route, navigation }: any) {
       console.error(`Failed to ${action} booking:`, err);
       showSnackbar(`Failed to ${action} booking. Please try again.`, 'error');
     } finally {
-      setAcceptingBooking(false);
-      setDecliningBooking(false);
+      setRespondingToBooking(null);
     }
-  }, [conversation?.appointment?.id, showSnackbar]);
+  }, [showSnackbar, fetchMoreMessages]);
 
   // Keep a ref so handleSend always uses the latest hookSendMessage
   const sendMessageRef = useRef(hookSendMessage);
@@ -135,7 +126,12 @@ export default function ConversationScreen({ route, navigation }: any) {
 
   // Combine real messages with optimistic ones for display
   const invertedMessages = useMemo(() => {
-    const real = [...messages].reverse();
+    const real = [...messages].map(msg => {
+      if (msg.type === 'booking_card' && msg.metadata?.appointment_id && respondedBookings[msg.metadata.appointment_id]) {
+        return { ...msg, metadata: { ...msg.metadata, status: respondedBookings[msg.metadata.appointment_id] } };
+      }
+      return msg;
+    }).reverse();
     // Optimistic messages show at the top (newest) of the inverted list
     const optimistic = optimisticMessages.map((om) => ({
       id: om.tempId as any,
@@ -155,7 +151,7 @@ export default function ConversationScreen({ route, navigation }: any) {
       _optimistic: om.status,
     }));
     return [...optimistic, ...real];
-  }, [messages, optimisticMessages, resolvedId, user]);
+  }, [messages, optimisticMessages, resolvedId, user, respondedBookings]);
 
   // Mark as read when conversation opens, then sync the badge
   useEffect(() => {
@@ -266,8 +262,10 @@ export default function ConversationScreen({ route, navigation }: any) {
       isSent={item.sender_id === user?.id}
       status={(item as any)._optimistic}
       onViewCalendar={handleViewCalendar}
+      onRespondToBooking={isArtist ? handleRespondToBooking : undefined}
+      respondingToBooking={respondingToBooking}
     />
-  ), [user?.id, handleViewCalendar]);
+  ), [user?.id, handleViewCalendar, isArtist, handleRespondToBooking, respondingToBooking]);
 
   if (loading && messages.length === 0) {
     return (
@@ -283,65 +281,6 @@ export default function ConversationScreen({ route, navigation }: any) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      {/* Booking request banner - only for artists with pending appointments */}
-      {appointmentStatus === 'pending' && isArtist && conversation?.appointment && (
-        <View style={styles.bookingBanner}>
-          <View style={styles.bookingBannerLeft}>
-            <View style={styles.bookingBannerIcon}>
-              <MaterialIcons name="event" size={18} color="#fff" />
-            </View>
-            <View>
-              <Text style={styles.bookingBannerTitle}>Booking Request</Text>
-              <Text style={styles.bookingBannerDate}>
-                {(() => {
-                  const dateStr = conversation.appointment.date?.split('T')[0] || '';
-                  const timeStr = conversation.appointment.start_time || '00:00:00';
-                  const datetime = new Date(`${dateStr}T${timeStr}`);
-                  const formatted = datetime.toLocaleDateString('en-US', {
-                    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-                  });
-                  const time = datetime.toLocaleTimeString('en-US', {
-                    hour: 'numeric', minute: '2-digit', hour12: true,
-                  });
-                  return `${formatted} at ${time}`;
-                })()}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.bookingBannerActions}>
-            <TouchableOpacity
-              style={styles.declineButton}
-              onPress={() => handleRespondToBooking('decline')}
-              disabled={decliningBooking || acceptingBooking}
-            >
-              {decliningBooking ? (
-                <ActivityIndicator size="small" color={colors.textPrimary} />
-              ) : (
-                <Text style={styles.declineButtonText}>Decline</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.acceptButton, (acceptingBooking || decliningBooking) && styles.buttonDisabled]}
-              onPress={() => handleRespondToBooking('accept')}
-              disabled={acceptingBooking || decliningBooking}
-            >
-              {acceptingBooking ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.acceptButtonText}>Accept</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Accepted banner */}
-      {appointmentStatus === 'booked' && conversation?.appointment && (
-        <View style={styles.bookedBanner}>
-          <MaterialIcons name="check-circle" size={18} color={colors.success} />
-          <Text style={styles.bookedBannerText}>Booking confirmed</Text>
-        </View>
-      )}
 
       <FlatList
         ref={flatListRef}
@@ -489,86 +428,5 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: colors.surfaceElevated,
-  },
-  bookingBanner: {
-    flexDirection: 'column',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(74, 155, 127, 0.1)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74, 155, 127, 0.2)',
-    gap: 10,
-  },
-  bookingBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  bookingBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.success,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bookingBannerTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  bookingBannerDate: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  bookingBannerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  declineButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  declineButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  acceptButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 6,
-    backgroundColor: colors.success,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acceptButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#fff',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  bookedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(74, 155, 127, 0.08)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74, 155, 127, 0.15)',
-  },
-  bookedBannerText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.success,
   },
 });

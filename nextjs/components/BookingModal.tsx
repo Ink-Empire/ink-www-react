@@ -328,6 +328,29 @@ export default function BookingModal({
               </Typography>
             )}
 
+            {/* Deposit info */}
+            {effectiveBookingType === 'appointment' && slotsResponse?.deposit_amount && !loadingSlots && availableTimeSlots.length > 0 && (
+              <Alert
+                icon={false}
+                sx={{
+                  mb: 2,
+                  bgcolor: colors.accentDim || 'rgba(51, 153, 137, 0.1)',
+                  border: `1px solid ${colors.accent}`,
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="body2" sx={{ color: colors.textSecondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Deposit Required
+                </Typography>
+                <Typography variant="h5" sx={{ color: colors.accent, fontWeight: 700 }}>
+                  ${slotsResponse.deposit_amount}
+                </Typography>
+                <Typography variant="caption" sx={{ color: colors.textSecondary }}>
+                  Applied toward your final total
+                </Typography>
+              </Alert>
+            )}
+
             {/* Booking type selection - only show if artist accepts both */}
             {acceptsBoth && booksOpen && (
               <FormControl fullWidth sx={{ mb: 3 }}>

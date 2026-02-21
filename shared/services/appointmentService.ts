@@ -17,6 +17,7 @@ export interface AvailableSlotsResponse {
   working_hours: { start: string; end: string } | null;
   consultation_window: { start: string; end: string } | null;
   consultation_duration: number;
+  deposit_amount: number | null;
   slots: string[];
 }
 

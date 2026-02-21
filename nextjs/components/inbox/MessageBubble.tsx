@@ -196,9 +196,26 @@ export function MessageBubble({
               maxWidth: 320,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5, fontWeight: 600, fontSize: '0.95rem' }}>
-              <CalendarMonthIcon sx={{ fontSize: 20, color: isSent ? colors.textSecondary : colors.success }} />
-              Booking Details
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, fontWeight: 600, fontSize: '0.95rem' }}>
+                <CalendarMonthIcon sx={{ fontSize: 20, color: isSent ? colors.textSecondary : colors.success }} />
+                Booking Request
+              </Box>
+              {message.metadata.status === 'pending' && (
+                <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, bgcolor: `${colors.accent}18`, color: colors.accent, borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Pending
+                </Box>
+              )}
+              {message.metadata.status === 'accepted' && (
+                <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, bgcolor: `${colors.success}18`, color: colors.success, borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Confirmed
+                </Box>
+              )}
+              {message.metadata.status === 'declined' && (
+                <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, bgcolor: 'rgba(239, 68, 68, 0.12)', color: colors.error, borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Declined
+                </Box>
+              )}
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.9rem' }}>
               {[

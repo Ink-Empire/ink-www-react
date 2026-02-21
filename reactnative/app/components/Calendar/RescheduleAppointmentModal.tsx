@@ -8,6 +8,9 @@ import {
   TouchableWithoutFeedback,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { colors } from '../../../lib/colors';
 
@@ -62,133 +65,131 @@ export function RescheduleAppointmentModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent
       onRequestClose={handleClose}
     >
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-              <View style={styles.dragHandleContainer}>
-                <View style={styles.dragHandle} />
-              </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <View style={styles.overlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Reschedule Appointment</Text>
+                  <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+                    <Text style={styles.closeButtonText}>x</Text>
+                  </TouchableOpacity>
+                </View>
 
-              <View style={styles.header}>
-                <Text style={styles.title}>Reschedule Appointment</Text>
-                <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-                  <Text style={styles.closeButtonText}>x</Text>
-                </TouchableOpacity>
-              </View>
+                <ScrollView contentContainerStyle={styles.scrollContentInner} keyboardShouldPersistTaps="handled">
+                  <Text style={styles.description}>
+                    Propose a new date and time{clientName ? ` for ${clientName}` : ''}. They can accept or decline.
+                  </Text>
 
-              <Text style={styles.description}>
-                Propose a new date and time{clientName ? ` for ${clientName}` : ''}. They can accept or decline.
-              </Text>
-
-              <Text style={styles.fieldLabel}>Date (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={proposedDate}
-                onChangeText={setProposedDate}
-                placeholder="2025-01-15"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numbers-and-punctuation"
-              />
-
-              <View style={styles.timeRow}>
-                <View style={styles.timeField}>
-                  <Text style={styles.fieldLabel}>Start Time</Text>
+                  <Text style={styles.fieldLabel}>Date (YYYY-MM-DD)</Text>
                   <TextInput
                     style={styles.fieldInput}
-                    value={proposedStartTime}
-                    onChangeText={setProposedStartTime}
-                    placeholder="14:00"
+                    value={proposedDate}
+                    onChangeText={setProposedDate}
+                    placeholder="2025-01-15"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="numbers-and-punctuation"
                   />
-                </View>
-                <View style={styles.timeField}>
-                  <Text style={styles.fieldLabel}>End Time</Text>
+
+                  <View style={styles.timeRow}>
+                    <View style={styles.timeField}>
+                      <Text style={styles.fieldLabel}>Start Time</Text>
+                      <TextInput
+                        style={styles.fieldInput}
+                        value={proposedStartTime}
+                        onChangeText={setProposedStartTime}
+                        placeholder="14:00"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numbers-and-punctuation"
+                      />
+                    </View>
+                    <View style={styles.timeField}>
+                      <Text style={styles.fieldLabel}>End Time</Text>
+                      <TextInput
+                        style={styles.fieldInput}
+                        value={proposedEndTime}
+                        onChangeText={setProposedEndTime}
+                        placeholder="16:00"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numbers-and-punctuation"
+                      />
+                    </View>
+                  </View>
+
+                  <Text style={styles.fieldLabel}>Reason (optional)</Text>
                   <TextInput
-                    style={styles.fieldInput}
-                    value={proposedEndTime}
-                    onChangeText={setProposedEndTime}
-                    placeholder="16:00"
+                    style={[styles.fieldInput, styles.reasonInput]}
+                    value={reason}
+                    onChangeText={setReason}
+                    placeholder="Let the client know why..."
                     placeholderTextColor={colors.textMuted}
-                    keyboardType="numbers-and-punctuation"
+                    multiline
+                    numberOfLines={2}
+                    textAlignVertical="top"
                   />
-                </View>
-              </View>
 
-              <Text style={styles.fieldLabel}>Reason (optional)</Text>
-              <TextInput
-                style={[styles.fieldInput, styles.reasonInput]}
-                value={reason}
-                onChangeText={setReason}
-                placeholder="Let the client know why..."
-                placeholderTextColor={colors.textMuted}
-                multiline
-                numberOfLines={2}
-                textAlignVertical="top"
-              />
-
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.dismissButton}
-                  onPress={handleClose}
-                  disabled={submitting}
-                >
-                  <Text style={styles.dismissButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.submitButton, (!canSubmit || submitting) && styles.buttonDisabled]}
-                  onPress={handleSubmit}
-                  disabled={!canSubmit || submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator size="small" color={colors.background} />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Send Reschedule</Text>
-                  )}
-                </TouchableOpacity>
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={styles.dismissButton}
+                      onPress={handleClose}
+                      disabled={submitting}
+                    >
+                      <Text style={styles.dismissButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.submitButton, (!canSubmit || submitting) && styles.buttonDisabled]}
+                      onPress={handleSubmit}
+                      disabled={!canSubmit || submitting}
+                    >
+                      {submitting ? (
+                        <ActivityIndicator size="small" color={colors.background} />
+                      ) : (
+                        <Text style={styles.submitButtonText}>Send Reschedule</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
               </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-  },
-  dragHandleContainer: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  dragHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
+    borderRadius: 20,
+    maxHeight: '80%',
+    width: '90%',
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   title: {
     fontSize: 20,
@@ -209,6 +210,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.textSecondary,
     lineHeight: 22,
+  },
+  scrollContentInner: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   description: {
     fontSize: 14,

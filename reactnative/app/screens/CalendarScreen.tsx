@@ -53,6 +53,10 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const [modalVisible, setModalVisible] = useState(false);
   const [bookingFormVisible, setBookingFormVisible] = useState(false);
   const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
+  const [depositAmount, setDepositAmount] = useState<number | null>(null);
+  const [acceptsConsultations, setAcceptsConsultations] = useState(true);
+  const [acceptsAppointments, setAcceptsAppointments] = useState(true);
+  const [selectedBookingType, setSelectedBookingType] = useState<'consultation' | 'appointment'>('consultation');
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<UpcomingAppointment | null>(null);
@@ -105,9 +109,18 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           }
         } else {
           const idOrSlug = artistSlug || artistId;
-          const response = await artistService.getWorkingHours(idOrSlug);
-          const data = (response as any)?.data ?? response ?? [];
-          if (mounted) setWorkingHours(Array.isArray(data) ? data : []);
+          const [hoursResponse, artistResponse] = await Promise.all([
+            artistService.getWorkingHours(idOrSlug),
+            artistService.getById(idOrSlug),
+          ]);
+          const data = (hoursResponse as any)?.data ?? hoursResponse ?? [];
+          if (mounted) {
+            setWorkingHours(Array.isArray(data) ? data : []);
+            const artist = (artistResponse as any)?.artist ?? artistResponse;
+            setDepositAmount(artist?.settings?.deposit_amount ?? null);
+            setAcceptsConsultations(Boolean(artist?.settings?.accepts_consultations));
+            setAcceptsAppointments(Boolean(artist?.settings?.accepts_appointments));
+          }
         }
       } catch (err) {
         console.error('Failed to fetch calendar data:', err);
@@ -139,7 +152,8 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     calendar.setSelectedDate(null);
   };
 
-  const handleRequestBooking = () => {
+  const handleRequestBooking = (bookingType: 'consultation' | 'appointment') => {
+    setSelectedBookingType(bookingType);
     setModalVisible(false);
     setBookingFormVisible(true);
   };
@@ -257,44 +271,6 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           </View>
         </View>
 
-        {/* Booking Type Toggle - hidden for own profile */}
-        {!isOwnProfile && (
-          <View style={styles.bookingTypeContainer}>
-            <TouchableOpacity
-              style={[
-                styles.bookingTypeButton,
-                calendar.bookingType === 'consultation' && styles.bookingTypeButtonActive,
-              ]}
-              onPress={() => calendar.setBookingType('consultation')}
-            >
-              <Text
-                style={[
-                  styles.bookingTypeText,
-                  calendar.bookingType === 'consultation' && styles.bookingTypeTextActive,
-                ]}
-              >
-                Consultation
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.bookingTypeButton,
-                calendar.bookingType === 'appointment' && styles.bookingTypeButtonActive,
-              ]}
-              onPress={() => calendar.setBookingType('appointment')}
-            >
-              <Text
-                style={[
-                  styles.bookingTypeText,
-                  calendar.bookingType === 'appointment' && styles.bookingTypeTextActive,
-                ]}
-              >
-                Appointment
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Calendar Grid */}
         <CalendarGrid
           calendarDays={calendar.calendarDays}
@@ -386,8 +362,10 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         visible={modalVisible}
         onClose={handleCloseModal}
         selectedDate={calendar.selectedDate}
-        bookingConfig={calendar.bookingConfig}
         artistName={artistName}
+        depositAmount={depositAmount}
+        acceptsConsultations={acceptsConsultations}
+        acceptsAppointments={acceptsAppointments}
         appointments={calendar.selectedDate ? calendar.getAppointmentsForDate(calendar.selectedDate) : []}
         externalEvents={calendar.selectedDate ? calendar.getExternalEventsForDate(calendar.selectedDate) : []}
         isOwnProfile={isOwnProfile}
@@ -424,7 +402,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           artistId={artistId}
           artistName={artistName}
           selectedDate={calendar.selectedDate}
-          bookingType={calendar.bookingType}
+          bookingType={selectedBookingType}
         />
       )}
 
@@ -503,34 +481,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '600',
-  },
-  bookingTypeContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    gap: 8,
-  },
-  bookingTypeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  bookingTypeButtonActive: {
-    backgroundColor: colors.accentDim,
-    borderColor: colors.accent,
-  },
-  bookingTypeText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  bookingTypeTextActive: {
-    color: colors.accent,
   },
   legend: {
     flexDirection: 'row',

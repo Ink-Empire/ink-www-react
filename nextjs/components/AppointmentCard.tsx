@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, Typography, Chip, Button, Avatar, Box, Collapse, Divider, TextField, CircularProgress } from '@mui/material';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import PersonIcon from '@mui/icons-material/Person';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -214,7 +214,9 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
   const formatDateTime = (date: string, startTime: string, endTime: string) => {
     try {
-      const appointmentDate = parseISO(date);
+      // Parse as local date (not UTC) by using yyyy-MM-dd with noon time to avoid timezone shift
+      const [year, month, day] = date.split('-').map(Number);
+      const appointmentDate = new Date(year, month - 1, day);
       const formattedDate = format(appointmentDate, 'EEEE, MMMM d, yyyy');
       const formattedTime = `${startTime.slice(0, 5)} - ${endTime.slice(0, 5)}`;
       return { date: formattedDate, time: formattedTime };

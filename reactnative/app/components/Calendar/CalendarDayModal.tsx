@@ -4,7 +4,7 @@
  * Shows day contents for the artist or booking options for clients
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,6 @@ import {
 import {
   Appointment,
   ExternalCalendarEvent,
-  BookingConfig,
   formatDateForDisplay,
 } from '@inkedin/shared/types';
 import type { UpcomingAppointment } from '@inkedin/shared/services';
@@ -28,13 +27,15 @@ interface CalendarDayModalProps {
   visible: boolean;
   onClose: () => void;
   selectedDate: string | null;
-  bookingConfig: BookingConfig;
   artistName: string;
+  depositAmount?: number | null;
+  acceptsConsultations?: boolean;
+  acceptsAppointments?: boolean;
   appointments: Appointment[];
   externalEvents: ExternalCalendarEvent[];
   isOwnProfile?: boolean;
   ownerAppointments?: UpcomingAppointment[];
-  onRequestBooking?: () => void;
+  onRequestBooking?: (bookingType: 'consultation' | 'appointment') => void;
   onCancelAppointment?: (apt: UpcomingAppointment) => void;
   onRescheduleAppointment?: (apt: UpcomingAppointment) => void;
   onDeleteAppointment?: (apt: UpcomingAppointment) => void;
@@ -45,8 +46,10 @@ export function CalendarDayModal({
   visible,
   onClose,
   selectedDate,
-  bookingConfig,
   artistName,
+  depositAmount,
+  acceptsConsultations = true,
+  acceptsAppointments = true,
   appointments,
   externalEvents,
   isOwnProfile = false,
@@ -57,10 +60,22 @@ export function CalendarDayModal({
   onDeleteAppointment,
   onContactClient,
 }: CalendarDayModalProps) {
+  const canConsult = Boolean(acceptsConsultations);
+  const canAppoint = Boolean(acceptsAppointments);
+  const showToggle = canConsult && canAppoint;
+  const defaultType = canConsult ? 'consultation' : 'appointment';
+  const [bookingType, setBookingType] = useState<'consultation' | 'appointment'>(defaultType);
+
+  useEffect(() => {
+    if (visible) {
+      setBookingType(defaultType);
+    }
+  }, [visible]);
+
   if (!selectedDate) return null;
 
   const handleBooking = () => {
-    onRequestBooking?.();
+    onRequestBooking?.(bookingType);
   };
 
   return (
@@ -85,14 +100,7 @@ export function CalendarDayModal({
                   <Text style={styles.dateTitle}>
                     {formatDateForDisplay(selectedDate)}
                   </Text>
-                  {!isOwnProfile && (
-                    <View style={styles.bookingTypeBadge}>
-                      <Text style={styles.bookingTypeBadgeText}>
-                        {bookingConfig.title}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                  </View>
                 <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                   <Text style={styles.closeButtonText}>x</Text>
                 </TouchableOpacity>
@@ -214,7 +222,7 @@ export function CalendarDayModal({
                 )}
 
                 {/* No Events Message */}
-                {(isOwnProfile ? ownerAppointments.length === 0 : appointments.length === 0) && externalEvents.length === 0 && (
+                {isOwnProfile && ownerAppointments.length === 0 && externalEvents.length === 0 && (
                   <View style={styles.emptyState}>
                     <Text style={styles.emptyStateText}>
                       No events scheduled for this day
@@ -225,24 +233,58 @@ export function CalendarDayModal({
                 {/* Booking Info - only for clients */}
                 {!isOwnProfile && (
                   <>
+                    {/* Booking Type Toggle */}
+                    {showToggle ? (
+                      <View style={styles.bookingTypeToggle}>
+                        <TouchableOpacity
+                          style={[
+                            styles.bookingTypeButton,
+                            bookingType === 'consultation' && styles.bookingTypeButtonActive,
+                          ]}
+                          onPress={() => setBookingType('consultation')}
+                        >
+                          <Text
+                            style={[
+                              styles.bookingTypeButtonText,
+                              bookingType === 'consultation' && styles.bookingTypeButtonTextActive,
+                            ]}
+                          >
+                            Consultation
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.bookingTypeButton,
+                            bookingType === 'appointment' && styles.bookingTypeButtonActive,
+                          ]}
+                          onPress={() => setBookingType('appointment')}
+                        >
+                          <Text
+                            style={[
+                              styles.bookingTypeButtonText,
+                              bookingType === 'appointment' && styles.bookingTypeButtonTextActive,
+                            ]}
+                          >
+                            Appointment
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.bookingTypeBadge}>
+                        <Text style={styles.bookingTypeBadgeText}>
+                          This artist only accepts {canConsult ? 'consultations' : 'appointments'}
+                        </Text>
+                      </View>
+                    )}
+
                     <View style={styles.bookingInfo}>
                       <Text style={styles.bookingDescription}>
-                        {bookingConfig.modalDescription(artistName)}
+                        {bookingType === 'appointment' && depositAmount
+                          ? `This artist has set their deposit at $${depositAmount}.`
+                          : bookingType === 'consultation'
+                            ? `Request a free consultation with ${artistName} to discuss your tattoo idea.`
+                            : `Request a booking with ${artistName} on this date.`}
                       </Text>
-                      <View style={styles.bookingDetails}>
-                        <View style={styles.bookingDetailItem}>
-                          <Text style={styles.bookingDetailLabel}>Duration</Text>
-                          <Text style={styles.bookingDetailValue}>
-                            {bookingConfig.modalDuration}
-                          </Text>
-                        </View>
-                        <View style={styles.bookingDetailItem}>
-                          <Text style={styles.bookingDetailLabel}>Cost</Text>
-                          <Text style={[styles.bookingDetailValue, styles.accentText]}>
-                            {bookingConfig.modalCost}
-                          </Text>
-                        </View>
-                      </View>
                     </View>
 
                     {/* Action Buttons - only for clients */}
@@ -254,7 +296,9 @@ export function CalendarDayModal({
                         style={styles.bookButton}
                         onPress={handleBooking}
                       >
-                        <Text style={styles.bookButtonText}>Request Booking</Text>
+                        <Text style={styles.bookButtonText}>
+                          Request {bookingType === 'consultation' ? 'Consultation' : 'Booking'}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </>
@@ -317,17 +361,15 @@ const styles = StyleSheet.create({
   },
   bookingTypeBadge: {
     backgroundColor: colors.accentDim,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 100,
-    alignSelf: 'flex-start',
-    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 16,
   },
   bookingTypeBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
     color: colors.accent,
-    textTransform: 'uppercase',
   },
   closeButton: {
     width: 44,
@@ -452,6 +494,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.accent,
     textTransform: 'uppercase',
+  },
+  bookingTypeToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  bookingTypeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  bookingTypeButtonActive: {
+    backgroundColor: colors.accentDim,
+    borderColor: colors.accent,
+  },
+  bookingTypeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  bookingTypeButtonTextActive: {
+    color: colors.accent,
   },
   emptyState: {
     backgroundColor: colors.background,

@@ -37,9 +37,7 @@ export default function ArtistsStack() {
       <Stack.Screen
         name="Calendar"
         component={CalendarScreen}
-        options={({ route }) => ({
-          title: route.params?.artistName ? `${route.params.artistName}'s Calendar` : 'Calendar',
-        })}
+        options={{ title: '', headerBackTitle: 'Back' }}
       />
     </Stack.Navigator>
   );

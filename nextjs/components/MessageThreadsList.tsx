@@ -182,7 +182,7 @@ const MessageThreadsList: React.FC<MessageThreadsListProps> = ({
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  {thread.type} • {new Date(thread.date).toLocaleDateString()}
+                  {thread.type} • {(() => { const [y,m,d] = (thread.date || '').split('-').map(Number); return new Date(y, m-1, d).toLocaleDateString(); })()}
                 </Typography>
 
                 {/* Latest message */}

@@ -888,7 +888,8 @@ function EmptyState({ icon, message, subMessage, action }: {
 
 // Appointment Card Component
 function AppointmentCard({ appointment }: { appointment: DashboardAppointment }) {
-  const date = new Date(appointment.date);
+  const [year, mo, da] = (appointment.date || '').split('-').map(Number);
+  const date = new Date(year, mo - 1, da);
   const day = date.getDate();
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const time = formatTime(appointment.start_time);
