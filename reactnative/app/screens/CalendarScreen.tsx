@@ -413,17 +413,13 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
             calendar.setSelectedDate(null);
           }}
           onSuccess={(conversationId) => {
-            try {
-              navigation.navigate('InboxStack', {
-                screen: 'Conversation',
-                params: {
-                  conversationId,
-                  participantName: artistName,
-                },
-              });
-            } catch (e) {
-              console.error('Navigation to inbox failed:', e);
-            }
+            navigation.navigate('InboxStack', {
+              screen: 'Conversation',
+              params: {
+                conversationId,
+                participantName: artistName,
+              },
+            });
           }}
           artistId={artistId}
           artistName={artistName}

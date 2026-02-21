@@ -9,6 +9,8 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   formatDateForDisplay,
@@ -136,19 +138,18 @@ export function BookingFormModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={handleClose}
     >
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-              {/* Drag Handle */}
-              <View style={styles.dragHandleContainer}>
-                <View style={styles.dragHandle} />
-              </View>
-
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <View style={styles.overlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
               {/* Header */}
               <View style={styles.header}>
                 <View style={styles.headerLeft}>
@@ -166,7 +167,7 @@ export function BookingFormModal({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.scrollContent} keyboardShouldPersistTaps="handled">
+              <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentInner} keyboardShouldPersistTaps="handled">
                 {!isAuthenticated ? (
                   <View style={styles.loginPrompt}>
                     <Text style={styles.loginPromptTitle}>Account Required</Text>
@@ -270,9 +271,10 @@ export function BookingFormModal({
                 )}
               </ScrollView>
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -280,14 +282,19 @@ export function BookingFormModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   modalContent: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
+    borderRadius: 20,
+    maxHeight: '80%',
+    width: '90%',
+    overflow: 'hidden',
   },
   dragHandleContainer: {
     alignItems: 'center',
@@ -305,6 +312,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 16,
   },
   headerLeft: {
@@ -346,7 +354,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 34,
+  },
+  scrollContentInner: {
+    paddingBottom: 20,
   },
   loginPrompt: {
     padding: 20,
