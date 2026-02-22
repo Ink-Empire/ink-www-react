@@ -114,7 +114,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   // Cancel/Reschedule modal state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
-  const [actionAppointment, setActionAppointment] = useState<{ id: number | string; conversationId: number; clientName?: string } | null>(null);
+  const [actionAppointment, setActionAppointment] = useState<{ id: number | string; conversationId: number; clientName?: string; date?: string; startTime?: string; endTime?: string } | null>(null);
 
   // Calendar event form state
   const [eventType, setEventType] = useState<'appointment' | 'consultation' | 'other'>('appointment');
@@ -624,6 +624,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         id: typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id,
         conversationId,
         clientName: apt.extendedProps?.clientName || apt.clientName || undefined,
+        date: apt.start ? (typeof apt.start === 'string' ? apt.start.substring(0, 10) : apt.start.toISOString().split('T')[0]) : undefined,
+        startTime: apt.extendedProps?.startTime || apt.start_time || undefined,
+        endTime: apt.extendedProps?.endTime || apt.end_time || undefined,
       });
       if (action === 'cancel') setCancelModalOpen(true);
       else setRescheduleModalOpen(true);
@@ -1018,8 +1021,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               {monthNames[month]} {year}
             </Typography>
             <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, color: colors.textSecondary }}>
-              <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{availableCount}</Box> days available
-              {!isMobile && <> · Next: <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{nextAvailable}</Box></>}
+              <Box component="span" sx={{ color: colors.available, fontWeight: 600 }}>{availableCount}</Box> days available
+              {!isMobile && <> · Next: <Box component="span" sx={{ color: colors.available, fontWeight: 600 }}>{nextAvailable}</Box></>}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -1197,13 +1200,13 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                       borderRadius: { xs: '5px', sm: '6px' }
                     }
                   } : isAvailable ? {
-                    bgcolor: `${colors.accent}1A`,
-                    borderColor: colors.accent,
+                    bgcolor: `${colors.available}15`,
+                    border: { xs: `1.5px solid ${colors.available}`, sm: `2px solid ${colors.available}` },
                     color: colors.textPrimary,
                     '&:hover': {
-                      bgcolor: `${colors.accent}33`,
+                      bgcolor: `${colors.available}33`,
                       transform: { xs: 'none', sm: 'scale(1.08)' },
-                      boxShadow: { xs: 'none', sm: `0 4px 20px ${colors.accent}33` },
+                      boxShadow: { xs: 'none', sm: `0 4px 20px ${colors.available}33` },
                       zIndex: 2
                     }
                   } : {
@@ -1424,8 +1427,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               border: `1px solid ${colors.border}`
             }}>
               <Box sx={{
-                bgcolor: `${colors.accent}1A`,
-                border: `1px solid ${colors.accent}4D`,
+                bgcolor: `${colors.available}15`,
+                border: `1px solid ${colors.available}4D`,
                 borderRadius: '8px',
                 p: 1.5,
                 display: 'flex',
@@ -1433,9 +1436,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 gap: 1,
                 mb: 1.5
               }}>
-                <Box sx={{ width: 10, height: 10, bgcolor: colors.accent, borderRadius: '50%' }} />
+                <Box sx={{ width: 10, height: 10, bgcolor: colors.available, borderRadius: '50%' }} />
                 <Typography sx={{ fontSize: '0.85rem', color: colors.textPrimary }}>
-                  Showing <Box component="strong" sx={{ color: colors.accent }}>{bookingType}</Box> availability
+                  Showing <Box component="strong" sx={{ color: colors.available }}>{bookingType}</Box> availability
                 </Typography>
               </Box>
 
@@ -1560,8 +1563,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                       borderRadius: '6px',
                       flexShrink: 0,
                       ...(item.type === 'available' ? {
-                        bgcolor: `${colors.accent}1A`,
-                        border: `2px solid ${colors.accent}`
+                        bgcolor: `${colors.available}15`,
+                        border: `2px solid ${colors.available}`
                       } : item.type === 'unavailable' ? {
                         bgcolor: colors.background,
                         border: '2px solid transparent'
@@ -1671,8 +1674,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 flexShrink: 0,
                 position: 'relative',
                 ...(item.type === 'available' ? {
-                  bgcolor: `${colors.accent}1A`,
-                  border: `2px solid ${colors.accent}`
+                  bgcolor: `${colors.available}15`,
+                  border: `2px solid ${colors.available}`
                 } : item.type === 'unavailable' ? {
                   bgcolor: colors.background,
                   border: '2px solid transparent'
@@ -1745,6 +1748,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         onClose={() => { setRescheduleModalOpen(false); setActionAppointment(null); }}
         onSubmit={handleRescheduleSubmit}
         clientName={actionAppointment?.clientName}
+        currentDate={actionAppointment?.date}
+        currentStartTime={actionAppointment?.startTime}
+        currentEndTime={actionAppointment?.endTime}
       />
 
       {/* Artist Day Management Modal */}
@@ -1773,7 +1779,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                     p: 1.5,
                     bgcolor: colors.background,
                     borderRadius: '8px',
-                    border: `1px solid ${colors.border}`,
+                    border: `1px solid ${(apt.extendedProps?.status || apt.status) === 'cancelled' ? 'rgba(239, 68, 68, 0.3)' : colors.border}`,
+                    opacity: (apt.extendedProps?.status || apt.status) === 'cancelled' ? 0.75 : 1,
                     position: 'relative'
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

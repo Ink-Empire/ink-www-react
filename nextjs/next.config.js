@@ -6,7 +6,7 @@ const nextConfig = {
     proxyTimeout: 300000, // 5 minutes
   },
   // Transpile shared package from parent directory
-  transpilePackages: ['@inkedin/shared', 'react-markdown'],
+  transpilePackages: ['@inkedin/shared', 'react-markdown', '@mui/x-date-pickers'],
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if

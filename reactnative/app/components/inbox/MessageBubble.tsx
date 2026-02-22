@@ -160,13 +160,37 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar,
       {/* Cancellation card */}
       {hasCancellation && message.metadata && (
         <View style={styles.cancellationCard}>
-          <Text style={styles.cancellationTitle}>Appointment Cancelled</Text>
+          <View style={styles.bookingCardHeader}>
+            <Text style={styles.cancellationTitle}>Appointment Cancelled</Text>
+            <View style={styles.cancellationBadge}>
+              <Text style={styles.cancellationBadgeText}>CANCELLED</Text>
+            </View>
+          </View>
+          {message.metadata.date && (
+            <View style={styles.rescheduleDetailColumn}>
+              <Text style={styles.bookingCardLabel}>Date</Text>
+              <Text style={styles.bookingCardValue}>
+                {formatProposedDate(message.metadata.date)}
+              </Text>
+            </View>
+          )}
+          {(message.metadata.start_time || message.metadata.end_time) && (
+            <View style={styles.rescheduleDetailColumn}>
+              <Text style={styles.bookingCardLabel}>Time</Text>
+              <Text style={styles.bookingCardValue}>
+                {formatProposedTime(message.metadata.start_time, message.metadata.end_time)}
+              </Text>
+            </View>
+          )}
+          {message.metadata.title ? (
+            <View style={styles.rescheduleDetailColumn}>
+              <Text style={styles.bookingCardLabel}>Type</Text>
+              <Text style={styles.bookingCardValue}>{message.metadata.title}</Text>
+            </View>
+          ) : null}
           {message.metadata.reason ? (
             <Text style={styles.cancellationReason}>{message.metadata.reason}</Text>
           ) : null}
-          <View style={styles.cancellationBadge}>
-            <Text style={styles.cancellationBadgeText}>CANCELLED</Text>
-          </View>
         </View>
       )}
 

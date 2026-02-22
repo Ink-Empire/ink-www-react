@@ -76,6 +76,7 @@ export default function InboxPage() {
   const [mobileShowConversation, setMobileShowConversation] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [acceptingBooking, setAcceptingBooking] = useState(false);
+  const [respondedBookings, setRespondedBookings] = useState<Record<number, 'accepted' | 'declined'>>({});
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
     message: '',
@@ -157,6 +158,25 @@ export default function InboxPage() {
         .toUpperCase()
         .slice(0, 2)
     : user?.username?.slice(0, 2).toUpperCase() || 'ME';
+
+  // Apply optimistic booking status to messages
+  const displayMessages = useMemo(() => {
+    return messages.map(msg => {
+      if (msg.type === 'booking_card' && msg.metadata?.appointment_id && respondedBookings[msg.metadata.appointment_id]) {
+        return { ...msg, metadata: { ...msg.metadata, status: respondedBookings[msg.metadata.appointment_id] } };
+      }
+      return msg;
+    });
+  }, [messages, respondedBookings]);
+
+  const handleViewCalendar = (date?: string) => {
+    if (isArtist) {
+      const url = date ? `/calendar?date=${date}` : '/calendar';
+      router.push(url);
+    } else {
+      router.push('/appointments');
+    }
+  };
 
   // Auto-scroll to bottom of messages when a conversation is open
   useEffect(() => {
@@ -734,6 +754,32 @@ export default function InboxPage() {
   };
 
   const [decliningBooking, setDecliningBooking] = useState(false);
+  const [respondingToBookingId, setRespondingToBookingId] = useState<number | null>(null);
+
+  const handleRespondToBookingCard = async (appointmentId: number, action: 'accept' | 'decline') => {
+    setRespondingToBookingId(appointmentId);
+    try {
+      await appointmentService.respond(appointmentId, { action });
+      setRespondedBookings(prev => ({ ...prev, [appointmentId]: action === 'accept' ? 'accepted' : 'declined' }));
+      setSnackbar({
+        open: true,
+        message: action === 'accept'
+          ? 'Booking accepted! The client has been notified.'
+          : 'Booking declined. The client has been notified.',
+        severity: 'success',
+      });
+      fetchConversations();
+    } catch (error: any) {
+      console.error(`Failed to ${action} booking:`, error);
+      setSnackbar({
+        open: true,
+        message: error?.message || `Failed to ${action} booking. Please try again.`,
+        severity: 'error',
+      });
+    } finally {
+      setRespondingToBookingId(null);
+    }
+  };
 
   const handleRespondToBooking = async (action: 'accept' | 'decline', reason?: string) => {
     if (!selectedConversation?.appointment?.id) return;
@@ -1164,119 +1210,6 @@ export default function InboxPage() {
                 </Menu>
               </Box>
 
-              {/* Request Banner for pending appointments - only artists can accept/decline */}
-              {selectedConversation.appointment?.status === 'pending' && isArtist && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 2,
-                    px: 3,
-                    py: 2,
-                    bgcolor: colors.successDim,
-                    borderBottom: `1px solid rgba(74, 155, 127, 0.2)`,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: '50%',
-                        bgcolor: colors.success,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                      }}
-                    >
-                      <CalendarMonthIcon sx={{ fontSize: 18 }} />
-                    </Box>
-                    <Box>
-                      <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: colors.textPrimary }}>
-                        Booking Request
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                        {(() => {
-                          // Combine date and time for proper formatting
-                          const dateStr = selectedConversation.appointment.date?.split('T')[0] || '';
-                          const timeStr = selectedConversation.appointment.start_time || '00:00:00';
-                          const tz = selectedConversation.appointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-                          // Create datetime string and format it
-                          const datetime = new Date(`${dateStr}T${timeStr}`);
-                          const formattedDate = datetime.toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            timeZone: tz
-                          });
-                          const formattedTime = datetime.toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true,
-                            timeZone: tz
-                          });
-
-                          return `${formattedDate} at ${formattedTime}`;
-                        })()}
-                        {selectedConversation.appointment.title && ` · ${selectedConversation.appointment.title}`}
-                        {selectedConversation.appointment.placement && ` · ${selectedConversation.appointment.placement}`}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      onClick={() => handleRespondToBooking('decline')}
-                      disabled={decliningBooking || acceptingBooking}
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        borderRadius: '6px',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                        textTransform: 'none',
-                        color: colors.textPrimary,
-                        border: `1px solid ${colors.borderLight}`,
-                        '&:hover': { borderColor: colors.error, color: colors.error },
-                        '&.Mui-disabled': { opacity: 0.7 },
-                      }}
-                    >
-                      {decliningBooking ? (
-                        <CircularProgress size={20} sx={{ color: colors.textPrimary }} />
-                      ) : (
-                        'Decline'
-                      )}
-                    </Button>
-                    <Button
-                      onClick={() => handleRespondToBooking('accept')}
-                      disabled={acceptingBooking || decliningBooking}
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        borderRadius: '6px',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                        textTransform: 'none',
-                        bgcolor: colors.success,
-                        color: 'white',
-                        '&:hover': { bgcolor: '#3d8a6d' },
-                        '&.Mui-disabled': { bgcolor: colors.success, opacity: 0.7 },
-                      }}
-                    >
-                      {acceptingBooking ? (
-                        <CircularProgress size={20} sx={{ color: 'white' }} />
-                      ) : (
-                        selectedConversation.type === 'consultation' ? 'Accept' : 'Accept & Request Deposit'
-                      )}
-                    </Button>
-                  </Box>
-                </Box>
-              )}
-
               {/* Accepted Banner for booked appointments */}
               {selectedConversation.appointment?.status === 'booked' && (
                 <Box
@@ -1401,9 +1334,9 @@ export default function InboxPage() {
                   </Box>
                 ) : messages.length > 0 ? (
                   <>
-                    {messages.map((msg, idx) => {
-                      const prevMsg = idx > 0 ? messages[idx - 1] : null;
-                      const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                    {displayMessages.map((msg, idx) => {
+                      const prevMsg = idx > 0 ? displayMessages[idx - 1] : null;
+                      const nextMsg = idx < displayMessages.length - 1 ? displayMessages[idx + 1] : null;
                       const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
                       const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
 
@@ -1416,7 +1349,10 @@ export default function InboxPage() {
                           senderImage={msg.sender_id === user?.id ? user?.image?.uri : msg.sender?.image?.uri}
                           showAvatar={isFirstInGroup}
                           isLastInGroup={isLastInGroup}
+                          onRespondToBooking={isArtist ? handleRespondToBookingCard : undefined}
+                          respondingToBooking={respondingToBookingId}
                           onRespondToReschedule={handleRespondToReschedule}
+                          onViewCalendar={handleViewCalendar}
                         />
                       );
                     })}
@@ -2007,6 +1943,10 @@ export default function InboxPage() {
         onClose={() => setRescheduleModalOpen(false)}
         onSubmit={handleSendReschedule}
         clientName={selectedConversation?.participant?.name || undefined}
+        recipientLabel={isArtist ? 'client' : 'artist'}
+        currentDate={selectedConversation?.appointment?.date}
+        currentStartTime={selectedConversation?.appointment?.start_time}
+        currentEndTime={selectedConversation?.appointment?.end_time}
       />
 
       {/* Delete Appointment Confirmation */}

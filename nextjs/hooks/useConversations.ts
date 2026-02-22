@@ -96,10 +96,15 @@ export interface ApiMessage {
     total?: string;
     valid_until?: string;
     reason?: string;
+    start_time?: string;
+    end_time?: string;
+    title?: string;
     proposed_date?: string;
     proposed_start_time?: string;
     proposed_end_time?: string;
-    status?: 'pending' | 'accepted' | 'declined';
+    status?: 'pending' | 'accepted' | 'declined' | 'cancelled';
+    calendar_link?: string;
+    artist_content?: string;
   } | null;
   attachments: MessageAttachment[];
   read_at: string | null;

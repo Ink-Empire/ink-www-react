@@ -24,15 +24,20 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import UpdateIcon from '@mui/icons-material/Update';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { colors } from '@/styles/colors';
 import { useClientDashboard, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { clientService } from '@/services/clientService';
 import { ApiConversation } from '@/hooks/useConversations';
 import { leadService } from '@/services/leadService';
 import { messageService } from '@/services/messageService';
+import { appointmentService } from '@/services/appointmentService';
 import { useStyles } from '@/contexts/StyleContext';
 import { useUser } from '@/contexts/AuthContext';
 import InfoTooltip from './InfoTooltip';
+import { RescheduleAppointmentModal } from './inbox/RescheduleAppointmentModal';
+import { CancelAppointmentModal } from './inbox/CancelAppointmentModal';
 
 interface ClientDashboardContentProps {
   userName: string;
@@ -99,6 +104,41 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
     loading: dashboardLoading,
     refresh: refreshDashboard,
   } = useClientDashboard();
+
+  // Appointment detail modal state
+  const [selectedAppointment, setSelectedAppointment] = useState<DashboardAppointment | null>(null);
+  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [appointmentSnackbar, setAppointmentSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+
+  const handleAppointmentClick = (apt: DashboardAppointment) => {
+    setSelectedAppointment(apt);
+    setAppointmentModalOpen(true);
+  };
+
+  const handleRescheduleSubmit = async (proposedDate: string, proposedStartTime: string, proposedEndTime: string, reason?: string) => {
+    if (!selectedAppointment) return;
+    if (selectedAppointment.conversation_id) {
+      await messageService.sendReschedule(selectedAppointment.conversation_id, selectedAppointment.id, proposedDate, proposedStartTime, proposedEndTime, reason);
+    } else {
+      await appointmentService.update(selectedAppointment.id, { date: proposedDate, start_time: proposedStartTime, end_time: proposedEndTime });
+    }
+    await refreshDashboard();
+    setAppointmentSnackbar({ open: true, message: 'Reschedule request sent to the artist.', severity: 'success' });
+  };
+
+  const handleCancelSubmit = async (reason?: string) => {
+    if (!selectedAppointment) return;
+    if (selectedAppointment.conversation_id) {
+      await messageService.sendCancellation(selectedAppointment.conversation_id, selectedAppointment.id, reason);
+    } else {
+      await appointmentService.cancel(selectedAppointment.id, reason);
+    }
+    await refreshDashboard();
+    setAppointmentModalOpen(false);
+    setAppointmentSnackbar({ open: true, message: 'The appointment has been cancelled.', severity: 'success' });
+  };
 
   // Use favorites from main dashboard call (avoids separate API call)
   const wishlist = favorites;
@@ -290,7 +330,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           title="Upcoming Appointments"
           icon={<CalendarMonthIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
-            <CardLink href="/calendar">
+            <CardLink href="/appointments">
               View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
             </CardLink>
           }
@@ -306,11 +346,11 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             display: 'flex',
             gap: 2,
             p: 2,
-            overflowX: 'auto',
-            '&::-webkit-scrollbar': { display: 'none' },
           }}>
-            {appointments.map((apt) => (
-              <AppointmentCard key={apt.id} appointment={apt} />
+            {appointments.slice(0, 2).map((apt) => (
+              <Box key={apt.id} sx={{ flex: 1, minWidth: 0 }}>
+                <AppointmentCard appointment={apt} onClick={() => handleAppointmentClick(apt)} />
+              </Box>
             ))}
           </Box>
         ) : (
@@ -748,6 +788,142 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           <strong>Now what?</strong> Just sit back! Artists in your area will see your idea and can contact you via email with their availability and quotes.
         </Alert>
       </Snackbar>
+
+      {/* Appointment Detail Modal */}
+      <Dialog
+        open={appointmentModalOpen}
+        onClose={() => setAppointmentModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            backgroundImage: 'none',
+            borderRadius: '16px',
+            border: `1px solid ${colors.border}`,
+          }
+        }}
+      >
+        {selectedAppointment && (() => {
+          const [y, m, d] = (selectedAppointment.date || '').split('T')[0].split('-').map(Number);
+          const dateObj = new Date(y, m - 1, d);
+          const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+          const artistName = selectedAppointment.artist?.name || selectedAppointment.artist?.username;
+          return (
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2.5, borderBottom: `1px solid ${colors.border}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <CalendarMonthIcon sx={{ color: colors.accent, fontSize: 22 }} />
+                  <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.textPrimary }}>
+                    Appointment Details
+                  </Typography>
+                </Box>
+                <IconButton onClick={() => setAppointmentModalOpen(false)} sx={{ color: colors.textMuted, '&:hover': { color: colors.textPrimary } }}>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>Date</Typography>
+                  <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.9rem' }}>{formattedDate}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>Time</Typography>
+                  <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.9rem' }}>{formatTime(selectedAppointment.start_time)}{selectedAppointment.end_time ? ` - ${formatTime(selectedAppointment.end_time)}` : ''}</Typography>
+                </Box>
+                {selectedAppointment.title && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>Type</Typography>
+                    <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.9rem' }}>{selectedAppointment.title}</Typography>
+                  </Box>
+                )}
+                {artistName && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>Artist</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar src={selectedAppointment.artist.image?.uri} sx={{ width: 24, height: 24, bgcolor: colors.accent, color: colors.background, fontSize: '0.6rem', fontWeight: 600 }}>
+                        {(selectedAppointment.artist.name || selectedAppointment.artist.username || '??').slice(0, 2).toUpperCase()}
+                      </Avatar>
+                      <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.9rem' }}>{artistName}</Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, p: 2.5, pt: 0 }}>
+                <Button
+                  onClick={() => {
+                    setAppointmentModalOpen(false);
+                    router.push(`/inbox?participant=${selectedAppointment.artist.id}`);
+                  }}
+                  sx={{
+                    flex: 1, py: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 500, fontSize: '0.85rem',
+                    color: colors.textPrimary, border: `1px solid ${colors.border}`,
+                    '&:hover': { borderColor: colors.accent, color: colors.accent },
+                  }}
+                  startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />}
+                >
+                  Message
+                </Button>
+                <Button
+                  onClick={() => { setAppointmentModalOpen(false); setRescheduleModalOpen(true); }}
+                  sx={{
+                    flex: 1, py: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 500, fontSize: '0.85rem',
+                    color: colors.accent, border: `1px solid ${colors.accent}40`,
+                    '&:hover': { bgcolor: `${colors.accent}15` },
+                  }}
+                  startIcon={<UpdateIcon sx={{ fontSize: 16 }} />}
+                >
+                  Reschedule
+                </Button>
+                <Button
+                  onClick={() => { setAppointmentModalOpen(false); setCancelModalOpen(true); }}
+                  sx={{
+                    flex: 1, py: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 500, fontSize: '0.85rem',
+                    color: colors.error, border: `1px solid ${colors.error}40`,
+                    '&:hover': { bgcolor: `${colors.error}15` },
+                  }}
+                  startIcon={<EventBusyIcon sx={{ fontSize: 16 }} />}
+                >
+                  Cancel
+                </Button>
+              </Box>
+            </>
+          );
+        })()}
+      </Dialog>
+
+      <RescheduleAppointmentModal
+        open={rescheduleModalOpen}
+        onClose={() => setRescheduleModalOpen(false)}
+        onSubmit={handleRescheduleSubmit}
+        clientName={selectedAppointment?.artist?.name || undefined}
+        recipientLabel="artist"
+        currentDate={selectedAppointment?.date}
+        currentStartTime={selectedAppointment?.start_time}
+        currentEndTime={selectedAppointment?.end_time}
+      />
+
+      <CancelAppointmentModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onSubmit={handleCancelSubmit}
+        clientName={selectedAppointment?.artist?.name || undefined}
+      />
+
+      <Snackbar
+        open={appointmentSnackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setAppointmentSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setAppointmentSnackbar(prev => ({ ...prev, open: false }))}
+          severity={appointmentSnackbar.severity}
+          sx={{ bgcolor: appointmentSnackbar.severity === 'success' ? colors.success : colors.error, color: 'white' }}
+        >
+          {appointmentSnackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -887,8 +1063,8 @@ function EmptyState({ icon, message, subMessage, action }: {
 }
 
 // Appointment Card Component
-function AppointmentCard({ appointment }: { appointment: DashboardAppointment }) {
-  const [year, mo, da] = (appointment.date || '').split('-').map(Number);
+function AppointmentCard({ appointment, onClick }: { appointment: DashboardAppointment; onClick: () => void }) {
+  const [year, mo, da] = (appointment.date || '').split('T')[0].split('-').map(Number);
   const date = new Date(year, mo - 1, da);
   const day = date.getDate();
   const month = date.toLocaleDateString('en-US', { month: 'short' });
@@ -904,78 +1080,70 @@ function AppointmentCard({ appointment }: { appointment: DashboardAppointment })
     : appointment.artist.username?.slice(0, 2).toUpperCase() || '??';
 
   return (
-    <Link
-      href={`/appointments/${appointment.id}`}
-      style={{ textDecoration: 'none' }}
+    <Box
+      component="article"
+      onClick={onClick}
       aria-label={`${appointmentTitle} with ${appointment.artist.name || appointment.artist.username} on ${month} ${day} at ${time}`}
+      sx={{
+        p: 2,
+        bgcolor: colors.background,
+        border: `1px solid ${colors.border}`,
+        borderRadius: '10px',
+        transition: 'all 0.2s',
+        cursor: 'pointer',
+        '&:hover': {
+          borderColor: colors.accent,
+          transform: 'translateY(-2px)',
+        }
+      }}
     >
-      <Box
-        component="article"
-        sx={{
-          minWidth: 180,
-          p: 2,
-          bgcolor: colors.background,
-          border: `1px solid ${colors.border}`,
-          borderRadius: '10px',
-          transition: 'all 0.2s',
-          cursor: 'pointer',
-          '&:hover': {
-            borderColor: colors.accent,
-            transform: 'translateY(-2px)',
-          }
-        }}
-      >
-        <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
-          <Box sx={{ textAlign: 'center' }} aria-hidden="true">
-            <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: colors.textPrimary, lineHeight: 1.2 }}>
-              {day}
-            </Typography>
-            <Typography sx={{
-              fontSize: '0.7rem',
-              color: colors.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}>
-              {month}
-            </Typography>
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography component="time" sx={{ fontSize: '0.8rem', color: colors.accent, fontWeight: 500 }}>
-              {time}
-            </Typography>
-            <Typography sx={{
-              fontSize: '0.85rem',
-              fontWeight: 500,
-              color: colors.textPrimary,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}>
-              {appointmentTitle}
-            </Typography>
-          </Box>
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
+        <Box sx={{ textAlign: 'center', flexShrink: 0 }} aria-hidden="true">
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: colors.textPrimary, lineHeight: 1.2 }}>
+            {day}
+          </Typography>
+          <Typography sx={{
+            fontSize: '0.7rem',
+            color: colors.textMuted,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em'
+          }}>
+            {month}
+          </Typography>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar
-            src={appointment.artist.image?.uri}
-            alt={`${appointment.artist.name || appointment.artist.username}'s profile`}
-            sx={{
-              width: 24,
-              height: 24,
-              bgcolor: colors.accent,
-              color: colors.background,
-              fontSize: '0.6rem',
-              fontWeight: 600,
-            }}
-          >
-            {artistInitials}
-          </Avatar>
-          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-            @{appointment.artist.username}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography component="time" sx={{ fontSize: '0.8rem', color: colors.accent, fontWeight: 500 }}>
+            {time}
+          </Typography>
+          <Typography sx={{
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            color: colors.textPrimary,
+          }}>
+            {appointmentTitle}
           </Typography>
         </Box>
       </Box>
-    </Link>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Avatar
+          src={appointment.artist.image?.uri}
+          alt={`${appointment.artist.name || appointment.artist.username}'s profile`}
+          sx={{
+            width: 24,
+            height: 24,
+            bgcolor: colors.accent,
+            color: colors.background,
+            fontSize: '0.6rem',
+            fontWeight: 600,
+          }}
+        >
+          {artistInitials}
+        </Avatar>
+        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+          @{appointment.artist.username}
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 

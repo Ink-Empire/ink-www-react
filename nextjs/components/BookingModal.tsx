@@ -8,6 +8,13 @@ import { colors, modalStyles } from '@/styles/colors';
 import { formatTimeSlotWithClientTime, getClientTimezone, getTimezoneLabel, areTimezonesEqual } from '../utils/timezone';
 import type { AvailableSlotsResponse } from '@/services/appointmentService';
 
+function to12Hour(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
 interface ArtistSettings {
   id: number;
   artist_id: number;
@@ -306,7 +313,7 @@ export default function BookingModal({
 
             {slotsResponse?.working_hours && (
               <Typography variant="body2" sx={{ mb: 1, color: '#888' }}>
-                Artist's hours: {slotsResponse.working_hours.start} - {slotsResponse.working_hours.end}
+                Artist's hours: {to12Hour(slotsResponse.working_hours.start)} - {to12Hour(slotsResponse.working_hours.end)}
                 {artistTimezone && showTimezoneConversion && (
                   <span style={{ marginLeft: 4 }}>({getTimezoneLabel(artistTimezone)})</span>
                 )}
@@ -315,13 +322,13 @@ export default function BookingModal({
 
             {slotsResponse?.consultation_window && effectiveBookingType === 'consultation' && (
               <Typography variant="body2" sx={{ mb: 2, color: colors.accent, fontSize: '0.8rem' }}>
-                Consultation window: {slotsResponse.consultation_window.start} - {slotsResponse.consultation_window.end}
+                Consultation window: {to12Hour(slotsResponse.consultation_window.start)} - {to12Hour(slotsResponse.consultation_window.end)}
               </Typography>
             )}
 
             {!slotsResponse?.working_hours && !loadingSlots && selectedWorkingHours && (
               <Typography variant="body2" sx={{ mb: 3, color: '#888' }}>
-                Artist's hours: {selectedWorkingHours.start_time?.slice(0, 5)} - {selectedWorkingHours.end_time?.slice(0, 5)}
+                Artist's hours: {selectedWorkingHours.start_time ? to12Hour(selectedWorkingHours.start_time.slice(0, 5)) : ''} - {selectedWorkingHours.end_time ? to12Hour(selectedWorkingHours.end_time.slice(0, 5)) : ''}
                 {artistTimezone && showTimezoneConversion && (
                   <span style={{ marginLeft: 4 }}>({getTimezoneLabel(artistTimezone)})</span>
                 )}
@@ -347,6 +354,9 @@ export default function BookingModal({
                 </Typography>
                 <Typography variant="caption" sx={{ color: colors.textSecondary }}>
                   Applied toward your final total
+                </Typography>
+                <Typography variant="caption" sx={{ color: colors.textMuted, display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
+                  Artist may contact you to arrange payment of deposit
                 </Typography>
               </Alert>
             )}
@@ -496,7 +506,7 @@ export default function BookingModal({
                     '&:disabled': { bgcolor: '#555' }
                   }}
                 >
-                  {isSubmitting ? 'Sending...' : `Book ${acceptsBoth && bookingType ? bookingType.charAt(0).toUpperCase() + bookingType.slice(1) : acceptsConsultations && !acceptsAppointments ? 'Consultation' : 'Appointment'}`}
+                  {isSubmitting ? 'Sending...' : 'Request'}
                 </Button>
               )}
             </div>

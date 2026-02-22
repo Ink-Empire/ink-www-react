@@ -11,10 +11,12 @@ export interface DashboardAppointment {
   status: string;
   type: string;
   description: string | null;
+  conversation_id?: number;
   artist: {
     id: number;
     name: string | null;
     username: string;
+    slug?: string;
     image: { id: number; uri: string } | null;
   };
   studio: {
