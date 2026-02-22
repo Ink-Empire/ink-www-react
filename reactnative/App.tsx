@@ -11,6 +11,7 @@ import { SnackbarProvider } from './app/contexts/SnackbarContext';
 import { DeepLinkProvider, useDeepLink } from './app/contexts/DeepLinkContext';
 import { createStudioService } from '@inkedin/shared/services';
 import { UnreadCountProvider } from './app/contexts/UnreadCountContext';
+import { MessageNotificationProvider } from './app/contexts/MessageNotificationContext';
 import { parseDeepLink } from './app/utils/deepLinkParser';
 import AuthStack from './app/navigation/AuthStack';
 import MainTabs from './app/navigation/MainTabs';
@@ -18,12 +19,13 @@ import InboxStack from './app/navigation/InboxStack';
 import LoadingScreen from './app/components/common/LoadingScreen';
 import VerifyEmailGate from './app/components/auth/VerifyEmailGate';
 import Snackbar from './app/components/common/Snackbar';
+import MessageNotificationBanner from './app/components/common/MessageNotificationBanner';
 import WelcomeModal from './app/components/common/WelcomeModal';
 import type { RootStackParamList } from './app/navigation/types';
 
 const RootStack = createStackNavigator<RootStackParamList>();
 
-const navigationRef = createNavigationContainerRef<RootStackParamList>();
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const linking = {
   prefixes: ['https://getinked.in', 'https://www.getinked.in'],
@@ -233,7 +235,10 @@ function RootNavigator(): React.JSX.Element {
         <StatusBar barStyle="light-content" backgroundColor={colors.background} />
         {isAuthenticated ? (
           <UnreadCountProvider>
-            <AuthenticatedApp />
+            <MessageNotificationProvider>
+              <AuthenticatedApp />
+              <MessageNotificationBanner />
+            </MessageNotificationProvider>
           </UnreadCountProvider>
         ) : (
           <AuthStack />

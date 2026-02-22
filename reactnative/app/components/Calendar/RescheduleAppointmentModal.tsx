@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  SafeAreaView,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
 
 interface RescheduleAppointmentModalProps {
@@ -24,31 +27,96 @@ interface RescheduleAppointmentModalProps {
     reason?: string,
   ) => Promise<void>;
   clientName?: string;
+  recipientLabel?: string;
+  currentDate?: string;
+  currentStartTime?: string;
+  currentEndTime?: string;
 }
+
+function parseDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.substring(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function parseTime(timeStr: string): Date {
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function formatDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function formatTimeStr(date: Date): string {
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function formatDisplayDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatDisplayTime(date: Date): string {
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+type ActivePicker = 'date' | 'startTime' | 'endTime' | null;
 
 export function RescheduleAppointmentModal({
   visible,
   onClose,
   onSubmit,
   clientName,
+  recipientLabel = 'client',
+  currentDate,
+  currentStartTime,
+  currentEndTime,
 }: RescheduleAppointmentModalProps) {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const defaultDate = tomorrow.toISOString().split('T')[0];
+  const initialDate = currentDate ? parseDate(currentDate) : new Date();
+  const initialStart = currentStartTime ? parseTime(currentStartTime) : parseTime('14:00');
+  const initialEnd = currentEndTime ? parseTime(currentEndTime) : parseTime('16:00');
 
-  const [proposedDate, setProposedDate] = useState(defaultDate);
-  const [proposedStartTime, setProposedStartTime] = useState('14:00');
-  const [proposedEndTime, setProposedEndTime] = useState('16:00');
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [startTime, setStartTime] = useState(initialStart);
+  const [endTime, setEndTime] = useState(initialEnd);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [activePicker, setActivePicker] = useState<ActivePicker>(null);
 
-  const canSubmit = proposedDate && proposedStartTime && proposedEndTime;
+  useEffect(() => {
+    if (visible) {
+      setSelectedDate(currentDate ? parseDate(currentDate) : new Date());
+      setStartTime(currentStartTime ? parseTime(currentStartTime) : parseTime('14:00'));
+      setEndTime(currentEndTime ? parseTime(currentEndTime) : parseTime('16:00'));
+      setReason('');
+      setActivePicker(null);
+    }
+  }, [visible, currentDate, currentStartTime, currentEndTime]);
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await onSubmit(proposedDate, proposedStartTime, proposedEndTime, reason.trim() || undefined);
+      await onSubmit(
+        formatDateStr(selectedDate),
+        formatTimeStr(startTime),
+        formatTimeStr(endTime),
+        reason.trim() || undefined,
+      );
       setReason('');
       onClose();
     } finally {
@@ -59,7 +127,71 @@ export function RescheduleAppointmentModal({
   const handleClose = () => {
     if (submitting) return;
     setReason('');
+    setActivePicker(null);
     onClose();
+  };
+
+  const onDateChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') setActivePicker(null);
+    if (date) setSelectedDate(date);
+  };
+
+  const onStartChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') setActivePicker(null);
+    if (date) setStartTime(date);
+  };
+
+  const onEndChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') setActivePicker(null);
+    if (date) setEndTime(date);
+  };
+
+  // On iOS, show the picker inline at the bottom of the modal
+  // On Android, the picker opens as a native dialog automatically
+  const renderInlinePicker = () => {
+    if (!activePicker) return null;
+
+    if (Platform.OS === 'android') {
+      const props = {
+        date: { value: selectedDate, mode: 'date' as const, onChange: onDateChange, minimumDate: new Date() },
+        startTime: { value: startTime, mode: 'time' as const, onChange: onStartChange, minuteInterval: 15 },
+        endTime: { value: endTime, mode: 'time' as const, onChange: onEndChange, minuteInterval: 15 },
+      }[activePicker];
+
+      return (
+        <DateTimePicker
+          {...props}
+          display="default"
+        />
+      );
+    }
+
+    // iOS: show spinner picker in a bottom tray
+    const pickerConfig = {
+      date: { value: selectedDate, mode: 'date' as const, onChange: onDateChange, minimumDate: new Date() },
+      startTime: { value: startTime, mode: 'time' as const, onChange: onStartChange, minuteInterval: 15 },
+      endTime: { value: endTime, mode: 'time' as const, onChange: onEndChange, minuteInterval: 15 },
+    }[activePicker];
+
+    return (
+      <View style={styles.iosPickerTray}>
+        <View style={styles.iosPickerHeader}>
+          <Text style={styles.iosPickerTitle}>
+            {activePicker === 'date' ? 'Select Date' : activePicker === 'startTime' ? 'Start Time' : 'End Time'}
+          </Text>
+          <TouchableOpacity onPress={() => setActivePicker(null)}>
+            <Text style={styles.iosPickerDone}>Done</Text>
+          </TouchableOpacity>
+        </View>
+        <DateTimePicker
+          {...pickerConfig}
+          display="spinner"
+          themeVariant="dark"
+          textColor={colors.textPrimary}
+          style={styles.iosPicker}
+        />
+      </View>
+    );
   };
 
   return (
@@ -89,38 +221,41 @@ export function RescheduleAppointmentModal({
                     Propose a new date and time{clientName ? ` for ${clientName}` : ''}. They can accept or decline.
                   </Text>
 
-                  <Text style={styles.fieldLabel}>Date (YYYY-MM-DD)</Text>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={proposedDate}
-                    onChangeText={setProposedDate}
-                    placeholder="2025-01-15"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numbers-and-punctuation"
-                  />
+                  <Text style={styles.fieldLabel}>New Date</Text>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => setActivePicker('date')}
+                  >
+                    <MaterialIcons name="event" size={18} color={colors.accent} />
+                    <Text style={styles.pickerButtonText}>
+                      {formatDisplayDate(selectedDate)}
+                    </Text>
+                  </TouchableOpacity>
 
                   <View style={styles.timeRow}>
                     <View style={styles.timeField}>
                       <Text style={styles.fieldLabel}>Start Time</Text>
-                      <TextInput
-                        style={styles.fieldInput}
-                        value={proposedStartTime}
-                        onChangeText={setProposedStartTime}
-                        placeholder="14:00"
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="numbers-and-punctuation"
-                      />
+                      <TouchableOpacity
+                        style={styles.pickerButton}
+                        onPress={() => setActivePicker('startTime')}
+                      >
+                        <MaterialIcons name="schedule" size={18} color={colors.accent} />
+                        <Text style={styles.pickerButtonText}>
+                          {formatDisplayTime(startTime)}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                     <View style={styles.timeField}>
                       <Text style={styles.fieldLabel}>End Time</Text>
-                      <TextInput
-                        style={styles.fieldInput}
-                        value={proposedEndTime}
-                        onChangeText={setProposedEndTime}
-                        placeholder="16:00"
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="numbers-and-punctuation"
-                      />
+                      <TouchableOpacity
+                        style={styles.pickerButton}
+                        onPress={() => setActivePicker('endTime')}
+                      >
+                        <MaterialIcons name="schedule" size={18} color={colors.accent} />
+                        <Text style={styles.pickerButtonText}>
+                          {formatDisplayTime(endTime)}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
 
@@ -129,34 +264,37 @@ export function RescheduleAppointmentModal({
                     style={[styles.fieldInput, styles.reasonInput]}
                     value={reason}
                     onChangeText={setReason}
-                    placeholder="Let the client know why..."
+                    placeholder={`Let the ${recipientLabel} know why...`}
                     placeholderTextColor={colors.textMuted}
                     multiline
                     numberOfLines={2}
                     textAlignVertical="top"
                   />
-
-                  <View style={styles.actions}>
-                    <TouchableOpacity
-                      style={styles.dismissButton}
-                      onPress={handleClose}
-                      disabled={submitting}
-                    >
-                      <Text style={styles.dismissButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.submitButton, (!canSubmit || submitting) && styles.buttonDisabled]}
-                      onPress={handleSubmit}
-                      disabled={!canSubmit || submitting}
-                    >
-                      {submitting ? (
-                        <ActivityIndicator size="small" color={colors.background} />
-                      ) : (
-                        <Text style={styles.submitButtonText}>Send Reschedule</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
                 </ScrollView>
+
+                {/* iOS spinner picker tray */}
+                {Platform.OS === 'ios' && renderInlinePicker()}
+
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={styles.dismissButton}
+                    onPress={handleClose}
+                    disabled={submitting}
+                  >
+                    <Text style={styles.dismissButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.submitButton, submitting && styles.buttonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator size="small" color={colors.background} />
+                    ) : (
+                      <Text style={styles.submitButtonText}>Send Reschedule</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -179,7 +317,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '90%',
     width: '90%',
     overflow: 'hidden',
   },
@@ -213,7 +351,7 @@ const styles = StyleSheet.create({
   },
   scrollContentInner: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 8,
   },
   description: {
     fontSize: 14,
@@ -239,6 +377,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
   },
+  pickerButton: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pickerButtonText: {
+    color: colors.textPrimary,
+    fontSize: 15,
+  },
+
+  // iOS spinner picker tray
+  iosPickerTray: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  iosPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  iosPickerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  iosPickerDone: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  iosPicker: {
+    height: 180,
+  },
+
   timeRow: {
     flexDirection: 'row',
     gap: 12,
@@ -253,6 +436,11 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   dismissButton: {
     flex: 1,

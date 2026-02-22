@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
 import type { Message } from '@inkedin/shared/types';
 
@@ -7,9 +8,11 @@ interface MessageBubbleProps {
   message: Message;
   isSent: boolean;
   status?: 'sending' | 'failed';
-  onViewCalendar?: () => void;
+  onViewCalendar?: (date?: string) => void;
   onRespondToBooking?: (appointmentId: number, action: 'accept' | 'decline') => void;
   respondingToBooking?: number | null;
+  onRespondToReschedule?: (messageId: number, action: 'accept' | 'decline') => void;
+  respondingToReschedule?: number | null;
 }
 
 function formatTime(dateString: string): string {
@@ -17,7 +20,7 @@ function formatTime(dateString: string): string {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function MessageBubble({ message, isSent, status, onViewCalendar, onRespondToBooking, respondingToBooking }: MessageBubbleProps) {
+export default function MessageBubble({ message, isSent, status, onViewCalendar, onRespondToBooking, respondingToBooking, onRespondToReschedule, respondingToReschedule }: MessageBubbleProps) {
   if (message.type === 'system') {
     const calendarLink = message.metadata?.calendar_link;
     const isArtist = isSent;
@@ -118,6 +121,12 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar,
               <Text style={styles.bookingCardMessage}>{message.content}</Text>
             </View>
           ) : null}
+          {message.metadata.status === 'accepted' && onViewCalendar && (
+            <TouchableOpacity style={styles.viewCalendarRow} onPress={() => onViewCalendar(extractDateFromBooking(message.metadata!.date))}>
+              <MaterialIcons name="event" size={16} color={colors.accent} />
+              <Text style={styles.viewCalendarText}>View in Calendar</Text>
+            </TouchableOpacity>
+          )}
           {/* Accept/Decline for artist on pending booking */}
           {message.metadata.status === 'pending' && !isSent && onRespondToBooking && message.metadata.appointment_id && (
             <View style={styles.bookingCardActions}>
@@ -168,33 +177,73 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar,
           message.metadata.status === 'accepted' && styles.rescheduleAccepted,
           message.metadata.status === 'declined' && styles.rescheduleDeclined,
         ]}>
-          <Text style={styles.rescheduleTitle}>Reschedule Request</Text>
-          <View style={styles.bookingCardRow}>
-            <Text style={styles.bookingCardLabel}>Proposed</Text>
-            <Text style={styles.bookingCardValue}>
-              {formatProposedDateTime(
-                message.metadata.proposed_date,
-                message.metadata.proposed_start_time,
-                message.metadata.proposed_end_time,
-              )}
-            </Text>
+          <View style={styles.bookingCardHeader}>
+            <Text style={styles.rescheduleTitle}>Reschedule Request</Text>
+            {message.metadata.status === 'accepted' && (
+              <View style={[styles.statusBadge, styles.acceptedBadge]}>
+                <Text style={[styles.statusBadgeText, styles.acceptedBadgeText]}>ACCEPTED</Text>
+              </View>
+            )}
+            {message.metadata.status === 'declined' && (
+              <View style={[styles.statusBadge, styles.declinedBadge]}>
+                <Text style={[styles.statusBadgeText, styles.declinedBadgeText]}>DECLINED</Text>
+              </View>
+            )}
+            {message.metadata.status === 'pending' && (
+              <View style={[styles.statusBadge, styles.pendingBadge]}>
+                <Text style={[styles.statusBadgeText, styles.pendingBadgeText]}>PENDING</Text>
+              </View>
+            )}
           </View>
+          {message.metadata.proposed_date && (
+            <View style={styles.rescheduleDetailColumn}>
+              <Text style={styles.bookingCardLabel}>Proposed Date</Text>
+              <Text style={styles.bookingCardValue}>
+                {formatProposedDate(message.metadata.proposed_date)}
+              </Text>
+            </View>
+          )}
+          {(message.metadata.proposed_start_time || message.metadata.proposed_end_time) && (
+            <View style={styles.rescheduleDetailColumn}>
+              <Text style={styles.bookingCardLabel}>Proposed Time</Text>
+              <Text style={styles.bookingCardValue}>
+                {formatProposedTime(message.metadata.proposed_start_time, message.metadata.proposed_end_time)}
+              </Text>
+            </View>
+          )}
           {message.metadata.reason ? (
             <Text style={styles.rescheduleReason}>{message.metadata.reason}</Text>
           ) : null}
-          {message.metadata.status === 'accepted' && (
-            <View style={[styles.statusBadge, styles.acceptedBadge]}>
-              <Text style={[styles.statusBadgeText, styles.acceptedBadgeText]}>ACCEPTED</Text>
-            </View>
+          {message.metadata.status === 'accepted' && onViewCalendar && (
+            <TouchableOpacity style={styles.viewCalendarRow} onPress={() => onViewCalendar(message.metadata!.proposed_date)}>
+              <MaterialIcons name="event" size={16} color={colors.accent} />
+              <Text style={styles.viewCalendarText}>View in Calendar</Text>
+            </TouchableOpacity>
           )}
-          {message.metadata.status === 'declined' && (
-            <View style={[styles.statusBadge, styles.declinedBadge]}>
-              <Text style={[styles.statusBadgeText, styles.declinedBadgeText]}>DECLINED</Text>
-            </View>
-          )}
-          {message.metadata.status === 'pending' && (
-            <View style={[styles.statusBadge, styles.pendingBadge]}>
-              <Text style={[styles.statusBadgeText, styles.pendingBadgeText]}>PENDING</Text>
+          {message.metadata.status === 'pending' && !isSent && onRespondToReschedule && (
+            <View style={styles.bookingCardActions}>
+              <TouchableOpacity
+                style={styles.bookingDeclineButton}
+                onPress={() => onRespondToReschedule(message.id, 'decline')}
+                disabled={respondingToReschedule === message.id}
+              >
+                {respondingToReschedule === message.id ? (
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                ) : (
+                  <Text style={styles.bookingDeclineText}>Decline</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bookingAcceptButton, respondingToReschedule === message.id && styles.buttonDisabled]}
+                onPress={() => onRespondToReschedule(message.id, 'accept')}
+                disabled={respondingToReschedule === message.id}
+              >
+                {respondingToReschedule === message.id ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.bookingAcceptText}>Accept</Text>
+                )}
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -217,25 +266,44 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar,
   );
 }
 
-function formatProposedDateTime(date?: string, startTime?: string, endTime?: string): string {
+function extractDateFromBooking(displayDate?: string): string | undefined {
+  if (!displayDate) return undefined;
+  try {
+    const d = new Date(displayDate);
+    if (isNaN(d.getTime())) return undefined;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatProposedDate(date?: string): string {
   if (!date) return '';
   try {
-    const dateObj = new Date(`${date}T${startTime || '00:00'}`);
-    const formatted = dateObj.toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    const dateObj = new Date(`${date}T00:00`);
+    return dateObj.toLocaleDateString('en-US', {
+      weekday: 'short', month: 'long', day: 'numeric', year: 'numeric',
     });
-    if (startTime) {
-      const start = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-      if (endTime) {
-        const endObj = new Date(`${date}T${endTime}`);
-        const end = endObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        return `${formatted}, ${start} - ${end}`;
-      }
-      return `${formatted} at ${start}`;
-    }
-    return formatted;
   } catch {
     return date;
+  }
+}
+
+function formatProposedTime(startTime?: string, endTime?: string): string {
+  if (!startTime) return '';
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const start = new Date(`${today}T${startTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (endTime) {
+      const end = new Date(`${today}T${endTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      return `${start} - ${end}`;
+    }
+    return start;
+  } catch {
+    return startTime;
   }
 }
 
@@ -469,7 +537,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: 10,
+  },
+  rescheduleDetailColumn: {
+    marginBottom: 8,
   },
   rescheduleReason: {
     fontSize: 13,
@@ -504,6 +574,20 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.accent}18`,
   },
   pendingBadgeText: {
+    color: colors.accent,
+  },
+  viewCalendarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  viewCalendarText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.accent,
   },
 });

@@ -18,6 +18,7 @@ export interface AvailableSlotsResponse {
   consultation_window: { start: string; end: string } | null;
   consultation_duration: number;
   deposit_amount: number | null;
+  consultation_fee: number | null;
   slots: string[];
 }
 

@@ -184,6 +184,18 @@ export default function ProfileScreen({ navigation }: any) {
         <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
       </TouchableOpacity>
 
+      {/* My Upcoming Bookings (Clients) */}
+      {!isArtist && (
+        <TouchableOpacity
+          style={styles.profileLink}
+          onPress={() => navigation.navigate('MyBookings')}
+        >
+          <MaterialIcons name="event" size={20} color={colors.accent} />
+          <Text style={styles.profileLinkText}>My Upcoming Bookings</Text>
+          <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      )}
+
       {/* About */}
       {u.about ? (
         <View style={styles.section}>

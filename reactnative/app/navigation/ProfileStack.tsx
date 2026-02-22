@@ -10,6 +10,7 @@ import CalendarScreen from '../screens/CalendarScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import BookingSettingsScreen from '../screens/BookingSettingsScreen';
+import MyBookingsScreen from '../screens/MyBookingsScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { ProfileStackParamList } from './types';
 
@@ -28,6 +29,7 @@ export default function ProfileStack() {
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name="BookingSettings" component={BookingSettingsScreen} options={{ title: 'Booking Settings' }} />
+      <Stack.Screen name="MyBookings" component={MyBookingsScreen} options={{ title: 'My Upcoming Bookings' }} />
       <Stack.Screen
         name="ArtistDetail"
         component={ArtistDetailScreen}

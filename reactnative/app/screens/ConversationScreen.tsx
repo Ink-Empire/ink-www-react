@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ImageCropPicker from 'react-native-image-crop-picker';
@@ -20,6 +22,7 @@ import { messageService, appointmentService } from '../../lib/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useUnreadMessageCount } from '../contexts/UnreadCountContext';
+import { useMessageNotification } from '../contexts/MessageNotificationContext';
 import { useConversation, type RealtimeConfig } from '@inkedin/shared/hooks';
 import { getEcho } from '../utils/echo';
 import MessageBubble from '../components/inbox/MessageBubble';
@@ -47,6 +50,7 @@ export default function ConversationScreen({ route, navigation }: any) {
   const { user } = useAuth();
   const { showSnackbar } = useSnackbar();
   const { refresh: refreshUnreadCount } = useUnreadMessageCount();
+  const { setActiveConversationId, clearActiveConversationId } = useMessageNotification();
   const isArtist = user?.type_id === 2;
 
   // Resolve conversation from clientId if no conversationId was provided
@@ -91,6 +95,7 @@ export default function ConversationScreen({ route, navigation }: any) {
 
   const [respondingToBooking, setRespondingToBooking] = useState<number | null>(null);
   const [respondedBookings, setRespondedBookings] = useState<Record<number, 'accepted' | 'declined'>>({});
+  const [respondingToReschedule, setRespondingToReschedule] = useState<number | null>(null);
 
   const handleRespondToBooking = useCallback(async (appointmentId: number, action: 'accept' | 'decline') => {
     setRespondingToBooking(appointmentId);
@@ -111,6 +116,27 @@ export default function ConversationScreen({ route, navigation }: any) {
       showSnackbar(`Failed to ${action} booking. Please try again.`, 'error');
     } finally {
       setRespondingToBooking(null);
+    }
+  }, [showSnackbar, fetchMoreMessages]);
+
+  const handleRespondToReschedule = useCallback(async (messageId: number, action: 'accept' | 'decline') => {
+    if (!resolvedIdRef.current) return;
+    setRespondingToReschedule(messageId);
+    try {
+      await messageService.respondToMessage(resolvedIdRef.current, messageId, action);
+      clearCalendarCache();
+      await fetchMoreMessages();
+      showSnackbar(
+        action === 'accept'
+          ? 'Reschedule accepted! The appointment has been updated.'
+          : 'Reschedule declined.',
+        'success',
+      );
+    } catch (err) {
+      console.error(`Failed to ${action} reschedule:`, err);
+      showSnackbar(`Failed to ${action} reschedule. Please try again.`, 'error');
+    } finally {
+      setRespondingToReschedule(null);
     }
   }, [showSnackbar, fetchMoreMessages]);
 
@@ -161,6 +187,40 @@ export default function ConversationScreen({ route, navigation }: any) {
       markAsRead().then(() => refreshUnreadCount());
     }
   }, [resolvedId, markAsRead, refreshUnreadCount]);
+
+  // Track active conversation to suppress notification banners
+  useEffect(() => {
+    if (resolvedId) {
+      setActiveConversationId(resolvedId);
+    }
+    return () => clearActiveConversationId();
+  }, [resolvedId, setActiveConversationId, clearActiveConversationId]);
+
+  // Fast 5s poll for new messages
+  useEffect(() => {
+    if (!resolvedId) return;
+
+    const interval = setInterval(() => {
+      fetchMoreMessages();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [resolvedId, fetchMoreMessages]);
+
+  // Refetch messages when app returns to foreground
+  useEffect(() => {
+    if (!resolvedId) return;
+
+    const handleAppState = (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        fetchMoreMessages();
+        markAsRead().then(() => refreshUnreadCount());
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppState);
+    return () => subscription.remove();
+  }, [resolvedId, fetchMoreMessages, markAsRead, refreshUnreadCount]);
 
   const handlePickImages = useCallback(async () => {
     const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
@@ -242,7 +302,7 @@ export default function ConversationScreen({ route, navigation }: any) {
     }
   }, [hasMore, loading, messages, fetchMoreMessages]);
 
-  const handleViewCalendar = useCallback(() => {
+  const handleViewCalendar = useCallback((date?: string) => {
     if (user?.id) {
       navigation.navigate('Main', {
         screen: 'ProfileTab',
@@ -252,6 +312,7 @@ export default function ConversationScreen({ route, navigation }: any) {
             artistId: user.id,
             artistName: user.name || 'Artist',
             artistSlug: user.slug,
+            ...(date ? { initialDate: date } : {}),
           },
         },
       });
@@ -263,11 +324,13 @@ export default function ConversationScreen({ route, navigation }: any) {
       message={item}
       isSent={item.sender_id === user?.id}
       status={(item as any)._optimistic}
-      onViewCalendar={handleViewCalendar}
+      onViewCalendar={isArtist ? handleViewCalendar : undefined}
       onRespondToBooking={isArtist ? handleRespondToBooking : undefined}
       respondingToBooking={respondingToBooking}
+      onRespondToReschedule={handleRespondToReschedule}
+      respondingToReschedule={respondingToReschedule}
     />
-  ), [user?.id, handleViewCalendar, isArtist, handleRespondToBooking, respondingToBooking]);
+  ), [user?.id, handleViewCalendar, isArtist, handleRespondToBooking, respondingToBooking, handleRespondToReschedule, respondingToReschedule]);
 
   if (loading && messages.length === 0) {
     return (

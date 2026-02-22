@@ -20,7 +20,6 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import LoadingScreen from '../components/common/LoadingScreen';
 import ErrorView from '../components/common/ErrorView';
 import StyleTag from '../components/common/StyleTag';
-import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
 import ArtistOwnerDashboard from '../components/artist/ArtistOwnerDashboard';
 
@@ -129,24 +128,50 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
         />
       ) : (
         <View style={styles.actions}>
-          <Button
-            title={!settings.books_open ? 'Not Currently Booking' : 'Book'}
+          {user && (
+            <View style={styles.actionsTopRow}>
+              <TouchableOpacity
+                style={styles.iconActionButton}
+                onPress={() => navigation.navigate('InboxStack', {
+                  screen: 'Conversation',
+                  params: { clientId: artist.id, participantName: artist.name },
+                })}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons name="chat-bubble-outline" size={18} color={colors.textPrimary} />
+                <Text style={styles.iconActionButtonText}>Message</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconActionButton}
+                onPress={handleToggleFavorite}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons
+                  name={isFavorited ? 'bookmark' : 'bookmark-border'}
+                  size={18}
+                  color={isFavorited ? colors.accent : colors.textPrimary}
+                />
+                <Text style={[styles.iconActionButtonText, isFavorited && { color: colors.accent }]}>
+                  {isFavorited ? 'Saved' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <TouchableOpacity
+            style={[styles.bookButton, !settings.books_open && styles.bookButtonDisabled]}
             onPress={() => navigation.navigate('Calendar', {
               artistId: artist.id,
               artistName: artist.name,
               artistSlug: slug,
             })}
             disabled={!settings.books_open}
-            style={styles.actionButton}
-          />
-          {user && (
-            <Button
-              title={isFavorited ? 'Saved' : 'Save'}
-              onPress={handleToggleFavorite}
-              variant={isFavorited ? 'secondary' : 'outline'}
-              style={styles.actionButton}
-            />
-          )}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="event" size={20} color={settings.books_open ? colors.textOnLight : colors.textMuted} />
+            <Text style={[styles.bookButtonText, !settings.books_open && styles.bookButtonTextDisabled]}>
+              {settings.books_open ? 'Request to Book' : 'Not Currently Booking'}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -392,15 +417,52 @@ const styles = StyleSheet.create({
 
   // Actions
   actions: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    gap: 12,
+    gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  actionButton: {
+  actionsTopRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  iconActionButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  iconActionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  bookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+  },
+  bookButtonDisabled: {
+    opacity: 0.5,
+  },
+  bookButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textOnLight,
+  },
+  bookButtonTextDisabled: {
+    color: colors.textMuted,
   },
 
   // Sections

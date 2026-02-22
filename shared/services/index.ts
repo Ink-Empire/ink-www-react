@@ -15,7 +15,10 @@ export interface UpcomingAppointment {
   clientInitials: string;
   type: 'consultation' | 'appointment' | string;
   client_id?: number;
+  conversation_id?: number;
   status?: string;
+  start_time?: string;
+  end_time?: string;
 }
 
 // =============================================================================
@@ -212,6 +215,43 @@ export { fetchPlacesApiKey, searchPlaces, getPlaceDetails } from './googlePlaces
 export type { PlacePrediction, PlaceDetails } from './googlePlacesService';
 
 // =============================================================================
+// Client Service
+// =============================================================================
+
+export interface ClientDashboardAppointment {
+  id: number;
+  title: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  type: string;
+  description?: string;
+  conversation_id?: number;
+  artist?: {
+    id: number;
+    name: string;
+    slug?: string;
+    username?: string;
+    image?: any;
+  };
+  studio?: any;
+}
+
+export function createClientService(api: ApiClient) {
+  return {
+    getDashboard: () =>
+      api.get<{
+        appointments: ClientDashboardAppointment[];
+        conversations: any[];
+        favorites: any[];
+        wishlist_count: number;
+        suggested_artists: any[];
+      }>('/client/dashboard', { requiresAuth: true }),
+  };
+}
+
+// =============================================================================
 // Export types
 // =============================================================================
 
@@ -224,3 +264,4 @@ export type MessageService = ReturnType<typeof createMessageService>;
 export type NotificationService = ReturnType<typeof createNotificationService>;
 export type AppointmentService = ReturnType<typeof createAppointmentService>;
 export type TagService = ReturnType<typeof createTagService>;
+export type ClientService = ReturnType<typeof createClientService>;

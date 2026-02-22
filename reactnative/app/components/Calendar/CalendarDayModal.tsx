@@ -29,6 +29,7 @@ interface CalendarDayModalProps {
   selectedDate: string | null;
   artistName: string;
   depositAmount?: number | null;
+  consultationFee?: number | null;
   acceptsConsultations?: boolean;
   acceptsAppointments?: boolean;
   appointments: Appointment[];
@@ -48,6 +49,7 @@ export function CalendarDayModal({
   selectedDate,
   artistName,
   depositAmount,
+  consultationFee,
   acceptsConsultations = true,
   acceptsAppointments = true,
   appointments,
@@ -130,21 +132,21 @@ export function CalendarDayModal({
                                 style={styles.eventActionButton}
                                 onPress={() => onContactClient?.(apt)}
                               >
-                                <MaterialIcons name="chat-bubble-outline" size={14} color={colors.accent} />
+                                <MaterialIcons name="chat-bubble-outline" size={18} color={colors.accent} />
                                 <Text style={styles.eventActionText}>Contact</Text>
                               </TouchableOpacity>
                               <TouchableOpacity
                                 style={styles.eventActionButton}
                                 onPress={() => onRescheduleAppointment?.(apt)}
                               >
-                                <MaterialIcons name="update" size={14} color={colors.accent} />
+                                <MaterialIcons name="update" size={18} color={colors.accent} />
                                 <Text style={styles.eventActionText}>Reschedule</Text>
                               </TouchableOpacity>
                               <TouchableOpacity
                                 style={styles.eventActionButton}
                                 onPress={() => onCancelAppointment?.(apt)}
                               >
-                                <MaterialIcons name="event-busy" size={14} color={colors.error} />
+                                <MaterialIcons name="event-busy" size={18} color={colors.error} />
                                 <Text style={[styles.eventActionText, { color: colors.error }]}>Cancel</Text>
                               </TouchableOpacity>
                             </>
@@ -154,7 +156,7 @@ export function CalendarDayModal({
                               style={styles.eventActionButton}
                               onPress={() => onDeleteAppointment?.(apt)}
                             >
-                              <MaterialIcons name="delete-outline" size={14} color={colors.error} />
+                              <MaterialIcons name="delete-outline" size={18} color={colors.error} />
                               <Text style={[styles.eventActionText, { color: colors.error }]}>Delete</Text>
                             </TouchableOpacity>
                           )}
@@ -282,7 +284,9 @@ export function CalendarDayModal({
                         {bookingType === 'appointment' && depositAmount
                           ? `This artist has set their deposit at $${depositAmount}.`
                           : bookingType === 'consultation'
-                            ? `Request a free consultation with ${artistName} to discuss your tattoo idea.`
+                            ? consultationFee
+                              ? `Request a consultation with ${artistName} to discuss your tattoo idea. Fee: $${consultationFee}.`
+                              : `Request a free consultation with ${artistName} to discuss your tattoo idea.`
                             : `Request a booking with ${artistName} on this date.`}
                       </Text>
                     </View>
@@ -434,11 +438,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    gap: 4,
+    paddingVertical: 12,
+    gap: 6,
   },
   eventActionText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.accent,
   },

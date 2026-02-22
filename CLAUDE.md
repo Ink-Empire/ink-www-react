@@ -196,7 +196,7 @@ When adding a new API endpoint:
 
 All code changes must pass CI tests and receive an approval before merging to develop.
 
-Never ever run NPM commands. I will rebuild my own project.
+Ask permission before running NPM commands.
 Always check the /ink-api/docs directory to understand the flow and update it when we make changes to a process.
 Always use the colors.ts for our styles.
 Always reuse components where possible.

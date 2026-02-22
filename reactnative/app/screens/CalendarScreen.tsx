@@ -21,8 +21,8 @@ import { WorkingHour, Appointment, ExternalCalendarEvent } from '@inkedin/shared
 import type { UpcomingAppointment } from '@inkedin/shared/services';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
-import { artistService, appointmentService } from '../../lib/services';
-import { getCachedCalendarData, fetchAndCacheCalendarData, isCacheStale } from '../../lib/calendarCache';
+import { artistService, appointmentService, messageService } from '../../lib/services';
+import { getCachedCalendarData, fetchAndCacheCalendarData, isCacheStale, clearCalendarCache } from '../../lib/calendarCache';
 import { useAuth } from '../contexts/AuthContext';
 import { CalendarGrid } from '../components/Calendar/CalendarGrid';
 import { CalendarDayModal } from '../components/Calendar/CalendarDayModal';
@@ -36,13 +36,14 @@ interface CalendarScreenProps {
       artistId: number;
       artistName?: string;
       artistSlug?: string;
+      initialDate?: string;
     };
   };
   navigation: any;
 }
 
 export default function CalendarScreen({ route, navigation }: CalendarScreenProps) {
-  const { artistId, artistName = 'Artist', artistSlug } = route.params;
+  const { artistId, artistName = 'Artist', artistSlug, initialDate } = route.params;
   const { user } = useAuth();
   const isOwnProfile = user?.id === artistId;
 
@@ -55,6 +56,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const [bookingFormVisible, setBookingFormVisible] = useState(false);
   const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
   const [depositAmount, setDepositAmount] = useState<number | null>(null);
+  const [consultationFee, setConsultationFee] = useState<number | null>(null);
   const [acceptsConsultations, setAcceptsConsultations] = useState(true);
   const [acceptsAppointments, setAcceptsAppointments] = useState(true);
   const [selectedBookingType, setSelectedBookingType] = useState<'consultation' | 'appointment'>('consultation');
@@ -68,6 +70,14 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     appointments,
     externalEvents,
   });
+
+  useEffect(() => {
+    if (initialDate) {
+      const [y, m] = initialDate.split('-').map(Number);
+      calendar.goToMonth(m - 1, y);
+      calendar.setSelectedDate(initialDate);
+    }
+  }, [initialDate]);
 
   const applyUpcoming = (upcoming: UpcomingAppointment[]) => {
     setUpcomingAppointments(upcoming);
@@ -121,6 +131,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
             setWorkingHours(Array.isArray(data) ? data : []);
             const artist = (artistResponse as any)?.artist ?? artistResponse;
             setDepositAmount(artist?.settings?.deposit_amount ?? null);
+            setConsultationFee(artist?.settings?.consultation_fee ?? null);
             setAcceptsConsultations(Boolean(artist?.settings?.accepts_consultations));
             setAcceptsAppointments(Boolean(artist?.settings?.accepts_appointments));
           }
@@ -173,20 +184,31 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   };
 
   const handleCancelPress = (apt: UpcomingAppointment) => {
+    setModalVisible(false);
     setSelectedAppointment(apt);
     setCancelModalVisible(true);
   };
 
   const handleReschedulePress = (apt: UpcomingAppointment) => {
+    setModalVisible(false);
     setSelectedAppointment(apt);
     setRescheduleModalVisible(true);
   };
 
   const handleCancelSubmit = async (reason?: string) => {
     if (!selectedAppointment) return;
-    await appointmentService.cancel(selectedAppointment.id, reason);
+    if (selectedAppointment.conversation_id) {
+      await messageService.sendCancellation(
+        selectedAppointment.conversation_id,
+        selectedAppointment.id,
+        reason,
+      );
+    } else {
+      await appointmentService.cancel(selectedAppointment.id, reason);
+    }
+    clearCalendarCache();
+    await refreshUpcomingAppointments();
     Alert.alert('Cancelled', 'The appointment has been cancelled.');
-    refreshUpcomingAppointments();
   };
 
   const handleRescheduleSubmit = async (
@@ -196,14 +218,25 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     reason?: string,
   ) => {
     if (!selectedAppointment) return;
-    await appointmentService.update(selectedAppointment.id, {
-      date: proposedDate,
-      start_time: proposedStartTime,
-      end_time: proposedEndTime,
-      reason,
-    });
+    if (selectedAppointment.conversation_id) {
+      await messageService.sendReschedule(
+        selectedAppointment.conversation_id,
+        selectedAppointment.id,
+        proposedDate,
+        proposedStartTime,
+        proposedEndTime,
+        reason,
+      );
+    } else {
+      await appointmentService.update(selectedAppointment.id, {
+        date: proposedDate,
+        start_time: proposedStartTime,
+        end_time: proposedEndTime,
+      });
+    }
+    clearCalendarCache();
+    await refreshUpcomingAppointments();
     Alert.alert('Rescheduled', 'The reschedule request has been sent.');
-    refreshUpcomingAppointments();
   };
 
   const handleDeletePress = (apt: UpcomingAppointment) => {
@@ -378,6 +411,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         selectedDate={calendar.selectedDate}
         artistName={artistName}
         depositAmount={depositAmount}
+        consultationFee={consultationFee}
         acceptsConsultations={acceptsConsultations}
         acceptsAppointments={acceptsAppointments}
         appointments={calendar.selectedDate ? calendar.getAppointmentsForDate(calendar.selectedDate) : []}
@@ -434,6 +468,9 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         onClose={() => { setRescheduleModalVisible(false); setSelectedAppointment(null); }}
         onSubmit={handleRescheduleSubmit}
         clientName={selectedAppointment?.clientName}
+        currentDate={selectedAppointment?.date}
+        currentStartTime={selectedAppointment?.start_time}
+        currentEndTime={selectedAppointment?.end_time}
       />
     </SafeAreaView>
   );

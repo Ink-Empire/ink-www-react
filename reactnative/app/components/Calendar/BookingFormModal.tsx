@@ -198,6 +198,16 @@ export function BookingFormModal({
                       </View>
                     )}
 
+                    {/* Consultation fee */}
+                    {bookingType === 'consultation' && slotsResponse?.consultation_fee && (
+                      <View style={styles.depositInfo}>
+                        <Text style={styles.depositInfoLabel}>Consultation Fee</Text>
+                        <Text style={styles.depositInfoAmount}>
+                          ${slotsResponse.consultation_fee}
+                        </Text>
+                      </View>
+                    )}
+
                     {/* Time Slots */}
                     <Text style={styles.sectionTitle}>Select a Time</Text>
 

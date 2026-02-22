@@ -70,6 +70,7 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   NotificationSettings: undefined;
   BookingSettings: undefined;
+  MyBookings: undefined;
   ArtistDetail: { slug: string; name?: string };
   TattooDetail: { id: number };
   EditTattoo: { id: number };

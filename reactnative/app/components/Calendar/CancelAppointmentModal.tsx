@@ -84,28 +84,28 @@ export function CancelAppointmentModal({
                     numberOfLines={3}
                     textAlignVertical="top"
                   />
-
-                  <View style={styles.actions}>
-                    <TouchableOpacity
-                      style={styles.keepButton}
-                      onPress={handleClose}
-                      disabled={submitting}
-                    >
-                      <Text style={styles.keepButtonText}>Keep Appointment</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.cancelButton, submitting && styles.buttonDisabled]}
-                      onPress={handleSubmit}
-                      disabled={submitting}
-                    >
-                      {submitting ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                        <Text style={styles.cancelButtonText}>Cancel Appointment</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
                 </ScrollView>
+
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={styles.keepButton}
+                    onPress={handleClose}
+                    disabled={submitting}
+                  >
+                    <Text style={styles.keepButtonText}>Keep Appointment</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.cancelButton, submitting && styles.buttonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.cancelButtonText}>Cancel Appointment</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   },
   scrollContentInner: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 8,
   },
   description: {
     fontSize: 14,
@@ -184,6 +184,11 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   keepButton: {
     flex: 1,
