@@ -501,6 +501,9 @@ export default function InboxPage() {
   const handleRespondToReschedule = async (messageId: number, action: 'accept' | 'decline') => {
     try {
       await respondToMessage(messageId, action);
+      if (action === 'decline') {
+        setMessageInput("Hey, the proposed time doesn't work for me. Can we discuss some alternative options?");
+      }
       setSnackbar({
         open: true,
         message: action === 'accept'
@@ -1268,63 +1271,6 @@ export default function InboxPage() {
                 </Box>
               )}
 
-              {/* Cancelled Banner for cancelled appointments */}
-              {selectedConversation.appointment?.status === 'cancelled' && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    px: 3,
-                    py: 2,
-                    bgcolor: 'rgba(239, 68, 68, 0.1)',
-                    borderBottom: `1px solid rgba(239, 68, 68, 0.2)`,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      bgcolor: colors.error,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                    }}
-                  >
-                    <CalendarMonthIcon sx={{ fontSize: 18 }} />
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: colors.error }}>
-                      Cancelled
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                      {(() => {
-                        const dateStr = selectedConversation.appointment.date?.split('T')[0] || '';
-                        const timeStr = selectedConversation.appointment.start_time || '00:00:00';
-                        const tz = selectedConversation.appointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-                        const datetime = new Date(`${dateStr}T${timeStr}`);
-                        const formattedDate = datetime.toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          timeZone: tz
-                        });
-                        const formattedTime = datetime.toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true,
-                          timeZone: tz
-                        });
-                        return `${formattedDate} at ${formattedTime}`;
-                      })()}
-                      {selectedConversation.appointment.title && ` · ${selectedConversation.appointment.title}`}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
 
               {/* Messages */}
               <Box ref={messagesContainerRef} sx={{ flex: 1, overflowY: 'auto', p: 3 }}>

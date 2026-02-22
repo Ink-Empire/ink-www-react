@@ -344,7 +344,10 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           <View style={styles.upcomingSection}>
             <Text style={styles.upcomingSectionTitle}>Upcoming Appointments</Text>
             {upcomingAppointments.map((apt) => (
-              <View key={apt.id} style={styles.appointmentCard}>
+              <View key={apt.id} style={[
+                styles.appointmentCard,
+                apt.status === 'cancelled' && styles.appointmentCardCancelled,
+              ]}>
                 <TouchableOpacity style={styles.appointmentCardContent} onPress={() => handleDayPress(apt.date)}>
                   <View style={styles.appointmentDate}>
                     <Text style={styles.appointmentDay}>{apt.day}</Text>
@@ -358,10 +361,19 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
                     </Text>
                     <Text style={styles.appointmentClient}>{apt.clientName}</Text>
                   </View>
-                  <View style={styles.appointmentTypeBadge}>
-                    <Text style={styles.appointmentTypeText}>{apt.type}</Text>
+                  <View style={[
+                    styles.appointmentTypeBadge,
+                    apt.status === 'cancelled' && styles.appointmentCancelledBadge,
+                    apt.status === 'booked' && styles.appointmentBookedBadge,
+                  ]}>
+                    <Text style={[
+                      styles.appointmentTypeText,
+                      apt.status === 'cancelled' && styles.appointmentCancelledText,
+                      apt.status === 'booked' && styles.appointmentBookedText,
+                    ]}>{apt.status || 'pending'}</Text>
                   </View>
                 </TouchableOpacity>
+                {apt.status !== 'cancelled' && (
                 <View style={styles.appointmentActions}>
                   {apt.client_id && (
                     <>
@@ -398,6 +410,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
                     </TouchableOpacity>
                   )}
                 </View>
+                )}
               </View>
             ))}
           </View>
@@ -625,6 +638,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
+  },
+  appointmentBookedBadge: {
+    backgroundColor: colors.successDim,
+  },
+  appointmentBookedText: {
+    color: colors.success,
+  },
+  appointmentCancelledBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+  },
+  appointmentCancelledText: {
+    color: colors.error,
+  },
+  appointmentCardCancelled: {
+    opacity: 0.75,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   appointmentActions: {
     flexDirection: 'row',

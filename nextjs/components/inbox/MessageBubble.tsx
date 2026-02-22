@@ -569,7 +569,7 @@ export function MessageBubble({
                     {respondingAction === 'decline' ? (
                       <CircularProgress size={16} sx={{ color: colors.textPrimary }} />
                     ) : (
-                      'Decline'
+                      'Decline & Chat'
                     )}
                   </Button>
                   <Button

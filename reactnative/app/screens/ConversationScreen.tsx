@@ -126,6 +126,9 @@ export default function ConversationScreen({ route, navigation }: any) {
       await messageService.respondToMessage(resolvedIdRef.current, messageId, action);
       clearCalendarCache();
       await fetchMoreMessages();
+      if (action === 'decline') {
+        setInputText("Hey, the proposed time doesn't work for me. Can we discuss some alternative options?");
+      }
       showSnackbar(
         action === 'accept'
           ? 'Reschedule accepted! The appointment has been updated.'

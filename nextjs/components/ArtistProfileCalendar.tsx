@@ -1823,7 +1823,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                           </Typography>
                         )}
                     </Box>
-                    {isOwnCalendar && (
+                    {isOwnCalendar && (apt.extendedProps?.status || apt.status) !== 'cancelled' && (
                       <Box sx={{ display: 'flex', gap: 0.75, mt: 1, pt: 1, borderTop: `1px solid ${colors.border}`, flexWrap: 'wrap' }}>
                         {apt.clientId && (
                           <>

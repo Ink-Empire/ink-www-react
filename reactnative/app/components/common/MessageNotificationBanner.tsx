@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     top: TOP_INSET,
     left: 12,
     right: 12,
-    backgroundColor: colors.accentDim,
+    backgroundColor: 'rgba(201, 169, 98, 0.5)',
     borderRadius: 12,
     borderLeftWidth: 4,
     borderLeftColor: colors.accent,

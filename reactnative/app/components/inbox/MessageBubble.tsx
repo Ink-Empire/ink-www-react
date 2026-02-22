@@ -254,7 +254,7 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar,
                 {respondingToReschedule === message.id ? (
                   <ActivityIndicator size="small" color={colors.textSecondary} />
                 ) : (
-                  <Text style={styles.bookingDeclineText}>Decline</Text>
+                  <Text style={styles.bookingDeclineText}>Decline & Chat</Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity
