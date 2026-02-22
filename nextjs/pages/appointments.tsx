@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
@@ -76,8 +76,13 @@ export default function AppointmentsPage() {
     setSnackbar({ open: true, message: 'The appointment has been cancelled.', severity: 'success' });
   };
 
-  if (authLoading) return <Layout><Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><Skeleton variant="rounded" width={400} height={200} sx={{ bgcolor: colors.surface }} /></Box></Layout>;
-  if (!user) { router.push('/login'); return null; }
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading || !user) return <Layout><Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><Skeleton variant="rounded" width={400} height={200} sx={{ bgcolor: colors.surface }} /></Box></Layout>;
 
   return (
     <Layout>
