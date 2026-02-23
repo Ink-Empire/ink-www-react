@@ -2,8 +2,11 @@
 set -e
 
 echo "Installing Node.js..."
-brew install node
+export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_INSTALL_CLEANUP=1
+brew install node 2>/dev/null || brew link --overwrite node 2>/dev/null || true
 export NODE_BINARY=$(which node)
+echo "Node version: $(node --version)"
 
 echo "Installing npm dependencies..."
 cd "$CI_PRIMARY_REPOSITORY_PATH/reactnative"
