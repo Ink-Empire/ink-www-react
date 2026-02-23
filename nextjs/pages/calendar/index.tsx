@@ -355,9 +355,10 @@ const MyCalendarPage: React.FC = () => {
                   borderRadius: '10px',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  border: `1px solid transparent`,
+                  border: `1px solid ${apt.status === 'cancelled' ? 'rgba(239, 68, 68, 0.3)' : 'transparent'}`,
+                  opacity: apt.status === 'cancelled' ? 0.75 : 1,
                   '&:hover': {
-                    borderColor: colors.accent,
+                    borderColor: apt.status === 'cancelled' ? 'rgba(239, 68, 68, 0.3)' : colors.accent,
                     bgcolor: colors.surface,
                   },
                 }}
@@ -408,21 +409,21 @@ const MyCalendarPage: React.FC = () => {
                   </Typography>
                 </Box>
 
-                {/* Type badge */}
+                {/* Status badge */}
                 <Box sx={{
                   px: 1,
                   py: 0.25,
-                  bgcolor: colors.accentDim,
+                  bgcolor: apt.status === 'booked' ? `${colors.success}22` : apt.status === 'cancelled' ? `${colors.error}22` : `${colors.accent}22`,
                   borderRadius: '4px',
                   flexShrink: 0,
                 }}>
                   <Typography sx={{
                     fontSize: '0.6rem',
                     fontWeight: 600,
-                    color: colors.accent,
+                    color: apt.status === 'booked' ? colors.success : apt.status === 'cancelled' ? colors.error : colors.accent,
                     textTransform: 'uppercase',
                   }}>
-                    {apt.type}
+                    {apt.status || 'pending'}
                   </Typography>
                 </Box>
               </Box>
