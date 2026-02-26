@@ -356,6 +356,7 @@ export default function UpdateTattoo() {
   const [error, setError] = useState<string | null>(null);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [isPublic, setIsPublic] = useState(true);
   const [stylesOpen, setStylesOpen] = useState(false);
 
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -409,6 +410,7 @@ export default function UpdateTattoo() {
 
       if (data.title) setTitle(data.title);
       if (data.description) setDescription(data.description);
+      setIsPublic(data.is_public !== undefined ? data.is_public : true);
 
       if (data.styles && Array.isArray(data.styles)) {
         setSelectedStyles(data.styles.map((s: any) => typeof s === 'object' ? s.id : s));
@@ -479,6 +481,9 @@ export default function UpdateTattoo() {
       if (selectedTags.length > 0) {
         formData.append('tag_ids', JSON.stringify(selectedTags.map(t => t.id)));
       }
+
+      // Add visibility
+      formData.append('is_public', isPublic ? '1' : '0');
 
       // Add deleted image IDs
       if (deletedImageIds.length > 0) {
@@ -810,6 +815,60 @@ export default function UpdateTattoo() {
             placeholder="Search and add tags..."
             maxTags={10}
           />
+        </Box>
+
+        {/* Visibility */}
+        <Box sx={styles.formSection}>
+          <Typography sx={styles.formLabel}>Visibility</Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: '14px 16px',
+              bgcolor: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '10px',
+            }}
+          >
+            <Box>
+              <Typography sx={{ color: colors.textPrimary, fontSize: '0.9375rem', fontWeight: 500 }}>
+                {isPublic ? 'Public' : 'Unlisted'}
+              </Typography>
+              <Typography sx={{ color: colors.textMuted, fontSize: '0.8125rem', mt: 0.25 }}>
+                {isPublic ? 'Visible to everyone' : 'Only visible via direct link'}
+              </Typography>
+            </Box>
+            <Box
+              component="button"
+              onClick={() => setIsPublic(!isPublic)}
+              sx={{
+                width: 48,
+                height: 28,
+                borderRadius: '14px',
+                border: 'none',
+                cursor: 'pointer',
+                position: 'relative',
+                bgcolor: isPublic ? colors.accent : colors.border,
+                transition: 'background-color 0.2s',
+                flexShrink: 0,
+                p: 0,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  bgcolor: '#fff',
+                  position: 'absolute',
+                  top: 3,
+                  left: isPublic ? 23 : 3,
+                  transition: 'left 0.2s',
+                }}
+              />
+            </Box>
+          </Box>
         </Box>
       </Box>
 

@@ -14,6 +14,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -53,6 +54,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
   const [placement, setPlacement] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [isPublic, setIsPublic] = useState(true);
 
   // Image state
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
@@ -79,6 +81,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
     setTitle(tattoo.title || '');
     setDescription(tattoo.description || '');
     setPlacement(tattoo.placement || '');
+    setIsPublic(tattoo.is_public !== undefined ? tattoo.is_public : true);
 
     if (tattoo.styles && Array.isArray(tattoo.styles)) {
       setSelectedStyles(tattoo.styles.map((s: any) => s.id).filter(Boolean));
@@ -320,6 +323,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         styles: selectedStyles.filter(Boolean),
         tag_ids: selectedTags.filter(Boolean),
         image_ids: allImageIds.filter(Boolean),
+        is_public: isPublic ? '1' : '0',
       };
 
       if (deletedImageIds.length > 0) {
@@ -533,6 +537,22 @@ export default function EditTattooScreen({ navigation, route }: any) {
             <Text style={formStyles.aiSuggestButtonText}>Get AI tag suggestions</Text>
           </TouchableOpacity>
         )}
+
+        {/* Visibility */}
+        <View style={formStyles.visibilityRow}>
+          <View>
+            <Text style={formStyles.visibilityLabel}>{isPublic ? 'Public' : 'Unlisted'}</Text>
+            <Text style={formStyles.visibilityHint}>
+              {isPublic ? 'Visible to everyone' : 'Only visible via direct link'}
+            </Text>
+          </View>
+          <Switch
+            value={isPublic}
+            onValueChange={setIsPublic}
+            trackColor={{ false: colors.border, true: colors.accentDark }}
+            thumbColor={isPublic ? colors.accent : colors.textMuted}
+          />
+        </View>
 
       </ScrollView>
 
@@ -884,6 +904,30 @@ const formStyles = StyleSheet.create({
     color: colors.aiSuggestion,
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  // Visibility toggle
+  visibilityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: 8,
+  },
+  visibilityLabel: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  visibilityHint: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 2,
   },
 
   // Bottom bar

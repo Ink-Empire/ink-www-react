@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
 
@@ -15,6 +15,8 @@ export default function SearchBar({
   debounceMs = 400,
 }: SearchBarProps) {
   const [value, setValue] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleChange = useCallback((text: string) => {
@@ -30,21 +32,37 @@ export default function SearchBar({
     onSearch('');
   };
 
+  const handleCancel = () => {
+    inputRef.current?.blur();
+    setValue('');
+    onSearch('');
+  };
+
   return (
-    <View style={styles.container}>
-      <MaterialIcons name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={handleChange}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
-        returnKeyType="search"
-        onSubmitEditing={() => onSearch(value.trim())}
-      />
-      {value.length > 0 && (
-        <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
-          <MaterialIcons name="close" size={18} color={colors.textMuted} />
+    <View style={styles.row}>
+      <View style={[styles.container, isFocused && styles.containerFocused]}>
+        <MaterialIcons name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
+        <TextInput
+          ref={inputRef}
+          style={styles.input}
+          value={value}
+          onChangeText={handleChange}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted}
+          returnKeyType="search"
+          onSubmitEditing={() => onSearch(value.trim())}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+        />
+        {value.length > 0 && (
+          <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
+            <MaterialIcons name="close" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+      {isFocused && (
+        <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+          <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -52,7 +70,13 @@ export default function SearchBar({
 }
 
 const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   container: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.inputBackground,
@@ -60,7 +84,9 @@ const styles = StyleSheet.create({
     borderColor: colors.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 14,
-    marginBottom: 12,
+  },
+  containerFocused: {
+    borderColor: colors.accent,
   },
   input: {
     flex: 1,
@@ -73,5 +99,12 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 6,
+  },
+  cancelButton: {
+    paddingLeft: 12,
+  },
+  cancelText: {
+    color: colors.accent,
+    fontSize: 16,
   },
 });

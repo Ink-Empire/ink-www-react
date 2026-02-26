@@ -52,6 +52,7 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
   }, [refetch]);
 
   const a = artist as any;
+  const canMessage = a?.type === 'artist' || (a?.type === 'studio' && a?.is_claimed);
   const portfolio = (a?.tattoos as any[]) || [];
 
   const filteredPortfolio = useMemo(() => {
@@ -131,15 +132,16 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
           {user && (
             <View style={styles.actionsTopRow}>
               <TouchableOpacity
-                style={styles.iconActionButton}
+                style={[styles.iconActionButton, !canMessage && styles.iconActionButtonDisabled]}
                 onPress={() => navigation.navigate('InboxStack', {
                   screen: 'Conversation',
                   params: { clientId: artist.id, participantName: artist.name },
                 })}
-                activeOpacity={0.7}
+                activeOpacity={canMessage ? 0.7 : 1}
+                disabled={!canMessage}
               >
-                <MaterialIcons name="chat-bubble-outline" size={18} color={colors.textPrimary} />
-                <Text style={styles.iconActionButtonText}>Message</Text>
+                <MaterialIcons name="chat-bubble-outline" size={18} color={canMessage ? colors.textPrimary : colors.textMuted} />
+                <Text style={[styles.iconActionButtonText, !canMessage && { color: colors.textMuted }]}>Message</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconActionButton}
@@ -438,6 +440,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+  },
+  iconActionButtonDisabled: {
+    opacity: 0.5,
   },
   iconActionButtonText: {
     fontSize: 14,

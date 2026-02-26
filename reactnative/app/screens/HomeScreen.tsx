@@ -119,6 +119,7 @@ export default function HomeScreen({ navigation, route }: any) {
           renderItem={renderItem}
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
         />
       )}
 

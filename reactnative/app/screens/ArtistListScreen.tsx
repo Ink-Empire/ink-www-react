@@ -111,6 +111,7 @@ export default function ArtistListScreen({ navigation, route }: any) {
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
         />
       )}
 
