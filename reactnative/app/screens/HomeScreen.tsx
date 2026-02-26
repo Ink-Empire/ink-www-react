@@ -51,16 +51,16 @@ export default function HomeScreen({ navigation, route }: any) {
     useAnyLocation: filters.useAnyLocation,
   };
 
-  const { tattoos, loading, refetch } = useTattoos(api, searchParams as any);
+  const { tattoos, loading, refetch, removeTattoo } = useTattoos(api, searchParams as any);
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
 
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('tattoo-deleted', () => {
-      refetch();
+    const sub = DeviceEventEmitter.addListener('tattoo-deleted', ({ id }: { id: number }) => {
+      removeTattoo(id);
     });
     return () => sub.remove();
-  }, [refetch]);
+  }, [removeTattoo]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);

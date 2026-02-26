@@ -12,6 +12,8 @@ import {
   SafeAreaView,
   Dimensions,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -340,6 +342,10 @@ export default function EditTattooScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={formStyles.container}>
+      <KeyboardAvoidingView
+        style={formStyles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         style={formStyles.scroll}
         showsVerticalScrollIndicator={false}
@@ -543,6 +549,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
           style={formStyles.saveBtn}
         />
       </View>
+      </KeyboardAvoidingView>
 
       {/* Placement picker modal */}
       <PickerModal
@@ -657,6 +664,9 @@ const formStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   scroll: {
     flex: 1,

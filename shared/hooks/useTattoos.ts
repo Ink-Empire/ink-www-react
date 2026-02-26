@@ -13,6 +13,7 @@ export interface UseTattoosResult {
   loading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
+  removeTattoo: (id: number) => void;
 }
 
 // Hook for fetching tattoos list with search/filter
@@ -72,7 +73,11 @@ export function useTattoos(
     };
   }, [fetchTattoos]);
 
-  return { tattoos, loading, error, refetch: fetchTattoos };
+  const removeTattoo = useCallback((id: number) => {
+    setTattoos(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  return { tattoos, loading, error, refetch: fetchTattoos, removeTattoo };
 }
 
 // Hook for fetching a single tattoo

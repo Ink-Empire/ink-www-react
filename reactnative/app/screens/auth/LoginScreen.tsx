@@ -122,6 +122,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
+    paddingBottom: 80,
   },
   logo: {
     width: 260,

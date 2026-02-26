@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -214,6 +216,10 @@ export default function BookingSettingsScreen() {
   const hasHours = Array.isArray(workingHours) && workingHours.length > 0;
   return (
     <>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Booking Preferences */}
         <View style={styles.sectionHeader}>
@@ -402,6 +408,7 @@ export default function BookingSettingsScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Working Hours Editor Modal */}
       <Modal
@@ -460,6 +467,9 @@ function ToggleRow({ title, description, value, onToggle }: ToggleRowProps) {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -748,6 +758,6 @@ const styles = StyleSheet.create({
   },
 
   bottomSpacer: {
-    height: 40,
+    height: 120,
   },
 });

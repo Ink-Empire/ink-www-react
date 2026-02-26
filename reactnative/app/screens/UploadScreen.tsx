@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -620,12 +622,16 @@ export default function UploadScreen({ navigation }: any) {
     <SafeAreaView style={styles.container}>
       <StepIndicator currentStep={step} />
 
-      <View style={styles.body}>
-        {stepRenderers[step]()}
-      </View>
+      <KeyboardAvoidingView
+        style={styles.body}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.body}>
+          {stepRenderers[step]()}
+        </View>
 
-      {/* Bottom bar */}
-      <View style={styles.bottomBar}>
+        {/* Bottom bar */}
+        <View style={styles.bottomBar}>
         {step > 0 ? (
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Text style={styles.backButtonText}>Back</Text>
@@ -648,6 +654,7 @@ export default function UploadScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
       </View>
+      </KeyboardAvoidingView>
 
       {/* Styles picker modal */}
       <MultiSelectPicker

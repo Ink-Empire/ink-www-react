@@ -30,7 +30,7 @@ export default function SearchScreen({ navigation, route }: any) {
     styles: selectedStyles.length > 0 ? selectedStyles : undefined,
   };
 
-  const { tattoos, loading: tattoosLoading, refetch: refetchTattoos } = useTattoos(
+  const { tattoos, loading: tattoosLoading, removeTattoo } = useTattoos(
     api,
     activeTab === 'tattoos' ? searchParams : undefined,
     { skip: activeTab !== 'tattoos' },
@@ -44,11 +44,11 @@ export default function SearchScreen({ navigation, route }: any) {
   const { styles: stylesData } = useStyles(api);
 
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('tattoo-deleted', () => {
-      refetchTattoos();
+    const sub = DeviceEventEmitter.addListener('tattoo-deleted', ({ id }: { id: number }) => {
+      removeTattoo(id);
     });
     return () => sub.remove();
-  }, [refetchTattoos]);
+  }, [removeTattoo]);
   const stylesList = Array.isArray(stylesData) ? stylesData : [];
 
   const handleSearch = useCallback((query: string) => {

@@ -253,6 +253,7 @@ export default function EditProfileScreen({ navigation }: any) {
     >
       <ScrollView
         style={styles.container}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -407,6 +408,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  scrollContent: {
+    paddingBottom: 120,
   },
   photoSection: {
     alignItems: 'center',
