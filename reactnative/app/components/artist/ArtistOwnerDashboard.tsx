@@ -61,7 +61,7 @@ export default function ArtistOwnerDashboard({
   };
 
   const navigateToEditProfile = () => {
-    navigation.navigate('EditProfile');
+    navigation.navigate('ProfileTab', { screen: 'EditProfile' });
   };
 
   const navigateToInbox = () => {

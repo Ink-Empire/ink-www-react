@@ -110,7 +110,7 @@ export default function FavoritesScreen({ navigation }: any) {
         <EmptyState
           message={`No saved ${activeTab} yet. Browse and save your favorites!`}
           actionLabel="Browse"
-          onAction={() => navigation.navigate('HomeTab')}
+          onAction={() => navigation.navigate(activeTab === 'artists' ? 'ArtistsTab' : 'HomeTab')}
         />
       ) : activeTab === 'artists' ? (
         <FlatList
