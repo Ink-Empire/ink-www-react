@@ -36,12 +36,15 @@ const SOCIAL_ICONS: Record<string, string> = {
   bluesky: 'cloud',
 };
 
+type TabType = 'portfolio' | 'info';
+
 export default function ArtistDetailScreen({ navigation, route }: any) {
   const { slug, name: routeName } = route.params;
   const { artist, loading, error, refetch } = useArtist(api, slug);
   const { user, toggleFavorite } = useAuth();
   const { showSnackbar } = useSnackbar();
 
+  const [activeTab, setActiveTab] = useState<TabType>('portfolio');
   const [activeStyleFilter, setActiveStyleFilter] = useState<number | null>(null);
 
   useEffect(() => {
@@ -207,143 +210,173 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
         </View>
       )}
 
-      {/* Booking Info */}
-      {hasBookingInfo && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Booking Info</Text>
-          <View style={styles.bookingCard}>
-            {settings.accepts_consultations && (
-              <View style={styles.bookingRow}>
-                <Text style={styles.bookingLabel}>Consultation</Text>
-                <Text style={styles.bookingValue}>
-                  {settings.consultation_fee ? `$${settings.consultation_fee}` : 'Free'}
-                </Text>
-              </View>
-            )}
-            {settings.hourly_rate ? (
-              <View style={styles.bookingRow}>
-                <Text style={styles.bookingLabel}>Hourly Rate</Text>
-                <Text style={styles.bookingValue}>${settings.hourly_rate}</Text>
-              </View>
-            ) : null}
-            {settings.minimum_session ? (
-              <View style={styles.bookingRow}>
-                <Text style={styles.bookingLabel}>Min Session</Text>
-                <Text style={styles.bookingValue}>{settings.minimum_session} hours</Text>
-              </View>
-            ) : null}
-            {settings.deposit_amount ? (
-              <View style={styles.bookingRow}>
-                <Text style={styles.bookingLabel}>Deposit</Text>
-                <Text style={styles.bookingValue}>${settings.deposit_amount}</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      )}
-
-      {/* Social Links */}
-      {socialLinks.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Social Media</Text>
-          {socialLinks.map((link: any) => (
-            <TouchableOpacity
-              key={link.platform}
-              style={styles.socialRow}
-              onPress={() => { if (link.url) Linking.openURL(link.url); }}
-            >
-              <MaterialIcons
-                name={SOCIAL_ICONS[link.platform] || 'link'}
-                size={18}
-                color={colors.accent}
-              />
-              <View style={styles.socialInfo}>
-                <Text style={styles.socialPlatform}>
-                  {link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
-                </Text>
-                <Text style={styles.socialUsername}>@{link.username}</Text>
-              </View>
-              <MaterialIcons name="open-in-new" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Portfolio Header + Style Filter */}
-      <View style={styles.section}>
-        <View style={styles.portfolioHeader}>
-          <Text style={styles.sectionTitle}>
-            Portfolio{!loading && portfolio.length > 0 ? ` (${filteredPortfolio.length})` : ''}
+      {/* Tab Bar */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'portfolio' && styles.tabActive]}
+          onPress={() => setActiveTab('portfolio')}
+        >
+          <MaterialIcons
+            name="grid-on"
+            size={20}
+            color={activeTab === 'portfolio' ? colors.accent : colors.textMuted}
+          />
+          <Text style={[styles.tabText, activeTab === 'portfolio' && styles.tabTextActive]}>
+            Portfolio
           </Text>
-        </View>
-
-        {artistStyles.length > 1 && portfolio.length > 0 && (
-          <View style={styles.filterRow}>
-            <TouchableOpacity
-              style={[styles.filterPill, !activeStyleFilter && styles.filterPillActive]}
-              onPress={() => setActiveStyleFilter(null)}
-            >
-              <Text style={[styles.filterPillText, !activeStyleFilter && styles.filterPillTextActive]}>
-                All
-              </Text>
-            </TouchableOpacity>
-            {artistStyles.map((style: any) => (
-              <TouchableOpacity
-                key={style.id}
-                style={[styles.filterPill, activeStyleFilter === style.id && styles.filterPillActive]}
-                onPress={() => setActiveStyleFilter(activeStyleFilter === style.id ? null : style.id)}
-              >
-                <Text style={[
-                  styles.filterPillText,
-                  activeStyleFilter === style.id && styles.filterPillTextActive,
-                ]}>
-                  {style.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'info' && styles.tabActive]}
+          onPress={() => setActiveTab('info')}
+        >
+          <MaterialIcons
+            name="info-outline"
+            size={20}
+            color={activeTab === 'info' ? colors.accent : colors.textMuted}
+          />
+          <Text style={[styles.tabText, activeTab === 'info' && styles.tabTextActive]}>
+            Info
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {loading && (
-        <ActivityIndicator color={colors.accent} size="large" style={styles.loader} />
-      )}
-
-      {!loading && filteredPortfolio.length === 0 && (
-        <Text style={styles.emptyText}>
-          {activeStyleFilter ? 'No tattoos match this style' : 'No tattoos yet'}
-        </Text>
-      )}
-    </View>
-  );
-
-  const renderFooter = () => (
-    <View>
-      {/* Contact */}
-      {(artist.email || artist.phone) && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact</Text>
-          {artist.email && (
-            <TouchableOpacity
-              style={styles.contactRow}
-              onPress={() => Linking.openURL(`mailto:${artist.email}`)}
-            >
-              <MaterialIcons name="email" size={18} color={colors.accent} />
-              <Text style={styles.contactText}>{artist.email}</Text>
-            </TouchableOpacity>
+      {/* Tab Content */}
+      {activeTab === 'portfolio' ? (
+        <>
+          {/* Style Filter */}
+          {artistStyles.length > 1 && portfolio.length > 0 && (
+            <View style={styles.filterSection}>
+              <TouchableOpacity
+                style={[styles.filterPill, !activeStyleFilter && styles.filterPillActive]}
+                onPress={() => setActiveStyleFilter(null)}
+              >
+                <Text style={[styles.filterPillText, !activeStyleFilter && styles.filterPillTextActive]}>
+                  All ({portfolio.length})
+                </Text>
+              </TouchableOpacity>
+              {artistStyles.map((style: any) => (
+                <TouchableOpacity
+                  key={style.id}
+                  style={[styles.filterPill, activeStyleFilter === style.id && styles.filterPillActive]}
+                  onPress={() => setActiveStyleFilter(activeStyleFilter === style.id ? null : style.id)}
+                >
+                  <Text style={[
+                    styles.filterPillText,
+                    activeStyleFilter === style.id && styles.filterPillTextActive,
+                  ]}>
+                    {style.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
-          {artist.phone && (
-            <TouchableOpacity
-              style={styles.contactRow}
-              onPress={() => Linking.openURL(`tel:${artist.phone}`)}
-            >
-              <MaterialIcons name="phone" size={18} color={colors.accent} />
-              <Text style={styles.contactText}>{artist.phone}</Text>
-            </TouchableOpacity>
+
+          {loading && (
+            <ActivityIndicator color={colors.accent} size="large" style={styles.loader} />
           )}
+
+          {!loading && filteredPortfolio.length === 0 && (
+            <Text style={styles.emptyText}>
+              {activeStyleFilter ? 'No tattoos match this style' : 'No tattoos yet'}
+            </Text>
+          )}
+        </>
+      ) : (
+        <View>
+          {/* Booking Info */}
+          {hasBookingInfo && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Booking Info</Text>
+              <View style={styles.bookingCard}>
+                {settings.accepts_consultations && (
+                  <View style={styles.bookingRow}>
+                    <Text style={styles.bookingLabel}>Consultation</Text>
+                    <Text style={styles.bookingValue}>
+                      {settings.consultation_fee ? `$${settings.consultation_fee}` : 'Free'}
+                    </Text>
+                  </View>
+                )}
+                {settings.hourly_rate ? (
+                  <View style={styles.bookingRow}>
+                    <Text style={styles.bookingLabel}>Hourly Rate</Text>
+                    <Text style={styles.bookingValue}>${settings.hourly_rate}</Text>
+                  </View>
+                ) : null}
+                {settings.minimum_session ? (
+                  <View style={styles.bookingRow}>
+                    <Text style={styles.bookingLabel}>Min Session</Text>
+                    <Text style={styles.bookingValue}>{settings.minimum_session} hours</Text>
+                  </View>
+                ) : null}
+                {settings.deposit_amount ? (
+                  <View style={styles.bookingRow}>
+                    <Text style={styles.bookingLabel}>Deposit</Text>
+                    <Text style={styles.bookingValue}>${settings.deposit_amount}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          )}
+
+          {/* Social Links */}
+          {socialLinks.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Social Media</Text>
+              {socialLinks.map((link: any) => (
+                <TouchableOpacity
+                  key={link.platform}
+                  style={styles.socialRow}
+                  onPress={() => { if (link.url) Linking.openURL(link.url); }}
+                >
+                  <MaterialIcons
+                    name={SOCIAL_ICONS[link.platform] || 'link'}
+                    size={18}
+                    color={colors.accent}
+                  />
+                  <View style={styles.socialInfo}>
+                    <Text style={styles.socialPlatform}>
+                      {link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
+                    </Text>
+                    <Text style={styles.socialUsername}>@{link.username}</Text>
+                  </View>
+                  <MaterialIcons name="open-in-new" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Contact */}
+          {(artist.email || artist.phone) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Contact</Text>
+              {artist.email && (
+                <TouchableOpacity
+                  style={styles.contactRow}
+                  onPress={() => Linking.openURL(`mailto:${artist.email}`)}
+                >
+                  <MaterialIcons name="email" size={18} color={colors.accent} />
+                  <Text style={styles.contactText}>{artist.email}</Text>
+                </TouchableOpacity>
+              )}
+              {artist.phone && (
+                <TouchableOpacity
+                  style={styles.contactRow}
+                  onPress={() => Linking.openURL(`tel:${artist.phone}`)}
+                >
+                  <MaterialIcons name="phone" size={18} color={colors.accent} />
+                  <Text style={styles.contactText}>{artist.phone}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {!hasBookingInfo && socialLinks.length === 0 && !artist.email && !artist.phone && (
+            <Text style={styles.emptyText}>No additional info available</Text>
+          )}
+
+          <View style={styles.bottomPadding} />
         </View>
       )}
-      <View style={styles.bottomPadding} />
     </View>
   );
 
@@ -369,12 +402,12 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
   return (
     <FlatList
       style={styles.container}
-      data={loading ? [] : filteredPortfolio}
+      data={activeTab === 'portfolio' && !loading ? filteredPortfolio : []}
       numColumns={2}
       keyExtractor={(item: any) => String(item.id)}
       renderItem={renderTattoo}
       ListHeaderComponent={renderHeader}
-      ListFooterComponent={renderFooter}
+      ListFooterComponent={activeTab === 'portfolio' ? <View style={styles.bottomPadding} /> : null}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.listContent}
     />
@@ -517,6 +550,63 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
 
+  // Tab Bar
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: colors.accent,
+  },
+  tabText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: colors.accent,
+  },
+
+  // Filter
+  filterSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  filterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterPillActive: {
+    backgroundColor: colors.accentDim,
+    borderColor: colors.accent,
+  },
+  filterPillText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  filterPillTextActive: {
+    color: colors.accent,
+  },
+
   // Booking Info
   bookingCard: {
     backgroundColor: colors.surfaceElevated,
@@ -564,37 +654,17 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  // Portfolio
-  portfolioHeader: {
+  // Contact
+  contactRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
   },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: -4,
-  },
-  filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterPillActive: {
-    backgroundColor: colors.accentDim,
-    borderColor: colors.accent,
-  },
-  filterPillText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  filterPillTextActive: {
+  contactText: {
     color: colors.accent,
+    fontSize: 14,
+    fontWeight: '500',
   },
 
   // Grid
@@ -616,19 +686,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  // Contact
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    gap: 12,
-  },
-  contactText: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '500',
   },
 
   // Misc
