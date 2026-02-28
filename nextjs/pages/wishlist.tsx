@@ -28,24 +28,41 @@ export default function WishlistPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [savedTattoos, setSavedTattoos] = useState<any[]>([]);
   const [tattoosLoading, setTattoosLoading] = useState(true);
+  const [savedStudios, setSavedStudios] = useState<any[]>([]);
+  const [studiosLoading, setStudiosLoading] = useState(true);
   const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
   const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
 
   useEffect(() => {
-    const loadSavedTattoos = async () => {
+    const loadSavedData = async () => {
       if (!isAuthenticated) return;
       setTattoosLoading(true);
+      setStudiosLoading(true);
       try {
-        const response = await clientService.getSavedTattoos();
-        setSavedTattoos(response.tattoos || []);
+        const [tattooRes, studioRes] = await Promise.all([
+          clientService.getSavedTattoos(),
+          clientService.getSavedStudios(),
+        ]);
+        setSavedTattoos(tattooRes.tattoos || []);
+        setSavedStudios(studioRes.studios || []);
       } catch (err) {
-        console.error('Failed to load saved tattoos:', err);
+        console.error('Failed to load saved data:', err);
       } finally {
         setTattoosLoading(false);
+        setStudiosLoading(false);
       }
     };
-    loadSavedTattoos();
+    loadSavedData();
   }, [isAuthenticated]);
+
+  const handleUnsaveStudio = async (studioId: number) => {
+    try {
+      await userData?.toggleFavorite('studio', studioId);
+      setSavedStudios(prev => prev.filter(s => s.id !== studioId));
+    } catch (err) {
+      console.error('Failed to unsave studio:', err);
+    }
+  };
 
   const handleUnsaveTattoo = async (tattooId: number) => {
     try {
@@ -223,6 +240,7 @@ export default function WishlistPage() {
           >
             <Tab label={`Artists (${wishlist.length})`} />
             <Tab label={`Tattoos (${savedTattoos.length})`} />
+            <Tab label={`Studios (${savedStudios.length})`} />
           </Tabs>
         </Box>
 
@@ -315,6 +333,9 @@ export default function WishlistPage() {
                     border: `1px solid ${colors.border}`,
                     transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                     cursor: 'pointer',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
                     '&:hover': {
                       transform: 'translateY(-4px)',
                       boxShadow: `0 8px 24px rgba(0, 0, 0, 0.3)`,
@@ -395,25 +416,24 @@ export default function WishlistPage() {
                   </Box>
 
                   {/* Styles */}
-                {artist.styles && artist.styles.length > 0 && (
-                  <Box sx={{ px: 2, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {artist.styles.slice(0, 3).map((style) => (
-                      <Box
-                        key={style.id}
-                        sx={{
-                          px: 1,
-                          py: 0.25,
-                          bgcolor: `${colors.accent}1A`,
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          color: colors.accent,
-                        }}
-                      >
-                        {style.name}
-                      </Box>
-                    ))}
-                  </Box>
-                )}
+                <Box sx={{ px: 2, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, flex: 1 }}>
+                  {artist.styles && artist.styles.length > 0 && artist.styles.slice(0, 3).map((style) => (
+                    <Box
+                      key={style.id}
+                      sx={{
+                        px: 1,
+                        py: 0.25,
+                        bgcolor: `${colors.accent}1A`,
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        color: colors.accent,
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      {style.name}
+                    </Box>
+                  ))}
+                </Box>
 
                 {/* Footer */}
                 <Box
@@ -421,6 +441,7 @@ export default function WishlistPage() {
                     px: 2,
                     py: 1.5,
                     borderTop: `1px solid ${colors.border}`,
+                    mt: 'auto',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -617,6 +638,186 @@ export default function WishlistPage() {
                       <BookmarkIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Box>
+                ))}
+              </Box>
+            )}
+          </>
+        )}
+
+        {/* Studios Tab */}
+        {activeTab === 2 && (
+          <>
+            {studiosLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                <CircularProgress sx={{ color: colors.accent }} />
+              </Box>
+            ) : savedStudios.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <BookmarkIcon sx={{ fontSize: 64, color: colors.textSecondary, opacity: 0.5, mb: 2 }} />
+                <Typography
+                  sx={{
+                    color: colors.textPrimary,
+                    fontSize: '1.25rem',
+                    fontWeight: 500,
+                    mb: 1,
+                  }}
+                >
+                  No saved studios yet
+                </Typography>
+                <Typography
+                  sx={{
+                    color: colors.textSecondary,
+                    fontSize: '0.95rem',
+                    mb: 3,
+                    maxWidth: 400,
+                    mx: 'auto',
+                  }}
+                >
+                  Browse studios and tap the bookmark icon to save them for later
+                </Typography>
+                <Button
+                  component={Link}
+                  href="/studios"
+                  sx={{
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    textTransform: 'none',
+                    px: 4,
+                    py: 1,
+                    fontWeight: 600,
+                    '&:hover': { bgcolor: colors.accentHover },
+                  }}
+                >
+                  Browse Studios
+                </Button>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: 'repeat(3, 1fr)',
+                    lg: 'repeat(4, 1fr)',
+                  },
+                  gap: '1.25rem',
+                }}
+              >
+                {savedStudios.map((studio) => (
+                  <Link
+                    key={studio.id}
+                    href={`/studios/${studio.slug}`}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Box
+                      sx={{
+                        bgcolor: colors.surface,
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        border: `1px solid ${colors.border}`,
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                        cursor: 'pointer',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: `0 8px 24px rgba(0, 0, 0, 0.3)`,
+                        },
+                      }}
+                    >
+                      {/* Card Header with Avatar */}
+                      <Box
+                        sx={{
+                          p: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                        }}
+                      >
+                        <Avatar
+                          src={studio.image?.uri}
+                          alt={studio.name}
+                          sx={{
+                            width: 56,
+                            height: 56,
+                            bgcolor: colors.accent,
+                            color: colors.background,
+                            fontSize: '1.25rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {(studio.name || 'S').charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              color: colors.textPrimary,
+                              fontWeight: 600,
+                              fontSize: '1rem',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {studio.name}
+                          </Typography>
+                          {studio.location && (
+                            <Typography
+                              sx={{
+                                color: colors.textSecondary,
+                                fontSize: '0.85rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {studio.location}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+
+                      {/* Artists count */}
+                      <Box sx={{ px: 2, pb: 1, flex: 1 }}>
+                        {studio.artists_count != null && (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+                            {studio.artists_count} artist{studio.artists_count !== 1 ? 's' : ''}
+                          </Typography>
+                        )}
+                      </Box>
+
+                      {/* Footer */}
+                      <Box
+                        sx={{
+                          px: 2,
+                          py: 1.5,
+                          borderTop: `1px solid ${colors.border}`,
+                          mt: 'auto',
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <IconButton
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleUnsaveStudio(studio.id);
+                          }}
+                          size="small"
+                          sx={{
+                            color: colors.accent,
+                            '&:hover': { bgcolor: `${colors.accent}1A` },
+                          }}
+                          title="Remove from saved"
+                        >
+                          <BookmarkIcon />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  </Link>
                 ))}
               </Box>
             )}

@@ -270,6 +270,22 @@ const Navbar: React.FC = () => {
                       <ListItemText primary="My Profile" />
                     </MenuItem>
                   )}
+                  {(user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user') && user?.slug && (
+                    <MenuItem
+                      component={Link}
+                      href={`/users/${user.slug}`}
+                      onClick={() => setProfileMenuAnchor(null)}
+                      sx={{
+                        color: colors.textPrimary,
+                        '&:hover': { bgcolor: `${colors.accent}1A` }
+                      }}
+                    >
+                      <ListItemIcon>
+                        <PersonIcon sx={{ color: colors.textSecondary }} />
+                      </ListItemIcon>
+                      <ListItemText primary="My Profile" />
+                    </MenuItem>
+                  )}
                   {user?.type_id === 2 && user?.slug && (
                     <MenuItem
                       component={Link}
@@ -529,6 +545,22 @@ const Navbar: React.FC = () => {
                     sx={{
                       borderRadius: 1,
                       mb: 1,
+                      '&:hover': { backgroundColor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemText primary="My Profile" />
+                  </ListItem>
+                )}
+                {/* My Profile - for clients */}
+                {(user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user') && user?.slug && (
+                  <ListItem
+                    component={Link}
+                    href={`/users/${user.slug}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 1,
+                      backgroundColor: isActiveRoute(`/users/${user.slug}`) ? `${colors.accent}33` : 'transparent',
                       '&:hover': { backgroundColor: `${colors.accent}1A` }
                     }}
                   >

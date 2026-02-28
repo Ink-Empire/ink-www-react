@@ -8,9 +8,7 @@ import {
   Typography,
   CircularProgress,
   Avatar,
-  Chip,
 } from '@mui/material';
-import PlaceIcon from '@mui/icons-material/Place';
 import { colors } from '@/styles/colors';
 import { useUserProfile, useUserTattoos } from '@/hooks';
 import TattooModal from '@/components/TattooModal';
@@ -61,71 +59,82 @@ export default function UserProfilePage() {
       </Head>
 
       {/* Profile Header */}
-      <Box sx={{ maxWidth: 900, mx: 'auto', px: 3, pt: 6, pb: 4 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <Avatar
-            src={profile.image?.uri}
-            sx={{ width: 100, height: 100, bgcolor: colors.surfaceElevated }}
-          >
-            {profile.name?.charAt(0)?.toUpperCase()}
-          </Avatar>
+      <Box sx={{ maxWidth: 900, mx: 'auto', px: 3, pt: 4, pb: 4 }}>
+        <Box sx={{
+          display: 'flex',
+          gap: 3,
+          mb: 4,
+          pb: 3,
+          borderBottom: `1px solid ${colors.border}`,
+          flexWrap: { xs: 'wrap', md: 'nowrap' },
+        }}>
+          {/* Avatar */}
+          {profile.image?.uri ? (
+            <Box sx={{
+              width: 120,
+              height: 120,
+              position: 'relative',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              flexShrink: 0,
+              border: `2px solid ${colors.accent}4D`,
+            }}>
+              <Image
+                src={profile.image.uri}
+                alt={profile.name || 'User'}
+                fill
+                style={{ objectFit: 'cover' }}
+              />
+            </Box>
+          ) : (
+            <Avatar sx={{
+              width: 120,
+              height: 120,
+              bgcolor: colors.surface,
+              color: colors.accent,
+              fontFamily: '"Cormorant Garamond", Georgia, serif',
+              fontSize: '3rem',
+              border: `2px solid ${colors.accent}4D`,
+            }}>
+              {profile.name?.charAt(0) || 'U'}
+            </Avatar>
+          )}
 
-          <Typography sx={{ color: colors.textPrimary, fontSize: 28, fontWeight: 700 }}>
-            {profile.name}
-          </Typography>
+          {/* User Details */}
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{
+              fontFamily: '"Cormorant Garamond", Georgia, serif',
+              fontSize: '2.5rem',
+              fontWeight: 500,
+              color: colors.textPrimary,
+              mb: 0.25,
+              lineHeight: 1.2,
+            }}>
+              {profile.name}
+            </Typography>
 
-          {profile.location && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <PlaceIcon sx={{ color: colors.textMuted, fontSize: 16 }} />
-              <Typography sx={{ color: colors.textMuted, fontSize: 14 }}>
+            {profile.location && (
+              <Typography sx={{
+                color: colors.textSecondary,
+                fontSize: '0.95rem',
+                mb: 0.75,
+              }}>
                 {profile.location}
               </Typography>
-            </Box>
-          )}
+            )}
 
-          {profile.about && (
-            <Typography sx={{
-              color: colors.textSecondary,
-              fontSize: 15,
-              lineHeight: 1.6,
-              textAlign: 'center',
-              maxWidth: 500,
-            }}>
-              {profile.about}
-            </Typography>
-          )}
-
-          {profile.social_media_links && profile.social_media_links.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-              {profile.social_media_links.map(link => (
-                <Chip
-                  key={link.platform}
-                  label={`@${link.username}`}
-                  size="small"
-                  sx={{
-                    bgcolor: colors.surfaceElevated,
-                    color: colors.textSecondary,
-                    fontSize: 13,
-                  }}
-                />
-              ))}
-            </Box>
-          )}
-
-          <Box sx={{ display: 'flex', gap: 4, mt: 1 }}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography sx={{ color: colors.textPrimary, fontSize: 24, fontWeight: 700 }}>
-                {profile.uploaded_tattoo_count}
+            {profile.about && (
+              <Typography sx={{
+                color: colors.textSecondary,
+                fontSize: '0.95rem',
+                lineHeight: 1.7,
+                maxWidth: 500,
+              }}>
+                {profile.about}
               </Typography>
-              <Typography sx={{ color: colors.textMuted, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Tattoos
-              </Typography>
-            </Box>
+            )}
           </Box>
         </Box>
-
-        {/* Divider */}
-        <Box sx={{ borderBottom: `1px solid ${colors.surfaceElevated}`, mt: 4 }} />
       </Box>
 
       {/* Tattoo Grid */}

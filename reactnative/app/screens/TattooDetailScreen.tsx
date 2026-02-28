@@ -254,7 +254,8 @@ export default function TattooDetailScreen({ navigation, route }: any) {
         {/* Title and description */}
         {tattoo.title && <Text style={styles.title}>{tattoo.title}</Text>}
 
-        {tattoo.description && (
+        {/* Description - only show here if NOT a client upload */}
+        {tattoo.description && !((tattoo as any).uploader_name && (tattoo as any).uploaded_by_user_id !== tattoo.artist_id) && (
           <Text style={styles.description}>{tattoo.description}</Text>
         )}
 
@@ -292,23 +293,29 @@ export default function TattooDetailScreen({ navigation, route }: any) {
           />
         )}
 
-        {/* Uploaded by */}
+        {/* Uploaded by (client upload) */}
         {(tattoo as any).uploader_name && (tattoo as any).uploaded_by_user_id !== tattoo.artist_id && (
-          <TouchableOpacity
-            style={styles.uploaderRow}
-            onPress={() => {
-              const slug = (tattoo as any).uploader_slug;
-              if (slug) {
-                navigation.push('UserProfile', { slug, name: (tattoo as any).uploader_name });
-              }
-            }}
-            activeOpacity={(tattoo as any).uploader_slug ? 0.7 : 1}
-          >
-            <MaterialIcons name="upload" size={16} color={colors.textMuted} />
-            <Text style={styles.uploaderText}>
-              Uploaded by <Text style={styles.uploaderName}>{(tattoo as any).uploader_username || (tattoo as any).uploader_slug}</Text>
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.uploaderSection}>
+            <Text style={styles.uploaderLabel}>Uploaded by</Text>
+            <View style={styles.uploaderBox}>
+              <TouchableOpacity
+                onPress={() => {
+                  const slug = (tattoo as any).uploader_slug;
+                  if (slug) {
+                    navigation.push('UserProfile', { slug, name: (tattoo as any).uploader_name });
+                  }
+                }}
+                activeOpacity={(tattoo as any).uploader_slug ? 0.7 : 1}
+              >
+                <Text style={styles.uploaderBoxName}>{(tattoo as any).uploader_name}</Text>
+              </TouchableOpacity>
+              {tattoo.description && (
+                <Text style={styles.uploaderComment}>
+                  &ldquo;{tattoo.description}&rdquo;
+                </Text>
+              )}
+            </View>
+          </View>
         )}
       </View>
     </ScrollView>
@@ -466,18 +473,31 @@ const styles = StyleSheet.create({
   bookButton: {
     marginTop: 16,
   },
-  uploaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  uploaderSection: {
     marginTop: 16,
-    gap: 6,
   },
-  uploaderText: {
+  uploaderLabel: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontSize: 12,
+    marginBottom: 6,
   },
-  uploaderName: {
+  uploaderBox: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 12,
+  },
+  uploaderBoxName: {
     color: colors.accent,
+    fontSize: 15,
     fontWeight: '600',
+  },
+  uploaderComment: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });

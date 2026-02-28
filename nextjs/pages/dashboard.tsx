@@ -66,6 +66,8 @@ import {
   ActivityItem,
   SavedArtistCard,
   LeadCard,
+  PendingApprovalsDialog,
+  usePendingApprovalsCount,
 } from '../components/dashboard';
 
 // Dashboard types
@@ -142,6 +144,10 @@ export default function Dashboard() {
   // Dashboard stats (fetched from API)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(defaultStats);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Pending approvals
+  const { count: pendingApprovalsCount } = usePendingApprovalsCount();
+  const [pendingApprovalsOpen, setPendingApprovalsOpen] = useState(false);
 
   // Saved artists (wishlist)
   const { wishlist: savedArtists, loading: savedArtistsLoading, removeFromWishlist } = useWishlist();
@@ -739,7 +745,7 @@ export default function Dashboard() {
         {(isArtist || activeTab === 'studio') && (
         <Box sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: activeTab === 'artist' ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)' },
           gap: 2,
           mb: 3
         }}>
@@ -773,6 +779,14 @@ export default function Dashboard() {
                 label="Unread Messages"
                 trend="New"
                 href="/inbox"
+              />
+              <StatCard
+                icon={<CheckCircleIcon />}
+                value={pendingApprovalsCount}
+                label="Approve Tags"
+                trend={pendingApprovalsCount > 0 ? 'Action' : ''}
+                trendUp={pendingApprovalsCount > 0}
+                onClick={() => setPendingApprovalsOpen(true)}
               />
             </>
           ) : (
@@ -2528,6 +2542,12 @@ export default function Dashboard() {
           onCropComplete={handleCropComplete}
         />
       )}
+
+      {/* Pending Approvals Dialog - opened from Approve Tags stat card */}
+      <PendingApprovalsDialog
+        open={pendingApprovalsOpen}
+        onClose={() => setPendingApprovalsOpen(false)}
+      />
     </Layout>
   );
 }

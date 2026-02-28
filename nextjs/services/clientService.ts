@@ -70,6 +70,14 @@ export const clientService = {
     });
   },
 
+  // Get client's saved studios (requires auth)
+  getSavedStudios: async (): Promise<{ studios: any[] }> => {
+    return api.get('/client/saved-studios', {
+      requiresAuth: true,
+      useCache: false,
+    });
+  },
+
   // Get suggested artists for client (requires auth)
   getSuggestedArtists: async (limit: number = 6): Promise<{ artists: SuggestedArtist[] }> => {
     return api.get(`/client/suggested-artists?limit=${limit}`, {

@@ -7,6 +7,7 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -125,6 +126,10 @@ const TattooModal: React.FC<TattooModalProps> = ({
     onClose();
     router.push({ pathname: '/tattoos', query: { style: styleName } });
   };
+
+  const isOwner = isAuthenticated && user && tattoo && (
+    user.id === tattoo.artist_id || user.id === tattoo.uploaded_by_user_id
+  );
 
   const getPrimaryImageUri = () => {
     return tattoo?.primary_image?.uri || tattoo?.image?.uri || null;
@@ -469,19 +474,33 @@ const TattooModal: React.FC<TattooModalProps> = ({
 
                 {/* Artist Info */}
                 <Box sx={{ flex: 1 }}>
-                  <Typography
-                    component={Link}
-                    href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      color: colors.textPrimary,
-                      textDecoration: 'none',
-                      '&:hover': { color: colors.accent },
-                    }}
-                  >
-                    {artistName || tattoo?.artist_name || 'Unknown Artist'}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Typography
+                      component={Link}
+                      href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
+                        color: colors.textPrimary,
+                        textDecoration: 'none',
+                        '&:hover': { color: colors.accent },
+                      }}
+                    >
+                      {artistName || tattoo?.artist_name || 'Unknown Artist'}
+                    </Typography>
+                    {tattoo?.approval_status === 'pending' && (
+                      <Typography
+                        component="span"
+                        sx={{
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          color: colors.warning,
+                        }}
+                      >
+                        (pending)
+                      </Typography>
+                    )}
+                  </Box>
                   {tattoo?.studio?.name && (
                     tattoo.studio.slug ? (
                       <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
@@ -621,8 +640,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 </Typography>
               )}
 
-              {/* Description */}
-              {tattoo?.description && (
+              {/* Description - only show here if NOT a client upload */}
+              {tattoo?.description && !(tattoo?.uploader_name && tattoo?.uploaded_by_user_id !== tattoo?.artist_id) && (
                 <Typography
                   sx={{
                     color: colors.textSecondary,
@@ -714,6 +733,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   <ShareIcon sx={{ fontSize: 18 }} />
                   <span>Share</span>
                 </Box>
+
               </Box>
 
               {/* Details Section */}
@@ -749,6 +769,79 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   </Box>
                 </Box>
               )}
+
+              {/* Uploaded by (client upload) */}
+              {tattoo?.uploader_name && tattoo?.uploaded_by_user_id !== tattoo?.artist_id && (
+                <Box sx={{ mb: '1.25rem' }}>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted, mb: 0.75 }}>
+                    Uploaded by
+                  </Typography>
+                  <Box sx={{
+                    bgcolor: colors.background,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: '10px',
+                    p: 1.5,
+                  }}>
+                    <Typography
+                      component={Link}
+                      href={`/users/${tattoo.uploader_slug}`}
+                      onClick={onClose}
+                      sx={{
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        color: colors.accent,
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      {tattoo.uploader_name}
+                    </Typography>
+                    {tattoo.description && (
+                      <Typography sx={{
+                        fontSize: '0.85rem',
+                        color: colors.textSecondary,
+                        lineHeight: 1.5,
+                        mt: 0.5,
+                        fontStyle: 'italic',
+                      }}>
+                        &ldquo;{tattoo.description}&rdquo;
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Book with Artist */}
+              {tattoo?.artist_id && !isOwner && (
+                <Box
+                  component={Link}
+                  href={`/artists/${tattoo.artist_slug || tattoo.artist_id}?tab=calendar`}
+                  onClick={onClose}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    width: '100%',
+                    py: '0.75rem',
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                    mb: '1rem',
+                    '&:hover': {
+                      bgcolor: colors.accentHover,
+                    },
+                  }}
+                >
+                  <CalendarMonthIcon sx={{ fontSize: 20 }} />
+                  Book with {artistName || tattoo?.artist_name || 'Artist'}
+                </Box>
+              )}
+
 
             </Box>
           </Box>

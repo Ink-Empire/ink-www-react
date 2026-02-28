@@ -11,22 +11,26 @@ interface StatCardProps {
   trend?: string;
   trendUp?: boolean;
   href?: string;
+  onClick?: () => void;
 }
 
 const cardShadow = `0 4px 24px rgba(0, 0, 0, 0.4), 0 0 50px ${colors.accent}25`;
 
-export function StatCard({ icon, value, label, trend, trendUp, href }: StatCardProps) {
+export function StatCard({ icon, value, label, trend, trendUp, href, onClick }: StatCardProps) {
   const card = (
-    <Box sx={{
-      bgcolor: colors.surface,
-      border: `1px solid ${colors.accent}35`,
-      borderRadius: '12px',
-      p: 2,
-      boxShadow: cardShadow,
-      transition: 'all 0.2s',
-      '&:hover': { borderColor: colors.accent },
-      ...(href ? { cursor: 'pointer' } : {}),
-    }}>
+    <Box
+      onClick={!href && onClick ? onClick : undefined}
+      sx={{
+        bgcolor: colors.surface,
+        border: `1px solid ${colors.accent}35`,
+        borderRadius: '12px',
+        p: 2,
+        boxShadow: cardShadow,
+        transition: 'all 0.2s',
+        '&:hover': { borderColor: colors.accent },
+        ...((href || onClick) ? { cursor: 'pointer' } : {}),
+      }}
+    >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
         <Box sx={{
           width: 40,

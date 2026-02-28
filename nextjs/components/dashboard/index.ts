@@ -13,5 +13,6 @@ export { ClientItem } from './ClientItem';
 export { ActivityItem } from './ActivityItem';
 export { SavedArtistCard } from './SavedArtistCard';
 export { LeadCard } from './LeadCard';
+export { PendingApprovalsDialog, usePendingApprovalsCount } from './PendingApprovalsCard';
 export { StudioCard } from './StudioCard';
 export { RegionGroup } from './RegionGroup';

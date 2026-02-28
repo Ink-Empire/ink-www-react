@@ -108,6 +108,16 @@ export const tattooService = {
     return api.post(`/tattoos/${id}/approve`, { action }, { requiresAuth: true });
   },
 
+  // Client upload - simplified tattoo creation (requires auth)
+  clientUpload: async (data: {
+    image_ids: number[];
+    title?: string;
+    description?: string;
+    tagged_artist_id?: number;
+  }): Promise<any> => {
+    return api.post('/tattoos/create', data, { requiresAuth: true });
+  },
+
   // Get tattoo with full details including tags (public access)
   getWithTags: async (id: number | string): Promise<TattooType & { tags: any[] }> => {
     const hasAuthToken = !!getToken();

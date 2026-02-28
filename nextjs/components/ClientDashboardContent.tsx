@@ -8,10 +8,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import SettingsIcon from '@mui/icons-material/Settings';
 import StarIcon from '@mui/icons-material/Star';
 import AddIcon from '@mui/icons-material/Add';
+import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
 
 // Lazy load heavy modals - only loaded when needed
 const ChangePasswordModal = dynamic(() => import('./ChangePasswordModal'), { ssr: false });
 const StyleModal = dynamic(() => import('./StyleModal'), { ssr: false });
+const ClientUploadWizard = dynamic(() => import('./ClientUploadWizard'), { ssr: false });
 const TattooIntent = dynamic(() => import('./Onboarding/TattooIntent').then(mod => ({ default: mod.default })), { ssr: false });
 import type { TattooIntentData } from './Onboarding/TattooIntent';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -68,6 +70,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
   const [beaconSnackbarOpen, setBeaconSnackbarOpen] = useState(false);
+  const [uploadWizardOpen, setUploadWizardOpen] = useState(false);
   const { styles, getStyleName } = useStyles();
   const { userData, updateStyles } = useUser();
   const theme = useTheme();
@@ -287,6 +290,24 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />}
           >
             View Messages
+          </Button>
+          <Button
+            onClick={() => setUploadWizardOpen(true)}
+            sx={{
+              flex: { xs: 1, md: 'none' },
+              px: 2,
+              py: 1,
+              color: colors.accent,
+              border: `1px solid ${colors.accent}60`,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.9rem',
+              '&:hover': { bgcolor: colors.accent, color: colors.background }
+            }}
+            startIcon={<AddAPhotoIcon sx={{ fontSize: 18 }} />}
+          >
+            Upload Tattoo
           </Button>
           <Button
             onClick={async () => {
@@ -924,6 +945,12 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           {appointmentSnackbar.message}
         </Alert>
       </Snackbar>
+
+      <ClientUploadWizard
+        open={uploadWizardOpen}
+        onClose={() => setUploadWizardOpen(false)}
+        onSuccess={() => refreshDashboard()}
+      />
     </Box>
   );
 }
