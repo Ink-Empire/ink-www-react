@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Alert,
+  Dimensions,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -18,6 +19,11 @@ import { usePendingApprovals } from '@inkedin/shared/hooks';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import type { PendingTattoo } from '@inkedin/shared/types';
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_PADDING = 16;
+const LIST_PADDING = 16;
+const IMAGE_SIZE = SCREEN_WIDTH - (LIST_PADDING * 2) - (CARD_PADDING * 2);
+
 export default function PendingApprovalsScreen({ navigation }: any) {
   const { pendingTattoos, loading, refetch, removeTattoo } = usePendingApprovals(api);
   const { showSnackbar } = useSnackbar();
@@ -25,16 +31,16 @@ export default function PendingApprovalsScreen({ navigation }: any) {
 
   const handleRespond = async (tattoo: PendingTattoo, action: 'approve' | 'reject') => {
     const confirmMessage = action === 'approve'
-      ? 'Approve this tattoo? It will appear in the main feed and on your profile.'
-      : 'Reject this tag? The tattoo will remain on the user\'s profile only.';
+      ? 'Accept this tag? The tattoo will appear in the main feed and on your profile.'
+      : 'Decline this tag? The tattoo will remain on the user\'s profile only.';
 
     Alert.alert(
-      action === 'approve' ? 'Approve Tattoo' : 'Reject Tag',
+      action === 'approve' ? 'Accept Tag' : 'Decline Tag',
       confirmMessage,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: action === 'approve' ? 'Approve' : 'Reject',
+          text: action === 'approve' ? 'Accept' : 'Decline',
           style: action === 'reject' ? 'destructive' : 'default',
           onPress: async () => {
             setRespondingId(tattoo.id);
@@ -63,28 +69,9 @@ export default function PendingApprovalsScreen({ navigation }: any) {
 
     return (
       <View style={s.card}>
-        <View style={s.cardTop}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={s.thumbnail} />
-          ) : (
-            <View style={[s.thumbnail, s.thumbnailPlaceholder]}>
-              <MaterialIcons name="image" size={24} color={colors.textMuted} />
-            </View>
-          )}
-          <View style={s.cardInfo}>
-            <Text style={s.uploaderName}>{item.uploader?.name ?? 'Unknown user'}</Text>
-            {item.title && <Text style={s.tattooTitle}>{item.title}</Text>}
-            {item.created_at && (
-              <Text style={s.date}>
-                {new Date(item.created_at).toLocaleDateString()}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        <View style={s.actions}>
+        <View style={s.topBar}>
           <TouchableOpacity
-            style={[s.actionBtn, s.rejectBtn]}
+            style={s.rejectBtn}
             onPress={() => handleRespond(item, 'reject')}
             disabled={isResponding}
           >
@@ -92,13 +79,13 @@ export default function PendingApprovalsScreen({ navigation }: any) {
               <ActivityIndicator size="small" color={colors.error} />
             ) : (
               <>
-                <MaterialIcons name="close" size={18} color={colors.error} />
-                <Text style={s.rejectText}>Reject</Text>
+                <MaterialIcons name="close" size={14} color={colors.error} />
+                <Text style={s.rejectText}>Decline</Text>
               </>
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.actionBtn, s.approveBtn]}
+            style={s.approveBtn}
             onPress={() => handleRespond(item, 'approve')}
             disabled={isResponding}
           >
@@ -106,11 +93,33 @@ export default function PendingApprovalsScreen({ navigation }: any) {
               <ActivityIndicator size="small" color={colors.background} />
             ) : (
               <>
-                <MaterialIcons name="check" size={18} color={colors.background} />
-                <Text style={s.approveText}>Approve</Text>
+                <MaterialIcons name="check" size={14} color={colors.background} />
+                <Text style={s.approveText}>Accept tag?</Text>
               </>
             )}
           </TouchableOpacity>
+        </View>
+
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={s.image} />
+        ) : (
+          <View style={[s.image, s.imagePlaceholder]}>
+            <MaterialIcons name="image" size={48} color={colors.textMuted} />
+          </View>
+        )}
+
+        <View style={s.footer}>
+          <View style={s.footerLeft}>
+            <Text style={s.uploaderName}>{item.uploader?.name ?? 'Unknown user'}</Text>
+            {item.description && (
+              <Text style={s.description} numberOfLines={3}>{item.description}</Text>
+            )}
+          </View>
+          {item.created_at && (
+            <Text style={s.date}>
+              {new Date(item.created_at).toLocaleDateString()}
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -146,31 +155,60 @@ export default function PendingApprovalsScreen({ navigation }: any) {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  listContent: { padding: 16, gap: 12 },
+  listContent: { padding: LIST_PADDING, gap: 16 },
   card: {
-    backgroundColor: colors.surface, borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: CARD_PADDING,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  cardTop: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  thumbnail: { width: 70, height: 70, borderRadius: 8 },
-  thumbnailPlaceholder: {
-    backgroundColor: colors.surfaceElevated, justifyContent: 'center', alignItems: 'center',
-  },
-  cardInfo: { flex: 1, justifyContent: 'center' },
-  uploaderName: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
-  tattooTitle: { color: colors.textSecondary, fontSize: 14, marginTop: 2 },
-  date: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
-  actions: { flexDirection: 'row', gap: 12 },
-  actionBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 10, borderRadius: 8,
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginBottom: 12,
   },
   rejectBtn: {
-    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.error,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.error,
   },
-  approveBtn: { backgroundColor: colors.accent },
-  rejectText: { color: colors.error, fontSize: 14, fontWeight: '600' },
-  approveText: { color: colors.background, fontSize: 14, fontWeight: '600' },
+  approveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: colors.accent,
+  },
+  rejectText: { color: colors.error, fontSize: 12, fontWeight: '600' },
+  approveText: { color: colors.background, fontSize: 12, fontWeight: '600' },
+  image: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+    borderRadius: 8,
+  },
+  imagePlaceholder: {
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  footerLeft: { flex: 1, marginRight: 8 },
+  uploaderName: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  description: { color: colors.textSecondary, fontSize: 13, marginTop: 4 },
+  date: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   emptyState: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600' },
   emptyText: { color: colors.textMuted, fontSize: 14 },

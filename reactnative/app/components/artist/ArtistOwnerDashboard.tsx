@@ -104,12 +104,12 @@ export default function ArtistOwnerDashboard({
       icon: 'mail' as const,
       onPress: navigateToInbox,
     },
-    ...((stats?.pending_approvals ?? 0) > 0 ? [{
-      label: 'Pending',
+    {
+      label: 'Approve Tags',
       value: stats?.pending_approvals ?? 0,
-      icon: 'pending-actions' as const,
+      icon: 'check-circle' as const,
       onPress: navigateToPendingApprovals,
-    }] : []),
+    },
   ];
 
   return (
@@ -132,19 +132,22 @@ export default function ArtistOwnerDashboard({
       {expanded && (
         <View style={styles.expandedSection}>
           <View style={styles.statsGrid}>
-            {statItems.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={styles.statCard}
-                onPress={item.onPress}
-                disabled={!item.onPress}
-                activeOpacity={item.onPress ? 0.7 : 1}
-              >
-                <MaterialIcons name={item.icon} size={20} color={colors.accent} />
-                <Text style={styles.statValue}>{item.value}</Text>
-                <Text style={styles.statLabel}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
+            {statItems.map((item, index) => {
+              const isLastOdd = statItems.length % 2 === 1 && index === statItems.length - 1;
+              return (
+                <TouchableOpacity
+                  key={item.label}
+                  style={[styles.statCard, isLastOdd && styles.statCardFull]}
+                  onPress={item.onPress}
+                  disabled={!item.onPress}
+                  activeOpacity={item.onPress ? 0.7 : 1}
+                >
+                  <MaterialIcons name={item.icon} size={20} color={colors.accent} />
+                  <Text style={styles.statValue}>{item.value}</Text>
+                  <Text style={styles.statLabel}>{item.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       )}
@@ -203,6 +206,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  statCardFull: {
+    width: '100%',
   },
   statCard: {
     width: '48%',
