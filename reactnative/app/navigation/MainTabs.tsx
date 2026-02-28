@@ -93,10 +93,10 @@ export default function MainTabs() {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
           const isOnProfile = routeName === 'ProfileMain';
           return {
-            tabBarLabel: isOnProfile ? 'Settings' : 'Profile',
+            tabBarLabel: isOnProfile ? 'Profile' : 'Settings',
             tabBarIcon: ({ color }) => (
               <MaterialIcons
-                name={isOnProfile ? 'settings' : 'person-outline'}
+                name={isOnProfile ? 'person-outline' : 'settings'}
                 size={28}
                 color={color}
               />
