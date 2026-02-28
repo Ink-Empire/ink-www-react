@@ -18,6 +18,7 @@ import { api } from '@/utils/api';
 
 const MODELS = [
   { id: 'Artist', name: 'Artist' },
+  { id: 'Studio', name: 'Studio' },
   { id: 'Tattoo', name: 'Tattoo' },
 ];
 
