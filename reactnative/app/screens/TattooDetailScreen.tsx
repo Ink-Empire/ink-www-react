@@ -291,6 +291,25 @@ export default function TattooDetailScreen({ navigation, route }: any) {
             style={styles.bookButton}
           />
         )}
+
+        {/* Uploaded by */}
+        {(tattoo as any).uploader_name && (tattoo as any).uploaded_by_user_id !== tattoo.artist_id && (
+          <TouchableOpacity
+            style={styles.uploaderRow}
+            onPress={() => {
+              const slug = (tattoo as any).uploader_slug;
+              if (slug) {
+                navigation.push('UserProfile', { slug, name: (tattoo as any).uploader_name });
+              }
+            }}
+            activeOpacity={(tattoo as any).uploader_slug ? 0.7 : 1}
+          >
+            <MaterialIcons name="upload" size={16} color={colors.textMuted} />
+            <Text style={styles.uploaderText}>
+              Uploaded by <Text style={styles.uploaderName}>{(tattoo as any).uploader_username || (tattoo as any).uploader_slug}</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
@@ -446,5 +465,19 @@ const styles = StyleSheet.create({
   // Book button
   bookButton: {
     marginTop: 16,
+  },
+  uploaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 6,
+  },
+  uploaderText: {
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  uploaderName: {
+    color: colors.accent,
+    fontWeight: '600',
   },
 });

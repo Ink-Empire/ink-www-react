@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   DeviceEventEmitter,
+  ScrollView,
 } from 'react-native';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
+import { userService } from '../../lib/services';
 import { useTattoos, useArtists, useStyles } from '@inkedin/shared/hooks';
 import SearchBar from '../components/search/SearchBar';
 import FilterBar from '../components/search/FilterBar';
@@ -24,6 +26,9 @@ export default function SearchScreen({ navigation, route }: any) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
+  const [clientResults, setClientResults] = useState<any[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const lastClientQuery = useRef('');
 
   const searchParams = {
     searchString: searchQuery || undefined,
@@ -49,6 +54,25 @@ export default function SearchScreen({ navigation, route }: any) {
     });
     return () => sub.remove();
   }, [removeTattoo]);
+
+  // Auto-fetch client results when artist search returns empty
+  useEffect(() => {
+    if (activeTab !== 'artists' || artistsLoading || artists.length > 0 || searchQuery.length < 2) {
+      if (searchQuery !== lastClientQuery.current || activeTab !== 'artists') {
+        setClientResults([]);
+        lastClientQuery.current = '';
+      }
+      return;
+    }
+    if (searchQuery === lastClientQuery.current) return;
+    lastClientQuery.current = searchQuery;
+    setClientsLoading(true);
+    userService.searchUsers({ searchString: searchQuery })
+      .then((response) => setClientResults(response?.users || []))
+      .catch(() => setClientResults([]))
+      .finally(() => setClientsLoading(false));
+  }, [activeTab, artistsLoading, artists.length, searchQuery]);
+
   const stylesList = Array.isArray(stylesData) ? stylesData : [];
 
   const handleSearch = useCallback((query: string) => {
@@ -82,8 +106,24 @@ export default function SearchScreen({ navigation, route }: any) {
     />
   ), [navigation]);
 
+  const renderClientItem = useCallback(({ item }: any) => (
+    <ArtistCard
+      artist={item}
+      onPress={() => navigation.push('UserProfile', {
+        slug: item.slug,
+        name: item.name,
+      })}
+    />
+  ), [navigation]);
+
   const isLoading = activeTab === 'tattoos' ? tattoosLoading : artistsLoading;
   const data = activeTab === 'tattoos' ? tattoos : artists;
+
+  const showClientFallback =
+    activeTab === 'artists' &&
+    !artistsLoading &&
+    artists.length === 0 &&
+    searchQuery.length >= 2;
 
   return (
     <View style={styles.container}>
@@ -116,7 +156,7 @@ export default function SearchScreen({ navigation, route }: any) {
 
       {isLoading ? (
         <ActivityIndicator color={colors.accent} size="large" style={styles.loader} />
-      ) : data.length === 0 ? (
+      ) : data.length === 0 && !showClientFallback ? (
         <EmptyState message={`No ${activeTab} found. Try adjusting your search.`} />
       ) : activeTab === 'tattoos' ? (
         <FlatList
@@ -127,7 +167,7 @@ export default function SearchScreen({ navigation, route }: any) {
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
         />
-      ) : (
+      ) : artists.length > 0 ? (
         <FlatList
           data={artists}
           keyExtractor={(item: any) => String(item.id)}
@@ -135,6 +175,21 @@ export default function SearchScreen({ navigation, route }: any) {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
+      ) : (
+        <ScrollView contentContainerStyle={styles.list}>
+          {clientsLoading ? (
+            <ActivityIndicator color={colors.accent} size="small" style={{ marginTop: 20 }} />
+          ) : clientResults.length > 0 ? (
+            <>
+              <Text style={styles.sectionBannerText}>No artists match - showing user results</Text>
+              {clientResults.map((item) => (
+                <View key={item.id}>
+                  {renderClientItem({ item })}
+                </View>
+              ))}
+            </>
+          ) : null}
+        </ScrollView>
       )}
     </View>
   );
@@ -181,5 +236,13 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 40,
+  },
+  sectionBannerText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 16,
+    marginBottom: 12,
+    textAlign: 'center',
   },
 });

@@ -176,6 +176,9 @@ export function createUserService(api: ApiClient) {
 
     deleteAccount: () =>
       api.post('/users/me/delete', {}, { requiresAuth: true }),
+
+    searchUsers: (params: { searchString: string }) =>
+      api.post<{ users: any[] }>('/users/search', params),
   };
 }
 

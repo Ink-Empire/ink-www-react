@@ -6,6 +6,7 @@ import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import EditTattooScreen from '../screens/EditTattooScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { FavoritesStackParamList } from './types';
 
@@ -32,6 +33,11 @@ export default function FavoritesStack() {
         name="StudioDetail"
         component={StudioDetailScreen}
         options={({ route }) => ({ title: route.params?.name || 'Studio' })}
+      />
+      <Stack.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Profile' })}
       />
     </Stack.Navigator>
   );

@@ -92,4 +92,9 @@ export const userService = {
   updateEmailPreferences: async (emailUnsubscribed: boolean): Promise<any> => {
     return api.put('/users/me/email-preferences', { email_unsubscribed: emailUnsubscribed }, { requiresAuth: true });
   },
+
+  // Search client users by name/username (lightweight DB fallback)
+  searchUsers: async (params: { searchString: string }): Promise<any> => {
+    return api.post('/users/search', params);
+  },
 };

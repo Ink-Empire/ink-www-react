@@ -38,6 +38,7 @@ export type SearchStackParamList = {
   TattooDetail: { id: number };
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
+  UserProfile: { slug: string; name?: string };
 };
 
 export type FavoritesStackParamList = {
@@ -46,6 +47,7 @@ export type FavoritesStackParamList = {
   TattooDetail: { id: number };
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
+  UserProfile: { slug: string; name?: string };
 };
 
 export type ArtistsStackParamList = {
@@ -55,6 +57,7 @@ export type ArtistsStackParamList = {
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  UserProfile: { slug: string; name?: string };
 };
 
 export type UploadStackParamList = {

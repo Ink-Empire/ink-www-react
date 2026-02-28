@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
+import { userService } from '../../lib/services';
 import { useArtists, useStyles, useTags } from '@inkedin/shared/hooks';
 import SearchBar from '../components/search/SearchBar';
 import FilterDrawer, { type AppliedFilters } from '../components/search/FilterDrawer';
@@ -21,8 +23,10 @@ export default function ArtistListScreen({ navigation, route }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<AppliedFilters>({});
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [clientResults, setClientResults] = useState<any[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const lastClientQuery = useRef('');
 
-  // Apply filters from navigation params
   useEffect(() => {
     const params = route?.params;
     if (params?.filterStyles) {
@@ -48,6 +52,24 @@ export default function ArtistListScreen({ navigation, route }: any) {
   const { artists, loading } = useArtists(api, searchParams as any);
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
+
+  // Auto-fetch client results when artist search returns empty
+  useEffect(() => {
+    if (loading || artists.length > 0 || searchQuery.length < 2) {
+      if (searchQuery !== lastClientQuery.current) {
+        setClientResults([]);
+        lastClientQuery.current = '';
+      }
+      return;
+    }
+    if (searchQuery === lastClientQuery.current) return;
+    lastClientQuery.current = searchQuery;
+    setClientsLoading(true);
+    userService.searchUsers({ searchString: searchQuery })
+      .then((response) => setClientResults(response?.users || []))
+      .catch(() => setClientResults([]))
+      .finally(() => setClientsLoading(false));
+  }, [loading, artists.length, searchQuery]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -76,6 +98,21 @@ export default function ArtistListScreen({ navigation, route }: any) {
     />
   ), [navigation]);
 
+  const renderClientItem = useCallback(({ item }: any) => (
+    <ArtistCard
+      artist={item}
+      onPress={() => navigation.push('UserProfile', {
+        slug: item.slug,
+        name: item.name,
+      })}
+    />
+  ), [navigation]);
+
+  const showClientFallback =
+    !loading &&
+    artists.length === 0 &&
+    searchQuery.length >= 2;
+
   return (
     <View style={styles.container}>
       <GrowingBanner />
@@ -102,6 +139,21 @@ export default function ArtistListScreen({ navigation, route }: any) {
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
+      ) : showClientFallback ? (
+        <ScrollView contentContainerStyle={styles.list}>
+          {clientsLoading ? (
+            <ActivityIndicator color={colors.accent} size="small" style={{ marginTop: 20 }} />
+          ) : clientResults.length > 0 ? (
+            <>
+              <Text style={styles.sectionBannerText}>No artists match - showing user results</Text>
+              {clientResults.map((item) => (
+                <View key={item.id}>
+                  {renderClientItem({ item })}
+                </View>
+              ))}
+            </>
+          ) : null}
+        </ScrollView>
       ) : artists.length === 0 ? (
         <EmptyState message="No artists found. Try adjusting your search." />
       ) : (
@@ -175,5 +227,13 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: 12,
     paddingBottom: 24,
+  },
+  sectionBannerText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 16,
+    marginBottom: 12,
+    textAlign: 'center',
   },
 });

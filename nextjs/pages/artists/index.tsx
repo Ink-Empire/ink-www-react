@@ -19,6 +19,7 @@ import { distancePreferences } from '@/utils/distancePreferences';
 import { colors } from '@/styles/colors';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 import EmptyStateFoundingArtist from '@/components/EmptyStateFoundingArtist';
+import { userService } from '@/services';
 
 export default function ArtistList() {
     const user = useUserData();
@@ -65,6 +66,8 @@ export default function ArtistList() {
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
     const [sortBy, setSortBy] = useState<string>('relevant');
     const [showStudios, setShowStudios] = useState(true);
+    const [clientResults, setClientResults] = useState<any[]>([]);
+    const [clientsLoading, setClientsLoading] = useState(false);
 
     // Map UI sort values to API sort values
     const getSortParam = (uiSort: string) => {
@@ -98,6 +101,26 @@ export default function ArtistList() {
         observer.observe(sentinel);
         return () => observer.disconnect();
     }, [hasMore, loadingMore, loading, loadMore]);
+
+    // Auto-fetch client results when artist search returns empty
+    const lastClientQueryRef = useRef('');
+    useEffect(() => {
+        const query = searchParams.searchString;
+        if (loading || (artists?.length || 0) > 0 || !query || query.length < 2) {
+            if (query !== lastClientQueryRef.current) {
+                setClientResults([]);
+                lastClientQueryRef.current = '';
+            }
+            return;
+        }
+        if (query === lastClientQueryRef.current) return;
+        lastClientQueryRef.current = query;
+        setClientsLoading(true);
+        userService.searchUsers({ searchString: query })
+            .then((response: any) => setClientResults(response?.users || []))
+            .catch(() => setClientResults([]))
+            .finally(() => setClientsLoading(false));
+    }, [loading, artists?.length, searchParams.searchString]);
 
     // Handle filter changes from SearchFilters component
     const handleFilterChange = (filters: {
@@ -588,6 +611,89 @@ export default function ArtistList() {
                                 >
                                     Clear all filters
                                 </Button>
+                            )}
+                            {clientsLoading && (
+                                <Box sx={{ mt: 3, textAlign: 'center' }}>
+                                    <CircularProgress size={24} sx={{ color: colors.accent }} />
+                                </Box>
+                            )}
+                            {!clientsLoading && clientResults.length > 0 && (
+                                <Box sx={{ mt: 3 }}>
+                                    <Typography sx={{
+                                        color: colors.accent,
+                                        fontSize: '0.95rem',
+                                        fontWeight: 700,
+                                        mb: 2,
+                                        textAlign: 'center'
+                                    }}>
+                                        No artists match - showing user results
+                                    </Typography>
+                                    <Box sx={{
+                                        display: 'grid',
+                                        gridTemplateColumns: {
+                                            xs: '1fr',
+                                            sm: 'repeat(auto-fill, minmax(280px, 1fr))'
+                                        },
+                                        gap: '1.25rem'
+                                    }}>
+                                        {clientResults.map((user) => (
+                                            <Link key={user.id} href={`/users/${user.slug}`} style={{ textDecoration: 'none' }}>
+                                                <Box sx={{
+                                                    bgcolor: colors.surface,
+                                                    borderRadius: '12px',
+                                                    border: `1px solid ${colors.border}`,
+                                                    overflow: 'hidden',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    p: 2,
+                                                    gap: 2,
+                                                    cursor: 'pointer',
+                                                    '&:hover': { borderColor: colors.accent }
+                                                }}>
+                                                    {user.primary_image?.uri ? (
+                                                        <Box
+                                                            component="img"
+                                                            src={user.primary_image.uri}
+                                                            sx={{
+                                                                width: 48,
+                                                                height: 48,
+                                                                borderRadius: '50%',
+                                                                objectFit: 'cover',
+                                                                flexShrink: 0
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <Box sx={{
+                                                            width: 48,
+                                                            height: 48,
+                                                            borderRadius: '50%',
+                                                            bgcolor: colors.surfaceElevated,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0,
+                                                            color: colors.textMuted,
+                                                            fontWeight: 600,
+                                                            fontSize: '1rem'
+                                                        }}>
+                                                            {user.name?.substring(0, 2).toUpperCase() || '?'}
+                                                        </Box>
+                                                    )}
+                                                    <Box>
+                                                        <Typography sx={{ color: colors.textPrimary, fontWeight: 600 }}>
+                                                            {user.name}
+                                                        </Typography>
+                                                        {user.location && (
+                                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+                                                                {user.location}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            </Link>
+                                        ))}
+                                    </Box>
+                                </Box>
                             )}
                         </Box>
                     )
