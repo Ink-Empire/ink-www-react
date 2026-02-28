@@ -12,3 +12,5 @@ export { useClientDashboard, useWishlist, useSuggestedArtists } from './useClien
 export { useConversations, useConversation, useUnreadConversationCount, createConversation } from './useConversations';
 export { useMobile, useTablet, useBreakpoint } from './useMobile';
 export { useGoogleCalendar } from './useGoogleCalendar';
+export { useUserProfile, useUserTattoos } from './useUserProfile';
+export { usePendingApprovals } from './usePendingApprovals';

@@ -148,7 +148,45 @@ export interface Tattoo {
   // Status
   is_featured?: boolean;
 
+  // User upload fields
+  uploaded_by_user_id?: number;
+  uploader_name?: string;
+  uploader_slug?: string;
+  is_user_upload?: boolean;
+  approval_status?: 'approved' | 'pending' | 'user_only';
+  is_visible?: boolean;
+
   type?: string;
+}
+
+export interface UserProfile {
+  id: number;
+  name: string;
+  slug: string;
+  username?: string;
+  about?: string;
+  location?: string;
+  image?: { id: number; uri: string } | null;
+  uploaded_tattoo_count: number;
+  social_media_links?: { platform: string; username: string; url: string }[];
+  created_at?: string;
+}
+
+export interface PendingTattoo {
+  id: number;
+  title?: string;
+  description?: string;
+  primary_image?: Image;
+  images?: Image[];
+  styles?: Style[];
+  approval_status: string;
+  uploader?: {
+    id: number;
+    name: string;
+    slug: string;
+    image?: { id: number; uri: string } | null;
+  };
+  created_at?: string;
 }
 
 // Alias for backward compatibility

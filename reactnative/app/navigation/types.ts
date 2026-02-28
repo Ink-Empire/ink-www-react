@@ -28,6 +28,7 @@ export type HomeStackParamList = {
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  UserProfile: { slug: string; name?: string };
 };
 
 export type SearchStackParamList = {
@@ -58,6 +59,7 @@ export type ArtistsStackParamList = {
 
 export type UploadStackParamList = {
   Upload: undefined;
+  ClientUpload: undefined;
 };
 
 export type InboxStackParamList = {
@@ -66,14 +68,17 @@ export type InboxStackParamList = {
 };
 
 export type ProfileStackParamList = {
+  ProfileMain: undefined;
   Profile: undefined;
   EditProfile: undefined;
   NotificationSettings: undefined;
   BookingSettings: undefined;
   MyBookings: undefined;
+  PendingApprovals: undefined;
   ArtistDetail: { slug: string; name?: string };
   TattooDetail: { id: number };
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  UserProfile: { slug: string; name?: string };
 };

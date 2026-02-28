@@ -12,6 +12,7 @@ import { DeepLinkProvider, useDeepLink } from './app/contexts/DeepLinkContext';
 import { createStudioService } from '@inkedin/shared/services';
 import { UnreadCountProvider } from './app/contexts/UnreadCountContext';
 import { MessageNotificationProvider } from './app/contexts/MessageNotificationContext';
+import { PushNotificationProvider } from './app/contexts/PushNotificationContext';
 import { parseDeepLink } from './app/utils/deepLinkParser';
 import AuthStack from './app/navigation/AuthStack';
 import MainTabs from './app/navigation/MainTabs';
@@ -20,6 +21,7 @@ import LoadingScreen from './app/components/common/LoadingScreen';
 import VerifyEmailGate from './app/components/auth/VerifyEmailGate';
 import Snackbar from './app/components/common/Snackbar';
 import MessageNotificationBanner from './app/components/common/MessageNotificationBanner';
+import PushNotificationBanner from './app/components/common/PushNotificationBanner';
 import WelcomeModal from './app/components/common/WelcomeModal';
 import type { RootStackParamList } from './app/navigation/types';
 
@@ -238,6 +240,7 @@ function RootNavigator(): React.JSX.Element {
             <MessageNotificationProvider>
               <AuthenticatedApp />
               <MessageNotificationBanner />
+              <PushNotificationBanner />
             </MessageNotificationProvider>
           </UnreadCountProvider>
         ) : (
@@ -252,15 +255,17 @@ function RootNavigator(): React.JSX.Element {
 
 function App(): React.JSX.Element {
   return (
-    <AuthProvider>
-      <DeepLinkProvider>
-        <DemoModeProvider>
-          <SnackbarProvider>
-            <RootNavigator />
-          </SnackbarProvider>
-        </DemoModeProvider>
-      </DeepLinkProvider>
-    </AuthProvider>
+    <PushNotificationProvider>
+      <AuthProvider>
+        <DeepLinkProvider>
+          <DemoModeProvider>
+            <SnackbarProvider>
+              <RootNavigator />
+            </SnackbarProvider>
+          </DemoModeProvider>
+        </DeepLinkProvider>
+      </AuthProvider>
+    </PushNotificationProvider>
   );
 }
 

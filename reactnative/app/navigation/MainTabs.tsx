@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +19,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 export default function MainTabs() {
   const { user } = useAuth();
   const isArtist = user?.type === 'artist' || user?.type_id === 2;
+  const isLoggedIn = !!user;
 
   return (
     <Tab.Navigator
@@ -60,7 +62,7 @@ export default function MainTabs() {
           ),
         }}
       />
-      {isArtist && (
+      {isLoggedIn && (
         <Tab.Screen
           name="UploadTab"
           component={UploadStack}
@@ -87,12 +89,31 @@ export default function MainTabs() {
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStack}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="person-outline" size={28} color={color} />
-          ),
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
+          const isOnProfile = routeName === 'ProfileMain';
+          return {
+            tabBarLabel: isOnProfile ? 'Settings' : 'Profile',
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons
+                name={isOnProfile ? 'settings' : 'person-outline'}
+                size={28}
+                color={color}
+              />
+            ),
+          };
         }}
+        listeners={({ navigation, route }) => ({
+          tabPress: (e) => {
+            const isTabFocused = navigation.isFocused();
+            const currentRoute = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
+            if (isTabFocused && currentRoute === 'ProfileMain') {
+              // Already viewing profile, tap again goes to settings
+              e.preventDefault();
+              navigation.navigate('ProfileTab', { screen: 'Profile' });
+            }
+          },
+        })}
       />
     </Tab.Navigator>
   );

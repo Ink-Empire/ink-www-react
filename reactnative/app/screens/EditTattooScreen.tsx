@@ -24,6 +24,7 @@ import { tattooService, tagService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
 import type { AiTagSuggestion } from '@inkedin/shared/services';
 import { useTattoo, useStyles, useTags, usePlacements } from '@inkedin/shared/hooks';
+import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import LoadingScreen from '../components/common/LoadingScreen';
 import ErrorView from '../components/common/ErrorView';
@@ -42,7 +43,10 @@ interface ExistingImage {
 export default function EditTattooScreen({ navigation, route }: any) {
   const { id } = route.params;
   const { tattoo, loading: tattooLoading, error: tattooError } = useTattoo(api, id);
+  const { user } = useAuth();
   const { showSnackbar } = useSnackbar();
+
+  const isArtistOwner = user?.id === tattoo?.artist_id;
 
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
@@ -298,11 +302,6 @@ export default function EditTattooScreen({ navigation, route }: any) {
 
   // Save
   const handleSave = async () => {
-    if (!title.trim()) {
-      showSnackbar('Title is required', 'error');
-      return;
-    }
-
     setSaving(true);
     setUploadProgress(null);
 
@@ -319,12 +318,15 @@ export default function EditTattooScreen({ navigation, route }: any) {
       const updateData: Record<string, any> = {
         title: title.trim(),
         description: description.trim(),
-        placement,
-        styles: selectedStyles.filter(Boolean),
-        tag_ids: selectedTags.filter(Boolean),
         image_ids: allImageIds.filter(Boolean),
-        is_public: isPublic ? '1' : '0',
       };
+
+      if (isArtistOwner) {
+        updateData.placement = placement;
+        updateData.styles = selectedStyles.filter(Boolean);
+        updateData.tag_ids = selectedTags.filter(Boolean);
+        updateData.is_public = isPublic ? '1' : '0';
+      }
 
       if (deletedImageIds.length > 0) {
         updateData.deleted_image_ids = deletedImageIds.filter(Boolean);
@@ -394,7 +396,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         </ScrollView>
 
         {/* Title */}
-        <Text style={formStyles.fieldLabel}>Title *</Text>
+        <Text style={formStyles.fieldLabel}>Title</Text>
         <TextInput
           style={formStyles.textInput}
           value={title}
@@ -415,144 +417,148 @@ export default function EditTattooScreen({ navigation, route }: any) {
           numberOfLines={3}
         />
 
-        {/* Placement */}
-        <Text style={formStyles.fieldLabel}>Placement</Text>
-        <TouchableOpacity
-          style={formStyles.pickerButton}
-          onPress={() => setShowPlacementPicker(true)}
-        >
-          <Text style={placement ? formStyles.pickerText : formStyles.pickerPlaceholder}>
-            {placement || 'Select placement'}
-          </Text>
-          <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
+        {isArtistOwner && (
+          <>
+            {/* Placement */}
+            <Text style={formStyles.fieldLabel}>Placement</Text>
+            <TouchableOpacity
+              style={formStyles.pickerButton}
+              onPress={() => setShowPlacementPicker(true)}
+            >
+              <Text style={placement ? formStyles.pickerText : formStyles.pickerPlaceholder}>
+                {placement || 'Select placement'}
+              </Text>
+              <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
 
-        {/* Styles */}
-        <Text style={formStyles.fieldLabel}>Styles</Text>
-        <TouchableOpacity
-          style={formStyles.pickerButton}
-          onPress={() => setShowStylesPicker(true)}
-        >
-          <Text style={selectedStyles.length > 0 ? formStyles.pickerText : formStyles.pickerPlaceholder}>
-            {selectedStyles.length > 0 ? `${selectedStyles.length} selected` : 'Select styles'}
-          </Text>
-          <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
+            {/* Styles */}
+            <Text style={formStyles.fieldLabel}>Styles</Text>
+            <TouchableOpacity
+              style={formStyles.pickerButton}
+              onPress={() => setShowStylesPicker(true)}
+            >
+              <Text style={selectedStyles.length > 0 ? formStyles.pickerText : formStyles.pickerPlaceholder}>
+                {selectedStyles.length > 0 ? `${selectedStyles.length} selected` : 'Select styles'}
+              </Text>
+              <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
 
-        {selectedStyles.length > 0 && (
-          <View style={formStyles.selectedChips}>
-            {selectedStyles.map(id => {
-              const name = styleNameMap.get(id);
-              if (!name) return null;
-              return (
-                <TouchableOpacity
-                  key={id}
-                  style={formStyles.selectedChip}
-                  onPress={() => toggleStyle(id)}
-                >
-                  <Text style={formStyles.selectedChipText}>{name}</Text>
-                  <MaterialIcons name="close" size={14} color={colors.accent} style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
-        {/* Tags */}
-        <Text style={formStyles.fieldLabel}>Tags</Text>
-        <TouchableOpacity
-          style={formStyles.pickerButton}
-          onPress={() => setShowTagsPicker(true)}
-        >
-          <Text style={selectedTags.length > 0 ? formStyles.pickerText : formStyles.pickerPlaceholder}>
-            {selectedTags.length > 0 ? `${selectedTags.length} selected` : 'Select tags'}
-          </Text>
-          <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        {selectedTags.length > 0 && (
-          <View style={formStyles.selectedChips}>
-            {selectedTags.map(id => {
-              const name = tagNameMap.get(id);
-              if (!name) return null;
-              return (
-                <TouchableOpacity
-                  key={id}
-                  style={formStyles.selectedTagChip}
-                  onPress={() => toggleTag(id)}
-                >
-                  <Text style={formStyles.selectedTagChipText}>{name}</Text>
-                  <MaterialIcons name="close" size={14} color={colors.tag} style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
-        {/* AI Tag Suggestions */}
-        {(loadingAiSuggestions || aiSuggestions.length > 0) && (
-          <View style={formStyles.aiSection}>
-            <View style={formStyles.aiHeader}>
-              <MaterialIcons name="auto-awesome" size={16} color={colors.aiSuggestion} />
-              <Text style={formStyles.aiHeaderText}>AI SUGGESTIONS</Text>
-              {loadingAiSuggestions && (
-                <ActivityIndicator size="small" color={colors.aiSuggestion} />
-              )}
-            </View>
-            {aiSuggestions.length > 0 ? (
-              <View style={formStyles.aiChips}>
-                {aiSuggestions.map(tag => {
-                  const isNew = tag.id === null || tag.is_new_suggestion;
-                  const isCreating = addingAiTag === tag.name;
+            {selectedStyles.length > 0 && (
+              <View style={formStyles.selectedChips}>
+                {selectedStyles.map(id => {
+                  const name = styleNameMap.get(id);
+                  if (!name) return null;
                   return (
                     <TouchableOpacity
-                      key={tag.name}
-                      style={[formStyles.aiChip, isNew && formStyles.aiChipNew]}
-                      onPress={() => !isCreating && handleAddAiSuggestion(tag)}
-                      disabled={isCreating}
-                      activeOpacity={0.7}
+                      key={id}
+                      style={formStyles.selectedChip}
+                      onPress={() => toggleStyle(id)}
                     >
-                      {isCreating ? (
-                        <ActivityIndicator size={12} color={colors.aiSuggestion} />
-                      ) : (
-                        <MaterialIcons name="add" size={14} color={colors.aiSuggestion} />
-                      )}
-                      <Text style={formStyles.aiChipText}>{tag.name}</Text>
-                      {isNew && !isCreating && (
-                        <Text style={formStyles.aiChipNewLabel}>NEW</Text>
-                      )}
+                      <Text style={formStyles.selectedChipText}>{name}</Text>
+                      <MaterialIcons name="close" size={14} color={colors.accent} style={{ marginLeft: 4 }} />
                     </TouchableOpacity>
                   );
                 })}
               </View>
-            ) : loadingAiSuggestions ? (
-              <Text style={formStyles.aiLoadingText}>Analyzing your images...</Text>
-            ) : null}
-          </View>
-        )}
+            )}
 
-        {!loadingAiSuggestions && aiSuggestions.length === 0 && visibleExistingImages.length > 0 && (
-          <TouchableOpacity style={formStyles.aiSuggestButton} onPress={fetchAiSuggestions}>
-            <MaterialIcons name="auto-awesome" size={16} color={colors.aiSuggestion} />
-            <Text style={formStyles.aiSuggestButtonText}>Get AI tag suggestions</Text>
-          </TouchableOpacity>
-        )}
+            {/* Tags */}
+            <Text style={formStyles.fieldLabel}>Tags</Text>
+            <TouchableOpacity
+              style={formStyles.pickerButton}
+              onPress={() => setShowTagsPicker(true)}
+            >
+              <Text style={selectedTags.length > 0 ? formStyles.pickerText : formStyles.pickerPlaceholder}>
+                {selectedTags.length > 0 ? `${selectedTags.length} selected` : 'Select tags'}
+              </Text>
+              <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
 
-        {/* Visibility */}
-        <View style={formStyles.visibilityRow}>
-          <View>
-            <Text style={formStyles.visibilityLabel}>{isPublic ? 'Public' : 'Unlisted'}</Text>
-            <Text style={formStyles.visibilityHint}>
-              {isPublic ? 'Visible to everyone' : 'Only visible via direct link'}
-            </Text>
-          </View>
-          <Switch
-            value={isPublic}
-            onValueChange={setIsPublic}
-            trackColor={{ false: colors.border, true: colors.accentDark }}
-            thumbColor={isPublic ? colors.accent : colors.textMuted}
-          />
-        </View>
+            {selectedTags.length > 0 && (
+              <View style={formStyles.selectedChips}>
+                {selectedTags.map(id => {
+                  const name = tagNameMap.get(id);
+                  if (!name) return null;
+                  return (
+                    <TouchableOpacity
+                      key={id}
+                      style={formStyles.selectedTagChip}
+                      onPress={() => toggleTag(id)}
+                    >
+                      <Text style={formStyles.selectedTagChipText}>{name}</Text>
+                      <MaterialIcons name="close" size={14} color={colors.tag} style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* AI Tag Suggestions */}
+            {(loadingAiSuggestions || aiSuggestions.length > 0) && (
+              <View style={formStyles.aiSection}>
+                <View style={formStyles.aiHeader}>
+                  <MaterialIcons name="auto-awesome" size={16} color={colors.aiSuggestion} />
+                  <Text style={formStyles.aiHeaderText}>AI SUGGESTIONS</Text>
+                  {loadingAiSuggestions && (
+                    <ActivityIndicator size="small" color={colors.aiSuggestion} />
+                  )}
+                </View>
+                {aiSuggestions.length > 0 ? (
+                  <View style={formStyles.aiChips}>
+                    {aiSuggestions.map(tag => {
+                      const isNew = tag.id === null || tag.is_new_suggestion;
+                      const isCreating = addingAiTag === tag.name;
+                      return (
+                        <TouchableOpacity
+                          key={tag.name}
+                          style={[formStyles.aiChip, isNew && formStyles.aiChipNew]}
+                          onPress={() => !isCreating && handleAddAiSuggestion(tag)}
+                          disabled={isCreating}
+                          activeOpacity={0.7}
+                        >
+                          {isCreating ? (
+                            <ActivityIndicator size={12} color={colors.aiSuggestion} />
+                          ) : (
+                            <MaterialIcons name="add" size={14} color={colors.aiSuggestion} />
+                          )}
+                          <Text style={formStyles.aiChipText}>{tag.name}</Text>
+                          {isNew && !isCreating && (
+                            <Text style={formStyles.aiChipNewLabel}>NEW</Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : loadingAiSuggestions ? (
+                  <Text style={formStyles.aiLoadingText}>Analyzing your images...</Text>
+                ) : null}
+              </View>
+            )}
+
+            {!loadingAiSuggestions && aiSuggestions.length === 0 && visibleExistingImages.length > 0 && (
+              <TouchableOpacity style={formStyles.aiSuggestButton} onPress={fetchAiSuggestions}>
+                <MaterialIcons name="auto-awesome" size={16} color={colors.aiSuggestion} />
+                <Text style={formStyles.aiSuggestButtonText}>Get AI tag suggestions</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Visibility */}
+            <View style={formStyles.visibilityRow}>
+              <View>
+                <Text style={formStyles.visibilityLabel}>{isPublic ? 'Public' : 'Unlisted'}</Text>
+                <Text style={formStyles.visibilityHint}>
+                  {isPublic ? 'Visible to everyone' : 'Only visible via direct link'}
+                </Text>
+              </View>
+              <Switch
+                value={isPublic}
+                onValueChange={setIsPublic}
+                trackColor={{ false: colors.border, true: colors.accentDark }}
+                thumbColor={isPublic ? colors.accent : colors.textMuted}
+              />
+            </View>
+          </>
+        )}
 
       </ScrollView>
 
@@ -564,7 +570,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         <Button
           title="Save"
           onPress={handleSave}
-          disabled={!title.trim() || saving}
+          disabled={saving}
           loading={saving}
           style={formStyles.saveBtn}
         />

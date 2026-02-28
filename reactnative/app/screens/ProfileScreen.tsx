@@ -162,7 +162,7 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       )}
 
-      {/* View Public Profile (Artists) */}
+      {/* View Public Profile */}
       {isArtist && u.slug && (
         <TouchableOpacity
           style={styles.profileLink}

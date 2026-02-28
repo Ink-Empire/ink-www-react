@@ -1,6 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { colors } from '../../lib/colors';
+import ProfileMainScreen from '../screens/ProfileMainScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ArtistDetailScreen from '../screens/ArtistDetailScreen';
@@ -11,6 +12,8 @@ import StudioDetailScreen from '../screens/StudioDetailScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import BookingSettingsScreen from '../screens/BookingSettingsScreen';
 import MyBookingsScreen from '../screens/MyBookingsScreen';
+import PendingApprovalsScreen from '../screens/PendingApprovalsScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { ProfileStackParamList } from './types';
 
@@ -20,16 +23,19 @@ const screenOptions = {
   headerStyle: { backgroundColor: colors.surface },
   headerTintColor: colors.textPrimary,
   headerTitleStyle: { color: colors.textPrimary },
+  headerBackTitle: ' ',
 };
 
 export default function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', headerRight: () => <InboxHeaderButton /> }} />
+      <Stack.Screen name="ProfileMain" component={ProfileMainScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Settings', headerRight: () => <InboxHeaderButton /> }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name="BookingSettings" component={BookingSettingsScreen} options={{ title: 'Booking Settings' }} />
       <Stack.Screen name="MyBookings" component={MyBookingsScreen} options={{ title: 'My Upcoming Bookings' }} />
+      <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ title: 'Pending Approvals' }} />
       <Stack.Screen
         name="ArtistDetail"
         component={ArtistDetailScreen}
@@ -50,6 +56,11 @@ export default function ProfileStack() {
         name="Calendar"
         component={CalendarScreen}
         options={{ title: '', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Profile' })}
       />
     </Stack.Navigator>
   );

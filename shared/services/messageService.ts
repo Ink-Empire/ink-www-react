@@ -65,9 +65,9 @@ export function createMessageService(api: ApiClient) {
         appointment_id: appointmentId,
       }, { requiresAuth: true }),
 
-    searchUsers: (query: string) =>
+    searchUsers: (query: string, type?: number) =>
       api.get<{ users: Array<{ id: number; name: string; username: string; slug?: string; image?: { id: number; uri: string } | null }> }>(
-        `/conversations/search-users?q=${encodeURIComponent(query)}`,
+        `/conversations/search-users?q=${encodeURIComponent(query)}${type ? `&type=${type}` : ''}`,
         { requiresAuth: true, useCache: false, skipDemoMode: true },
       ),
 

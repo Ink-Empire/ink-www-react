@@ -2,7 +2,7 @@
 // Services provide a cleaner interface for common API operations
 
 import type { ApiClient } from '../api';
-import type { Artist, Tattoo, Studio, Style, SearchFilters, User } from '../types';
+import type { Artist, Tattoo, Studio, Style, SearchFilters, User, UserProfile, PendingTattoo } from '../types';
 
 export interface UpcomingAppointment {
   id: number;
@@ -88,7 +88,7 @@ export function createTattooService(api: ApiClient) {
     getById: (id: string | number) =>
       api.get<{ tattoo: Tattoo }>(`/tattoos/${id}`),
 
-    create: (data: Partial<Tattoo>) =>
+    create: (data: Partial<Tattoo> & { tagged_artist_id?: number }) =>
       api.post<{ tattoo: Tattoo }>('/tattoos', data, { requiresAuth: true }),
 
     update: (id: number, data: Partial<Tattoo>) =>
@@ -96,6 +96,12 @@ export function createTattooService(api: ApiClient) {
 
     delete: (id: number) =>
       api.delete(`/tattoos/${id}`, { requiresAuth: true }),
+
+    getPendingApprovals: () =>
+      api.get<{ tattoos: PendingTattoo[] }>('/tattoos/pending-approvals', { requiresAuth: true }),
+
+    respondToTag: (id: number, action: 'approve' | 'reject') =>
+      api.post<{ success: boolean; message: string }>(`/tattoos/${id}/approve`, { action }, { requiresAuth: true }),
   };
 }
 
@@ -215,6 +221,23 @@ export { fetchPlacesApiKey, searchPlaces, getPlaceDetails } from './googlePlaces
 export type { PlacePrediction, PlaceDetails } from './googlePlacesService';
 
 // =============================================================================
+// User Profile Service
+// =============================================================================
+
+export function createUserProfileService(api: ApiClient) {
+  return {
+    getProfile: (slug: string) =>
+      api.get<{ user: UserProfile }>(`/users/${slug}/profile`),
+
+    getTattoos: (slug: string, params?: { page?: number; per_page?: number }) =>
+      api.get<{ tattoos: Tattoo[]; total: number; page: number; per_page: number; last_page: number }>(
+        `/users/${slug}/tattoos`,
+        { params },
+      ),
+  };
+}
+
+// =============================================================================
 // Client Service
 // =============================================================================
 
@@ -271,3 +294,4 @@ export type NotificationService = ReturnType<typeof createNotificationService>;
 export type AppointmentService = ReturnType<typeof createAppointmentService>;
 export type TagService = ReturnType<typeof createTagService>;
 export type ClientService = ReturnType<typeof createClientService>;
+export type UserProfileService = ReturnType<typeof createUserProfileService>;

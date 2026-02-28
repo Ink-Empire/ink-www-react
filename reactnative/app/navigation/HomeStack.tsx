@@ -8,6 +8,7 @@ import TattooDetailScreen from '../screens/TattooDetailScreen';
 import EditTattooScreen from '../screens/EditTattooScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { HomeStackParamList } from './types';
 
@@ -52,6 +53,11 @@ export default function HomeStack() {
         name="Calendar"
         component={CalendarScreen}
         options={{ title: '', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Profile' })}
       />
     </Stack.Navigator>
   );

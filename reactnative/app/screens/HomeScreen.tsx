@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useTattoos, useStyles, useTags } from '@inkedin/shared/hooks';
+import { getCachedTattoos, saveTattoosToCache } from '../../lib/tattooCache';
 import SearchBar from '../components/search/SearchBar';
 import FilterDrawer, { type AppliedFilters } from '../components/search/FilterDrawer';
 import TattooCard from '../components/cards/TattooCard';
@@ -51,9 +52,36 @@ export default function HomeScreen({ navigation, route }: any) {
     useAnyLocation: filters.useAnyLocation,
   };
 
+  const [cachedTattoos, setCachedTattoos] = useState<any[] | null>(null);
+  const hasFilters = !!(searchQuery || filters.sort || filters.styles?.length || filters.tags?.length || filters.tagNames?.length);
+
+  // Load cached tattoos on mount (only for unfiltered default feed)
+  const cacheLoaded = useRef(false);
+  useEffect(() => {
+    if (cacheLoaded.current || hasFilters) return;
+    cacheLoaded.current = true;
+    getCachedTattoos().then(cached => {
+      if (cached && cached.length > 0) {
+        setCachedTattoos(cached);
+      }
+    });
+  }, []);
+
   const { tattoos, loading, refetch, removeTattoo } = useTattoos(api, searchParams as any);
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
+
+  // Save fresh results to cache (only for unfiltered default feed)
+  useEffect(() => {
+    if (!loading && tattoos.length > 0 && !hasFilters) {
+      saveTattoosToCache(tattoos);
+      setCachedTattoos(null); // clear cached state once fresh data is in
+    }
+  }, [tattoos, loading, hasFilters]);
+
+  // Show cached data while API is loading the default feed
+  const displayTattoos = (loading && !hasFilters && cachedTattoos) ? cachedTattoos : tattoos;
+  const showSpinner = loading && displayTattoos.length === 0;
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('tattoo-deleted', ({ id }: { id: number }) => {
@@ -105,15 +133,15 @@ export default function HomeScreen({ navigation, route }: any) {
         </View>
       </View>
 
-      {loading ? (
+      {showSpinner ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
-      ) : tattoos.length === 0 ? (
+      ) : displayTattoos.length === 0 && !loading ? (
         <EmptyState message="No tattoos found. Try adjusting your search." />
       ) : (
         <FlatList
-          data={tattoos}
+          data={displayTattoos}
           numColumns={2}
           keyExtractor={(item: any) => String(item.id)}
           renderItem={renderItem}

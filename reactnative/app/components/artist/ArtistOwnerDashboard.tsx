@@ -17,6 +17,7 @@ interface DashboardStats {
   saves_this_week: number;
   upcoming_appointments: number;
   unread_messages: number;
+  pending_approvals?: number;
 }
 
 interface ArtistOwnerDashboardProps {
@@ -64,6 +65,10 @@ export default function ArtistOwnerDashboard({
     navigation.navigate('ProfileTab', { screen: 'EditProfile' });
   };
 
+  const navigateToPendingApprovals = () => {
+    navigation.navigate('ProfileTab', { screen: 'PendingApprovals' });
+  };
+
   const navigateToInbox = () => {
     navigation.navigate('InboxStack', { screen: 'Inbox' });
   };
@@ -99,6 +104,12 @@ export default function ArtistOwnerDashboard({
       icon: 'mail' as const,
       onPress: navigateToInbox,
     },
+    ...((stats?.pending_approvals ?? 0) > 0 ? [{
+      label: 'Pending',
+      value: stats?.pending_approvals ?? 0,
+      icon: 'pending-actions' as const,
+      onPress: navigateToPendingApprovals,
+    }] : []),
   ];
 
   return (

@@ -16,6 +16,7 @@ export { studioService } from './studioService';
 export { stylesService } from './stylesService';
 export { tattooService } from './tattooService';
 export { userService } from './userService';
+export { userProfileService } from './userProfileService';
 
 // Re-export types
 export type {
@@ -80,3 +81,7 @@ export type {
 export type {
   ImagePurpose,
 } from './imageService';
+
+export type {
+  UserProfile,
+} from './userProfileService';

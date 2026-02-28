@@ -1,13 +1,15 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import { createNotificationService } from '@inkedin/shared/services';
 import { api } from '../../lib/api';
+import { usePushNotificationBanner } from '../contexts/PushNotificationContext';
 
 const notificationService = createNotificationService(api);
 
 export function usePushNotifications(isAuthenticated: boolean) {
   const tokenRef = useRef<string | null>(null);
+  const { show } = usePushNotificationBanner();
 
   const registerToken = useCallback(async (fcmToken: string) => {
     try {
@@ -32,6 +34,7 @@ export function usePushNotifications(isAuthenticated: boolean) {
     if (!isAuthenticated) return;
 
     let unsubscribeRefresh: (() => void) | undefined;
+    let unsubscribeMessage: (() => void) | undefined;
 
     const setup = async () => {
       const authStatus = await messaging().requestPermission();
@@ -49,14 +52,26 @@ export function usePushNotifications(isAuthenticated: boolean) {
       unsubscribeRefresh = messaging().onTokenRefresh(async (newToken) => {
         await registerToken(newToken);
       });
+
+      unsubscribeMessage = messaging().onMessage(async (remoteMessage) => {
+        const { notification, data } = remoteMessage;
+        if (notification?.title) {
+          show({
+            title: notification.title,
+            body: notification.body || '',
+            data: data as Record<string, string> | undefined,
+          });
+        }
+      });
     };
 
     setup();
 
     return () => {
       unsubscribeRefresh?.();
+      unsubscribeMessage?.();
     };
-  }, [isAuthenticated, registerToken]);
+  }, [isAuthenticated, registerToken, show]);
 
   return { unregisterToken };
 }

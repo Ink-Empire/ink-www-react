@@ -321,7 +321,7 @@ export default function EditProfileScreen({ navigation }: any) {
         />
 
         {/* Styles */}
-        <Text style={styles.sectionTitle}>Styles</Text>
+        <Text style={styles.sectionTitle}>{isArtist ? 'Styles' : 'Styles I Like'}</Text>
 
         {/* Show currently selected styles at top for easy deselect */}
         {selectedStyles.length > 0 && (
@@ -343,7 +343,7 @@ export default function EditProfileScreen({ navigation }: any) {
         )}
 
         <Text style={styles.sectionHint}>
-          {selectedStyles.length > 0 ? 'Add more styles' : 'Select the styles you specialize in'}
+          {selectedStyles.length > 0 ? 'Add more styles' : isArtist ? 'Select the styles you specialize in' : 'Select styles you like'}
         </Text>
         <View style={styles.tagsContainer}>
           {allStyles

@@ -98,6 +98,16 @@ export const tattooService = {
     });
   },
 
+  // Get pending tattoo approvals for the authenticated artist
+  getPendingApprovals: async (): Promise<{ tattoos: any[] }> => {
+    return api.get('/tattoos/pending-approvals', { requiresAuth: true });
+  },
+
+  // Respond to a tattoo tag request (approve or reject)
+  respondToTag: async (id: number | string, action: 'approve' | 'reject'): Promise<{ success: boolean; message: string }> => {
+    return api.post(`/tattoos/${id}/approve`, { action }, { requiresAuth: true });
+  },
+
   // Get tattoo with full details including tags (public access)
   getWithTags: async (id: number | string): Promise<TattooType & { tags: any[] }> => {
     const hasAuthToken = !!getToken();

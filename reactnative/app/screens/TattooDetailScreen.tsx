@@ -42,7 +42,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
     return unsubscribe;
   }, [navigation, refetch]);
 
-  const isOwner = user?.id === tattoo?.artist_id;
+  const isOwner = user?.id === tattoo?.artist_id || user?.id === tattoo?.uploaded_by_user_id;
 
   const handleEditPress = useCallback(() => {
     if (!tattoo) return;
@@ -144,7 +144,12 @@ export default function TattooDetailScreen({ navigation, route }: any) {
           >
             <Avatar uri={artistImageUri} name={artistName} size={40} />
             <View style={styles.artistHeaderInfo}>
-              <Text style={styles.artistName}>{artistName}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.artistName}>{artistName}</Text>
+                {tattoo.approval_status === 'pending' && (
+                  <Text style={styles.pendingText}>(pending)</Text>
+                )}
+              </View>
               {studioName && (
                 <TouchableOpacity
                   onPress={() => studioSlug && navigation.push('StudioDetail', { slug: studioSlug, name: studioName })}
@@ -161,7 +166,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
         ) : (
           <View style={styles.artistHeader} />
         )}
-        {user && (
+        {user && !isOwner && (
           <Button
             title={isFavorited ? 'Saved' : 'Save'}
             onPress={handleToggleFavorite}
@@ -247,7 +252,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
         )}
 
         {/* Title and description */}
-        <Text style={styles.title}>{tattoo.title || 'Untitled'}</Text>
+        {tattoo.title && <Text style={styles.title}>{tattoo.title}</Text>}
 
         {tattoo.description && (
           <Text style={styles.description}>{tattoo.description}</Text>
@@ -392,6 +397,11 @@ const styles = StyleSheet.create({
   tagText: {
     color: colors.tag,
     fontSize: 13,
+  },
+  pendingText: {
+    color: colors.warning,
+    fontSize: 13,
+    fontWeight: '600',
   },
   // Title
   title: {
