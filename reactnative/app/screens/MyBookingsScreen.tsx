@@ -17,12 +17,10 @@ import { RescheduleAppointmentModal } from '../components/Calendar/RescheduleApp
 import { CancelAppointmentModal } from '../components/Calendar/CancelAppointmentModal';
 
 function parseDate(dateStr: string): Date {
-  // Handle both "YYYY-MM-DD" and full ISO strings
-  if (dateStr.length === 10) {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  }
-  return new Date(dateStr);
+  // Always extract just the YYYY-MM-DD part to avoid timezone shifts
+  const datePart = dateStr.substring(0, 10);
+  const [y, m, d] = datePart.split('-').map(Number);
+  return new Date(y, m - 1, d);
 }
 
 function formatDay(dateStr: string): number {
@@ -52,6 +50,13 @@ function formatTime(startTime?: string, endTime?: string): string {
   }
 }
 
+const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  pending: { bg: colors.warningDim, text: colors.warning, label: 'Pending' },
+  booked: { bg: colors.successDim, text: colors.success, label: 'Confirmed' },
+  completed: { bg: colors.accentDim, text: colors.accent, label: 'Completed' },
+  cancelled: { bg: 'rgba(199, 93, 93, 0.15)', text: colors.error, label: 'Cancelled' },
+};
+
 export default function MyBookingsScreen({ navigation }: any) {
   const [bookings, setBookings] = useState<ClientDashboardAppointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +66,7 @@ export default function MyBookingsScreen({ navigation }: any) {
 
   const fetchBookings = useCallback(() => {
     setLoading(true);
-    clientService.getDashboard()
+    clientService.getBookings()
       .then((data: any) => {
         setBookings(data?.appointments || []);
       })
@@ -139,7 +144,7 @@ export default function MyBookingsScreen({ navigation }: any) {
     return (
       <View style={styles.centered}>
         <MaterialIcons name="event-available" size={48} color={colors.textMuted} />
-        <Text style={styles.emptyTitle}>No Upcoming Bookings</Text>
+        <Text style={styles.emptyTitle}>No Bookings</Text>
         <Text style={styles.emptySubtitle}>
           When you book an appointment with an artist, it will appear here.
         </Text>
@@ -149,67 +154,81 @@ export default function MyBookingsScreen({ navigation }: any) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {bookings.map((apt) => (
-        <View key={apt.id} style={styles.card}>
-          <TouchableOpacity
-            style={styles.cardContent}
-            onPress={() => {
-              if (apt.artist?.slug) {
-                navigation.push('ArtistDetail', { slug: apt.artist.slug, name: apt.artist.name });
-              }
-            }}
-            activeOpacity={apt.artist?.slug ? 0.7 : 1}
-          >
-            <View style={styles.dateBadge}>
-              <Text style={styles.dateDay}>{formatDay(apt.date)}</Text>
-              <Text style={styles.dateMonth}>{formatMonth(apt.date)}</Text>
-            </View>
-            <View style={styles.info}>
-              <Text style={styles.title}>{apt.title}</Text>
-              <Text style={styles.time}>
-                <MaterialIcons name="schedule" size={12} color={colors.textMuted} />
-                {'  '}{formatTime(apt.start_time, apt.end_time)}
-              </Text>
-              {apt.artist?.name && (
-                <Text style={styles.artist}>{apt.artist.name}</Text>
-              )}
-            </View>
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeText}>{apt.type}</Text>
-            </View>
-          </TouchableOpacity>
-          <View style={styles.actions}>
-            {apt.artist && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => {
-                  navigation.navigate('InboxStack', {
-                    screen: 'Conversation',
-                    params: { clientId: apt.artist!.id, participantName: apt.artist!.name },
-                  });
-                }}
-              >
-                <MaterialIcons name="chat-bubble-outline" size={16} color={colors.accent} />
-                <Text style={styles.actionText}>Message</Text>
-              </TouchableOpacity>
+      {bookings.map((apt) => {
+        const status = STATUS_STYLES[apt.status] || STATUS_STYLES.pending;
+        const isCancelled = apt.status === 'cancelled';
+        const isCompleted = apt.status === 'completed';
+        const showActions = !isCancelled && !isCompleted;
+
+        return (
+          <View key={apt.id} style={[styles.card, isCancelled && styles.cardMuted]}>
+            <TouchableOpacity
+              style={styles.cardContent}
+              onPress={() => {
+                if (apt.artist?.slug) {
+                  navigation.push('ArtistDetail', { slug: apt.artist.slug, name: apt.artist.name });
+                }
+              }}
+              activeOpacity={apt.artist?.slug ? 0.7 : 1}
+            >
+              <View style={styles.dateBadge}>
+                <Text style={[styles.dateDay, isCancelled && styles.textMuted]}>{formatDay(apt.date)}</Text>
+                <Text style={styles.dateMonth}>{formatMonth(apt.date)}</Text>
+              </View>
+              <View style={styles.info}>
+                <Text style={[styles.title, isCancelled && styles.textMuted]}>{apt.title}</Text>
+                <Text style={styles.time}>
+                  <MaterialIcons name="schedule" size={12} color={colors.textMuted} />
+                  {'  '}{formatTime(apt.start_time, apt.end_time)}
+                </Text>
+                {apt.artist?.name && (
+                  <Text style={styles.artist}>{apt.artist.name}</Text>
+                )}
+              </View>
+              <View style={styles.badges}>
+                <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+                  <Text style={[styles.statusText, { color: status.text }]}>{status.label}</Text>
+                </View>
+                <View style={styles.typeBadge}>
+                  <Text style={styles.typeText}>{apt.type}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+            {showActions && (
+              <View style={styles.actions}>
+                {apt.artist && (
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => {
+                      navigation.navigate('InboxStack', {
+                        screen: 'Conversation',
+                        params: { clientId: apt.artist!.id, participantName: apt.artist!.name },
+                      });
+                    }}
+                  >
+                    <MaterialIcons name="chat-bubble-outline" size={16} color={colors.accent} />
+                    <Text style={styles.actionText}>Message</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.actionBorder]}
+                  onPress={() => handleReschedulePress(apt)}
+                >
+                  <MaterialIcons name="update" size={16} color={colors.accent} />
+                  <Text style={styles.actionText}>Reschedule</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.actionBorder]}
+                  onPress={() => handleCancelPress(apt)}
+                >
+                  <MaterialIcons name="event-busy" size={16} color={colors.error} />
+                  <Text style={[styles.actionText, { color: colors.error }]}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             )}
-            <TouchableOpacity
-              style={[styles.actionButton, styles.actionBorder]}
-              onPress={() => handleReschedulePress(apt)}
-            >
-              <MaterialIcons name="update" size={16} color={colors.accent} />
-              <Text style={styles.actionText}>Reschedule</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.actionBorder]}
-              onPress={() => handleCancelPress(apt)}
-            >
-              <MaterialIcons name="event-busy" size={16} color={colors.error} />
-              <Text style={[styles.actionText, { color: colors.error }]}>Cancel</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      ))}
+        );
+      })}
 
       <RescheduleAppointmentModal
         visible={rescheduleModalVisible}
@@ -267,6 +286,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
   },
+  cardMuted: {
+    opacity: 0.6,
+  },
   cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -291,6 +313,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
   },
+  textMuted: {
+    color: colors.textMuted,
+  },
   info: {
     flex: 1,
     gap: 2,
@@ -307,6 +332,20 @@ const styles = StyleSheet.create({
   artist: {
     color: colors.textSecondary,
     fontSize: 12,
+  },
+  badges: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   typeBadge: {
     backgroundColor: colors.accentDim,

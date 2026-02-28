@@ -66,17 +66,21 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
     });
   }, [portfolio, activeStyleFilter]);
 
-  const isFavorited = user?.favorites?.artists?.includes(artist?.id);
+  const isStudio = a?.type === 'studio';
+  const favoriteType = isStudio ? 'studio' : 'artist';
+  const isFavorited = isStudio
+    ? user?.favorites?.studios?.includes(artist?.id)
+    : user?.favorites?.artists?.includes(artist?.id);
 
   const handleToggleFavorite = useCallback(async () => {
     if (!artist) return;
     try {
-      await toggleFavorite('artist', artist.id);
-      showSnackbar(isFavorited ? 'Removed from saved' : 'Artist saved');
+      await toggleFavorite(favoriteType, artist.id);
+      showSnackbar(isFavorited ? 'Removed from saved' : (isStudio ? 'Studio saved' : 'Artist saved'));
     } catch {
       showSnackbar('Something went wrong', 'error');
     }
-  }, [toggleFavorite, artist?.id, isFavorited, showSnackbar]);
+  }, [toggleFavorite, artist?.id, favoriteType, isFavorited, isStudio, showSnackbar]);
 
   if (loading) return <LoadingScreen />;
   if (error || !artist) return <ErrorView message={error?.message || 'Artist not found'} />;
@@ -174,6 +178,12 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
               {settings.books_open ? 'Request to Book' : 'Not Currently Booking'}
             </Text>
           </TouchableOpacity>
+          {settings.accepts_walk_ins && (
+            <View style={styles.walkInsRow}>
+              <MaterialIcons name="directions-walk" size={16} color={colors.success} />
+              <Text style={styles.walkInsText}>Walk-ins Welcome</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -468,6 +478,18 @@ const styles = StyleSheet.create({
   },
   bookButtonTextDisabled: {
     color: colors.textMuted,
+  },
+  walkInsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  walkInsText: {
+    color: colors.success,
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // Sections

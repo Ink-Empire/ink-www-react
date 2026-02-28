@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,20 @@ import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import ArtistCard from '../components/cards/ArtistCard';
 import TattooCard from '../components/cards/TattooCard';
+import StudioCard from '../components/cards/StudioCard';
 import EmptyState from '../components/common/EmptyState';
 
-type Tab = 'artists' | 'tattoos';
+type Tab = 'artists' | 'tattoos' | 'studios';
 
 export default function FavoritesScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<Tab>('artists');
 
   const [savedArtists, setSavedArtists] = useState<any[]>([]);
   const [savedTattoos, setSavedTattoos] = useState<any[]>([]);
+  const [savedStudios, setSavedStudios] = useState<any[]>([]);
   const [artistsLoading, setArtistsLoading] = useState(true);
   const [tattoosLoading, setTattoosLoading] = useState(true);
+  const [studiosLoading, setStudiosLoading] = useState(true);
   const mountedRef = useRef(true);
 
   const fetchFavorites = useCallback(async () => {
@@ -30,16 +33,19 @@ export default function FavoritesScreen({ navigation }: any) {
 
     setArtistsLoading(true);
     setTattoosLoading(true);
+    setStudiosLoading(true);
 
     try {
-      const [artistRes, tattooRes] = await Promise.all([
+      const [artistRes, tattooRes, studioRes] = await Promise.all([
         api.get<any>('/client/favorites', { requiresAuth: true }),
         api.get<any>('/client/saved-tattoos', { requiresAuth: true }),
+        api.get<any>('/client/saved-studios', { requiresAuth: true }),
       ]);
 
       if (mountedRef.current) {
         setSavedArtists(Array.isArray(artistRes?.favorites) ? artistRes.favorites : []);
         setSavedTattoos(Array.isArray(tattooRes?.tattoos) ? tattooRes.tattoos : []);
+        setSavedStudios(Array.isArray(studioRes?.studios) ? studioRes.studios : []);
       }
     } catch (err) {
       console.error('Failed to fetch favorites:', err);
@@ -47,11 +53,11 @@ export default function FavoritesScreen({ navigation }: any) {
       if (mountedRef.current) {
         setArtistsLoading(false);
         setTattoosLoading(false);
+        setStudiosLoading(false);
       }
     }
   }, []);
 
-  // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchFavorites();
@@ -80,8 +86,35 @@ export default function FavoritesScreen({ navigation }: any) {
     />
   ), [navigation]);
 
-  const isLoading = activeTab === 'artists' ? artistsLoading : tattoosLoading;
-  const items = activeTab === 'artists' ? savedArtists : savedTattoos;
+  const renderStudioItem = useCallback(({ item }: any) => (
+    <StudioCard
+      studio={item}
+      onPress={() => navigation.push('StudioDetail', {
+        slug: item.slug,
+        name: item.name,
+      })}
+    />
+  ), [navigation]);
+
+  const isLoading =
+    activeTab === 'artists' ? artistsLoading :
+    activeTab === 'tattoos' ? tattoosLoading :
+    studiosLoading;
+
+  const items =
+    activeTab === 'artists' ? savedArtists :
+    activeTab === 'tattoos' ? savedTattoos :
+    savedStudios;
+
+  const emptyMessage =
+    activeTab === 'artists' ? 'No saved artists yet. Browse and save your favorites!' :
+    activeTab === 'tattoos' ? 'No saved tattoos yet. Browse and save your favorites!' :
+    'No saved studios yet. Browse and save your favorites!';
+
+  const browseTarget =
+    activeTab === 'artists' ? 'ArtistsTab' :
+    activeTab === 'studios' ? 'ArtistsTab' :
+    'HomeTab';
 
   return (
     <View style={styles.container}>
@@ -102,15 +135,23 @@ export default function FavoritesScreen({ navigation }: any) {
             Tattoos{!tattoosLoading && savedTattoos.length > 0 ? ` (${savedTattoos.length})` : ''}
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'studios' && styles.tabActive]}
+          onPress={() => setActiveTab('studios')}
+        >
+          <Text style={[styles.tabText, activeTab === 'studios' && styles.tabTextActive]}>
+            Studios{!studiosLoading && savedStudios.length > 0 ? ` (${savedStudios.length})` : ''}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {isLoading ? (
         <ActivityIndicator color={colors.accent} size="large" style={styles.loader} />
       ) : items.length === 0 ? (
         <EmptyState
-          message={`No saved ${activeTab} yet. Browse and save your favorites!`}
+          message={emptyMessage}
           actionLabel="Browse"
-          onAction={() => navigation.navigate(activeTab === 'artists' ? 'ArtistsTab' : 'HomeTab')}
+          onAction={() => navigation.navigate(browseTarget)}
         />
       ) : activeTab === 'artists' ? (
         <FlatList
@@ -120,7 +161,7 @@ export default function FavoritesScreen({ navigation }: any) {
           renderItem={renderArtistItem}
           contentContainerStyle={styles.list}
         />
-      ) : (
+      ) : activeTab === 'tattoos' ? (
         <FlatList
           key="tattoos-grid"
           data={savedTattoos}
@@ -128,6 +169,14 @@ export default function FavoritesScreen({ navigation }: any) {
           keyExtractor={(item: any) => String(item.id)}
           renderItem={renderTattooItem}
           contentContainerStyle={styles.grid}
+        />
+      ) : (
+        <FlatList
+          key="studios-list"
+          data={savedStudios}
+          keyExtractor={(item: any) => String(item.id)}
+          renderItem={renderStudioItem}
+          contentContainerStyle={styles.list}
         />
       )}
     </View>

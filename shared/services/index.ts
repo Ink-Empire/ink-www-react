@@ -248,6 +248,12 @@ export function createClientService(api: ApiClient) {
         wishlist_count: number;
         suggested_artists: any[];
       }>('/client/dashboard', { requiresAuth: true }),
+
+    getSavedStudios: () =>
+      api.get<{ studios: any[] }>('/client/saved-studios', { requiresAuth: true }),
+
+    getBookings: () =>
+      api.get<{ appointments: ClientDashboardAppointment[] }>('/client/bookings', { requiresAuth: true }),
   };
 }
 
