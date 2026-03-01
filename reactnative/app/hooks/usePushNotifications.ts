@@ -7,6 +7,12 @@ import { usePushNotificationBanner } from '../contexts/PushNotificationContext';
 
 const notificationService = createNotificationService(api);
 
+let onPushReceivedCallback: (() => void) | null = null;
+
+export function setOnPushReceivedCallback(cb: (() => void) | null) {
+  onPushReceivedCallback = cb;
+}
+
 export function usePushNotifications(isAuthenticated: boolean) {
   const tokenRef = useRef<string | null>(null);
   const { show } = usePushNotificationBanner();
@@ -61,6 +67,7 @@ export function usePushNotifications(isAuthenticated: boolean) {
             body: notification.body || '',
             data: data as Record<string, string> | undefined,
           });
+          onPushReceivedCallback?.();
         }
       });
     };

@@ -74,6 +74,7 @@ export type ProfileStackParamList = {
   ProfileMain: undefined;
   Profile: undefined;
   EditProfile: undefined;
+  Notifications: undefined;
   NotificationSettings: undefined;
   BookingSettings: undefined;
   MyBookings: undefined;

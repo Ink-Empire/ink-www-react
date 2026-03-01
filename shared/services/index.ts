@@ -102,6 +102,14 @@ export function createTattooService(api: ApiClient) {
 
     respondToTag: (id: number, action: 'approve' | 'reject') =>
       api.post<{ success: boolean; message: string }>(`/tattoos/${id}/approve`, { action }, { requiresAuth: true }),
+
+    clientUpload: (data: {
+      image_ids: number[];
+      title?: string;
+      description?: string;
+      tagged_artist_id?: number;
+    }) =>
+      api.post<{ tattoo: Tattoo }>('/tattoos/create', data, { requiresAuth: true }),
   };
 }
 

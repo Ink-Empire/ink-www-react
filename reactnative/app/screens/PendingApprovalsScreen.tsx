@@ -15,6 +15,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { tattooService } from '../../lib/services';
+import { clearTattooCache } from '../../lib/tattooCache';
 import { usePendingApprovals } from '@inkedin/shared/hooks';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import type { PendingTattoo } from '@inkedin/shared/types';
@@ -47,6 +48,7 @@ export default function PendingApprovalsScreen({ navigation }: any) {
             try {
               await tattooService.respondToTag(tattoo.id, action);
               removeTattoo(tattoo.id);
+              clearTattooCache();
               showSnackbar(
                 action === 'approve'
                   ? 'Tattoo approved and added to your profile.'

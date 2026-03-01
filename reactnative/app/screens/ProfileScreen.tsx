@@ -15,6 +15,7 @@ import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { userService } from '../../lib/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnreadNotifications } from '../contexts/UnreadNotificationContext';
 import { useStyles } from '@inkedin/shared/hooks';
 import Avatar from '../components/common/Avatar';
 import StyleTag from '../components/common/StyleTag';
@@ -37,6 +38,7 @@ function formatDate(dateStr?: string): string {
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout, refreshUser } = useAuth();
+  const { unreadCount: unreadNotifCount } = useUnreadNotifications();
   const { styles: allStyles } = useStyles(api);
 
   // Refresh user data when screen comes into focus (e.g. after editing)
@@ -174,12 +176,25 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       )}
 
+      {/* Notifications */}
+      <TouchableOpacity
+        style={styles.profileLink}
+        onPress={() => navigation.navigate('Notifications')}
+      >
+        <MaterialIcons name="notifications" size={20} color={colors.accent} />
+        <Text style={styles.profileLinkText}>Notifications</Text>
+        <View style={styles.profileLinkRight}>
+          {unreadNotifCount > 0 && <View style={styles.notifDot} />}
+          <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
+        </View>
+      </TouchableOpacity>
+
       {/* Notification Settings */}
       <TouchableOpacity
         style={styles.profileLink}
         onPress={() => navigation.navigate('NotificationSettings')}
       >
-        <MaterialIcons name="notifications" size={20} color={colors.accent} />
+        <MaterialIcons name="tune" size={20} color={colors.accent} />
         <Text style={styles.profileLinkText}>Notification Settings</Text>
         <MaterialIcons name="chevron-right" size={20} color={colors.textMuted} />
       </TouchableOpacity>
@@ -408,6 +423,17 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 15,
     fontWeight: '600',
+  },
+  profileLinkRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notifDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error,
   },
 
   // Sections

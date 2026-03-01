@@ -9,6 +9,7 @@ import TattooDetailScreen from '../screens/TattooDetailScreen';
 import EditTattooScreen from '../screens/EditTattooScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import BookingSettingsScreen from '../screens/BookingSettingsScreen';
 import MyBookingsScreen from '../screens/MyBookingsScreen';
@@ -32,7 +33,8 @@ export default function ProfileStack() {
       <Stack.Screen name="ProfileMain" component={ProfileMainScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Settings', headerRight: () => <InboxHeaderButton /> }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
-      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notification Settings' }} />
       <Stack.Screen name="BookingSettings" component={BookingSettingsScreen} options={{ title: 'Booking Settings' }} />
       <Stack.Screen name="MyBookings" component={MyBookingsScreen} options={{ title: 'My Upcoming Bookings' }} />
       <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ title: 'Pending Approvals' }} />

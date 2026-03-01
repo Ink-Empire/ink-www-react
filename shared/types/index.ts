@@ -413,6 +413,22 @@ export interface Message {
 }
 
 // =============================================================================
+// Notification Types
+// =============================================================================
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  message: string;
+  actor_name?: string;
+  actor_image?: string;
+  entity_type?: string;
+  entity_id?: number;
+  read_at: string | null;
+  created_at: string;
+}
+
+// =============================================================================
 // Search & Filter Types
 // =============================================================================
 

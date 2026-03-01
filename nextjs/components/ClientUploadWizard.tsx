@@ -13,6 +13,7 @@ import { colors, inputStyles } from '@/styles/colors';
 import { uploadImagesToS3, UploadedImage, UploadProgress } from '@/utils/s3Upload';
 import { messageService } from '@/services/messageService';
 import { tattooService } from '@/services/tattooService';
+import { clearCache } from '@/utils/apiCache';
 
 interface ClientUploadWizardProps {
   open: boolean;
@@ -201,6 +202,9 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
       if (selectedArtist) payload.tagged_artist_id = selectedArtist.id;
 
       await tattooService.clientUpload(payload);
+
+      clearCache('tattoo');
+      clearCache('user');
 
       setSuccessSnackbar(true);
       onClose();

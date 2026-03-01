@@ -1,4 +1,5 @@
 import type { ApiClient } from '../api';
+import type { AppNotification, PaginatedResponse } from '../types';
 
 export type NotificationType =
   | 'new_message'
@@ -30,5 +31,14 @@ export function createNotificationService(api: ApiClient) {
 
     updatePreferences: (prefs: Partial<Record<NotificationType, boolean>>) =>
       api.put<NotificationPreferencesResponse>('/notification-preferences', { preferences: prefs }, { requiresAuth: true }),
+
+    getNotifications: (page?: number) =>
+      api.get<PaginatedResponse<AppNotification>>(`/notifications${page ? `?page=${page}` : ''}`, { requiresAuth: true }),
+
+    getUnreadNotificationCount: () =>
+      api.get<{ unread_count: number }>('/notifications/unread-count', { requiresAuth: true }),
+
+    markNotificationsRead: (notificationId?: string) =>
+      api.post('/notifications/mark-read', notificationId ? { notification_id: notificationId } : {}, { requiresAuth: true }),
   };
 }

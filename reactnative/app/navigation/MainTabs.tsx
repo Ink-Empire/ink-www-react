@@ -5,6 +5,7 @@ import { getFocusedRouteNameFromRoute, useNavigationState } from '@react-navigat
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnreadNotifications } from '../contexts/UnreadNotificationContext';
 import HomeStack from './HomeStack';
 import ArtistsStack from './ArtistsStack';
 import UploadStack from './UploadStack';
@@ -16,6 +17,7 @@ import type { MainTabParamList } from './types';
 
 function ProfileTabIcon({ color }: { color: string }) {
   const navState = useNavigationState(state => state);
+  const { unreadCount } = useUnreadNotifications();
   const activeTab = navState.routes[navState.index];
   const isProfileTabActive = activeTab.name === 'ProfileTab';
   const profileRoute = isProfileTabActive
@@ -23,11 +25,14 @@ function ProfileTabIcon({ color }: { color: string }) {
     : null;
   const showSettings = isProfileTabActive && profileRoute === 'ProfileMain';
   return (
-    <MaterialIcons
-      name={showSettings ? 'settings' : 'person-outline'}
-      size={28}
-      color={color}
-    />
+    <View>
+      <MaterialIcons
+        name={showSettings ? 'settings' : 'person-outline'}
+        size={28}
+        color={color}
+      />
+      {unreadCount > 0 && <View style={styles.notifDot} />}
+    </View>
   );
 }
 
@@ -149,5 +154,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: -10,
+  },
+  notifDot: {
+    position: 'absolute',
+    top: 0,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error,
   },
 });

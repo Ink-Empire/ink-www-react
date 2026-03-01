@@ -40,3 +40,5 @@ export { useUserProfile } from './useUserProfile';
 export { useUserTattoos, type UseUserTattoosResult } from './useUserTattoos';
 
 export { usePendingApprovals, type UsePendingApprovalsResult } from './usePendingApprovals';
+
+export { useNotifications, useUnreadNotificationCount } from './useNotifications';

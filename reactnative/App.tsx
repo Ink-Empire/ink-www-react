@@ -11,6 +11,7 @@ import { SnackbarProvider } from './app/contexts/SnackbarContext';
 import { DeepLinkProvider, useDeepLink } from './app/contexts/DeepLinkContext';
 import { createStudioService } from '@inkedin/shared/services';
 import { UnreadCountProvider } from './app/contexts/UnreadCountContext';
+import { UnreadNotificationProvider } from './app/contexts/UnreadNotificationContext';
 import { MessageNotificationProvider } from './app/contexts/MessageNotificationContext';
 import { PushNotificationProvider } from './app/contexts/PushNotificationContext';
 import { parseDeepLink } from './app/utils/deepLinkParser';
@@ -237,11 +238,13 @@ function RootNavigator(): React.JSX.Element {
         <StatusBar barStyle="light-content" backgroundColor={colors.background} />
         {isAuthenticated ? (
           <UnreadCountProvider>
-            <MessageNotificationProvider>
-              <AuthenticatedApp />
-              <MessageNotificationBanner />
-              <PushNotificationBanner />
-            </MessageNotificationProvider>
+            <UnreadNotificationProvider>
+              <MessageNotificationProvider>
+                <AuthenticatedApp />
+                <MessageNotificationBanner />
+                <PushNotificationBanner />
+              </MessageNotificationProvider>
+            </UnreadNotificationProvider>
           </UnreadCountProvider>
         ) : (
           <AuthStack />

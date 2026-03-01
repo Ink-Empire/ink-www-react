@@ -17,8 +17,9 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
-import { messageService } from '../../lib/services';
+import { messageService, tattooService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
+import { clearTattooCache } from '../../lib/tattooCache';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
 const MAX_IMAGES = 5;
@@ -172,7 +173,12 @@ export default function ClientUploadScreen({ navigation }: any) {
         imageIds = uploadedImages.map(img => img.id);
       }
 
-      const tattooData: Record<string, any> = {
+      const tattooData: {
+        image_ids: number[];
+        title?: string;
+        description?: string;
+        tagged_artist_id?: number;
+      } = {
         image_ids: imageIds,
         title: title.trim() || undefined,
         description: description.trim() || undefined,
@@ -182,7 +188,9 @@ export default function ClientUploadScreen({ navigation }: any) {
         tattooData.tagged_artist_id = selectedArtist.id;
       }
 
-      await api.post('/tattoos/create', tattooData, { requiresAuth: true });
+      await tattooService.clientUpload(tattooData);
+
+      clearTattooCache();
 
       // Reset form
       setStep(0);
@@ -209,7 +217,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   // -- Render steps --
 
   const renderStep0 = () => (
-    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
       <Text style={s.stepTitle}>Add Photos</Text>
       <Text style={s.stepSubtitle}>{images.length}/{MAX_IMAGES} images</Text>
 
@@ -245,7 +253,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   );
 
   const renderStep1 = () => (
-    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
       <Text style={s.stepTitle}>Details</Text>
 
       <Text style={s.fieldLabel}>Title</Text>
@@ -345,7 +353,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   );
 
   const renderStep2 = () => (
-    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
       <Text style={s.stepTitle}>Review</Text>
 
       {images.length > 0 && (

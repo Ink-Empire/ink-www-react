@@ -10,6 +10,7 @@ import HowToRegIcon from '@mui/icons-material/HowToReg';
 import { colors } from '@/styles/colors';
 import { tattooService } from '@/services/tattooService';
 import { usePendingApprovals } from '@/hooks/usePendingApprovals';
+import { clearCache } from '@/utils/apiCache';
 
 interface PendingApprovalsDialogProps {
   open: boolean;
@@ -35,6 +36,8 @@ export function PendingApprovalsDialog({ open, onClose }: PendingApprovalsDialog
     try {
       await tattooService.respondToTag(tattooId, action);
       removeTattoo(tattooId);
+      clearCache('tattoo');
+      clearCache('artist');
       setSnackbar({
         open: true,
         severity: 'success',
