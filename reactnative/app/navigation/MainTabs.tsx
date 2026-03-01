@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { getFocusedRouteNameFromRoute, useNavigationState } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,38 @@ import ProfileStack from './ProfileStack';
 import TattooMachineIcon from '../components/icons/TattooMachineIcon';
 import ChairIcon from '../components/icons/ChairIcon';
 import type { MainTabParamList } from './types';
+
+function ProfileTabIcon({ color }: { color: string }) {
+  const navState = useNavigationState(state => state);
+  const activeTab = navState.routes[navState.index];
+  const isProfileTabActive = activeTab.name === 'ProfileTab';
+  const profileRoute = isProfileTabActive
+    ? getFocusedRouteNameFromRoute(activeTab) ?? 'ProfileMain'
+    : null;
+  const showSettings = isProfileTabActive && profileRoute === 'ProfileMain';
+  return (
+    <MaterialIcons
+      name={showSettings ? 'settings' : 'person-outline'}
+      size={28}
+      color={color}
+    />
+  );
+}
+
+function ProfileTabLabel({ color }: { color: string }) {
+  const navState = useNavigationState(state => state);
+  const activeTab = navState.routes[navState.index];
+  const isProfileTabActive = activeTab.name === 'ProfileTab';
+  const profileRoute = isProfileTabActive
+    ? getFocusedRouteNameFromRoute(activeTab) ?? 'ProfileMain'
+    : null;
+  const showSettings = isProfileTabActive && profileRoute === 'ProfileMain';
+  return (
+    <Text style={{ color, fontSize: 10, fontWeight: '600', marginTop: -2 }}>
+      {showSettings ? 'Settings' : 'Profile'}
+    </Text>
+  );
+}
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -89,26 +121,15 @@ export default function MainTabs() {
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStack}
-        options={({ route }) => {
-          const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
-          const isOnProfile = routeName === 'ProfileMain';
-          return {
-            tabBarLabel: isOnProfile ? 'Profile' : 'Settings',
-            tabBarIcon: ({ color }) => (
-              <MaterialIcons
-                name={isOnProfile ? 'person-outline' : 'settings'}
-                size={28}
-                color={color}
-              />
-            ),
-          };
+        options={{
+          tabBarIcon: ({ color }) => <ProfileTabIcon color={color} />,
+          tabBarLabel: ({ color }) => <ProfileTabLabel color={color} />,
         }}
         listeners={({ navigation, route }) => ({
           tabPress: (e) => {
             const isTabFocused = navigation.isFocused();
             const currentRoute = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
             if (isTabFocused && currentRoute === 'ProfileMain') {
-              // Already viewing profile, tap again goes to settings
               e.preventDefault();
               navigation.navigate('ProfileTab', { screen: 'Profile' });
             }
