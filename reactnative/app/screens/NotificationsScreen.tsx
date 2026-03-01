@@ -1,8 +1,8 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
@@ -60,9 +60,24 @@ export default function NotificationsScreen({ navigation }: any) {
     }, [markAllRead, refreshUnreadCount]),
   );
 
+  const sections = useMemo(() => {
+    const unread = notifications.filter((n) => !n.read_at);
+    const read = notifications.filter((n) => !!n.read_at);
+    const result = [];
+    if (unread.length > 0) {
+      result.push({ title: 'New', data: unread });
+    }
+    if (read.length > 0) {
+      result.push({ title: 'Read', data: read });
+    }
+    return result;
+  }, [notifications]);
+
   const handlePress = useCallback(
     (item: AppNotification) => {
-      if (item.entity_type === 'tattoo' && item.entity_id) {
+      if (item.type === 'artist_tagged') {
+        navigation.navigate('PendingApprovals');
+      } else if (item.entity_type === 'tattoo' && item.entity_id) {
         navigation.navigate('TattooDetail', { id: item.entity_id });
       }
     },
@@ -72,11 +87,10 @@ export default function NotificationsScreen({ navigation }: any) {
   const renderItem = useCallback(
     ({ item }: { item: AppNotification }) => {
       const iconName = ICON_MAP[item.type] || 'notifications';
-      const isUnread = !item.read_at;
 
       return (
         <TouchableOpacity
-          style={[styles.row, isUnread && styles.rowUnread]}
+          style={styles.row}
           onPress={() => handlePress(item)}
           activeOpacity={0.7}
         >
@@ -96,6 +110,15 @@ export default function NotificationsScreen({ navigation }: any) {
       );
     },
     [handlePress],
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: { title: string } }) => (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionHeaderText}>{section.title}</Text>
+      </View>
+    ),
+    [],
   );
 
   const renderEmpty = useCallback(() => {
@@ -120,15 +143,17 @@ export default function NotificationsScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={notifications}
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
         contentContainerStyle={notifications.length === 0 ? styles.emptyList : undefined}
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={renderFooter}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
+        stickySectionHeadersEnabled={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -146,6 +171,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: colors.background,
+  },
+  sectionHeaderText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -154,9 +192,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     gap: 12,
-  },
-  rowUnread: {
-    backgroundColor: colors.surfaceElevated,
   },
   iconContainer: {
     width: 40,

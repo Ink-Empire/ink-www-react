@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
 import { artistService } from '../../../lib/services';
@@ -38,9 +39,14 @@ export default function ArtistOwnerDashboard({
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    fetchStats();
     prefetchCalendarData(artistId, artistSlug);
-  }, [artistId]);
+  }, [artistId, artistSlug]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchStats();
+    }, [artistId]),
+  );
 
   const fetchStats = async () => {
     try {
