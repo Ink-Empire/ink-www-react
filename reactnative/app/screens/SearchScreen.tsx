@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   DeviceEventEmitter,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
@@ -35,16 +36,27 @@ export default function SearchScreen({ navigation, route }: any) {
     styles: selectedStyles.length > 0 ? selectedStyles : undefined,
   };
 
-  const { tattoos, loading: tattoosLoading, removeTattoo } = useTattoos(
+  const { tattoos, loading: tattoosLoading, removeTattoo, refetch: refetchTattoos } = useTattoos(
     api,
     activeTab === 'tattoos' ? searchParams : undefined,
     { skip: activeTab !== 'tattoos' },
   );
-  const { artists, loading: artistsLoading } = useArtists(
+  const { artists, loading: artistsLoading, refetch: refetchArtists } = useArtists(
     api,
     activeTab === 'artists' ? searchParams : undefined,
     { skip: activeTab !== 'artists' },
   );
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (activeTab === 'tattoos') {
+      await refetchTattoos();
+    } else {
+      await refetchArtists();
+    }
+    setRefreshing(false);
+  }, [activeTab, refetchTattoos, refetchArtists]);
 
   const { styles: stylesData } = useStyles(api);
 
@@ -166,6 +178,9 @@ export default function SearchScreen({ navigation, route }: any) {
           renderItem={renderTattooItem}
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+          }
         />
       ) : artists.length > 0 ? (
         <FlatList
@@ -174,6 +189,9 @@ export default function SearchScreen({ navigation, route }: any) {
           renderItem={renderArtistItem}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+          }
         />
       ) : (
         <ScrollView contentContainerStyle={styles.list}>

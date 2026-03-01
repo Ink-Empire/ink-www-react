@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -49,7 +50,14 @@ export default function ArtistListScreen({ navigation, route }: any) {
     useAnyLocation: filters.useAnyLocation,
   };
 
-  const { artists, loading } = useArtists(api, searchParams as any);
+  const { artists, loading, refetch } = useArtists(api, searchParams as any);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
 
@@ -164,6 +172,9 @@ export default function ArtistListScreen({ navigation, route }: any) {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+          }
         />
       )}
 

@@ -10,6 +10,7 @@ import {
   Dimensions,
   Image,
   DeviceEventEmitter,
+  RefreshControl,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -46,6 +47,13 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
 
   const [activeTab, setActiveTab] = useState<TabType>('portfolio');
   const [activeStyleFilter, setActiveStyleFilter] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('tattoo-deleted', () => {
@@ -410,6 +418,13 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
       ListFooterComponent={activeTab === 'portfolio' ? <View style={styles.bottomPadding} /> : null}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.listContent}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.accent}
+        />
+      }
     />
   );
 }

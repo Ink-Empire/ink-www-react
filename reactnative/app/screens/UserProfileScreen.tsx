@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Dimensions,
   TouchableOpacity,
   DeviceEventEmitter,
+  RefreshControl,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -21,8 +22,15 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function UserProfileScreen({ route, navigation }: any) {
   const { slug } = route.params;
-  const { profile, loading: profileLoading } = useUserProfile(api, slug);
-  const { tattoos, loading: tattoosLoading, loadMore, removeTattoo } = useUserTattoos(api, slug);
+  const { profile, loading: profileLoading, refetch: refetchProfile } = useUserProfile(api, slug);
+  const { tattoos, loading: tattoosLoading, loadMore, removeTattoo, refetch: refetchTattoos } = useUserTattoos(api, slug);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetchProfile(), refetchTattoos()]);
+    setRefreshing(false);
+  }, [refetchProfile, refetchTattoos]);
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('tattoo-deleted', ({ id }) => {
@@ -114,6 +122,13 @@ export default function UserProfileScreen({ route, navigation }: any) {
         onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent}
+          />
+        }
       />
     </SafeAreaView>
   );
