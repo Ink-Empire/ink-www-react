@@ -72,10 +72,12 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   });
 
   useEffect(() => {
-    if (initialDate) {
+    if (initialDate && typeof initialDate === 'string' && initialDate.includes('-')) {
       const [y, m] = initialDate.split('-').map(Number);
-      calendar.goToMonth(m - 1, y);
-      calendar.setSelectedDate(initialDate);
+      if (y && m) {
+        calendar.goToMonth(m - 1, y);
+        calendar.setSelectedDate(initialDate);
+      }
     }
   }, [initialDate]);
 

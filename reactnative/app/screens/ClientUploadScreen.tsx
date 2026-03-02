@@ -12,6 +12,8 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  Linking,
 } from 'react-native';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -90,8 +92,21 @@ export default function ClientUploadScreen({ navigation }: any) {
         ...prev,
         { uri: image.path, type: image.mime || 'image/jpeg', name: image.filename || `photo_${Date.now()}.jpg` },
       ].slice(0, MAX_IMAGES));
-    } catch {
-      // User cancelled
+    } catch (err: any) {
+      if (err?.code === 'E_PICKER_CANCELLED') return;
+      if (err?.code === 'E_NO_CAMERA_PERMISSION') {
+        Alert.alert(
+          'Camera Access Required',
+          'Please enable camera access in Settings to take photos.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ],
+        );
+        return;
+      }
+      console.error('Camera error:', err);
+      showSnackbar('Unable to open camera. Please try again.', 'error');
     }
   }, [images.length, showSnackbar]);
 

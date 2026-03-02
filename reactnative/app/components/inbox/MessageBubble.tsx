@@ -31,7 +31,7 @@ export default function MessageBubble({ message, isSent, status, onViewCalendar,
       <View style={styles.systemContainer}>
         <Text style={styles.systemText}>{displayContent}</Text>
         {isArtist && calendarLink && onViewCalendar && (
-          <Text style={styles.calendarLink} onPress={onViewCalendar}>
+          <Text style={styles.calendarLink} onPress={() => onViewCalendar()}>
             View calendar
           </Text>
         )}
