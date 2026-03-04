@@ -14,6 +14,7 @@ export { leadService } from './leadService';
 export { messageService } from './messageService';
 export { studioService } from './studioService';
 export { stylesService } from './stylesService';
+export { tagService } from './tagService';
 export { tattooService } from './tattooService';
 export { userService } from './userService';
 export { userProfileService } from './userProfileService';
@@ -58,7 +59,12 @@ export type {
 
 export type {
   Style,
+  AiStyleSuggestion,
 } from './stylesService';
+
+export type {
+  AiTagSuggestion,
+} from './tagService';
 
 export type {
   UpdateProfileData,

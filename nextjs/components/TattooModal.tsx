@@ -457,7 +457,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                {/* Artist Avatar */}
+                {/* Avatar */}
                 <Avatar
                   src={getArtistAvatarUri() || undefined}
                   sx={{
@@ -472,57 +472,102 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   {!getArtistAvatarUri() && getArtistInitials()}
                 </Avatar>
 
-                {/* Artist Info */}
+                {/* Info */}
                 <Box sx={{ flex: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Typography
-                      component={Link}
-                      href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
-                      sx={{
+                  {!tattoo?.artist_id && tattoo?.attributed_artist_name ? (
+                    <>
+                      <Typography sx={{
                         fontWeight: 600,
                         fontSize: '0.95rem',
                         color: colors.textPrimary,
-                        textDecoration: 'none',
-                        '&:hover': { color: colors.accent },
-                      }}
-                    >
-                      {artistName || tattoo?.artist_name || 'Unknown Artist'}
-                    </Typography>
-                    {tattoo?.approval_status === 'pending' && (
-                      <Typography
-                        component="span"
-                        sx={{
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          color: colors.warning,
-                        }}
-                      >
-                        (pending)
+                      }}>
+                        {tattoo.attributed_artist_name}
                       </Typography>
-                    )}
-                  </Box>
-                  {tattoo?.studio?.name && (
-                    tattoo.studio.slug ? (
-                      <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                      {tattoo.attributed_studio_name && (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          at {tattoo.attributed_studio_name}
+                        </Typography>
+                      )}
+                      {tattoo.attributed_location && (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {tattoo.attributed_location}
+                        </Typography>
+                      )}
+                      <Box sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        px: '0.5rem',
+                        py: '0.15rem',
+                        bgcolor: colors.infoDim,
+                        borderRadius: '4px',
+                        mt: '0.25rem',
+                      }}>
+                        <Typography sx={{ fontSize: '0.65rem', color: colors.info, fontWeight: 600 }}>
+                          Not yet on InkedIn
+                        </Typography>
+                      </Box>
+                    </>
+                  ) : tattoo?.artist_id ? (
+                    <>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Typography
+                          component={Link}
+                          href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
                           sx={{
-                            fontSize: '0.8rem',
-                            color: colors.accent,
-                            '&:hover': { textDecoration: 'underline' }
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            color: colors.textPrimary,
+                            textDecoration: 'none',
+                            '&:hover': { color: colors.accent },
                           }}
                         >
-                          {tattoo.studio.name}
+                          {artistName || tattoo?.artist_name || 'Unknown Artist'}
                         </Typography>
-                      </Link>
-                    ) : (
-                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                        {tattoo.studio.name}
-                      </Typography>
-                    )
-                  )}
-                  {tattoo?.studio?.location && (
-                    <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                      {tattoo.studio.location}
+                        {tattoo?.approval_status === 'pending' && (
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: '0.75rem',
+                              fontWeight: 500,
+                              color: colors.warning,
+                            }}
+                          >
+                            (pending)
+                          </Typography>
+                        )}
+                      </Box>
+                      {tattoo?.studio?.name && (
+                        tattoo.studio.slug ? (
+                          <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {tattoo.studio.name}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {tattoo.studio.name}
+                          </Typography>
+                        )
+                      )}
+                      {tattoo?.studio?.location && (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {tattoo.studio.location}
+                        </Typography>
+                      )}
+                    </>
+                  ) : (
+                    <Typography sx={{
+                      fontWeight: 600,
+                      fontSize: '0.95rem',
+                      color: colors.textMuted,
+                    }}>
+                      Artist Unknown
                     </Typography>
                   )}
                 </Box>

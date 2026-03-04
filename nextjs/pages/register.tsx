@@ -275,7 +275,8 @@ const RegisterPage: React.FC = () => {
 
         // Redirect to verify email page with email for resend functionality
         const email = encodeURIComponent(result.email || data.credentials?.email || '');
-        router.push(`/verify-email?email=${email}`);
+        const redirect = router.query.redirect ? `&redirect=${encodeURIComponent(router.query.redirect as string)}` : '';
+        router.push(`/verify-email?email=${email}${redirect}`);
 
       } else {
         const errorData = await response.json();

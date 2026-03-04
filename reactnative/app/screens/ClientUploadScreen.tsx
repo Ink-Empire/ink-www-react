@@ -19,10 +19,13 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
-import { messageService, tattooService } from '../../lib/services';
+import { messageService, tattooService, tagService, styleService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
 import { clearTattooCache } from '../../lib/tattooCache';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import LocationAutocomplete from '../components/common/LocationAutocomplete';
+import { useStyles, useTags } from '@inkedin/shared/hooks';
+import type { AiTagSuggestion } from '@inkedin/shared/services/tagService';
 
 const MAX_IMAGES = 5;
 const screenWidth = Dimensions.get('window').width;
@@ -33,22 +36,44 @@ export default function ClientUploadScreen({ navigation }: any) {
   // Step 0: Images
   const [images, setImages] = useState<ImageFile[]>([]);
 
-  // Step 1: Details
+  // Step 1: Styles & Tags
+  const [selectedStyleIds, setSelectedStyleIds] = useState<number[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+
+  // Step 2: Details
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
-  // Artist tag
+  // Artist search (InkedIn mode)
   const [artistSearchQuery, setArtistSearchQuery] = useState('');
   const [artistSearchResults, setArtistSearchResults] = useState<any[]>([]);
   const [selectedArtist, setSelectedArtist] = useState<any>(null);
   const [searchingArtists, setSearchingArtists] = useState(false);
 
+  // Artist attribution (manual mode)
+  const [artistMode, setArtistMode] = useState<'search' | 'manual'>('search');
+  const [attributedArtistName, setAttributedArtistName] = useState('');
+  const [attributedStudioName, setAttributedStudioName] = useState('');
+  const [attributedLocation, setAttributedLocation] = useState('');
+  const [attributedLocationLatLong, setAttributedLocationLatLong] = useState('');
+  const [artistInviteEmail, setArtistInviteEmail] = useState('');
+
   // Publishing state
   const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [uploadedImageIds, setUploadedImageIds] = useState<number[]>([]);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
+
+  // AI suggestions
+  const [aiStyleSuggestions, setAiStyleSuggestions] = useState<{ id: number; name: string }[]>([]);
+  const [aiTagSuggestions, setAiTagSuggestions] = useState<AiTagSuggestion[]>([]);
+  const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
+  const [addingAiTag, setAddingAiTag] = useState<string | null>(null);
+  const [createdTags, setCreatedTags] = useState<{ id: number; name: string }[]>([]);
 
   const { showSnackbar } = useSnackbar();
+  const { styles: stylesList } = useStyles(api);
+  const { tags: tagsList } = useTags(api);
 
   // -- Image handling --
 
@@ -114,6 +139,20 @@ export default function ClientUploadScreen({ navigation }: any) {
     setImages(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  // -- Style/Tag toggling --
+
+  const toggleStyle = (id: number) => {
+    setSelectedStyleIds(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+  };
+
+  const toggleTag = (id: number) => {
+    setSelectedTagIds(prev =>
+      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+    );
+  };
+
   // -- Artist search --
 
   const searchArtists = useCallback(async (query: string) => {
@@ -147,15 +186,78 @@ export default function ClientUploadScreen({ navigation }: any) {
 
   const canProceed = step === 0
     ? images.length > 0
-    : step === 1
-    ? true
     : true;
+
+  const fetchAiSuggestions = useCallback(async (imageUrls: string[]) => {
+    setLoadingAiSuggestions(true);
+    try {
+      const [styleRes, tagRes] = await Promise.all([
+        styleService.suggestStyles(imageUrls).catch((err: any) => {
+          console.error('Style suggestion failed:', err);
+          return null;
+        }),
+        tagService.suggest(imageUrls).catch((err: any) => {
+          console.error('Tag suggestion failed:', err);
+          return null;
+        }),
+      ]);
+
+      if (styleRes?.success && styleRes.data) {
+        setAiStyleSuggestions(styleRes.data.filter(
+          (s: any) => !selectedStyleIds.includes(s.id)
+        ));
+      }
+      if (tagRes?.success && tagRes.data) {
+        setAiTagSuggestions(tagRes.data.filter(
+          (t: AiTagSuggestion) => t.id === null || !selectedTagIds.includes(t.id as number)
+        ));
+      }
+    } catch {
+      // Don't block the flow
+    } finally {
+      setLoadingAiSuggestions(false);
+    }
+  }, [selectedStyleIds, selectedTagIds]);
+
+  const handleAddAiStyleSuggestion = useCallback((style: { id: number; name: string }) => {
+    setSelectedStyleIds(prev => prev.includes(style.id) ? prev : [...prev, style.id]);
+    setAiStyleSuggestions(prev => prev.filter(s => s.id !== style.id));
+  }, []);
+
+  const handleAddAiTagSuggestion = useCallback(async (tag: AiTagSuggestion) => {
+    let tagId = tag.id;
+
+    if (tagId === null || tag.is_new_suggestion) {
+      setAddingAiTag(tag.name);
+      try {
+        const response = await tagService.createFromAi(tag.name);
+        if (response.success && response.data) {
+          tagId = response.data.id;
+        } else {
+          setAddingAiTag(null);
+          return;
+        }
+      } catch {
+        setAddingAiTag(null);
+        return;
+      }
+      setAddingAiTag(null);
+    }
+
+    if (tagId) {
+      if (!tagsList.find((t: any) => t.id === tagId)) {
+        setCreatedTags(prev => [...prev, { id: tagId as number, name: tag.name }]);
+      }
+      setSelectedTagIds(prev => prev.includes(tagId as number) ? prev : [...prev, tagId as number]);
+      setAiTagSuggestions(prev => prev.filter(t => t.name !== tag.name));
+    }
+  }, [tagsList]);
 
   const handleNext = () => {
     if (step === 0 && uploadedImageIds.length === 0) {
-      uploadImages();
+      uploadAndFetchSuggestions();
     }
-    if (step < 2) setStep(step + 1);
+    if (step < 3) setStep(step + 1);
   };
 
   const handleBack = () => {
@@ -166,6 +268,22 @@ export default function ClientUploadScreen({ navigation }: any) {
     try {
       const uploaded = await uploadImagesToS3(api, images, 'tattoo', setUploadProgress);
       setUploadedImageIds(uploaded.map(img => img.id));
+      setUploadedImageUrls(uploaded.map(img => img.uri));
+    } catch (err: any) {
+      console.error('Image upload failed:', err);
+    } finally {
+      setUploadProgress(null);
+    }
+  };
+
+  const uploadAndFetchSuggestions = async () => {
+    try {
+      const uploaded = await uploadImagesToS3(api, images, 'tattoo', setUploadProgress);
+      const ids = uploaded.map(img => img.id);
+      const urls = uploaded.map(img => img.uri);
+      setUploadedImageIds(ids);
+      setUploadedImageUrls(urls);
+      fetchAiSuggestions(urls);
     } catch (err: any) {
       console.error('Image upload failed:', err);
     } finally {
@@ -188,19 +306,27 @@ export default function ClientUploadScreen({ navigation }: any) {
         imageIds = uploadedImages.map(img => img.id);
       }
 
-      const tattooData: {
-        image_ids: number[];
-        title?: string;
-        description?: string;
-        tagged_artist_id?: number;
-      } = {
+      const tattooData: Record<string, any> = {
         image_ids: imageIds,
         title: title.trim() || undefined,
         description: description.trim() || undefined,
       };
 
-      if (selectedArtist) {
+      if (selectedArtist && artistMode === 'search') {
         tattooData.tagged_artist_id = selectedArtist.id;
+      }
+      if (selectedStyleIds.length > 0) {
+        tattooData.style_ids = JSON.stringify(selectedStyleIds);
+      }
+      if (selectedTagIds.length > 0) {
+        tattooData.tag_ids = JSON.stringify(selectedTagIds);
+      }
+      if (artistMode === 'manual') {
+        if (attributedArtistName.trim()) tattooData.attributed_artist_name = attributedArtistName.trim();
+        if (attributedStudioName.trim()) tattooData.attributed_studio_name = attributedStudioName.trim();
+        if (attributedLocation.trim()) tattooData.attributed_location = attributedLocation.trim();
+        if (attributedLocationLatLong) tattooData.attributed_location_lat_long = attributedLocationLatLong;
+        if (artistInviteEmail.trim()) tattooData.artist_invite_email = artistInviteEmail.trim();
       }
 
       await tattooService.clientUpload(tattooData);
@@ -210,14 +336,24 @@ export default function ClientUploadScreen({ navigation }: any) {
       // Reset form
       setStep(0);
       setImages([]);
+      setSelectedStyleIds([]);
+      setSelectedTagIds([]);
       setTitle('');
       setDescription('');
       setSelectedArtist(null);
+      setArtistMode('search');
+      setAttributedArtistName('');
+      setAttributedStudioName('');
+      setAttributedLocation('');
+      setArtistInviteEmail('');
       setUploadedImageIds([]);
+      setUploadedImageUrls([]);
+      setAiStyleSuggestions([]);
+      setAiTagSuggestions([]);
 
-      const message = selectedArtist
+      const message = selectedArtist && artistMode === 'search'
         ? 'Your tattoo has been submitted! The artist will be notified for approval.'
-        : 'Your tattoo has been added to your profile!';
+        : 'Your tattoo has been shared to the feed!';
       showSnackbar(message);
       navigation.navigate('HomeTab');
     } catch (err: any) {
@@ -269,6 +405,147 @@ export default function ClientUploadScreen({ navigation }: any) {
 
   const renderStep1 = () => (
     <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <Text style={s.stepTitle}>Styles & Tags</Text>
+
+      {/* Image preview strip */}
+      {images.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          {images.map((img, i) => (
+            <Image
+              key={img.uri}
+              source={{ uri: img.uri }}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 8,
+                marginRight: 8,
+                borderWidth: i === 0 ? 2 : 1,
+                borderColor: i === 0 ? colors.accent : colors.border,
+              }}
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      <Text style={s.stepHint}>
+        To the best of your ability, select the styles and tags that describe this tattoo. No worries if you're not sure — every bit helps.
+      </Text>
+
+      <Text style={s.fieldLabel}>Styles</Text>
+      {(loadingAiSuggestions || aiStyleSuggestions.length > 0) && (
+        <View style={[s.aiSection, { marginBottom: 8 }]}>
+          <View style={s.aiHeader}>
+            <MaterialIcons name="auto-awesome" size={14} color={colors.aiSuggestion} />
+            <Text style={s.aiHeaderText}>SUGGESTIONS</Text>
+            {loadingAiSuggestions && aiStyleSuggestions.length === 0 && (
+              <ActivityIndicator size="small" color={colors.aiSuggestion} />
+            )}
+          </View>
+          {loadingAiSuggestions && aiStyleSuggestions.length === 0 && (
+            <Text style={s.aiLoadingText}>Analyzing your images...</Text>
+          )}
+          {aiStyleSuggestions.length > 0 && (
+            <View style={s.aiChips}>
+              {aiStyleSuggestions.map(style => (
+                <TouchableOpacity
+                  key={style.id}
+                  style={s.aiChip}
+                  onPress={() => handleAddAiStyleSuggestion(style)}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons name="add" size={14} color={colors.aiSuggestion} />
+                  <Text style={s.aiChipText}>{style.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+      <View style={s.chipGrid}>
+        {stylesList.map((style: any) => (
+          <TouchableOpacity
+            key={style.id}
+            style={[s.chip, selectedStyleIds.includes(style.id) && s.chipSelected]}
+            onPress={() => toggleStyle(style.id)}
+          >
+            <Text style={[s.chipText, selectedStyleIds.includes(style.id) && s.chipTextSelected]}>
+              {style.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={s.fieldLabel}>Tags</Text>
+      {(loadingAiSuggestions || aiTagSuggestions.length > 0) && (
+        <View style={[s.aiSection, { marginBottom: 8 }]}>
+          <View style={s.aiHeader}>
+            <MaterialIcons name="auto-awesome" size={14} color={colors.aiSuggestion} />
+            <Text style={s.aiHeaderText}>SUGGESTIONS</Text>
+            {loadingAiSuggestions && aiTagSuggestions.length === 0 && (
+              <ActivityIndicator size="small" color={colors.aiSuggestion} />
+            )}
+          </View>
+          {loadingAiSuggestions && aiTagSuggestions.length === 0 && (
+            <Text style={s.aiLoadingText}>Analyzing your images...</Text>
+          )}
+          {aiTagSuggestions.length > 0 && (
+            <View style={s.aiChips}>
+              {aiTagSuggestions.map(tag => {
+                const isNew = tag.id === null || tag.is_new_suggestion;
+                const isCreating = addingAiTag === tag.name;
+                return (
+                  <TouchableOpacity
+                    key={tag.name}
+                    style={[s.aiChip, isNew && s.aiChipNew]}
+                    onPress={() => !isCreating && handleAddAiTagSuggestion(tag)}
+                    disabled={isCreating}
+                    activeOpacity={0.7}
+                  >
+                    {isCreating ? (
+                      <ActivityIndicator size={12} color={colors.aiSuggestion} />
+                    ) : (
+                      <MaterialIcons name="add" size={14} color={colors.aiSuggestion} />
+                    )}
+                    <Text style={s.aiChipText}>{tag.name}</Text>
+                    {isNew && !isCreating && (
+                      <Text style={s.aiChipNewLabel}>NEW</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      )}
+      {selectedTagIds.length > 0 && (
+        <View style={s.chipGrid}>
+          {selectedTagIds.map(id => {
+            const tag = tagsList.find((t: any) => t.id === id) || createdTags.find(t => t.id === id);
+            if (!tag) return null;
+            return (
+              <TouchableOpacity key={id} style={s.tagChipSelected} onPress={() => toggleTag(id)}>
+                <Text style={s.tagChipSelectedText}>{tag.name}</Text>
+                <MaterialIcons name="close" size={12} color={colors.tag} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+      <View style={s.chipGrid}>
+        {tagsList
+          .filter((t: any) => !selectedTagIds.includes(t.id))
+          .slice(0, 20)
+          .map((tag: any) => (
+            <TouchableOpacity key={tag.id} style={s.chip} onPress={() => toggleTag(tag.id)}>
+              <Text style={s.chipText}>{tag.name}</Text>
+            </TouchableOpacity>
+          ))}
+      </View>
+    </ScrollView>
+  );
+
+  const renderStep2 = () => (
+    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
       <Text style={s.stepTitle}>Details</Text>
 
       <Text style={s.fieldLabel}>Title</Text>
@@ -292,82 +569,137 @@ export default function ClientUploadScreen({ navigation }: any) {
       />
 
       <Text style={s.fieldLabel}>Artist</Text>
-      {selectedArtist ? (
-        <View style={s.selectedArtistRow}>
-          {selectedArtist.image?.uri ? (
-            <Image source={{ uri: selectedArtist.image.uri }} style={s.artistAvatar} />
+
+      {/* Artist mode toggle */}
+      <View style={s.modeToggle}>
+        <TouchableOpacity
+          style={[s.modeToggleBtn, artistMode === 'search' && s.modeToggleBtnActive]}
+          onPress={() => { setArtistMode('search'); clearArtist(); }}
+        >
+          <Text style={[s.modeToggleText, artistMode === 'search' && s.modeToggleTextActive]}>Search</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.modeToggleBtn, artistMode === 'manual' && s.modeToggleBtnActive]}
+          onPress={() => { setArtistMode('manual'); clearArtist(); }}
+        >
+          <Text style={[s.modeToggleText, artistMode === 'manual' && s.modeToggleTextActive]}>Invite</Text>
+        </TouchableOpacity>
+      </View>
+
+      {artistMode === 'search' && (
+        <>
+          {selectedArtist ? (
+            <View style={s.selectedArtistRow}>
+              {selectedArtist.image?.uri ? (
+                <Image source={{ uri: selectedArtist.image.uri }} style={s.artistAvatar} />
+              ) : (
+                <View style={[s.artistAvatar, s.artistAvatarPlaceholder]}>
+                  <MaterialIcons name="person" size={20} color={colors.textMuted} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={s.selectedArtistName}>{selectedArtist.name}</Text>
+                <Text style={s.selectedArtistUsername}>@{selectedArtist.username}</Text>
+              </View>
+              <TouchableOpacity onPress={clearArtist}>
+                <MaterialIcons name="close" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
           ) : (
-            <View style={[s.artistAvatar, s.artistAvatarPlaceholder]}>
-              <MaterialIcons name="person" size={20} color={colors.textMuted} />
+            <View>
+              <TextInput
+                style={s.textInput}
+                value={artistSearchQuery}
+                onChangeText={searchArtists}
+                placeholder="Search for the artist (optional)"
+                placeholderTextColor={colors.textMuted}
+              />
+              {searchingArtists && (
+                <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 8 }} />
+              )}
+              {artistSearchResults.length > 0 && (
+                <View style={s.artistResults}>
+                  {artistSearchResults.map((artist) => (
+                    <TouchableOpacity
+                      key={artist.id}
+                      style={s.artistResultRow}
+                      onPress={() => selectArtist(artist)}
+                    >
+                      {artist.image?.uri ? (
+                        <Image source={{ uri: artist.image.uri }} style={s.artistResultAvatar} />
+                      ) : (
+                        <View style={[s.artistResultAvatar, s.artistAvatarPlaceholder]}>
+                          <MaterialIcons name="person" size={16} color={colors.textMuted} />
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.artistResultName}>{artist.name}</Text>
+                        <Text style={s.artistResultUsername}>@{artist.username}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
           )}
-          <View style={{ flex: 1 }}>
-            <Text style={s.selectedArtistName}>
-              {selectedArtist.name}
-            </Text>
-            <Text style={s.selectedArtistUsername}>
-              @{selectedArtist.username}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={clearArtist}>
-            <MaterialIcons name="close" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View>
+          {selectedArtist && (
+            <View style={s.infoNotice}>
+              <MaterialIcons name="info-outline" size={16} color={colors.accent} />
+              <Text style={s.infoNoticeText}>
+                The artist will be notified and must approve before this appears in the main feed.
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+
+      {artistMode === 'manual' && (
+        <View style={{ gap: 10 }}>
           <TextInput
             style={s.textInput}
-            value={artistSearchQuery}
-            onChangeText={searchArtists}
-            placeholder="Search for the artist (optional)"
+            value={attributedArtistName}
+            onChangeText={setAttributedArtistName}
+            placeholder="Artist name"
             placeholderTextColor={colors.textMuted}
           />
-          {searchingArtists && (
-            <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 8 }} />
-          )}
-          {artistSearchResults.length > 0 && (
-            <View style={s.artistResults}>
-              {artistSearchResults.map((artist) => (
-                <TouchableOpacity
-                  key={artist.id}
-                  style={s.artistResultRow}
-                  onPress={() => selectArtist(artist)}
-                >
-                  {artist.image?.uri ? (
-                    <Image source={{ uri: artist.image.uri }} style={s.artistResultAvatar} />
-                  ) : (
-                    <View style={[s.artistResultAvatar, s.artistAvatarPlaceholder]}>
-                      <MaterialIcons name="person" size={16} color={colors.textMuted} />
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.artistResultName}>
-                      {artist.name}
-                    </Text>
-                    <Text style={s.artistResultUsername}>
-                      @{artist.username}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+          <TextInput
+            style={s.textInput}
+            value={attributedStudioName}
+            onChangeText={setAttributedStudioName}
+            placeholder="Studio/Shop name (optional)"
+            placeholderTextColor={colors.textMuted}
+          />
+          <LocationAutocomplete
+            value={attributedLocation}
+            onChange={(location, latLong) => {
+              setAttributedLocation(location);
+              setAttributedLocationLatLong(latLong || '');
+            }}
+            placeholder="City/Location (optional)"
+          />
+          <TextInput
+            style={s.textInput}
+            value={artistInviteEmail}
+            onChangeText={setArtistInviteEmail}
+            placeholder="Artist email (optional - sends invite)"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          {artistInviteEmail.trim() ? (
+            <View style={s.infoNotice}>
+              <MaterialIcons name="info-outline" size={16} color={colors.accent} />
+              <Text style={s.infoNoticeText}>
+                An invitation email will be sent so the artist can claim this tattoo on InkedIn.
+              </Text>
             </View>
-          )}
+          ) : null}
         </View>
       )}
-
-      {selectedArtist && (
-        <View style={s.infoNotice}>
-          <MaterialIcons name="info-outline" size={16} color={colors.accent} />
-          <Text style={s.infoNoticeText}>
-            The artist will be notified and must approve before this appears in the main feed.
-          </Text>
-        </View>
-      )}
-
     </ScrollView>
   );
 
-  const renderStep2 = () => (
+  const renderStep3 = () => (
     <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
       <Text style={s.stepTitle}>Review</Text>
 
@@ -398,30 +730,67 @@ export default function ClientUploadScreen({ navigation }: any) {
         </View>
       ) : null}
 
-      {selectedArtist && (
+      {selectedStyleIds.length > 0 && (
+        <View style={s.reviewSection}>
+          <Text style={s.reviewLabel}>Styles</Text>
+          <View style={s.chipGrid}>
+            {stylesList.filter((st: any) => selectedStyleIds.includes(st.id)).map((st: any) => (
+              <View key={st.id} style={s.reviewChip}>
+                <Text style={s.reviewChipText}>{st.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {selectedTagIds.length > 0 && (
+        <View style={s.reviewSection}>
+          <Text style={s.reviewLabel}>Tags</Text>
+          <View style={s.chipGrid}>
+            {[...tagsList, ...createdTags].filter((t: any) => selectedTagIds.includes(t.id)).map((t: any) => (
+              <View key={t.id} style={s.reviewTagChip}>
+                <Text style={s.reviewTagChipText}>{t.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {selectedArtist && artistMode === 'search' && (
         <View style={s.reviewSection}>
           <Text style={s.reviewLabel}>Artist</Text>
           <Text style={s.reviewValue}>@{selectedArtist.username}</Text>
         </View>
       )}
 
+      {artistMode === 'manual' && attributedArtistName.trim() ? (
+        <View style={s.reviewSection}>
+          <Text style={s.reviewLabel}>Attributed Artist</Text>
+          <Text style={s.reviewValue}>
+            {attributedArtistName.trim()}
+            {attributedStudioName.trim() ? ` at ${attributedStudioName.trim()}` : ''}
+            {attributedLocation.trim() ? ` - ${attributedLocation.trim()}` : ''}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={s.visibilityInfo}>
         <MaterialIcons name="info-outline" size={16} color={colors.textMuted} />
         <Text style={s.visibilityText}>
-          {selectedArtist
+          {selectedArtist && artistMode === 'search'
             ? 'This tattoo will appear on your profile immediately and in the main feed after the artist approves.'
-            : 'This tattoo will be visible on your profile page.'}
+            : 'This tattoo will be visible on the main feed immediately.'}
         </Text>
       </View>
     </ScrollView>
   );
 
-  const stepRenderers = [renderStep0, renderStep1, renderStep2];
+  const stepRenderers = [renderStep0, renderStep2, renderStep1, renderStep3];
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.stepBar}>
-        {['Images', 'Details', 'Review'].map((label, i) => (
+        {['Images', 'Details', 'Styles', 'Review'].map((label, i) => (
           <View key={label} style={[s.stepDot, i <= step && s.stepDotActive]}>
             <Text style={[s.stepDotText, i <= step && s.stepDotTextActive]}>{label}</Text>
           </View>
@@ -445,7 +814,7 @@ export default function ClientUploadScreen({ navigation }: any) {
             <View style={s.backButton} />
           )}
 
-          {step < 2 ? (
+          {step < 3 ? (
             <TouchableOpacity
               style={[s.nextButton, !canProceed && s.nextButtonDisabled]}
               onPress={handleNext}
@@ -486,6 +855,7 @@ const s = StyleSheet.create({
   stepContent: { flex: 1, paddingHorizontal: 20 },
   stepTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: '700', marginBottom: 4 },
   stepSubtitle: { color: colors.textMuted, fontSize: 14, marginBottom: 16 },
+  stepHint: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginBottom: 16 },
 
   imageStrip: { marginBottom: 20 },
   imagePreviewWrap: {
@@ -516,6 +886,91 @@ const s = StyleSheet.create({
     borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, color: colors.textPrimary, fontSize: 15,
   },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
+
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  chip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+  },
+  chipSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { color: colors.textSecondary, fontSize: 13 },
+  chipTextSelected: { color: colors.background, fontWeight: '600' },
+  tagChipSelected: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16,
+    borderWidth: 1, borderColor: colors.tag, backgroundColor: `${colors.tag}20`,
+  },
+  tagChipSelectedText: { color: colors.tag, fontSize: 13 },
+
+  // AI suggestions
+  aiSection: {
+    backgroundColor: colors.aiSuggestionDim,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: `${colors.aiSuggestion}30`,
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  aiHeaderText: {
+    color: colors.aiSuggestion,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  aiSubLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  aiChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  aiChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.aiSuggestion,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  aiChipNew: {
+    borderStyle: 'dashed' as any,
+  },
+  aiChipText: {
+    color: colors.aiSuggestion,
+    fontSize: 13,
+  },
+  aiChipNewLabel: {
+    color: colors.aiSuggestion,
+    fontSize: 9,
+    opacity: 0.7,
+  },
+  aiLoadingText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontStyle: 'italic' as any,
+  },
+
+  modeToggle: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  modeToggleBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 20, borderWidth: 1,
+    borderColor: colors.border, alignItems: 'center',
+  },
+  modeToggleBtnActive: { borderColor: colors.accent, backgroundColor: colors.accent, borderWidth: 1 },
+  modeToggleText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  modeToggleTextActive: { color: colors.background },
 
   selectedArtistRow: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
@@ -558,6 +1013,16 @@ const s = StyleSheet.create({
     letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6,
   },
   reviewValue: { color: colors.textPrimary, fontSize: 15, lineHeight: 22 },
+  reviewChip: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+    backgroundColor: `${colors.accent}20`,
+  },
+  reviewChipText: { color: colors.accent, fontSize: 12, fontWeight: '600' },
+  reviewTagChip: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+    backgroundColor: `${colors.tag}20`,
+  },
+  reviewTagChipText: { color: colors.tag, fontSize: 12 },
   visibilityInfo: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     marginTop: 24, backgroundColor: colors.surface, borderRadius: 12,

@@ -29,6 +29,7 @@ export type HomeStackParamList = {
   StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
   UserProfile: { slug: string; name?: string };
+  ClaimInvitation: { token: string };
 };
 
 export type SearchStackParamList = {

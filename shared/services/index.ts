@@ -108,8 +108,24 @@ export function createTattooService(api: ApiClient) {
       title?: string;
       description?: string;
       tagged_artist_id?: number;
+      style_ids?: string;
+      tag_ids?: string;
+      attributed_artist_name?: string;
+      attributed_studio_name?: string;
+      attributed_location?: string;
+      artist_invite_email?: string;
     }) =>
       api.post<{ tattoo: Tattoo }>('/tattoos/create', data, { requiresAuth: true }),
+
+    getInvitation: (token: string) =>
+      api.get<{ invitation: any }>(`/invitations/${token}`),
+
+    claimInvitation: (token: string) =>
+      api.post<{ success: boolean; claimed_count: number; tattoo_ids: number[] }>(
+        `/invitations/${token}/claim`,
+        {},
+        { requiresAuth: true },
+      ),
   };
 }
 
@@ -152,9 +168,22 @@ export function createStudioService(api: ApiClient) {
 // Style Service
 // =============================================================================
 
+export interface AiStyleSuggestion {
+  id: number;
+  name: string;
+  is_ai_suggested?: boolean;
+}
+
 export function createStyleService(api: ApiClient) {
   return {
     getAll: () => api.get<Style[]>('/styles'),
+
+    suggestStyles: (imageUrls: string[]) =>
+      api.post<{ success: boolean; data: AiStyleSuggestion[] }>(
+        '/styles/suggest',
+        { image_urls: imageUrls },
+        { requiresAuth: true },
+      ),
   };
 }
 

@@ -40,6 +40,7 @@ const linking = {
             screens: {
               ArtistDetail: 'artists/:slug',
               TattooDetail: 'tattoos/:id',
+              ClaimInvitation: 'claim/:token',
             },
           },
         },
@@ -111,6 +112,12 @@ function navigateFromDeepLink(url: string) {
     case 'inbox':
       navigationRef.navigate('InboxStack', {
         screen: 'Inbox',
+      });
+      break;
+    case 'claim':
+      navigationRef.navigate('Main', {
+        screen: 'HomeTab',
+        params: { screen: 'ClaimInvitation', params: { token: target.token } },
       });
       break;
   }
