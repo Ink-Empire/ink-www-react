@@ -404,7 +404,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   );
 
   const renderStep1 = () => (
-    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={s.stepTitle}>Styles & Tags</Text>
 
       {/* Image preview strip */}
@@ -545,7 +545,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   );
 
   const renderStep2 = () => (
-    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={s.stepTitle}>Details</Text>
 
       <Text style={s.fieldLabel}>Title</Text>
@@ -800,6 +800,7 @@ export default function ClientUploadScreen({ navigation }: any) {
       <KeyboardAvoidingView
         style={s.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         <View style={s.body}>
           {stepRenderers[step]()}
