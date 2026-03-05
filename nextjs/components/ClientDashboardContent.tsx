@@ -9,6 +9,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import StarIcon from '@mui/icons-material/Star';
 import AddIcon from '@mui/icons-material/Add';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
+import EditIcon from '@mui/icons-material/Edit';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 
 // Lazy load heavy modals - only loaded when needed
 const ChangePasswordModal = dynamic(() => import('./ChangePasswordModal'), { ssr: false });
@@ -40,6 +42,9 @@ import { useUser } from '@/contexts/AuthContext';
 import InfoTooltip from './InfoTooltip';
 import { RescheduleAppointmentModal } from './inbox/RescheduleAppointmentModal';
 import { CancelAppointmentModal } from './inbox/CancelAppointmentModal';
+import { userProfileService } from '@/services/userProfileService';
+
+const TattooModal = dynamic(() => import('./TattooModal'), { ssr: false });
 
 interface ClientDashboardContentProps {
   userName: string;
@@ -107,6 +112,37 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
     loading: dashboardLoading,
     refresh: refreshDashboard,
   } = useClientDashboard();
+
+  // My Uploads state
+  const [uploadedTattoos, setUploadedTattoos] = useState<any[]>([]);
+  const [uploadsLoading, setUploadsLoading] = useState(true);
+  const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
+  const [tattooModalOpen, setTattooModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchUploads = async () => {
+      if (!userData?.slug) { setUploadsLoading(false); return; }
+      try {
+        const response = await userProfileService.getTattoos(userData.slug, { per_page: 12 });
+        setUploadedTattoos(response.tattoos || []);
+      } catch (err) {
+        console.error('Failed to fetch uploads:', err);
+      } finally {
+        setUploadsLoading(false);
+      }
+    };
+    fetchUploads();
+  }, [userData?.slug]);
+
+  const refreshUploads = async () => {
+    if (!userData?.slug) return;
+    try {
+      const response = await userProfileService.getTattoos(userData.slug, { per_page: 12 });
+      setUploadedTattoos(response.tattoos || []);
+    } catch (err) {
+      console.error('Failed to refresh uploads:', err);
+    }
+  };
 
   // Appointment detail modal state
   const [selectedAppointment, setSelectedAppointment] = useState<DashboardAppointment | null>(null);
@@ -524,6 +560,125 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           </Card>
         );
       })()}
+
+      {/* My Uploads */}
+      <Card
+        title={`My Uploads${uploadedTattoos.length > 0 ? ` (${uploadedTattoos.length})` : ''}`}
+        icon={<PhotoLibraryIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+        action={
+          uploadedTattoos.length > 0 && userData?.slug ? (
+            <CardLink href={`/users/${userData.slug}`}>
+              View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
+            </CardLink>
+          ) : undefined
+        }
+        sx={{ mb: 3 }}
+      >
+        {uploadsLoading ? (
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+            gap: 1,
+            p: 2,
+          }}>
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} variant="rounded" sx={{ paddingBottom: '100%', bgcolor: colors.background }} />
+            ))}
+          </Box>
+        ) : uploadedTattoos.length > 0 ? (
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(4, 1fr)' },
+            gap: 1,
+            p: 2,
+          }}>
+            {uploadedTattoos.map((tattoo: any) => {
+              const imageUri = tattoo.primary_image?.uri || tattoo.images?.[0]?.uri;
+              return (
+                <Box
+                  key={tattoo.id}
+                  onClick={() => { setSelectedTattooId(String(tattoo.id)); setTattooModalOpen(true); }}
+                  sx={{
+                    position: 'relative',
+                    paddingBottom: '100%',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    bgcolor: colors.background,
+                    '&:hover .edit-overlay': { opacity: 1 },
+                    '&:hover': { opacity: 0.9 },
+                    transition: 'opacity 0.2s',
+                  }}
+                >
+                  {imageUri && (
+                    <Box
+                      component="img"
+                      src={imageUri}
+                      alt={tattoo.title || 'Tattoo'}
+                      sx={{
+                        position: 'absolute',
+                        top: 0, left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  )}
+                  <Box
+                    className="edit-overlay"
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      router.push(`/tattoos/update?id=${tattoo.id}`);
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      bgcolor: 'rgba(0, 0, 0, 0.6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: 0,
+                      transition: 'opacity 0.2s',
+                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.8)' },
+                    }}
+                  >
+                    <EditIcon sx={{ fontSize: 14, color: '#fff' }} />
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        ) : (
+          <EmptyState
+            icon={<PhotoLibraryIcon sx={{ fontSize: 32, color: colors.textMuted }} />}
+            message="You haven't uploaded any tattoos yet"
+            action={
+              <Button
+                onClick={() => setUploadWizardOpen(true)}
+                sx={{
+                  mt: 1,
+                  px: 2,
+                  py: 0.75,
+                  bgcolor: colors.accent,
+                  color: colors.background,
+                  borderRadius: '6px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.85rem',
+                  '&:hover': { bgcolor: colors.accentHover }
+                }}
+                startIcon={<AddAPhotoIcon sx={{ fontSize: 16 }} />}
+              >
+                Upload a Tattoo
+              </Button>
+            }
+          />
+        )}
+      </Card>
 
       {/* Two Column Layout */}
       <Box sx={{
@@ -949,8 +1104,17 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
       <ClientUploadWizard
         open={uploadWizardOpen}
         onClose={() => setUploadWizardOpen(false)}
-        onSuccess={() => refreshDashboard()}
+        onSuccess={() => { refreshDashboard(); refreshUploads(); }}
       />
+
+      {tattooModalOpen && selectedTattooId && (
+        <TattooModal
+          tattooId={selectedTattooId}
+          open={tattooModalOpen}
+          onClose={() => setTattooModalOpen(false)}
+          onSuccess={refreshUploads}
+        />
+      )}
     </Box>
   );
 }

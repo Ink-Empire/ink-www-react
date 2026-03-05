@@ -128,12 +128,14 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
     }
   }, [open]);
 
-  // Cleanup preview URLs on unmount
+  // Cleanup preview URLs on unmount only
+  const previewsRef = useRef<string[]>([]);
+  previewsRef.current = previews;
   useEffect(() => {
     return () => {
-      previews.forEach(url => URL.revokeObjectURL(url));
+      previewsRef.current.forEach(url => URL.revokeObjectURL(url));
     };
-  }, [previews]);
+  }, []);
 
   // Debounced artist search
   useEffect(() => {

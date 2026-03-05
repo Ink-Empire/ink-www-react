@@ -9,7 +9,9 @@ import {
   CircularProgress,
   Avatar,
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
 import { colors } from '@/styles/colors';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile, useUserTattoos } from '@/hooks';
 import TattooModal from '@/components/TattooModal';
 
@@ -18,8 +20,11 @@ export default function UserProfilePage() {
   const { slug } = router.query;
   const slugString = typeof slug === 'string' ? slug : null;
 
+  const { user } = useAuth();
   const { profile, loading: profileLoading } = useUserProfile(slugString);
-  const { tattoos, loading: tattoosLoading, loadMore, lastPage, page } = useUserTattoos(slugString);
+  const { tattoos, loading: tattoosLoading, loadMore, lastPage, page, refetch: refetchTattoos } = useUserTattoos(slugString);
+
+  const isOwnProfile = !!(user && slugString && user.slug === slugString);
 
   const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
   const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
@@ -169,6 +174,7 @@ export default function UserProfilePage() {
                       overflow: 'hidden',
                       cursor: 'pointer',
                       bgcolor: colors.surfaceElevated,
+                      '&:hover .edit-overlay': { opacity: 1 },
                       '&:hover': { opacity: 0.85 },
                       transition: 'opacity 0.2s',
                     }}
@@ -181,6 +187,32 @@ export default function UserProfilePage() {
                         style={{ objectFit: 'cover' }}
                         sizes="(max-width: 600px) 50vw, 33vw"
                       />
+                    )}
+                    {isOwnProfile && (
+                      <Box
+                        className="edit-overlay"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/tattoos/update?id=${tattoo.id}`);
+                        }}
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          bgcolor: 'rgba(0, 0, 0, 0.6)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          opacity: 0,
+                          transition: 'opacity 0.2s',
+                          '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.8)' },
+                        }}
+                      >
+                        <EditIcon sx={{ fontSize: 16, color: '#fff' }} />
+                      </Box>
                     )}
                   </Box>
                 );
@@ -215,6 +247,7 @@ export default function UserProfilePage() {
           tattooId={selectedTattooId}
           open={isTattooModalOpen}
           onClose={() => setIsTattooModalOpen(false)}
+          onSuccess={refetchTattoos}
         />
       )}
     </Layout>
