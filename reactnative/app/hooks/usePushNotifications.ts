@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import { createNotificationService } from '@inkedin/shared/services';
 import { api } from '../../lib/api';
@@ -43,6 +43,12 @@ export function usePushNotifications(isAuthenticated: boolean) {
     let unsubscribeMessage: (() => void) | undefined;
 
     const setup = async () => {
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
+        await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        );
+      }
+
       const authStatus = await messaging().requestPermission();
       const enabled =
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
