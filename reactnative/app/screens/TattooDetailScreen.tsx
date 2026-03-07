@@ -247,7 +247,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
                   <StyleTag
                     key={style.id}
                     label={style.name}
-                    onPress={() => navigation.navigate('Home', { filterStyles: [style.id] })}
+                    onPress={() => navigation.navigate('HomeTab', { screen: 'Home', params: { filterStyles: [style.id] } })}
                   />
                 ))}
               </View>
@@ -262,10 +262,12 @@ export default function TattooDetailScreen({ navigation, route }: any) {
                     <TouchableOpacity
                       key={key}
                       style={styles.tag}
-                      onPress={() => tagId
-                        ? navigation.navigate('Home', { filterTags: [tagId] })
-                        : navigation.navigate('Home', { filterTagNames: [name] })
-                      }
+                      onPress={() => navigation.navigate('HomeTab', {
+                        screen: 'Home',
+                        params: tagId
+                          ? { filterTags: [tagId] }
+                          : { filterTagNames: [name] },
+                      })}
                     >
                       <Text style={styles.tagText}>{name}</Text>
                     </TouchableOpacity>

@@ -10,7 +10,7 @@ import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { colors, inputStyles } from '@/styles/colors';
 import { LocationAutocomplete } from '@/components/SearchFilters/LocationAutocomplete';
 import { uploadImagesToS3, UploadedImage, UploadProgress } from '@/utils/s3Upload';
@@ -24,6 +24,7 @@ import { stylesService } from '@/services/stylesService';
 import { tagService } from '@/services/tagService';
 import type { AiStyleSuggestion } from '@/services/stylesService';
 import type { AiTagSuggestion } from '@/services/tagService';
+import TagsAutocomplete, { Tag } from './TagsAutocomplete';
 
 interface ClientUploadWizardProps {
   open: boolean;
@@ -93,12 +94,11 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
   // AI suggestions
   const [aiStyleSuggestions, setAiStyleSuggestions] = useState<AiStyleSuggestion[]>([]);
   const [aiTagSuggestions, setAiTagSuggestions] = useState<AiTagSuggestion[]>([]);
+  const allAiTagSuggestionsRef = useRef<AiTagSuggestion[]>([]);
   const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
   const [addingAiTag, setAddingAiTag] = useState<string | null>(null);
   const [createdTags, setCreatedTags] = useState<{ id: number; name: string }[]>([]);
-
-  // Tag search
-  const [tagSearch, setTagSearch] = useState('');
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
 
   // Reset all state when dialog closes
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
       setCheckingEmail(false);
       setIsPublishing(false);
       setErrorMessage('');
-      setTagSearch('');
+      setSelectedTags([]);
       setAiStyleSuggestions([]);
       setAiTagSuggestions([]);
       setLoadingAiSuggestions(false);
@@ -252,6 +252,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
         ));
       }
       if (tagRes?.success && tagRes.data) {
+        allAiTagSuggestionsRef.current = tagRes.data;
         setAiTagSuggestions(tagRes.data.filter(
           t => t.id === null || !selectedTagIds.includes(t.id as number)
         ));
@@ -293,10 +294,29 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
     );
   };
 
-  const toggleTag = (id: number) => {
-    setSelectedTagIds(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+  const handleTagsChange = (newTags: Tag[]) => {
+    // Find tags that were removed
+    const removedTags = selectedTags.filter(
+      old => !newTags.some(t => t.id === old.id)
     );
+    setSelectedTags(newTags);
+    setSelectedTagIds(newTags.map(t => t.id));
+    // Restore any removed tags that came from AI suggestions
+    if (removedTags.length > 0) {
+      const toRestore = removedTags.filter(removed =>
+        allAiTagSuggestionsRef.current.some(ai => ai.name === removed.name) &&
+        !newTags.some(t => t.name === removed.name)
+      );
+      if (toRestore.length > 0) {
+        setAiTagSuggestions(prev => {
+          const existing = new Set(prev.map(t => t.name));
+          const restored = toRestore
+            .map(t => allAiTagSuggestionsRef.current.find(ai => ai.name === t.name)!)
+            .filter(t => t && !existing.has(t.name));
+          return [...prev, ...restored];
+        });
+      }
+    }
   };
 
   const handleAddAiStyleSuggestion = (style: AiStyleSuggestion) => {
@@ -328,6 +348,12 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
       if (!allTags.find(t => t.id === tagId)) {
         setCreatedTags(prev => [...prev, { id: tagId as number, name: tag.name }]);
       }
+      // Update the ref so restoration uses the real ID
+      allAiTagSuggestionsRef.current = allAiTagSuggestionsRef.current.map(t =>
+        t.name === tag.name ? { ...t, id: tagId as number, is_new_suggestion: false } : t
+      );
+      const newTagObj: Tag = { id: tagId as number, name: tag.name, slug: tag.name.toLowerCase().replace(/\s+/g, '-') };
+      setSelectedTags(prev => prev.some(t => t.id === tagId) ? prev : [...prev, newTagObj]);
       setSelectedTagIds(prev => prev.includes(tagId as number) ? prev : [...prev, tagId as number]);
       setAiTagSuggestions(prev => prev.filter(t => t.name !== tag.name));
     }
@@ -396,10 +422,6 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
     setSelectedArtist(null);
     setArtistQuery('');
   };
-
-  const filteredTags = tagSearch.length >= 2
-    ? allTags.filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
-    : allTags.slice(0, 20);
 
   const getVisibilityMessage = () => {
     if (selectedArtist && artistMode === 'search') {
@@ -690,9 +712,28 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
               </Typography>
 
               <Box>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: colors.textPrimary, mb: 1 }}>
-                  Styles
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: colors.textPrimary }}>
+                    Styles
+                  </Typography>
+                  {uploadedImages.length > 0 && !loadingAiSuggestions && (
+                    <Typography
+                      onClick={() => fetchAiSuggestions(uploadedImages.map(img => img.uri))}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        fontSize: '0.75rem',
+                        color: colors.textMuted,
+                        cursor: 'pointer',
+                        '&:hover': { color: colors.aiSuggestion },
+                      }}
+                    >
+                      <RefreshIcon sx={{ fontSize: 14 }} />
+                      Regenerate suggestions
+                    </Typography>
+                  )}
+                </Box>
                 {(loadingAiSuggestions || aiStyleSuggestions.length > 0) && (
                   <Box sx={{ mb: 1, p: 1, bgcolor: colors.aiSuggestionDim, borderRadius: '8px', border: `1px solid ${colors.aiSuggestion}30` }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
@@ -812,57 +853,13 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                     )}
                   </Box>
                 )}
-                <TextField
-                  value={tagSearch}
-                  onChange={(e) => setTagSearch(e.target.value)}
-                  placeholder="Search tags..."
-                  fullWidth
-                  size="small"
-                  sx={{ ...inputStyles.textField, mb: 1 }}
+                <TagsAutocomplete
+                  value={selectedTags}
+                  onChange={handleTagsChange}
+                  label=""
+                  placeholder="Search and add tags..."
+                  maxTags={10}
                 />
-                {selectedTagIds.length > 0 && (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
-                    {selectedTagIds.map(id => {
-                      const tag = allTags.find(t => t.id === id) || createdTags.find(t => t.id === id);
-                      if (!tag) return null;
-                      return (
-                        <Chip
-                          key={id}
-                          label={tag.name}
-                          onDelete={() => toggleTag(id)}
-                          size="small"
-                          sx={{
-                            bgcolor: `${colors.tag}20`,
-                            color: colors.tag,
-                            border: `1px solid ${colors.tag}40`,
-                            '& .MuiChip-deleteIcon': { color: colors.tag, '&:hover': { color: colors.error } },
-                          }}
-                          icon={<LocalOfferIcon sx={{ fontSize: 12, color: colors.tag }} />}
-                        />
-                      );
-                    })}
-                  </Box>
-                )}
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight: 150, overflow: 'auto' }}>
-                  {filteredTags
-                    .filter(t => !selectedTagIds.includes(t.id))
-                    .slice(0, 30)
-                    .map(tag => (
-                      <Chip
-                        key={tag.id}
-                        label={tag.name}
-                        onClick={() => toggleTag(tag.id)}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          color: colors.textSecondary,
-                          borderColor: colors.border,
-                          fontSize: '0.75rem',
-                          '&:hover': { bgcolor: `${colors.tag}10`, borderColor: colors.tag },
-                        }}
-                      />
-                    ))}
-                </Box>
               </Box>
 
               {/* Upload progress indicator */}

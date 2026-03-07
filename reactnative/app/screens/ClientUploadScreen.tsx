@@ -24,6 +24,7 @@ import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib
 import { clearTattooCache } from '../../lib/tattooCache';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
+import MultiSelectPicker from '../components/common/MultiSelectPicker';
 import { useStyles, useTags } from '@inkedin/shared/hooks';
 import type { AiTagSuggestion } from '@inkedin/shared/services/tagService';
 
@@ -69,9 +70,12 @@ export default function ClientUploadScreen({ navigation }: any) {
   // AI suggestions
   const [aiStyleSuggestions, setAiStyleSuggestions] = useState<{ id: number; name: string }[]>([]);
   const [aiTagSuggestions, setAiTagSuggestions] = useState<AiTagSuggestion[]>([]);
+  const allAiTagSuggestionsRef = useRef<AiTagSuggestion[]>([]);
   const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
   const [addingAiTag, setAddingAiTag] = useState<string | null>(null);
   const [createdTags, setCreatedTags] = useState<{ id: number; name: string }[]>([]);
+  const [tagNameMap] = useState(() => new Map<number, string>());
+  const [showTagsPicker, setShowTagsPicker] = useState(false);
 
   const { showSnackbar } = useSnackbar();
   const { styles: stylesList } = useStyles(api);
@@ -185,9 +189,23 @@ export default function ClientUploadScreen({ navigation }: any) {
   };
 
   const toggleTag = (id: number) => {
-    setSelectedTagIds(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-    );
+    setSelectedTagIds(prev => {
+      if (prev.includes(id)) {
+        // Removing — restore to AI suggestions using name matching
+        const tagName = tagsList.find((t: any) => t.id === id)?.name || createdTags.find(t => t.id === id)?.name;
+        if (tagName) {
+          const aiTag = allAiTagSuggestionsRef.current.find(t => t.name === tagName);
+          if (aiTag) {
+            setAiTagSuggestions(suggestions => {
+              if (suggestions.some(t => t.name === aiTag.name)) return suggestions;
+              return [...suggestions, aiTag];
+            });
+          }
+        }
+        return prev.filter(t => t !== id);
+      }
+      return [...prev, id];
+    });
   };
 
   // -- Artist search --
@@ -245,6 +263,7 @@ export default function ClientUploadScreen({ navigation }: any) {
         ));
       }
       if (tagRes?.success && tagRes.data) {
+        allAiTagSuggestionsRef.current = tagRes.data;
         setAiTagSuggestions(tagRes.data.filter(
           (t: AiTagSuggestion) => t.id === null || !selectedTagIds.includes(t.id as number)
         ));
@@ -255,6 +274,11 @@ export default function ClientUploadScreen({ navigation }: any) {
       setLoadingAiSuggestions(false);
     }
   }, [selectedStyleIds, selectedTagIds]);
+
+  const refetchAiSuggestions = useCallback(async () => {
+    if (uploadedImageUrls.length === 0 || loadingAiSuggestions) return;
+    fetchAiSuggestions(uploadedImageUrls);
+  }, [uploadedImageUrls, loadingAiSuggestions, fetchAiSuggestions]);
 
   const handleAddAiStyleSuggestion = useCallback((style: { id: number; name: string }) => {
     setSelectedStyleIds(prev => prev.includes(style.id) ? prev : [...prev, style.id]);
@@ -285,10 +309,30 @@ export default function ClientUploadScreen({ navigation }: any) {
       if (!tagsList.find((t: any) => t.id === tagId)) {
         setCreatedTags(prev => [...prev, { id: tagId as number, name: tag.name }]);
       }
+      // Update the ref so restoration uses the real ID
+      allAiTagSuggestionsRef.current = allAiTagSuggestionsRef.current.map(t =>
+        t.name === tag.name ? { ...t, id: tagId as number, is_new_suggestion: false } : t
+      );
+      tagNameMap.set(tagId as number, tag.name);
       setSelectedTagIds(prev => prev.includes(tagId as number) ? prev : [...prev, tagId as number]);
       setAiTagSuggestions(prev => prev.filter(t => t.name !== tag.name));
     }
-  }, [tagsList]);
+  }, [tagsList, tagNameMap]);
+
+  const handleCreateTag = useCallback(async (name: string) => {
+    try {
+      const response = await tagService.create(name);
+      if (response.success && response.data) {
+        const newTag = response.data;
+        tagNameMap.set(newTag.id, newTag.name);
+        setCreatedTags(prev => [...prev, { id: newTag.id, name: newTag.name }]);
+        return { id: newTag.id, name: newTag.name };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [tagNameMap]);
 
   const handleNext = () => {
     if (step === 0 && uploadedImageIds.length === 0) {
@@ -470,7 +514,19 @@ export default function ClientUploadScreen({ navigation }: any) {
         To the best of your ability, select the styles and tags that describe this tattoo. No worries if you're not sure — every bit helps.
       </Text>
 
-      <Text style={s.fieldLabel}>Styles</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+        <Text style={[s.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>Styles</Text>
+        {uploadedImageUrls.length > 0 && !loadingAiSuggestions && (
+          <TouchableOpacity
+            onPress={refetchAiSuggestions}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="refresh" size={14} color={colors.textMuted} />
+            <Text style={{ fontSize: 12, color: colors.textMuted }}>Regenerate suggestions</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       {(loadingAiSuggestions || aiStyleSuggestions.length > 0) && (
         <View style={[s.aiSection, { marginBottom: 8 }]}>
           <View style={s.aiHeader}>
@@ -560,26 +616,26 @@ export default function ClientUploadScreen({ navigation }: any) {
         <View style={s.chipGrid}>
           {selectedTagIds.map(id => {
             const tag = tagsList.find((t: any) => t.id === id) || createdTags.find(t => t.id === id);
-            if (!tag) return null;
+            const name = tag?.name || tagNameMap.get(id);
+            if (!name) return null;
             return (
               <TouchableOpacity key={id} style={s.tagChipSelected} onPress={() => toggleTag(id)}>
-                <Text style={s.tagChipSelectedText}>{tag.name}</Text>
+                <Text style={s.tagChipSelectedText}>{name}</Text>
                 <MaterialIcons name="close" size={12} color={colors.tag} />
               </TouchableOpacity>
             );
           })}
         </View>
       )}
-      <View style={s.chipGrid}>
-        {tagsList
-          .filter((t: any) => !selectedTagIds.includes(t.id))
-          .slice(0, 20)
-          .map((tag: any) => (
-            <TouchableOpacity key={tag.id} style={s.chip} onPress={() => toggleTag(tag.id)}>
-              <Text style={s.chipText}>{tag.name}</Text>
-            </TouchableOpacity>
-          ))}
-      </View>
+      <TouchableOpacity
+        style={s.pickerButton}
+        onPress={() => setShowTagsPicker(true)}
+      >
+        <Text style={selectedTagIds.length > 0 ? s.pickerText : s.pickerPlaceholder}>
+          {selectedTagIds.length > 0 ? `${selectedTagIds.length} selected` : 'Select tags'}
+        </Text>
+        <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
+      </TouchableOpacity>
     </ScrollView>
   );
 
@@ -897,6 +953,18 @@ export default function ClientUploadScreen({ navigation }: any) {
         </View>
       </KeyboardAvoidingView>
 
+      <MultiSelectPicker
+        visible={showTagsPicker}
+        title="Select Tags"
+        options={[...tagsList, ...createdTags.filter(ct => !tagsList.some((t: any) => t.id === ct.id))]}
+        selected={selectedTagIds}
+        onToggle={toggleTag}
+        onClose={() => setShowTagsPicker(false)}
+        searchPlaceholder="Search tags..."
+        initialDisplayCount={30}
+        onCreateNew={handleCreateTag}
+      />
+
       {publishing && (
         <View style={s.overlay}>
           <View style={s.overlayCard}>
@@ -953,6 +1021,13 @@ const s = StyleSheet.create({
     borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, color: colors.textPrimary, fontSize: 15,
   },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
+  pickerButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.inputBorder,
+    borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8,
+  },
+  pickerText: { color: colors.textPrimary, fontSize: 15 },
+  pickerPlaceholder: { color: colors.textMuted, fontSize: 15 },
 
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   chip: {
