@@ -183,6 +183,29 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const wishlist = favorites;
   const wishlistLoading = dashboardLoading;
 
+  // Saved tattoos and studios for the My Saved Items card
+  const [savedTattoos, setSavedTattoos] = useState<any[]>([]);
+  const [savedStudios, setSavedStudios] = useState<any[]>([]);
+  const [savedExtrasLoading, setSavedExtrasLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSavedExtras = async () => {
+      try {
+        const [tattooRes, studioRes] = await Promise.all([
+          clientService.getSavedTattoos(),
+          clientService.getSavedStudios(),
+        ]);
+        setSavedTattoos(tattooRes.tattoos || []);
+        setSavedStudios(studioRes.studios || []);
+      } catch (err) {
+        console.error('Failed to fetch saved items:', err);
+      } finally {
+        setSavedExtrasLoading(false);
+      }
+    };
+    fetchSavedExtras();
+  }, []);
+
   // Fetch lead status on mount
   useEffect(() => {
     const fetchLeadStatus = async () => {
@@ -689,7 +712,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         {/* My Saved Items */}
         <Card
           title="My Saved Items"
-          subtitle="Artists and tattoos you've saved"
+          subtitle="Artists, tattoos, and studios you've saved"
           icon={<BookmarkIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
             <CardLink href="/wishlist">
@@ -697,28 +720,61 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             </CardLink>
           }
         >
-          {wishlistLoading ? (
+          {(wishlistLoading || savedExtrasLoading) ? (
             <Box sx={{ p: 2 }}>
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} variant="rounded" height={60} sx={{ bgcolor: colors.background, mb: 1 }} />
               ))}
             </Box>
-          ) : wishlist.length > 0 ? (
+          ) : (wishlist.length > 0 || savedTattoos.length > 0 || savedStudios.length > 0) ? (
             <Box>
-              {wishlist.slice(0, 5).map((artist, index) => (
-                <WishlistRow
-                  key={artist.id}
-                  artist={artist}
-                  onRemove={handleRemoveFromWishlist}
-                  isLast={index === Math.min(wishlist.length, 5) - 1}
-                />
-              ))}
+              {(() => {
+                const items: { type: 'artist' | 'tattoo' | 'studio'; data: any }[] = [
+                  ...wishlist.map(a => ({ type: 'artist' as const, data: a })),
+                  ...savedTattoos.map(t => ({ type: 'tattoo' as const, data: t })),
+                  ...savedStudios.map(s => ({ type: 'studio' as const, data: s })),
+                ];
+                const displayed = items.slice(0, 5);
+                return displayed.map((item, index) => {
+                  const isLast = index === displayed.length - 1;
+                  if (item.type === 'artist') {
+                    return (
+                      <WishlistRow
+                        key={`artist-${item.data.id}`}
+                        artist={item.data}
+                        onRemove={handleRemoveFromWishlist}
+                        isLast={isLast}
+                      />
+                    );
+                  }
+                  if (item.type === 'tattoo') {
+                    const tattoo = item.data;
+                    const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+                    return (
+                      <SavedTattooRow
+                        key={`tattoo-${tattoo.id}`}
+                        tattoo={tattoo}
+                        imageUri={imageUri}
+                        isLast={isLast}
+                      />
+                    );
+                  }
+                  const studio = item.data;
+                  return (
+                    <SavedStudioRow
+                      key={`studio-${studio.id}`}
+                      studio={studio}
+                      isLast={isLast}
+                    />
+                  );
+                });
+              })()}
             </Box>
           ) : (
             <EmptyState
               icon={<BookmarkIcon sx={{ fontSize: 32, color: colors.textMuted }} />}
-              message="Your wishlist is empty"
-              subMessage="Add artists to get notified when their books open"
+              message="No saved items yet"
+              subMessage="Save artists, tattoos, and studios to see them here"
             />
           )}
         </Card>
@@ -1579,6 +1635,158 @@ function WishlistRow({ artist, onRemove, isLast }: {
         <DeleteIcon sx={{ fontSize: { xs: 16, sm: 18 } }} aria-hidden="true" />
       </Button>
     </Box>
+  );
+}
+
+// Saved Tattoo Row Component (compact, for dashboard)
+function SavedTattooRow({ tattoo, imageUri, isLast }: {
+  tattoo: any;
+  imageUri?: string;
+  isLast: boolean;
+}) {
+  return (
+    <Link href={`/wishlist`} style={{ textDecoration: 'none' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: { xs: 1, sm: 1.5 },
+          p: { xs: 1.5, sm: 2 },
+          borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+          transition: 'background 0.15s',
+          '&:hover': { bgcolor: colors.background },
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: 36, sm: 40 },
+            height: { xs: 36, sm: 40 },
+            borderRadius: '6px',
+            overflow: 'hidden',
+            bgcolor: colors.background,
+            flexShrink: 0,
+          }}
+        >
+          {imageUri ? (
+            <Box
+              component="img"
+              src={imageUri}
+              alt={tattoo.title || 'Tattoo'}
+              sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PhotoLibraryIcon sx={{ fontSize: 18, color: colors.textMuted }} />
+            </Box>
+          )}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <Typography sx={{
+            fontWeight: 500,
+            color: colors.textPrimary,
+            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {tattoo.artist_name || 'Unknown Artist'}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {tattoo.primary_style || 'Tattoo'}
+          </Typography>
+        </Box>
+        <Typography sx={{
+          px: { xs: 1, sm: 1.5 },
+          py: 0.5,
+          bgcolor: `${colors.accent}15`,
+          borderRadius: '6px',
+          fontSize: { xs: '0.65rem', sm: '0.75rem' },
+          color: colors.accent,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          fontWeight: 500,
+        }}>
+          Tattoo
+        </Typography>
+      </Box>
+    </Link>
+  );
+}
+
+// Saved Studio Row Component (compact, for dashboard)
+function SavedStudioRow({ studio, isLast }: {
+  studio: any;
+  isLast: boolean;
+}) {
+  return (
+    <Link href={`/studios/${studio.slug}`} style={{ textDecoration: 'none' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: { xs: 1, sm: 1.5 },
+          p: { xs: 1.5, sm: 2 },
+          borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+          transition: 'background 0.15s',
+          '&:hover': { bgcolor: colors.background },
+        }}
+      >
+        <Avatar
+          src={studio.image?.uri}
+          alt={studio.name}
+          sx={{
+            width: { xs: 36, sm: 40 },
+            height: { xs: 36, sm: 40 },
+            bgcolor: colors.accent,
+            color: colors.background,
+            fontSize: '0.85rem',
+            fontWeight: 600,
+          }}
+        >
+          {(studio.name || 'S').charAt(0).toUpperCase()}
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <Typography sx={{
+            fontWeight: 500,
+            color: colors.textPrimary,
+            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {studio.name}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {studio.location || 'Studio'}
+          </Typography>
+        </Box>
+        <Typography sx={{
+          px: { xs: 1, sm: 1.5 },
+          py: 0.5,
+          bgcolor: `${colors.accent}15`,
+          borderRadius: '6px',
+          fontSize: { xs: '0.65rem', sm: '0.75rem' },
+          color: colors.accent,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          fontWeight: 500,
+        }}>
+          Studio
+        </Typography>
+      </Box>
+    </Link>
   );
 }
 
