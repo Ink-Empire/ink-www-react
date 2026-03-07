@@ -183,6 +183,7 @@ export interface RegisterData {
   claim_studio_id?: number;
   has_accepted_toc: boolean;
   has_accepted_privacy_policy: boolean;
+  signup_platform?: 'web' | 'ios' | 'android';
 }
 
 export function createAuthApi(api: ReturnType<typeof createApiClient>) {

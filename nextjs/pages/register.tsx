@@ -150,6 +150,7 @@ const RegisterPage: React.FC = () => {
           studio_phone: data.studioDetails?.phone || '',
           has_accepted_toc: data.credentials?.has_accepted_toc ?? true,
           has_accepted_privacy_policy: data.credentials?.has_accepted_privacy_policy ?? true,
+          signup_platform: 'web',
         };
 
         const response = await fetch('/api/register', {
@@ -219,6 +220,7 @@ const RegisterPage: React.FC = () => {
         experience_level: data.experienceLevel,
         has_accepted_toc: data.credentials?.has_accepted_toc ?? false,
         has_accepted_privacy_policy: data.credentials?.has_accepted_privacy_policy ?? false,
+        signup_platform: 'web',
       };
 
       // Add studio affiliation for artists
