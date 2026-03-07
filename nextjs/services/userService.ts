@@ -97,4 +97,9 @@ export const userService = {
   searchUsers: async (params: { searchString: string }): Promise<any> => {
     return api.post('/users/search', params);
   },
+
+  // Check if an email is already registered
+  checkEmailAvailability: async (email: string): Promise<{ available: boolean }> => {
+    return api.post('/check-availability', { email });
+  },
 };

@@ -216,6 +216,9 @@ export function createUserService(api: ApiClient) {
 
     searchUsers: (params: { searchString: string }) =>
       api.post<{ users: any[] }>('/users/search', params),
+
+    checkEmailAvailability: (email: string) =>
+      api.post<{ available: boolean }>('/check-availability', { email }),
   };
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef, type RefObject } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
-import { messageService, tattooService, tagService, styleService } from '../../lib/services';
+import { messageService, tattooService, tagService, styleService, userService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
 import { clearTattooCache } from '../../lib/tattooCache';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -57,6 +57,8 @@ export default function ClientUploadScreen({ navigation }: any) {
   const [attributedLocation, setAttributedLocation] = useState('');
   const [attributedLocationLatLong, setAttributedLocationLatLong] = useState('');
   const [artistInviteEmail, setArtistInviteEmail] = useState('');
+  const [emailExistsOnPlatform, setEmailExistsOnPlatform] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
 
   // Publishing state
   const [publishing, setPublishing] = useState(false);
@@ -74,6 +76,41 @@ export default function ClientUploadScreen({ navigation }: any) {
   const { showSnackbar } = useSnackbar();
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
+
+  // Refs
+  const detailsScrollRef = useRef<ScrollView>(null);
+
+  // Debounced email availability check for invite flow
+  const emailTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const email = artistInviteEmail.trim();
+    if (!email || !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      setEmailExistsOnPlatform(false);
+      setCheckingEmail(false);
+      return;
+    }
+
+    setCheckingEmail(true);
+    if (emailTimerRef.current) clearTimeout(emailTimerRef.current);
+    emailTimerRef.current = setTimeout(async () => {
+      try {
+        const response = await userService.checkEmailAvailability(email);
+        const exists = !response.available;
+        setEmailExistsOnPlatform(exists);
+        if (exists) {
+          setTimeout(() => detailsScrollRef.current?.scrollToEnd({ animated: true }), 100);
+        }
+      } catch {
+        setEmailExistsOnPlatform(false);
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500);
+
+    return () => {
+      if (emailTimerRef.current) clearTimeout(emailTimerRef.current);
+    };
+  }, [artistInviteEmail]);
 
   // -- Image handling --
 
@@ -346,6 +383,8 @@ export default function ClientUploadScreen({ navigation }: any) {
       setAttributedStudioName('');
       setAttributedLocation('');
       setArtistInviteEmail('');
+      setEmailExistsOnPlatform(false);
+      setCheckingEmail(false);
       setUploadedImageIds([]);
       setUploadedImageUrls([]);
       setAiStyleSuggestions([]);
@@ -545,7 +584,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   );
 
   const renderStep2 = () => (
-    <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView ref={detailsScrollRef} style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={s.stepTitle}>Details</Text>
 
       <Text style={s.fieldLabel}>Title</Text>
@@ -677,16 +716,43 @@ export default function ClientUploadScreen({ navigation }: any) {
             }}
             placeholder="City/Location (optional)"
           />
-          <TextInput
-            style={s.textInput}
-            value={artistInviteEmail}
-            onChangeText={setArtistInviteEmail}
-            placeholder="Artist email (optional - sends invite)"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          {artistInviteEmail.trim() ? (
+          <View>
+            <TextInput
+              style={s.textInput}
+              value={artistInviteEmail}
+              onChangeText={setArtistInviteEmail}
+              placeholder="Artist email (sends invite)"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            {checkingEmail && (
+              <ActivityIndicator size="small" color={colors.accent} style={{ position: 'absolute', right: 12, top: 14 }} />
+            )}
+          </View>
+          {emailExistsOnPlatform ? (
+            <View style={s.emailExistsBanner}>
+              <Text style={s.emailExistsText}>
+                This email belongs to an artist already on InkedIn. You can tag them directly instead of sending an invite.
+              </Text>
+              <TouchableOpacity
+                style={s.emailExistsButton}
+                onPress={() => {
+                  const email = artistInviteEmail.trim();
+                  setArtistMode('search');
+                  setArtistInviteEmail('');
+                  setEmailExistsOnPlatform(false);
+                  setAttributedArtistName('');
+                  setAttributedStudioName('');
+                  setAttributedLocation('');
+                  setAttributedLocationLatLong('');
+                  searchArtists(email);
+                }}
+              >
+                <Text style={s.emailExistsButtonText}>Search instead</Text>
+              </TouchableOpacity>
+            </View>
+          ) : artistInviteEmail.trim() && !checkingEmail ? (
             <View style={s.infoNotice}>
               <MaterialIcons name="info-outline" size={16} color={colors.accent} />
               <Text style={s.infoNoticeText}>
@@ -995,6 +1061,17 @@ const s = StyleSheet.create({
   artistResultAvatar: { width: 32, height: 32, borderRadius: 16 },
   artistResultName: { color: colors.textPrimary, fontSize: 15 },
   artistResultUsername: { color: colors.textMuted, fontSize: 13, marginTop: 1 },
+
+  emailExistsBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: `${colors.accent}15`, borderWidth: 1, borderColor: `${colors.accent}40`,
+    borderRadius: 8, padding: 12, marginTop: 8,
+  },
+  emailExistsText: { flex: 1, color: colors.accent, fontSize: 13, lineHeight: 18 },
+  emailExistsButton: {
+    backgroundColor: colors.accent, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8,
+  },
+  emailExistsButtonText: { color: colors.background, fontSize: 13, fontWeight: '600' },
 
   infoNotice: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,

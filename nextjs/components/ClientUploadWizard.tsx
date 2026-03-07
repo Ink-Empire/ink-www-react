@@ -16,6 +16,7 @@ import { LocationAutocomplete } from '@/components/SearchFilters/LocationAutocom
 import { uploadImagesToS3, UploadedImage, UploadProgress } from '@/utils/s3Upload';
 import { messageService } from '@/services/messageService';
 import { tattooService } from '@/services/tattooService';
+import { userService } from '@/services/userService';
 import { clearCache } from '@/utils/apiCache';
 import { useStyles } from '@/contexts/StyleContext';
 import { useTags } from '@/contexts/TagContext';
@@ -78,6 +79,8 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
   const [attributedLocation, setAttributedLocation] = useState('');
   const [attributedLocationLatLong, setAttributedLocationLatLong] = useState('');
   const [artistInviteEmail, setArtistInviteEmail] = useState('');
+  const [emailExistsOnPlatform, setEmailExistsOnPlatform] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
 
   // Publish state
   const [isPublishing, setIsPublishing] = useState(false);
@@ -118,6 +121,8 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
       setAttributedStudioName('');
       setAttributedLocation('');
       setArtistInviteEmail('');
+      setEmailExistsOnPlatform(false);
+      setCheckingEmail(false);
       setIsPublishing(false);
       setErrorMessage('');
       setTagSearch('');
@@ -158,6 +163,30 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
 
     return () => clearTimeout(timer);
   }, [artistQuery, selectedArtist]);
+
+  // Debounced email availability check for invite flow
+  useEffect(() => {
+    const email = artistInviteEmail.trim();
+    if (!email || !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      setEmailExistsOnPlatform(false);
+      setCheckingEmail(false);
+      return;
+    }
+
+    setCheckingEmail(true);
+    const timer = setTimeout(async () => {
+      try {
+        const response = await userService.checkEmailAvailability(email);
+        setEmailExistsOnPlatform(!response.available);
+      } catch {
+        setEmailExistsOnPlatform(false);
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [artistInviteEmail]);
 
   const addFiles = useCallback((newFiles: File[]) => {
     const imageFiles = newFiles.filter(f => f.type.startsWith('image/'));
@@ -1068,17 +1097,63 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                     <TextField
                       value={artistInviteEmail}
                       onChange={(e) => setArtistInviteEmail(e.target.value)}
-                      placeholder="Artist email (optional - sends invite)"
+                      placeholder="Artist email (sends invite)"
                       fullWidth
                       size="small"
                       type="email"
                       sx={inputStyles.textField}
+                      InputProps={{
+                        endAdornment: checkingEmail ? (
+                          <CircularProgress size={18} sx={{ color: colors.accent }} />
+                        ) : null,
+                      }}
                     />
-                    {artistInviteEmail.trim() && (
+                    {emailExistsOnPlatform ? (
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        p: 1.5,
+                        bgcolor: `${colors.accent}10`,
+                        border: `1px solid ${colors.accent}40`,
+                        borderRadius: '8px',
+                      }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: colors.accent, lineHeight: 1.4, flex: 1 }}>
+                          This email belongs to an artist already on InkedIn. You can tag them directly instead of sending an invite.
+                        </Typography>
+                        <Button
+                          onClick={() => {
+                            const email = artistInviteEmail.trim();
+                            setArtistMode('search');
+                            setArtistInviteEmail('');
+                            setEmailExistsOnPlatform(false);
+                            setAttributedArtistName('');
+                            setAttributedStudioName('');
+                            setAttributedLocation('');
+                            setAttributedLocationLatLong('');
+                            setArtistQuery(email);
+                          }}
+                          size="small"
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: colors.background,
+                            bgcolor: colors.accent,
+                            borderRadius: '16px',
+                            px: 2,
+                            whiteSpace: 'nowrap',
+                            '&:hover': { bgcolor: colors.accentHover },
+                          }}
+                        >
+                          Search instead
+                        </Button>
+                      </Box>
+                    ) : artistInviteEmail.trim() && !checkingEmail ? (
                       <Typography sx={{ fontSize: '0.75rem', color: colors.info, lineHeight: 1.4 }}>
                         An invitation email will be sent so the artist can claim this tattoo on InkedIn.
                       </Typography>
-                    )}
+                    ) : null}
                   </Box>
                 )}
               </Box>
