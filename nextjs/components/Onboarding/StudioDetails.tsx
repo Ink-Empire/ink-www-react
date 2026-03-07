@@ -26,6 +26,7 @@ import { colors } from '@/styles/colors';
 import LocationAutocomplete from '../LocationAutocomplete';
 import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
 import { getPlaceDetails } from '@/services/googlePlacesService';
+import { studioService } from '@/services/studioService';
 import { api } from '@/utils/api';
 import type { StudioCreationPayload } from './OnboardingWizard';
 import ImageCropperModal from '../ImageCropperModal';
@@ -56,6 +57,8 @@ interface StudioDetailsProps {
   userLocationLatLong?: string;
   // Is the user already authenticated? If not, show account creation fields
   isAuthenticated?: boolean;
+  // Slug of an unclaimed studio to auto-fill from (claim flow)
+  claimStudioSlug?: string;
 }
 
 const StudioDetails: React.FC<StudioDetailsProps> = ({
@@ -65,6 +68,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   ownerId,
   userLocationLatLong,
   isAuthenticated = false,
+  claimStudioSlug,
 }) => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -121,6 +125,41 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocationLatLong]);
+
+  // Auto-fetch and pre-fill studio when claiming via slug
+  useEffect(() => {
+    if (!claimStudioSlug) return;
+
+    let cancelled = false;
+
+    const fetchStudio = async () => {
+      try {
+        const { studio } = await studioService.getById(claimStudioSlug);
+        if (cancelled || !studio || studio.is_claimed) return;
+
+        setName(studio.name || '');
+        if (studio.location) setLocation(studio.location);
+        if (studio.location_lat_long) setLocationLatLong(studio.location_lat_long);
+        if (studio.phone) setPhone(studio.phone);
+
+        setSelectedGoogleStudio({
+          id: studio.id,
+          name: studio.name,
+          location: studio.location,
+          slug: studio.slug,
+          is_claimed: false,
+          is_new: false,
+        });
+        setShowManualEntry(true);
+      } catch {
+        // Studio not found or error - let user fill in manually
+      }
+    };
+
+    fetchStudio();
+
+    return () => { cancelled = true; };
+  }, [claimStudioSlug]);
 
   // Handler for when user selects a studio from Google Places
   const handleGoogleStudioSelect = async (studio: StudioOption | null) => {

@@ -140,12 +140,21 @@ export default function TattooDetailScreen({ navigation, route }: any) {
             </View>
             <View style={styles.artistHeaderInfo}>
               <Text style={styles.artistName}>{(tattoo as any).attributed_artist_name}</Text>
-              {(tattoo as any).attributed_studio_name && (
+              {studioName ? (
+                <TouchableOpacity
+                  onPress={() => studioSlug && navigation.push('StudioDetail', { slug: studioSlug, name: studioName })}
+                  activeOpacity={studioSlug ? 0.7 : 1}
+                >
+                  <Text style={styles.studioName}>{studioName}</Text>
+                </TouchableOpacity>
+              ) : (tattoo as any).attributed_studio_name ? (
                 <Text style={styles.studioName}>at {(tattoo as any).attributed_studio_name}</Text>
-              )}
-              {(tattoo as any).attributed_location && (
+              ) : null}
+              {location ? (
+                <Text style={styles.artistLocation}>{location}</Text>
+              ) : (tattoo as any).attributed_location ? (
                 <Text style={styles.artistLocation}>{(tattoo as any).attributed_location}</Text>
-              )}
+              ) : null}
               <View style={styles.notOnInkedinBadge}>
                 <Text style={styles.notOnInkedinText}>Not yet on InkedIn</Text>
               </View>
@@ -188,6 +197,17 @@ export default function TattooDetailScreen({ navigation, route }: any) {
             </View>
             <View style={styles.artistHeaderInfo}>
               <Text style={styles.unknownArtistText}>Artist Unknown</Text>
+              {studioName ? (
+                <TouchableOpacity
+                  onPress={() => studioSlug && navigation.push('StudioDetail', { slug: studioSlug, name: studioName })}
+                  activeOpacity={studioSlug ? 0.7 : 1}
+                >
+                  <Text style={styles.studioName}>{studioName}</Text>
+                </TouchableOpacity>
+              ) : null}
+              {location ? (
+                <Text style={styles.artistLocation}>{location}</Text>
+              ) : null}
             </View>
           </View>
         )}

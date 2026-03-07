@@ -506,16 +506,38 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       }}>
                         {tattoo.attributed_artist_name}
                       </Typography>
-                      {tattoo.attributed_studio_name && (
+                      {tattoo?.studio?.name ? (
+                        tattoo.studio.slug ? (
+                          <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {tattoo.studio.name}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {tattoo.studio.name}
+                          </Typography>
+                        )
+                      ) : tattoo.attributed_studio_name ? (
                         <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
                           at {tattoo.attributed_studio_name}
                         </Typography>
-                      )}
-                      {tattoo.attributed_location && (
+                      ) : null}
+                      {tattoo?.studio?.location ? (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {tattoo.studio.location}
+                        </Typography>
+                      ) : tattoo.attributed_location ? (
                         <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
                           {tattoo.attributed_location}
                         </Typography>
-                      )}
+                      ) : null}
                       <Box sx={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -585,13 +607,39 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       )}
                     </>
                   ) : (
-                    <Typography sx={{
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      color: colors.textMuted,
-                    }}>
-                      Artist Unknown
-                    </Typography>
+                    <>
+                      <Typography sx={{
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
+                        color: colors.textMuted,
+                      }}>
+                        Artist Unknown
+                      </Typography>
+                      {tattoo?.studio?.name && (
+                        tattoo.studio.slug ? (
+                          <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {tattoo.studio.name}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {tattoo.studio.name}
+                          </Typography>
+                        )
+                      )}
+                      {tattoo?.studio?.location && (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {tattoo.studio.location}
+                        </Typography>
+                      )}
+                    </>
                   )}
                 </Box>
               </Box>

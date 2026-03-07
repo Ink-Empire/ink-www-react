@@ -93,6 +93,8 @@ interface OnboardingWizardProps {
   onComplete: (data: OnboardingData) => void;
   onCancel?: () => void;
   initialUserType?: 'client' | 'artist' | 'studio' | null;
+  // Slug of an unclaimed studio to pre-fill in the StudioDetails step
+  claimStudioSlug?: string;
   // Early registration callback - called after AccountSetup to register the user immediately
   onRegisterUser?: (payload: UserRegistrationPayload) => Promise<{ userId: number; token: string }>;
   // Studio creation callback - called from StudioDetails to create the studio
@@ -103,6 +105,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   onComplete,
   onCancel,
   initialUserType,
+  claimStudioSlug,
   onRegisterUser,
   onCreateStudio,
 }) => {
@@ -402,6 +405,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               onCreateStudio={onCreateStudio}
               ownerId={isAuthenticated ? onboardingData.studioOwner?.existingAccountId : undefined}
               isAuthenticated={isAuthenticated}
+              claimStudioSlug={claimStudioSlug}
             />
           );
       }

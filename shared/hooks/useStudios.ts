@@ -77,7 +77,7 @@ export function useStudioGallery(
       try {
         const response = await api.get<any>(`/studios/${studioIdOrSlug}/gallery`);
         if (mountedRef.current) {
-          const data = response?.data ?? response?.response ?? response;
+          const data = response?.gallery ?? response?.data ?? response?.response ?? response;
           setGallery(Array.isArray(data) ? data : []);
         }
       } catch (err) {

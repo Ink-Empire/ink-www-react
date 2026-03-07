@@ -206,6 +206,13 @@ export const studioService = {
     return api.get(`/studios/${studioId}/dashboard-stats`, { requiresAuth: true });
   },
 
+  // Invite studio owner to claim an unclaimed studio (requires auth)
+  inviteStudioOwner: async (studioId: number, email: string): Promise<{ success: boolean; message: string }> => {
+    return api.post(`/studios/${studioId}/invite`, { email }, {
+      requiresAuth: true,
+    });
+  },
+
   // Get all studio dashboard data in one request (requires auth)
   // Returns: studio, artists, announcements, stats, working_hours
   getDashboard: async (studioId: number): Promise<{

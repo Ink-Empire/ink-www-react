@@ -23,9 +23,11 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
+import TextField from '@mui/material/TextField';
 import { useStudio, useStudioArtists, useStudioGallery, useStudioHours } from '../../hooks/useStudios';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooModal from '@/components/TattooModal';
+import { studioService } from '@/services/studioService';
 import { colors } from '@/styles/colors';
 
 export default function StudioDetail() {
@@ -44,6 +46,10 @@ export default function StudioDetail() {
   const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteError, setInviteError] = useState('');
 
   // Check if studio is verified/claimed or if the current user owns it
   const isOwner = isAuthenticated && user && studio?.owner_id === user.id;
@@ -137,6 +143,25 @@ export default function StudioDetail() {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+    }
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteEmail || !studio) return;
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+    setInviteLoading(true);
+    setInviteError('');
+    try {
+      await studioService.inviteStudioOwner(studio.id, inviteEmail);
+      setInviteSent(true);
+      setInviteEmail('');
+    } catch (err: any) {
+      setInviteError(err.message || 'Failed to send invitation. Please try again.');
+    } finally {
+      setInviteLoading(false);
     }
   };
 
@@ -311,7 +336,7 @@ export default function StudioDetail() {
               Claim this profile to manage your studio's presence on InkedIn. Add photos, update hours, respond to reviews, and connect with clients.
             </Typography>
             <Button
-              href="/claim-studio"
+              href={`/register?userType=studio&studioSlug=${slug}`}
               sx={{
                 px: 4,
                 py: 1.25,
@@ -476,12 +501,65 @@ export default function StudioDetail() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 1,
+                mb: 3,
                 '&:hover': { borderColor: colors.accent, color: colors.accent }
               }}
             >
               <ContentCopyIcon sx={{ fontSize: 18 }} />
               {copied ? 'Copied!' : 'Copy Link'}
             </Button>
+
+            <Box sx={{ borderTop: `1px solid ${colors.border}`, pt: 3 }}>
+              <Typography sx={{ color: colors.textSecondary, mb: 2, fontSize: '0.9rem' }}>
+                Or send them an email invite to claim this studio
+              </Typography>
+              {inviteSent ? (
+                <Typography sx={{ color: colors.accent, fontWeight: 500 }}>
+                  Invitation sent successfully!
+                </Typography>
+              ) : (
+                <Box sx={{ display: 'flex', gap: 1, maxWidth: 400, mx: 'auto' }}>
+                  <TextField
+                    size="small"
+                    placeholder="owner@email.com"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    sx={{
+                      flex: 1,
+                      '& .MuiOutlinedInput-root': {
+                        color: colors.textPrimary,
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.accent },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent },
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textMuted },
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendInvite(); }}
+                  />
+                  <Button
+                    onClick={handleSendInvite}
+                    disabled={inviteLoading || !inviteEmail}
+                    sx={{
+                      px: 3,
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      '&:hover': { bgcolor: colors.accentHover || colors.accent },
+                      '&.Mui-disabled': { bgcolor: colors.border, color: colors.textMuted },
+                    }}
+                  >
+                    {inviteLoading ? 'Sending...' : 'Send Invite'}
+                  </Button>
+                </Box>
+              )}
+              {inviteError && (
+                <Typography sx={{ color: colors.error, mt: 1, fontSize: '0.85rem' }}>
+                  {inviteError}
+                </Typography>
+              )}
+            </Box>
           </Box>
         </Box>
       </Layout>

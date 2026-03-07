@@ -110,6 +110,7 @@ export function createTattooService(api: ApiClient) {
       tagged_artist_id?: number;
       style_ids?: string;
       tag_ids?: string;
+      studio_id?: number;
       attributed_artist_name?: string;
       attributed_studio_name?: string;
       attributed_location?: string;
@@ -161,6 +162,9 @@ export function createStudioService(api: ApiClient) {
 
     uploadImage: (studioId: number, imageId: number) =>
       api.post<any>(`/studios/${studioId}/image`, { image_id: imageId }, { requiresAuth: true }),
+
+    inviteStudioOwner: (studioId: number, email: string) =>
+      api.post<{ success: boolean; message: string }>(`/studios/${studioId}/invite`, { email }, { requiresAuth: true }),
   };
 }
 

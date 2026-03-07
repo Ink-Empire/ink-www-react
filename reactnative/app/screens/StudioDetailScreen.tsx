@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  TextInput,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -21,6 +22,7 @@ import ErrorView from '../components/common/ErrorView';
 import StyleTag from '../components/common/StyleTag';
 import Button from '../components/common/Button';
 import Avatar from '../components/common/Avatar';
+import { studioService } from '../../lib/services';
 
 const screenWidth = Dimensions.get('window').width;
 const GRID_PADDING = 12;
@@ -33,6 +35,59 @@ function formatHours(hours: any[]): { day: string; time: string }[] {
     day: h.day || '',
     time: h.hours || `${h.open_time} - ${h.close_time}`,
   }));
+}
+
+function StudioInviteCard({ studioId, showSnackbar }: { studioId: number; showSnackbar: (msg: string, type?: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSend = useCallback(async () => {
+    if (!email) return;
+    setLoading(true);
+    try {
+      await studioService.inviteStudioOwner(studioId, email);
+      setSent(true);
+      setEmail('');
+      showSnackbar('Invitation sent successfully');
+    } catch {
+      showSnackbar('Failed to send invitation', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [email, studioId, showSnackbar]);
+
+  return (
+    <View style={styles.inviteCard}>
+      <MaterialIcons name="storefront" size={24} color={colors.accent} />
+      <Text style={styles.inviteTitle}>Know the owner?</Text>
+      <Text style={styles.inviteDescription}>
+        Invite them to claim this studio profile.
+      </Text>
+      {sent ? (
+        <Text style={styles.inviteSuccess}>Invitation sent!</Text>
+      ) : (
+        <View style={styles.inviteForm}>
+          <TextInput
+            style={styles.inviteInput}
+            placeholder="owner@email.com"
+            placeholderTextColor={colors.textMuted}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={!loading}
+          />
+          <Button
+            title={loading ? 'Sending...' : 'Send Invite'}
+            onPress={handleSend}
+            disabled={loading || !email}
+            style={styles.inviteButton}
+          />
+        </View>
+      )}
+    </View>
+  );
 }
 
 export default function StudioDetailScreen({ navigation, route }: any) {
@@ -112,7 +167,7 @@ export default function StudioDetailScreen({ navigation, route }: any) {
 
       {/* Actions */}
       <View style={styles.actions}>
-        {s.phone && (
+        {s.phone && s.is_claimed && (
           <Button
             title="Contact"
             onPress={() => Linking.openURL(`tel:${s.phone}`)}
@@ -128,6 +183,20 @@ export default function StudioDetailScreen({ navigation, route }: any) {
           />
         )}
       </View>
+
+      {/* Unclaimed Studio Invite */}
+      {!s.is_claimed && user && (
+        <>
+          <StudioInviteCard studioId={studio.id} showSnackbar={showSnackbar} />
+          <TouchableOpacity
+            style={styles.claimLink}
+            onPress={() => Linking.openURL(`https://getinked.in/register?userType=studio&studioSlug=${slug}`)}
+          >
+            <Text style={styles.claimLinkText}>This is my studio</Text>
+            <MaterialIcons name="chevron-right" size={18} color={colors.accent} />
+          </TouchableOpacity>
+        </>
+      )}
 
       {/* About */}
       {s.about ? (
@@ -421,6 +490,64 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+
+  // Invite card
+  inviteCard: {
+    margin: 16,
+    padding: 20,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  inviteTitle: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  inviteDescription: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  inviteForm: {
+    width: '100%',
+    gap: 8,
+  },
+  inviteInput: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: colors.textPrimary,
+    fontSize: 14,
+  },
+  inviteButton: {
+    width: '100%',
+  },
+  inviteSuccess: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  claimLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginBottom: 4,
+  },
+  claimLinkText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '500',
   },
 
   // Sections

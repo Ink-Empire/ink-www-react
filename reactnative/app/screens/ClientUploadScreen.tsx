@@ -24,6 +24,7 @@ import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib
 import { clearTattooCache } from '../../lib/tattooCache';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
+import StudioAutocomplete, { StudioOption } from '../components/common/StudioAutocomplete';
 import MultiSelectPicker from '../components/common/MultiSelectPicker';
 import { useStyles, useTags } from '@inkedin/shared/hooks';
 import type { AiTagSuggestion } from '@inkedin/shared/services/tagService';
@@ -54,7 +55,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   // Artist attribution (manual mode)
   const [artistMode, setArtistMode] = useState<'search' | 'manual'>('search');
   const [attributedArtistName, setAttributedArtistName] = useState('');
-  const [attributedStudioName, setAttributedStudioName] = useState('');
+  const [selectedStudio, setSelectedStudio] = useState<StudioOption | null>(null);
   const [attributedLocation, setAttributedLocation] = useState('');
   const [attributedLocationLatLong, setAttributedLocationLatLong] = useState('');
   const [artistInviteEmail, setArtistInviteEmail] = useState('');
@@ -402,9 +403,12 @@ export default function ClientUploadScreen({ navigation }: any) {
       if (selectedTagIds.length > 0) {
         tattooData.tag_ids = JSON.stringify(selectedTagIds);
       }
+      if (selectedStudio) {
+        tattooData.studio_id = selectedStudio.id;
+        tattooData.attributed_studio_name = selectedStudio.name;
+      }
       if (artistMode === 'manual') {
         if (attributedArtistName.trim()) tattooData.attributed_artist_name = attributedArtistName.trim();
-        if (attributedStudioName.trim()) tattooData.attributed_studio_name = attributedStudioName.trim();
         if (attributedLocation.trim()) tattooData.attributed_location = attributedLocation.trim();
         if (attributedLocationLatLong) tattooData.attributed_location_lat_long = attributedLocationLatLong;
         if (artistInviteEmail.trim()) tattooData.artist_invite_email = artistInviteEmail.trim();
@@ -424,7 +428,7 @@ export default function ClientUploadScreen({ navigation }: any) {
       setSelectedArtist(null);
       setArtistMode('search');
       setAttributedArtistName('');
-      setAttributedStudioName('');
+      setSelectedStudio(null);
       setAttributedLocation('');
       setArtistInviteEmail('');
       setEmailExistsOnPlatform(false);
@@ -757,13 +761,6 @@ export default function ClientUploadScreen({ navigation }: any) {
             placeholder="Artist name"
             placeholderTextColor={colors.textMuted}
           />
-          <TextInput
-            style={s.textInput}
-            value={attributedStudioName}
-            onChangeText={setAttributedStudioName}
-            placeholder="Studio/Shop name (optional)"
-            placeholderTextColor={colors.textMuted}
-          />
           <LocationAutocomplete
             value={attributedLocation}
             onChange={(location, latLong) => {
@@ -799,7 +796,7 @@ export default function ClientUploadScreen({ navigation }: any) {
                   setArtistInviteEmail('');
                   setEmailExistsOnPlatform(false);
                   setAttributedArtistName('');
-                  setAttributedStudioName('');
+                  setSelectedStudio(null);
                   setAttributedLocation('');
                   setAttributedLocationLatLong('');
                   searchArtists(email);
@@ -818,6 +815,19 @@ export default function ClientUploadScreen({ navigation }: any) {
           ) : null}
         </View>
       )}
+
+      <Text style={s.fieldLabel}>Studio <Text style={{ fontSize: 12, fontWeight: '400', color: colors.textMuted }}>(try adding city for better results)</Text></Text>
+      <StudioAutocomplete
+        value={selectedStudio}
+        onChange={(studio) => {
+          setSelectedStudio(studio);
+          if (studio?.location && !attributedLocation.trim()) {
+            setAttributedLocation(studio.location);
+          }
+        }}
+        label=""
+        placeholder="Search for the studio"
+      />
     </ScrollView>
   );
 
@@ -890,11 +900,20 @@ export default function ClientUploadScreen({ navigation }: any) {
           <Text style={s.reviewLabel}>Attributed Artist</Text>
           <Text style={s.reviewValue}>
             {attributedArtistName.trim()}
-            {attributedStudioName.trim() ? ` at ${attributedStudioName.trim()}` : ''}
             {attributedLocation.trim() ? ` - ${attributedLocation.trim()}` : ''}
           </Text>
         </View>
       ) : null}
+
+      {selectedStudio && (
+        <View style={s.reviewSection}>
+          <Text style={s.reviewLabel}>Studio</Text>
+          <Text style={s.reviewValue}>
+            {selectedStudio.name}
+            {selectedStudio.location ? ` - ${selectedStudio.location}` : ''}
+          </Text>
+        </View>
+      )}
 
       <View style={s.visibilityInfo}>
         <MaterialIcons name="info-outline" size={16} color={colors.textMuted} />

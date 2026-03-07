@@ -25,6 +25,7 @@ import { tagService } from '@/services/tagService';
 import type { AiStyleSuggestion } from '@/services/stylesService';
 import type { AiTagSuggestion } from '@/services/tagService';
 import TagsAutocomplete, { Tag } from './TagsAutocomplete';
+import StudioAutocomplete, { StudioOption } from '@/components/StudioAutocomplete';
 
 interface ClientUploadWizardProps {
   open: boolean;
@@ -76,7 +77,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
   // Attribution mode: 'search' = search InkedIn, 'manual' = off-platform
   const [artistMode, setArtistMode] = useState<'search' | 'manual'>('search');
   const [attributedArtistName, setAttributedArtistName] = useState('');
-  const [attributedStudioName, setAttributedStudioName] = useState('');
+  const [selectedStudio, setSelectedStudio] = useState<StudioOption | null>(null);
   const [attributedLocation, setAttributedLocation] = useState('');
   const [attributedLocationLatLong, setAttributedLocationLatLong] = useState('');
   const [artistInviteEmail, setArtistInviteEmail] = useState('');
@@ -118,7 +119,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
       setSelectedArtist(null);
       setArtistMode('search');
       setAttributedArtistName('');
-      setAttributedStudioName('');
+      setSelectedStudio(null);
       setAttributedLocation('');
       setArtistInviteEmail('');
       setEmailExistsOnPlatform(false);
@@ -388,9 +389,12 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
       if (selectedTagIds.length > 0) {
         payload.tag_ids = JSON.stringify(selectedTagIds);
       }
+      if (selectedStudio) {
+        payload.studio_id = selectedStudio.id;
+        payload.attributed_studio_name = selectedStudio.name;
+      }
       if (artistMode === 'manual') {
         if (attributedArtistName.trim()) payload.attributed_artist_name = attributedArtistName.trim();
-        if (attributedStudioName.trim()) payload.attributed_studio_name = attributedStudioName.trim();
         if (attributedLocation.trim()) payload.attributed_location = attributedLocation.trim();
         if (attributedLocationLatLong) payload.attributed_location_lat_long = attributedLocationLatLong;
         if (artistInviteEmail.trim()) payload.artist_invite_email = artistInviteEmail.trim();
@@ -1075,14 +1079,6 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                       size="small"
                       sx={inputStyles.textField}
                     />
-                    <TextField
-                      value={attributedStudioName}
-                      onChange={(e) => setAttributedStudioName(e.target.value)}
-                      placeholder="Studio/Shop name (optional)"
-                      fullWidth
-                      size="small"
-                      sx={inputStyles.textField}
-                    />
                     <LocationAutocomplete
                       value={attributedLocation}
                       onChange={(location, coords) => {
@@ -1125,7 +1121,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                             setArtistInviteEmail('');
                             setEmailExistsOnPlatform(false);
                             setAttributedArtistName('');
-                            setAttributedStudioName('');
+                            setSelectedStudio(null);
                             setAttributedLocation('');
                             setAttributedLocationLatLong('');
                             setArtistQuery(email);
@@ -1153,6 +1149,23 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                     ) : null}
                   </Box>
                 )}
+              </Box>
+
+              <Box>
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: colors.textPrimary, mb: 0.75 }}>
+                  Studio <Typography component="span" sx={{ fontSize: '0.75rem', fontWeight: 400, color: colors.textMuted }}>(try adding city for better results)</Typography>
+                </Typography>
+                <StudioAutocomplete
+                  value={selectedStudio}
+                  onChange={(studio) => {
+                    setSelectedStudio(studio);
+                    if (studio?.location && !attributedLocation.trim()) {
+                      setAttributedLocation(studio.location);
+                    }
+                  }}
+                  label=""
+                  placeholder="Search for the studio"
+                />
               </Box>
 
               <Button onClick={() => setStep(2)} fullWidth sx={nextBtnSx}>
@@ -1254,7 +1267,6 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                     <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 0.5 }}>Attributed Artist</Typography>
                     <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary, fontWeight: 500 }}>
                       {attributedArtistName.trim()}
-                      {attributedStudioName.trim() && ` at ${attributedStudioName.trim()}`}
                       {attributedLocation.trim() && ` - ${attributedLocation.trim()}`}
                     </Typography>
                     {artistInviteEmail.trim() && (
@@ -1262,6 +1274,15 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                         Invitation will be sent to {artistInviteEmail.trim()}
                       </Typography>
                     )}
+                  </Box>
+                )}
+                {selectedStudio && (
+                  <Box>
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 0.5 }}>Studio</Typography>
+                    <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary, fontWeight: 500 }}>
+                      {selectedStudio.name}
+                      {selectedStudio.location && ` - ${selectedStudio.location}`}
+                    </Typography>
                   </Box>
                 )}
               </Box>

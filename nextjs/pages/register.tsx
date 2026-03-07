@@ -296,8 +296,8 @@ const RegisterPage: React.FC = () => {
     router.push('/');
   };
 
-  // Show loading while clearing previous auth state
-  if (isClearing) {
+  // Show loading while clearing previous auth state or waiting for query params
+  if (isClearing || !router.isReady) {
     return (
       <>
         <Head>
@@ -331,6 +331,8 @@ const RegisterPage: React.FC = () => {
       <OnboardingWizard
         onComplete={handleRegistrationComplete}
         onCancel={handleRegistrationCancel}
+        initialUserType={router.query.userType as 'client' | 'artist' | 'studio' | undefined}
+        claimStudioSlug={router.query.studioSlug as string | undefined}
       />
 
       {/* Loading Backdrop */}

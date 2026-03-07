@@ -116,6 +116,7 @@ export const tattooService = {
     tagged_artist_id?: number;
     style_ids?: string;
     tag_ids?: string;
+    studio_id?: number;
     attributed_artist_name?: string;
     attributed_studio_name?: string;
     attributed_location?: string;

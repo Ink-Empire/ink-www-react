@@ -259,7 +259,38 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                             }}>
                                 {tattoo.attributed_artist_name}
                             </Typography>
-                            {tattoo.attributed_studio_name && (
+                            {tattoo.studio?.name ? (
+                                tattoo.studio.slug ? (
+                                    <Link
+                                        href={`/studios/${tattoo.studio.slug}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{ textDecoration: 'none' }}
+                                    >
+                                        <Typography sx={{
+                                            fontSize: '0.8rem',
+                                            color: colors.accent,
+                                            mb: '0.1rem',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            '&:hover': { textDecoration: 'underline' },
+                                        }}>
+                                            {tattoo.studio.name}
+                                        </Typography>
+                                    </Link>
+                                ) : (
+                                    <Typography sx={{
+                                        fontSize: '0.8rem',
+                                        color: colors.textSecondary,
+                                        mb: '0.1rem',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    }}>
+                                        {tattoo.studio.name}
+                                    </Typography>
+                                )
+                            ) : tattoo.attributed_studio_name ? (
                                 <Typography sx={{
                                     fontSize: '0.8rem',
                                     color: colors.textSecondary,
@@ -270,7 +301,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                                 }}>
                                     at {tattoo.attributed_studio_name}
                                 </Typography>
-                            )}
+                            ) : null}
                             <Box sx={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
