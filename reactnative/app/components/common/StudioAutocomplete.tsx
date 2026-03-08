@@ -35,6 +35,7 @@ interface StudioAutocompleteProps {
   placeholder?: string;
   error?: string;
   location?: string;
+  onFocus?: () => void;
 }
 
 export default function StudioAutocomplete({
@@ -44,6 +45,7 @@ export default function StudioAutocomplete({
   placeholder = 'Search for your studio...',
   error,
   location,
+  onFocus,
 }: StudioAutocompleteProps) {
   const [inputValue, setInputValue] = useState(value?.name || '');
   const [options, setOptions] = useState<PlacePrediction[]>([]);
@@ -147,6 +149,7 @@ export default function StudioAutocomplete({
           onChangeText={handleChangeText}
           onFocus={() => {
             if (options.length > 0 && !value) setShowDropdown(true);
+            onFocus?.();
           }}
           onBlur={handleBlur}
           placeholder={placeholder}

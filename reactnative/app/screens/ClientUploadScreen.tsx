@@ -644,7 +644,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   );
 
   const renderStep2 = () => (
-    <ScrollView ref={detailsScrollRef} style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView ref={detailsScrollRef} style={s.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 320 }}>
       <Text style={s.stepTitle}>Details</Text>
 
       <Text style={s.fieldLabel}>Title</Text>
@@ -827,6 +827,9 @@ export default function ClientUploadScreen({ navigation }: any) {
         }}
         label=""
         placeholder="Search for the studio"
+        onFocus={() => {
+          setTimeout(() => detailsScrollRef.current?.scrollToEnd({ animated: true }), 300);
+        }}
       />
     </ScrollView>
   );
