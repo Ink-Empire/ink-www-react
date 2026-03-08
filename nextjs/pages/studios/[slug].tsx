@@ -205,11 +205,55 @@ export default function StudioDetail() {
 
   // Unclaimed/Stub Studio View
   if (!isVerified) {
+    const seoTitle = `${studio.name}${studio.city ? ` - ${studio.city}, ${studio.state}` : ''} | Tattoo Studio | InkedIn`;
+    const seoDescription = studio.about?.substring(0, 160)
+      || `${studio.name} is a tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}. View their portfolio, hours, and contact info on InkedIn.`;
+    const studioUrl = `https://getinked.in/studios/${slug}`;
+    const studioImage = studio.image?.uri || studio.primary_image?.uri || null;
+
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'TattooParlor',
+      name: studio.name,
+      ...(studioImage && { image: studioImage }),
+      url: studioUrl,
+      ...(studio.phone && { telephone: studio.phone }),
+      ...(studio.email && { email: studio.email }),
+      ...(studio.website && { sameAs: [studio.website] }),
+      ...(studio.address && {
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: studio.address,
+          addressLocality: studio.city,
+          addressRegion: studio.state,
+          postalCode: studio.postal_code,
+        },
+      }),
+      ...(studio.location_lat_long && {
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: studio.location_lat_long.split(',')[0],
+          longitude: studio.location_lat_long.split(',')[1],
+        },
+      }),
+    };
+
     return (
       <Layout>
         <Head>
-          <title>{studio.name} | InkedIn</title>
-          <meta name="description" content={`${studio.name} tattoo studio`} />
+          <title>{seoTitle}</title>
+          <meta name="description" content={seoDescription} />
+          <link rel="canonical" href={studioUrl} />
+          <meta property="og:type" content="business.business" />
+          <meta property="og:title" content={seoTitle} />
+          <meta property="og:description" content={seoDescription} />
+          <meta property="og:url" content={studioUrl} />
+          {studioImage && <meta property="og:image" content={studioImage} />}
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={seoTitle} />
+          <meta name="twitter:description" content={seoDescription} />
+          {studioImage && <meta name="twitter:image" content={studioImage} />}
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         </Head>
 
         <Box sx={{ maxWidth: 1200, mx: 'auto', py: 3 }}>
@@ -561,7 +605,141 @@ export default function StudioDetail() {
               )}
             </Box>
           </Box>
+
+          {/* Tattoo Gallery */}
+          {gallery.length > 0 && (
+            <Box sx={{
+              bgcolor: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '12px',
+              p: 3,
+              mt: 3,
+            }}>
+              <Typography sx={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: '1.75rem',
+                fontWeight: 500,
+                color: colors.textPrimary,
+                mb: 0.5,
+              }}>
+                Portfolio
+              </Typography>
+              <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary, mb: 2 }}>
+                <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{gallery.length}</Box> pieces from this studio
+              </Typography>
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
+                gap: 1.5,
+              }}>
+                {gallery.map((tattoo: any, index: number) => {
+                  const tattooStyle = tattoo.styles?.[0];
+                  const styleName = typeof tattooStyle === 'string' ? tattooStyle : tattooStyle?.name;
+
+                  return (
+                    <Box
+                      key={tattoo.id}
+                      onClick={() => handleTattooClick(tattoo.id.toString())}
+                      sx={{
+                        aspectRatio: '1',
+                        bgcolor: colors.background,
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'scale(1.02)',
+                          zIndex: 2,
+                          '& img': { transform: 'scale(1.05)' },
+                          '& .overlay': { opacity: 1 },
+                        },
+                      }}
+                    >
+                      {tattoo.primary_image?.uri ? (
+                        <Image
+                          src={tattoo.primary_image.uri}
+                          alt={tattoo.title || 'Tattoo work'}
+                          fill
+                          style={{ objectFit: 'cover', transition: 'transform 0.3s ease' }}
+                        />
+                      ) : (
+                        <Box sx={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: colors.textSecondary,
+                          fontSize: '0.8rem',
+                          background: `linear-gradient(135deg, ${colors.background} 0%, ${colors.surface} 100%)`,
+                        }}>
+                          No Image
+                        </Box>
+                      )}
+                      <Box
+                        className="overlay"
+                        sx={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(to top, rgba(15, 15, 15, 0.9) 0%, transparent 50%)',
+                          opacity: 0,
+                          transition: 'opacity 0.3s ease',
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          p: 1.5,
+                        }}
+                      >
+                        <Box>
+                          {styleName && (
+                            <Typography sx={{
+                              fontSize: '0.7rem',
+                              color: colors.accent,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              mb: 0.25,
+                            }}>
+                              {styleName}
+                            </Typography>
+                          )}
+                          <Typography sx={{
+                            fontSize: '0.9rem',
+                            fontWeight: 500,
+                            color: colors.textPrimary,
+                          }}>
+                            {tattoo.title || 'Untitled'}
+                          </Typography>
+                          {tattoo.artist_name && (
+                            <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                              by {tattoo.artist_name}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
         </Box>
+
+        {/* Tattoo Modal */}
+        <TattooModal
+          tattooId={selectedTattooId}
+          open={isTattooModalOpen}
+          onClose={() => { setIsTattooModalOpen(false); setSelectedTattooId(null); }}
+          onPrevious={gallery.length > 1 ? () => {
+            const idx = gallery.findIndex((t: any) => t.id.toString() === selectedTattooId);
+            if (idx > 0) setSelectedTattooId(gallery[idx - 1].id.toString());
+          } : undefined}
+          onNext={gallery.length > 1 ? () => {
+            const idx = gallery.findIndex((t: any) => t.id.toString() === selectedTattooId);
+            if (idx < gallery.length - 1) setSelectedTattooId(gallery[idx + 1].id.toString());
+          } : undefined}
+          hasPrevious={gallery.findIndex((t: any) => t.id.toString() === selectedTattooId) > 0}
+          hasNext={gallery.findIndex((t: any) => t.id.toString() === selectedTattooId) < gallery.length - 1}
+        />
       </Layout>
     );
   }
@@ -570,8 +748,50 @@ export default function StudioDetail() {
   return (
     <Layout>
       <Head>
-        <title>{studio.name} | InkedIn</title>
-        <meta name="description" content={studio.about?.substring(0, 160) || `${studio.name} tattoo studio`} />
+        <title>{`${studio.name}${studio.city ? ` - ${studio.city}, ${studio.state}` : ''} | Tattoo Studio | InkedIn`}</title>
+        <meta name="description" content={studio.about?.substring(0, 160) || `${studio.name} is a tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}. View their portfolio, hours, and contact info on InkedIn.`} />
+        <link rel="canonical" href={`https://getinked.in/studios/${slug}`} />
+        <meta property="og:type" content="business.business" />
+        <meta property="og:title" content={`${studio.name} | Tattoo Studio | InkedIn`} />
+        <meta property="og:description" content={studio.about?.substring(0, 160) || `${studio.name} tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}`} />
+        <meta property="og:url" content={`https://getinked.in/studios/${slug}`} />
+        {(studio.image?.uri || studio.primary_image?.uri) && <meta property="og:image" content={studio.image?.uri || studio.primary_image?.uri} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${studio.name} | Tattoo Studio | InkedIn`} />
+        <meta name="twitter:description" content={studio.about?.substring(0, 160) || `${studio.name} tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}`} />
+        {(studio.image?.uri || studio.primary_image?.uri) && <meta name="twitter:image" content={studio.image?.uri || studio.primary_image?.uri} />}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'TattooParlor',
+          name: studio.name,
+          ...(studio.about && { description: studio.about }),
+          ...((studio.image?.uri || studio.primary_image?.uri) && { image: studio.image?.uri || studio.primary_image?.uri }),
+          url: `https://getinked.in/studios/${slug}`,
+          ...(studio.phone && { telephone: studio.phone }),
+          ...(studio.email && { email: studio.email }),
+          ...(studio.website && { sameAs: [studio.website] }),
+          ...(studio.address && {
+            address: {
+              '@type': 'PostalAddress',
+              streetAddress: studio.address,
+              addressLocality: studio.city,
+              addressRegion: studio.state,
+              postalCode: studio.postal_code,
+            },
+          }),
+          ...(studio.location_lat_long && {
+            geo: {
+              '@type': 'GeoCoordinates',
+              latitude: studio.location_lat_long.split(',')[0],
+              longitude: studio.location_lat_long.split(',')[1],
+            },
+          }),
+          ...(gallery.length > 0 && { hasOfferCatalog: {
+            '@type': 'OfferCatalog',
+            name: 'Tattoo Portfolio',
+            numberOfItems: gallery.length,
+          }}),
+        }) }} />
       </Head>
 
       <Box sx={{ maxWidth: 1200, mx: 'auto', py: 3 }}>
