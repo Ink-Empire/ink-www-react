@@ -9,7 +9,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
-import { artistService } from '../../../lib/services';
+import { artistService, bulkUploadService } from '../../../lib/services';
 import { prefetchCalendarData } from '../../../lib/calendarCache';
 import Button from '../common/Button';
 
@@ -35,6 +35,7 @@ export default function ArtistOwnerDashboard({
   navigation,
 }: ArtistOwnerDashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [draftCount, setDraftCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
 
@@ -50,8 +51,12 @@ export default function ArtistOwnerDashboard({
 
   const fetchStats = async () => {
     try {
-      const response = await artistService.getDashboardStats(artistId);
-      setStats((response as any)?.data ?? null);
+      const [statsResponse, draftsResponse] = await Promise.all([
+        artistService.getDashboardStats(artistId),
+        bulkUploadService.getDraftCount().catch(() => ({ draft_count: 0 })),
+      ]);
+      setStats((statsResponse as any)?.data ?? null);
+      setDraftCount((draftsResponse as any)?.draft_count ?? 0);
     } catch (err) {
       console.error('Failed to fetch dashboard stats:', err);
     } finally {
@@ -77,6 +82,10 @@ export default function ArtistOwnerDashboard({
 
   const navigateToInbox = () => {
     navigation.navigate('InboxStack', { screen: 'Inbox' });
+  };
+
+  const navigateToDrafts = () => {
+    navigation.navigate('ProfileTab', { screen: 'Drafts' });
   };
 
   if (loading) {
@@ -109,6 +118,7 @@ export default function ArtistOwnerDashboard({
       value: stats?.unread_messages ?? 0,
       icon: 'mail' as const,
       onPress: navigateToInbox,
+      highlight: (stats?.unread_messages ?? 0) > 0,
     },
     {
       label: 'Approve Tags',
@@ -116,6 +126,17 @@ export default function ArtistOwnerDashboard({
       icon: 'check-circle' as const,
       onPress: navigateToPendingApprovals,
     },
+    ...(draftCount > 0
+      ? [
+          {
+            label: 'Drafts',
+            value: draftCount,
+            icon: 'collections' as const,
+            onPress: navigateToDrafts,
+            highlight: true,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -127,9 +148,9 @@ export default function ArtistOwnerDashboard({
         activeOpacity={0.7}
       >
         {statItems.map((item) => (
-          <View key={item.label} style={styles.chip}>
-            <MaterialIcons name={item.icon} size={18} color={colors.textMuted} />
-            <Text style={styles.chipValue}>{item.value}</Text>
+          <View key={item.label} style={[styles.chip, item.highlight && styles.chipHighlight]}>
+            <MaterialIcons name={item.icon} size={18} color={item.highlight ? colors.error : colors.textMuted} />
+            <Text style={[styles.chipValue, item.highlight && styles.chipValueHighlight]}>{item.value}</Text>
           </View>
         ))}
       </TouchableOpacity>
@@ -143,12 +164,12 @@ export default function ArtistOwnerDashboard({
               return (
                 <TouchableOpacity
                   key={item.label}
-                  style={[styles.statCard, isLastOdd && styles.statCardFull]}
+                  style={[styles.statCard, isLastOdd && styles.statCardFull, item.highlight && styles.statCardHighlight]}
                   onPress={item.onPress}
                   disabled={!item.onPress}
                   activeOpacity={item.onPress ? 0.7 : 1}
                 >
-                  <MaterialIcons name={item.icon} size={20} color={colors.accent} />
+                  <MaterialIcons name={item.icon} size={20} color={item.highlight ? colors.error : colors.accent} />
                   <Text style={styles.statValue}>{item.value}</Text>
                   <Text style={styles.statLabel}>{item.label}</Text>
                 </TouchableOpacity>
@@ -187,10 +208,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     paddingHorizontal: 16,
-    gap: 10,
+    gap: 8,
   },
   chip: {
-    flex: 1,
+    width: '30%',
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -203,6 +225,17 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 18,
     fontWeight: '700',
+  },
+  chipHighlight: {
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  chipValueHighlight: {
+    color: colors.error,
+  },
+  statCardHighlight: {
+    borderWidth: 1,
+    borderColor: colors.error,
   },
   expandedSection: {
     paddingHorizontal: 16,

@@ -533,13 +533,13 @@ export default function ItemDetailModal({
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {item.ai_suggested_tags.map((tag) => {
-                        const isApproved = approvedTagIds.includes(tag.id);
+                      {item.ai_suggested_tags.filter((tag) => tag.id != null).map((tag) => {
+                        const isApproved = approvedTagIds.includes(tag.id!);
                         return (
                           <Chip
                             key={tag.id}
                             label={tag.name}
-                            onClick={() => toggleTag(tag.id)}
+                            onClick={() => toggleTag(tag.id!)}
                             icon={isApproved ? <CheckIcon sx={{ fontSize: 16 }} /> : <AddIcon sx={{ fontSize: 16 }} />}
                             size="small"
                             sx={{

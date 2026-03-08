@@ -202,6 +202,12 @@ const TattooModal: React.FC<TattooModalProps> = ({
     return studio || location || '';
   };
 
+  // Pre-compute studio data with fallbacks (matching RN pattern)
+  const studioData = tattoo?.studio || (tattoo as any)?.artist?.studio;
+  const studioName = studioData?.name || (tattoo as any)?.studio_name;
+  const studioSlug = studioData?.slug;
+  const studioLocation = studioData?.location || (tattoo as any)?.artist_location;
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -506,9 +512,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       }}>
                         {tattoo.attributed_artist_name}
                       </Typography>
-                      {tattoo?.studio?.name ? (
-                        tattoo.studio.slug ? (
-                          <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                      {studioName ? (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
                             <Typography
                               sx={{
                                 fontSize: '0.8rem',
@@ -516,12 +522,12 @@ const TattooModal: React.FC<TattooModalProps> = ({
                                 '&:hover': { textDecoration: 'underline' }
                               }}
                             >
-                              {tattoo.studio.name}
+                              {studioName}
                             </Typography>
                           </Link>
                         ) : (
                           <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                            {tattoo.studio.name}
+                            {studioName}
                           </Typography>
                         )
                       ) : tattoo.attributed_studio_name ? (
@@ -529,9 +535,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
                           at {tattoo.attributed_studio_name}
                         </Typography>
                       ) : null}
-                      {tattoo?.studio?.location ? (
+                      {studioLocation ? (
                         <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                          {tattoo.studio.location}
+                          {studioLocation}
                         </Typography>
                       ) : tattoo.attributed_location ? (
                         <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
@@ -581,9 +587,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
                           </Typography>
                         )}
                       </Box>
-                      {tattoo?.studio?.name && (
-                        tattoo.studio.slug ? (
-                          <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                      {studioName && (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
                             <Typography
                               sx={{
                                 fontSize: '0.8rem',
@@ -591,18 +597,18 @@ const TattooModal: React.FC<TattooModalProps> = ({
                                 '&:hover': { textDecoration: 'underline' }
                               }}
                             >
-                              {tattoo.studio.name}
+                              {studioName}
                             </Typography>
                           </Link>
                         ) : (
                           <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                            {tattoo.studio.name}
+                            {studioName}
                           </Typography>
                         )
                       )}
-                      {tattoo?.studio?.location && (
+                      {studioLocation && (
                         <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                          {tattoo.studio.location}
+                          {studioLocation}
                         </Typography>
                       )}
                     </>
@@ -615,9 +621,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       }}>
                         Artist Unknown
                       </Typography>
-                      {tattoo?.studio?.name && (
-                        tattoo.studio.slug ? (
-                          <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                      {studioName && (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
                             <Typography
                               sx={{
                                 fontSize: '0.8rem',
@@ -625,18 +631,18 @@ const TattooModal: React.FC<TattooModalProps> = ({
                                 '&:hover': { textDecoration: 'underline' }
                               }}
                             >
-                              {tattoo.studio.name}
+                              {studioName}
                             </Typography>
                           </Link>
                         ) : (
                           <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                            {tattoo.studio.name}
+                            {studioName}
                           </Typography>
                         )
                       )}
-                      {tattoo?.studio?.location && (
+                      {studioLocation && (
                         <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                          {tattoo.studio.location}
+                          {studioLocation}
                         </Typography>
                       )}
                     </>

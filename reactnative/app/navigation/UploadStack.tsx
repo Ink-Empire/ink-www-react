@@ -4,6 +4,7 @@ import { colors } from '../../lib/colors';
 import { useAuth } from '../contexts/AuthContext';
 import UploadScreen from '../screens/UploadScreen';
 import ClientUploadScreen from '../screens/ClientUploadScreen';
+import BulkUploadConfirmScreen from '../screens/BulkUploadConfirmScreen';
 import type { UploadStackParamList } from './types';
 
 const Stack = createStackNavigator<UploadStackParamList>();
@@ -25,6 +26,7 @@ export default function UploadStack() {
       ) : (
         <Stack.Screen name="ClientUpload" component={ClientUploadScreen} options={{ title: 'Share Your Tattoo' }} />
       )}
+      <Stack.Screen name="BulkUploadConfirm" component={BulkUploadConfirmScreen} options={{ title: '' }} />
     </Stack.Navigator>
   );
 }

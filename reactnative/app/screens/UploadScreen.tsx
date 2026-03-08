@@ -151,6 +151,32 @@ export default function UploadScreen({ navigation }: any) {
     }
   }, [images.length, showSnackbar]);
 
+  const handleBulkUpload = useCallback(async () => {
+    try {
+      const results = await ImageCropPicker.openPicker({
+        mediaType: 'photo',
+        multiple: true,
+        maxFiles: 50,
+        compressImageQuality: 0.8,
+        forceJpg: true,
+      });
+
+      if (results.length === 0) return;
+
+      const selectedImages = results.map((img, index) => ({
+        uri: img.path,
+        type: img.mime || 'image/jpeg',
+        name: img.filename || `bulk_${Date.now()}_${index}.jpg`,
+      }));
+
+      navigation.navigate('BulkUploadConfirm', { images: selectedImages });
+    } catch (err: any) {
+      if (err?.code === 'E_PICKER_CANCELLED') return;
+      console.error('Bulk picker error:', err);
+      showSnackbar('Unable to open photo library. Please try again.', 'error');
+    }
+  }, [navigation, showSnackbar]);
+
   const handleRemoveImage = useCallback((index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
   }, []);
@@ -445,6 +471,12 @@ export default function UploadScreen({ navigation }: any) {
           <Text style={styles.imageActionText}>Take Photo</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity style={styles.bulkUploadBtn} onPress={handleBulkUpload}>
+        <MaterialIcons name="collections" size={22} color={colors.accent} />
+        <Text style={styles.bulkUploadText}>Bulk Upload from Album</Text>
+        <Text style={styles.bulkUploadSubtext}>Upload up to 50 photos at once</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 
@@ -964,6 +996,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 8,
     fontWeight: '600',
+  },
+  bulkUploadBtn: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    gap: 4,
+  },
+  bulkUploadText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  bulkUploadSubtext: {
+    color: colors.textMuted,
+    fontSize: 12,
   },
 
   // Form fields

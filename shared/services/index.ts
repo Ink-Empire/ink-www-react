@@ -328,6 +328,13 @@ export function createClientService(api: ApiClient) {
 }
 
 // =============================================================================
+// Bulk Upload Service
+// =============================================================================
+
+export { createBulkUploadService } from './bulkUploadService';
+export type { BulkUpload, BulkUploadItem, BulkUploadItemsResponse } from './bulkUploadService';
+
+// =============================================================================
 // Export types
 // =============================================================================
 
@@ -342,3 +349,4 @@ export type AppointmentService = ReturnType<typeof createAppointmentService>;
 export type TagService = ReturnType<typeof createTagService>;
 export type ClientService = ReturnType<typeof createClientService>;
 export type UserProfileService = ReturnType<typeof createUserProfileService>;
+export type BulkUploadService = ReturnType<typeof createBulkUploadService>;
