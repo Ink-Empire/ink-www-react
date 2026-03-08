@@ -75,24 +75,30 @@ export async function uploadImagesToS3(
   };
 
   try {
-    // Step 1: Get presigned URLs for all files
+    // Step 1: Get presigned URLs (batched in groups of 10 to respect API limit)
     updateProgress({ status: 'getting-urls', current: 'Getting upload URLs...' });
 
-    const filesData = files.map(file => ({
-      content_type: file.type || 'image/jpeg',
-    }));
+    const PRESIGN_BATCH_SIZE = 10;
+    const uploads: PresignedUrlsResponse['data']['uploads'] = [];
 
-    const presignedResponse = await api.post<PresignedUrlsResponse>(
-      '/uploads/presign-batch',
-      { files: filesData, purpose },
-      { requiresAuth: true }
-    );
+    for (let i = 0; i < files.length; i += PRESIGN_BATCH_SIZE) {
+      const batch = files.slice(i, i + PRESIGN_BATCH_SIZE);
+      const filesData = batch.map(file => ({
+        content_type: file.type || 'image/jpeg',
+      }));
 
-    if (!presignedResponse.success || !presignedResponse.data?.uploads) {
-      throw new Error('Failed to get upload URLs');
+      const presignedResponse = await api.post<PresignedUrlsResponse>(
+        '/uploads/presign-batch',
+        { files: filesData, purpose },
+        { requiresAuth: true }
+      );
+
+      if (!presignedResponse.success || !presignedResponse.data?.uploads) {
+        throw new Error('Failed to get upload URLs');
+      }
+
+      uploads.push(...presignedResponse.data.uploads);
     }
-
-    const uploads = presignedResponse.data.uploads;
 
     // Step 2: Upload each file directly to S3 in parallel
     updateProgress({ status: 'uploading', completed: 0, current: 'Uploading images...' });
