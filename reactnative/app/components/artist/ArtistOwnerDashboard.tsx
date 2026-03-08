@@ -37,7 +37,6 @@ export default function ArtistOwnerDashboard({
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [draftCount, setDraftCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     prefetchCalendarData(artistId, artistSlug);
@@ -141,43 +140,23 @@ export default function ArtistOwnerDashboard({
 
   return (
     <View style={styles.container}>
-      {/* Collapsed: Compact stat chips row */}
-      <TouchableOpacity
-        style={styles.chipRow}
-        onPress={() => setExpanded(!expanded)}
-        activeOpacity={0.7}
-      >
-        {statItems.map((item) => (
-          <View key={item.label} style={[styles.chip, item.highlight && styles.chipHighlight]}>
-            <MaterialIcons name={item.icon} size={18} color={item.highlight ? colors.error : colors.textMuted} />
-            <Text style={[styles.chipValue, item.highlight && styles.chipValueHighlight]}>{item.value}</Text>
-          </View>
-        ))}
-      </TouchableOpacity>
-
-      {/* Expanded: Full stats grid */}
-      {expanded && (
-        <View style={styles.expandedSection}>
-          <View style={styles.statsGrid}>
-            {statItems.map((item, index) => {
-              const isLastOdd = statItems.length % 2 === 1 && index === statItems.length - 1;
-              return (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[styles.statCard, isLastOdd && styles.statCardFull, item.highlight && styles.statCardHighlight]}
-                  onPress={item.onPress}
-                  disabled={!item.onPress}
-                  activeOpacity={item.onPress ? 0.7 : 1}
-                >
-                  <MaterialIcons name={item.icon} size={20} color={item.highlight ? colors.error : colors.accent} />
-                  <Text style={styles.statValue}>{item.value}</Text>
-                  <Text style={styles.statLabel}>{item.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      )}
+      <View style={styles.statsGrid}>
+        {statItems.map((item, index) => {
+          const isLastOdd = statItems.length % 2 === 1 && index === statItems.length - 1;
+          return (
+            <TouchableOpacity
+              key={item.label}
+              style={[styles.statCard, isLastOdd && styles.statCardFull, item.highlight && styles.statCardHighlight]}
+              onPress={item.onPress}
+              disabled={!item.onPress}
+              activeOpacity={item.onPress ? 0.7 : 1}
+            >
+              <MaterialIcons name={item.icon} size={18} color={item.highlight ? colors.error : colors.accent} />
+              <Text style={[styles.statCardLabel, item.highlight && styles.statCardLabelHighlight]}>{item.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {/* Action buttons */}
       <View style={styles.actions}>
@@ -203,45 +182,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  chip: {
-    width: '30%',
-    flexGrow: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 10,
-    paddingVertical: 12,
-    gap: 6,
-  },
-  chipValue: {
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  chipHighlight: {
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  chipValueHighlight: {
-    color: colors.error,
-  },
   statCardHighlight: {
     borderWidth: 1,
     borderColor: colors.error,
   },
-  expandedSection: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
   statsGrid: {
+    paddingHorizontal: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
@@ -253,21 +199,20 @@ const styles = StyleSheet.create({
     width: '48%',
     backgroundColor: colors.surfaceElevated,
     borderRadius: 10,
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 8,
   },
-  statValue: {
+  statCardLabel: {
     color: colors.textPrimary,
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  statLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  statCardLabelHighlight: {
+    color: colors.error,
   },
   actions: {
     flexDirection: 'row',

@@ -90,7 +90,7 @@ export const bulkUploadService = {
   getItems: async (
     uploadId: number,
     options: {
-      filter?: 'all' | 'unprocessed' | 'processed' | 'ready' | 'published' | 'skipped';
+      filter?: 'all' | 'unprocessed' | 'processed' | 'unpublished' | 'ready' | 'published' | 'skipped';
       page?: number;
       perPage?: number;
       primaryOnly?: boolean;
@@ -121,6 +121,7 @@ export const bulkUploadService = {
       approved_tag_ids?: number[];
       is_skipped?: boolean;
       apply_to_group?: boolean;
+      image_id?: number;
     }
   ): Promise<BulkUploadItem> => {
     const response = await api.put<{ data: BulkUploadItem }>(

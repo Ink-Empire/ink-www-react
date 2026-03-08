@@ -82,7 +82,7 @@ export function createBulkUploadService(api: ApiClient) {
     getItems: (
       uploadId: number,
       options: {
-        filter?: 'all' | 'unprocessed' | 'processed' | 'ready' | 'published' | 'skipped';
+        filter?: 'all' | 'unprocessed' | 'processed' | 'unpublished' | 'ready' | 'published' | 'skipped';
         page?: number;
         perPage?: number;
         primaryOnly?: boolean;
@@ -112,6 +112,7 @@ export function createBulkUploadService(api: ApiClient) {
         approved_tag_ids?: number[];
         is_skipped?: boolean;
         apply_to_group?: boolean;
+        image_id?: number;
       }
     ) =>
       api.put<{ data: BulkUploadItem }>(

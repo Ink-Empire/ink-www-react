@@ -14,10 +14,12 @@ import {
   SafeAreaView,
   TextInput,
 } from 'react-native';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { bulkUploadService, tagService } from '../../lib/services';
+import { uploadImagesToS3, type ImageFile } from '../../lib/s3Upload';
 import { useStyles, useTags, usePlacements } from '@inkedin/shared/hooks';
 import MultiSelectPicker from '../components/common/MultiSelectPicker';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -63,15 +65,12 @@ export default function DraftsScreen({ navigation }: any) {
       const allItems: BulkUploadItem[] = [];
       for (const upload of activeUploads) {
         const itemsResponse = await bulkUploadService.getItems(upload.id, {
-          filter: 'processed',
+          filter: 'unpublished',
           primaryOnly: true,
           perPage: 100,
         });
         const itemData = (itemsResponse as any)?.data ?? [];
-        const unpublished = itemData.filter(
-          (item: BulkUploadItem) => !item.is_published && !item.is_skipped,
-        );
-        allItems.push(...unpublished);
+        allItems.push(...itemData);
       }
       setItems(allItems);
     } catch (err) {
@@ -164,6 +163,47 @@ export default function DraftsScreen({ navigation }: any) {
     }
     return null;
   }, [showSnackbar]);
+
+  const handleCropImage = useCallback(async () => {
+    if (!selectedItem?.thumbnail_url) return;
+    try {
+      const cropped = await ImageCropPicker.openCropper({
+        path: selectedItem.thumbnail_url,
+        freeStyleCropEnabled: true,
+        compressImageQuality: 0.8,
+        forceJpg: true,
+      });
+
+      const imageFile: ImageFile = {
+        uri: cropped.path,
+        type: cropped.mime || 'image/jpeg',
+        name: cropped.filename || `cropped_${Date.now()}.jpg`,
+      };
+
+      const uploaded = await uploadImagesToS3(api, [imageFile], 'tattoo');
+      const newImageId = uploaded[0].id;
+      const newUri = uploaded[0].uri;
+
+      await bulkUploadService.updateItem(selectedItem.bulk_upload_id, selectedItem.id, {
+        image_id: newImageId,
+      });
+
+      setItems(prev =>
+        prev.map(item =>
+          item.id === selectedItem.id
+            ? { ...item, image_id: newImageId, thumbnail_url: newUri }
+            : item,
+        ),
+      );
+      setSelectedItem(prev => prev ? { ...prev, image_id: newImageId, thumbnail_url: newUri } : null);
+      showSnackbar('Image updated');
+    } catch (err: any) {
+      if (err?.code !== 'E_PICKER_CANCELLED') {
+        console.error('Crop error:', err);
+        showSnackbar('Failed to update image', 'error');
+      }
+    }
+  }, [selectedItem, showSnackbar]);
 
   const handlePublishAll = useCallback(async () => {
     const readyUploads = uploads.filter(u => u.can_publish);
@@ -349,11 +389,20 @@ export default function DraftsScreen({ navigation }: any) {
 
             <ScrollView style={modalStyles.body} keyboardShouldPersistTaps="handled">
               {selectedItem.thumbnail_url && (
-                <Image
-                  source={{ uri: selectedItem.thumbnail_url }}
-                  style={modalStyles.previewImage}
-                  resizeMode="contain"
-                />
+                <View style={modalStyles.previewContainer}>
+                  <Image
+                    source={{ uri: selectedItem.thumbnail_url }}
+                    style={modalStyles.previewImage}
+                    resizeMode="contain"
+                  />
+                  <TouchableOpacity
+                    style={modalStyles.cropBtn}
+                    onPress={handleCropImage}
+                  >
+                    <MaterialIcons name="crop-rotate" size={18} color={colors.textPrimary} />
+                    <Text style={modalStyles.cropBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {/* AI Suggested Styles */}
@@ -721,12 +770,32 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  previewContainer: {
+    position: 'relative',
+    marginBottom: 20,
+  },
   previewImage: {
     width: '100%',
     height: 250,
     borderRadius: 10,
     backgroundColor: colors.surfaceElevated,
-    marginBottom: 20,
+  },
+  cropBtn: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  cropBtnText: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 20,

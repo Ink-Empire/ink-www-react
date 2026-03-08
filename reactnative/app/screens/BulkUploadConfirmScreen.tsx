@@ -31,6 +31,8 @@ export default function BulkUploadConfirmScreen({ route, navigation }: Props) {
   const { images } = route.params;
   const [aiTag, setAiTag] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  const [uploadedCount, setUploadedCount] = useState(0);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const { showSnackbar } = useSnackbar();
 
@@ -49,13 +51,8 @@ export default function BulkUploadConfirmScreen({ route, navigation }: Props) {
 
       await bulkUploadService.uploadAlbum(imageIds, aiTag);
 
-      showSnackbar(
-        aiTag
-          ? `Uploading ${images.length} photos — we'll notify you when ready`
-          : `${images.length} photos uploaded and ready to review`,
-      );
-
-      navigation.goBack();
+      setUploadedCount(images.length);
+      setUploadComplete(true);
     } catch (err: any) {
       console.error('Bulk upload error:', err);
       showSnackbar(err?.message || 'Upload failed. Please try again.', 'error');
@@ -65,9 +62,36 @@ export default function BulkUploadConfirmScreen({ route, navigation }: Props) {
     }
   }, [images, aiTag, navigation, showSnackbar]);
 
+  const navigateToDrafts = useCallback(() => {
+    navigation.getParent()?.navigate('ProfileTab', { screen: 'Drafts' });
+  }, [navigation]);
+
   const progressText = uploadProgress
     ? uploadProgress.current || `${uploadProgress.completed}/${uploadProgress.total}`
     : '';
+
+  if (uploadComplete) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.successContainer}>
+          <MaterialIcons name="check-circle" size={64} color={colors.success} />
+          <Text style={styles.successTitle}>{uploadedCount} photos uploaded</Text>
+          <Text style={styles.successSubtext}>
+            {aiTag
+              ? "We're analyzing your photos for style and tag suggestions. We'll notify you when they're ready to review."
+              : 'Your photos are ready to review. Add details like style and placement, then publish to your portfolio.'}
+          </Text>
+          <TouchableOpacity style={styles.viewDraftsBtn} onPress={navigateToDrafts}>
+            <Text style={styles.viewDraftsBtnText}>View Drafts</Text>
+            <MaterialIcons name="arrow-forward" size={18} color={colors.background} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.doneBtnText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -224,5 +248,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    gap: 12,
+  },
+  successTitle: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  successSubtext: {
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  viewDraftsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 10,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  viewDraftsBtnText: {
+    color: colors.background,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  doneBtn: {
+    paddingVertical: 12,
+  },
+  doneBtnText: {
+    color: colors.textMuted,
+    fontSize: 15,
   },
 });
