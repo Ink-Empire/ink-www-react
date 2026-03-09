@@ -11,11 +11,14 @@ export interface UseArtistsOptions {
 export interface UseArtistsResult {
   artists: Artist[];
   loading: boolean;
+  loadingMore: boolean;
   error: Error | null;
+  hasMore: boolean;
+  loadMore: () => void;
   refetch: () => Promise<void>;
 }
 
-// Hook for fetching artists list with search/filter
+// Hook for fetching artists list with search/filter and pagination
 export function useArtists(
   api: ApiClient,
   searchParams?: SearchFilters,
@@ -25,21 +28,39 @@ export function useArtists(
 
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(!skip);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const mountedRef = useRef(true);
 
   // Stringify params for dependency comparison
   const searchParamsKey = JSON.stringify(searchParams || {});
+  const prevSearchParamsKey = useRef(searchParamsKey);
 
-  const fetchArtists = useCallback(async () => {
+  // Reset pagination when search params change
+  useEffect(() => {
+    if (prevSearchParamsKey.current !== searchParamsKey) {
+      setPage(1);
+      setArtists([]);
+      setHasMore(false);
+      prevSearchParamsKey.current = searchParamsKey;
+    }
+  }, [searchParamsKey]);
+
+  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
     if (skip) return;
 
-    setLoading(true);
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     try {
       // Convert locationCoords if needed
-      const requestBody = { ...searchParams };
+      const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
       if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
         const coords = requestBody.locationCoords as any;
         requestBody.locationCoords = `${coords.lat || coords.latitude},${coords.lng || coords.longitude}`;
@@ -50,9 +71,10 @@ export function useArtists(
       });
 
       if (mountedRef.current) {
-        // API returns { response: [...], total, has_more } or a plain array
         const data = response?.response ?? response;
-        setArtists(Array.isArray(data) ? data : []);
+        const items = Array.isArray(data) ? data : [];
+        setArtists(prev => append ? [...prev, ...items] : items);
+        setHasMore(response?.has_more ?? false);
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -61,20 +83,37 @@ export function useArtists(
     } finally {
       if (mountedRef.current) {
         setLoading(false);
+        setLoadingMore(false);
       }
     }
   }, [api, searchParamsKey, skip]);
 
+  // Fetch page 1 on mount or when params change
   useEffect(() => {
     mountedRef.current = true;
-    fetchArtists();
+    setPage(1);
+    fetchPage(1, false);
 
     return () => {
       mountedRef.current = false;
     };
-  }, [fetchArtists]);
+  }, [fetchPage]);
 
-  return { artists, loading, error, refetch: fetchArtists };
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchPage(nextPage, true);
+    }
+  }, [loadingMore, hasMore, page, fetchPage]);
+
+  const refetch = useCallback(async () => {
+    setPage(1);
+    setArtists([]);
+    await fetchPage(1, false);
+  }, [fetchPage]);
+
+  return { artists, loading, loadingMore, error, hasMore, loadMore, refetch };
 }
 
 // Hook for fetching a single artist

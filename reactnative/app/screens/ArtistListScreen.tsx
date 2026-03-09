@@ -50,7 +50,7 @@ export default function ArtistListScreen({ navigation, route }: any) {
     useAnyLocation: filters.useAnyLocation,
   };
 
-  const { artists, loading, refetch } = useArtists(api, searchParams as any);
+  const { artists, loading, loadingMore, hasMore, loadMore, refetch } = useArtists(api, searchParams as any);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -172,6 +172,11 @@ export default function ArtistListScreen({ navigation, route }: any) {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
+          onEndReached={() => { if (hasMore && !loadingMore) loadMore(); }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={loadingMore ? (
+            <ActivityIndicator color={colors.accent} style={{ paddingVertical: 16 }} />
+          ) : null}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }

@@ -11,12 +11,15 @@ export interface UseTattoosOptions {
 export interface UseTattoosResult {
   tattoos: Tattoo[];
   loading: boolean;
+  loadingMore: boolean;
   error: Error | null;
+  hasMore: boolean;
+  loadMore: () => void;
   refetch: () => Promise<void>;
   removeTattoo: (id: number) => void;
 }
 
-// Hook for fetching tattoos list with search/filter
+// Hook for fetching tattoos list with search/filter and pagination
 export function useTattoos(
   api: ApiClient,
   searchParams?: SearchFilters,
@@ -26,21 +29,39 @@ export function useTattoos(
 
   const [tattoos, setTattoos] = useState<Tattoo[]>([]);
   const [loading, setLoading] = useState(!skip);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const mountedRef = useRef(true);
 
   // Stringify params for dependency comparison
   const searchParamsKey = JSON.stringify(searchParams || {});
+  const prevSearchParamsKey = useRef(searchParamsKey);
 
-  const fetchTattoos = useCallback(async () => {
+  // Reset pagination when search params change
+  useEffect(() => {
+    if (prevSearchParamsKey.current !== searchParamsKey) {
+      setPage(1);
+      setTattoos([]);
+      setHasMore(false);
+      prevSearchParamsKey.current = searchParamsKey;
+    }
+  }, [searchParamsKey]);
+
+  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
     if (skip) return;
 
-    setLoading(true);
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     try {
       // Convert locationCoords if needed
-      const requestBody = { ...searchParams };
+      const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
       if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
         const coords = requestBody.locationCoords as any;
         requestBody.locationCoords = `${coords.lat || coords.latitude},${coords.lng || coords.longitude}`;
@@ -49,9 +70,10 @@ export function useTattoos(
       const response = await api.post<any>('/tattoos', requestBody);
 
       if (mountedRef.current) {
-        // API returns { response: [...], total, has_more } or a plain array
         const data = response?.response ?? response;
-        setTattoos(Array.isArray(data) ? data : []);
+        const items = Array.isArray(data) ? data : [];
+        setTattoos(prev => append ? [...prev, ...items] : items);
+        setHasMore(response?.has_more ?? false);
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -60,24 +82,41 @@ export function useTattoos(
     } finally {
       if (mountedRef.current) {
         setLoading(false);
+        setLoadingMore(false);
       }
     }
   }, [api, searchParamsKey, skip]);
 
+  // Fetch page 1 on mount or when params change
   useEffect(() => {
     mountedRef.current = true;
-    fetchTattoos();
+    setPage(1);
+    fetchPage(1, false);
 
     return () => {
       mountedRef.current = false;
     };
-  }, [fetchTattoos]);
+  }, [fetchPage]);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchPage(nextPage, true);
+    }
+  }, [loadingMore, hasMore, page, fetchPage]);
+
+  const refetch = useCallback(async () => {
+    setPage(1);
+    setTattoos([]);
+    await fetchPage(1, false);
+  }, [fetchPage]);
 
   const removeTattoo = useCallback((id: number) => {
     setTattoos(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  return { tattoos, loading, error, refetch: fetchTattoos, removeTattoo };
+  return { tattoos, loading, loadingMore, error, hasMore, loadMore, refetch, removeTattoo };
 }
 
 // Hook for fetching a single tattoo

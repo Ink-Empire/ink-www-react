@@ -67,7 +67,7 @@ export default function HomeScreen({ navigation, route }: any) {
     });
   }, []);
 
-  const { tattoos, loading, refetch, removeTattoo } = useTattoos(api, searchParams as any);
+  const { tattoos, loading, loadingMore, hasMore, loadMore, refetch, removeTattoo } = useTattoos(api, searchParams as any);
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
 
@@ -148,6 +148,11 @@ export default function HomeScreen({ navigation, route }: any) {
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
+          onEndReached={() => { if (hasMore && !loadingMore) loadMore(); }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={loadingMore ? (
+            <ActivityIndicator color={colors.accent} style={{ paddingVertical: 16 }} />
+          ) : null}
         />
       )}
 
