@@ -134,22 +134,30 @@ export async function uploadImagesToS3(
 
     const filenames = await Promise.all(uploadPromises);
 
-    // Step 3: Confirm uploads and create Image records
+    // Step 3: Confirm uploads and create Image records (batched in groups of 10)
     updateProgress({ status: 'confirming', current: 'Saving...' });
 
-    const confirmResponse = await api.post<ConfirmUploadsResponse>(
-      '/uploads/confirm',
-      { filenames },
-      { requiresAuth: true },
-    );
+    const allImages: ConfirmUploadsResponse['data']['images'] = [];
 
-    if (!confirmResponse.success || !confirmResponse.data?.images) {
-      throw new Error('Failed to confirm uploads');
+    for (let i = 0; i < filenames.length; i += PRESIGN_BATCH_SIZE) {
+      const batch = filenames.slice(i, i + PRESIGN_BATCH_SIZE);
+
+      const confirmResponse = await api.post<ConfirmUploadsResponse>(
+        '/uploads/confirm',
+        { filenames: batch },
+        { requiresAuth: true },
+      );
+
+      if (!confirmResponse.success || !confirmResponse.data?.images) {
+        throw new Error('Failed to confirm uploads');
+      }
+
+      allImages.push(...confirmResponse.data.images);
     }
 
     updateProgress({ status: 'complete', completed: files.length, current: 'Upload complete!' });
 
-    return confirmResponse.data.images;
+    return allImages;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Upload failed';
     updateProgress({ status: 'error', error: errorMessage });
