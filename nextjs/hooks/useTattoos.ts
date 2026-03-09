@@ -67,7 +67,7 @@ export function useTattoos(searchParams?: Record<string, any>, blockedUserIds?: 
 
   // Build request body from search params
   const buildRequestBody = useCallback((pageNum: number) => {
-    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
+    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
     if (requestBody.locationCoordsString) {
       requestBody.locationCoords = requestBody.locationCoordsString;
       delete requestBody.locationCoordsString;

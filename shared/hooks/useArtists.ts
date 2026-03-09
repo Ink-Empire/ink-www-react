@@ -147,7 +147,7 @@ export function useArtistPortfolio(
       setPortfolio(initialData);
       setLoading(false);
       initialDataUsedRef.current = true;
-      setHasMore(initialData.length >= 25);
+      setHasMore(initialData.length >= 50);
     }
   }, [initialData]);
 
@@ -162,7 +162,7 @@ export function useArtistPortfolio(
     setError(null);
 
     try {
-      const response = await api.get<any>(`/artists/${artistIdOrSlug}/portfolio?page=${pageNum}&per_page=25`);
+      const response = await api.get<any>(`/artists/${artistIdOrSlug}/portfolio?page=${pageNum}&per_page=50`);
       if (mountedRef.current) {
         const data = response?.response ?? response;
         const items = Array.isArray(data) ? data : [];

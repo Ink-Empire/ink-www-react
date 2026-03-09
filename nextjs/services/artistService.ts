@@ -42,7 +42,7 @@ export const artistService = {
   },
 
   // Get artist's portfolio with pagination (public access)
-  getPortfolio: async (artistIdOrSlug: number | string, page: number = 1, perPage: number = 25): Promise<any> => {
+  getPortfolio: async (artistIdOrSlug: number | string, page: number = 1, perPage: number = 50): Promise<any> => {
     return api.get<any>(`/artists/${artistIdOrSlug}/portfolio?page=${page}&per_page=${perPage}`);
   },
   

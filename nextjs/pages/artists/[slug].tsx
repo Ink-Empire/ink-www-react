@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -33,7 +33,7 @@ export default function ArtistDetail() {
     const { slug } = router.query;
     const slugString = typeof slug === 'string' ? slug : null;
     const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString);
-    const { portfolio, loading: portfolioLoading, refetch: fetchPortfolio } = useArtistPortfolio(slugString, artist?.tattoos);
+    const { portfolio, loading: portfolioLoading, hasMore, loadMore, refetch: fetchPortfolio } = useArtistPortfolio(slugString, artist?.tattoos);
     const { user, isAuthenticated } = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
@@ -47,6 +47,25 @@ export default function ArtistDetail() {
     const [loginModalOpen, setLoginModalOpen] = useState(false);
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
+
+    // Infinite scroll sentinel for portfolio grid
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        if (!hasMore) return;
+        const sentinel = loadMoreRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMore();
+                }
+            },
+            { rootMargin: '200px' }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMore, loadMore]);
 
     // Booking info edit state
     const [isEditingBookingInfo, setIsEditingBookingInfo] = useState(false);
@@ -644,6 +663,7 @@ export default function ArtistDetail() {
 
                             {/* Portfolio Grid */}
                             {filteredPortfolio.length > 0 ? (
+                                <>
                                 <Box sx={{
                                     display: 'grid',
                                     gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
@@ -760,6 +780,12 @@ export default function ArtistDetail() {
                                         );
                                     })}
                                 </Box>
+                                {hasMore && (
+                                    <Box ref={loadMoreRef} sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                                        <CircularProgress size={24} sx={{ color: colors.accent }} />
+                                    </Box>
+                                )}
+                                </>
                             ) : (
                                 <Box sx={{ textAlign: 'center', py: 6 }}>
                                     <Typography sx={{ color: colors.textSecondary }}>No portfolio items found.</Typography>

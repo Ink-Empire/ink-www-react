@@ -42,7 +42,7 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
 
   // Build request body from search params
   const buildRequestBody = useCallback((pageNum: number) => {
-    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
+    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
     if (requestBody.locationCoordsString) {
       requestBody.locationCoords = requestBody.locationCoordsString;
       delete requestBody.locationCoordsString;
@@ -214,8 +214,7 @@ export function useArtistPortfolio(artistIdOrSlug: string | null, initialData?: 
       setPortfolio(initialData);
       setLoading(false);
       initialDataUsedRef.current = true;
-      // If we got a full page (25), there's likely more
-      setHasMore(initialData.length >= 25);
+      setHasMore(initialData.length >= 50);
     }
   }, [initialData]);
 
