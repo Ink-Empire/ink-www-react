@@ -34,6 +34,7 @@ export function useTattoos(
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const mountedRef = useRef(true);
+  const fetchingRef = useRef(false);
 
   // Stringify params for dependency comparison
   const searchParamsKey = JSON.stringify(searchParams || {});
@@ -51,6 +52,8 @@ export function useTattoos(
 
   const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
     if (skip) return;
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
 
     if (append) {
       setLoadingMore(true);
@@ -67,12 +70,14 @@ export function useTattoos(
         requestBody.locationCoords = `${coords.lat || coords.latitude},${coords.lng || coords.longitude}`;
       }
 
-      const response = await api.post<any>('/tattoos', requestBody);
+      const response = await api.post<any>('/tattoos', requestBody, {
+        headers: { 'X-Account-Type': 'user' },
+      });
 
       if (mountedRef.current) {
         const data = response?.response ?? response;
         const items = Array.isArray(data) ? data : [];
-        setTattoos(prev => append ? [...prev, ...items] : items);
+        setTattoos((prev: Tattoo[]) => append ? [...prev, ...items] : items);
         setHasMore(response?.has_more ?? false);
       }
     } catch (err) {
@@ -80,6 +85,7 @@ export function useTattoos(
         setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
       }
     } finally {
+      fetchingRef.current = false;
       if (mountedRef.current) {
         setLoading(false);
         setLoadingMore(false);
@@ -113,7 +119,7 @@ export function useTattoos(
   }, [fetchPage]);
 
   const removeTattoo = useCallback((id: number) => {
-    setTattoos(prev => prev.filter(t => t.id !== id));
+    setTattoos((prev: Tattoo[]) => prev.filter((t: Tattoo) => t.id !== id));
   }, []);
 
   return { tattoos, loading, loadingMore, error, hasMore, loadMore, refetch, removeTattoo };

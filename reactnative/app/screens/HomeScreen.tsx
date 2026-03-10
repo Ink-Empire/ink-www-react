@@ -148,7 +148,7 @@ export default function HomeScreen({ navigation, route }: any) {
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
-          onEndReached={() => { if (hasMore && !loadingMore) loadMore(); }}
+          onEndReached={() => { if (!loading && hasMore && !loadingMore) loadMore(); }}
           onEndReachedThreshold={0.3}
           ListFooterComponent={loadingMore ? (
             <ActivityIndicator color={colors.accent} style={{ paddingVertical: 16 }} />
