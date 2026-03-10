@@ -30,7 +30,7 @@ const GRID_COLUMNS = 3;
 const GRID_GAP = 4;
 const THUMB_SIZE = (screenWidth - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
-export default function DraftsScreen({ navigation }: any) {
+export default function DraftsScreen({ navigation, route }: any) {
   const [uploads, setUploads] = useState<BulkUpload[]>([]);
   const [items, setItems] = useState<BulkUploadItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -218,8 +218,12 @@ export default function DraftsScreen({ navigation }: any) {
         await bulkUploadService.publish(upload.id);
       }
       showSnackbar('Publishing drafts...');
-      // Optimistically remove ready items since publish job is async
-      setItems(prev => prev.filter(item => !item.is_ready_for_publish));
+      const remaining = items.filter(item => !item.is_ready_for_publish);
+      if (remaining.length === 0) {
+        navigation.goBack();
+      } else {
+        setItems(remaining);
+      }
     } catch (err) {
       console.error('Failed to publish:', err);
       showSnackbar('Failed to publish', 'error');
@@ -240,11 +244,18 @@ export default function DraftsScreen({ navigation }: any) {
           onPress: async () => {
             setPublishing(true);
             try {
-              for (const upload of uploads) {
-                await bulkUploadService.publishAll(upload.id);
+              const results = await Promise.allSettled(
+                uploads.map(upload => bulkUploadService.publishAll(upload.id)),
+              );
+              const anyPublished = results.some(
+                r => r.status === 'fulfilled' && (r.value as any)?.count > 0,
+              );
+              if (anyPublished) {
+                showSnackbar('Publishing all drafts...');
+                navigation.goBack();
+              } else {
+                showSnackbar('No drafts to publish');
               }
-              showSnackbar('Publishing all drafts...');
-              setItems([]);
             } catch (err) {
               console.error('Failed to publish all:', err);
               showSnackbar('Failed to publish', 'error');
