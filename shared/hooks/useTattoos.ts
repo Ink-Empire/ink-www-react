@@ -32,9 +32,8 @@ export function useTattoos(
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const mountedRef = useRef(true);
-  const fetchingRef = useRef(false);
 
   // Stringify params for dependency comparison
   const searchParamsKey = JSON.stringify(searchParams || {});
@@ -52,8 +51,6 @@ export function useTattoos(
 
   const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
     if (skip) return;
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
 
     if (append) {
       setLoadingMore(true);
@@ -85,7 +82,6 @@ export function useTattoos(
         setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
       }
     } finally {
-      fetchingRef.current = false;
       if (mountedRef.current) {
         setLoading(false);
         setLoadingMore(false);

@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   DeviceEventEmitter,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -111,6 +113,14 @@ export default function HomeScreen({ navigation, route }: any) {
     />
   );
 
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const distanceFromEnd = contentSize.height - layoutMeasurement.height - contentOffset.y;
+    if (distanceFromEnd < layoutMeasurement.height && hasMore && !loadingMore && !loading) {
+      loadMore();
+    }
+  }, [hasMore, loadingMore, loading, loadMore]);
+
   return (
     <View style={styles.container}>
       <GrowingBanner />
@@ -148,8 +158,8 @@ export default function HomeScreen({ navigation, route }: any) {
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
-          onEndReached={() => { if (!loading && hasMore && !loadingMore) loadMore(); }}
-          onEndReachedThreshold={0.3}
+          onScroll={handleScroll}
+          scrollEventThrottle={400}
           ListFooterComponent={loadingMore ? (
             <ActivityIndicator color={colors.accent} style={{ paddingVertical: 16 }} />
           ) : null}
