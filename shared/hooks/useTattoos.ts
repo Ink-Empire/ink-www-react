@@ -78,7 +78,7 @@ export function useTattoos(
         const data = response?.response ?? response;
         const items = Array.isArray(data) ? data : [];
         setTattoos((prev: Tattoo[]) => append ? [...prev, ...items] : items);
-        setHasMore(response?.has_more ?? false);
+        setHasMore(response?.has_more ?? items.length >= 50);
       }
     } catch (err) {
       if (mountedRef.current) {
