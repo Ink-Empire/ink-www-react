@@ -792,7 +792,7 @@ export default function ClientUploadScreen({ navigation }: any) {
             }}
             placeholder="City/Location (optional)"
           />
-          {inviteMethod === 'email' ? (
+          {inviteMethod === 'email' && (
             <>
               <View>
                 <TextInput
@@ -838,11 +838,15 @@ export default function ClientUploadScreen({ navigation }: any) {
                   </Text>
                 </View>
               ) : null}
+              {/* Phone invite toggle - hidden for now
               <TouchableOpacity onPress={() => { setInviteMethod('phone'); setArtistInviteEmail(''); setEmailExistsOnPlatform(false); }}>
                 <Text style={s.inviteMethodToggle}>Rather send a text?</Text>
               </TouchableOpacity>
+              */}
             </>
-          ) : (
+          )}
+          {/* Phone invite method - hidden for now
+          {inviteMethod === 'phone' && (
             <>
               <TextInput
                 style={s.textInput}
@@ -865,6 +869,7 @@ export default function ClientUploadScreen({ navigation }: any) {
               </TouchableOpacity>
             </>
           )}
+          */}
         </View>
       )}
 
@@ -957,11 +962,13 @@ export default function ClientUploadScreen({ navigation }: any) {
             {attributedArtistName.trim()}
             {attributedLocation.trim() ? ` - ${attributedLocation.trim()}` : ''}
           </Text>
+          {/* Phone invite review text - hidden for now
           {artistInvitePhone.trim() ? (
             <Text style={[s.reviewValue, { fontSize: 13, color: colors.textMuted, marginTop: 4 }]}>
               Text invite will be sent to {artistInvitePhone.trim()}
             </Text>
           ) : null}
+          */}
         </View>
       ) : null}
 
