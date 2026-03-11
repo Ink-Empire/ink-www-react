@@ -7,14 +7,13 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   DeviceEventEmitter,
-  type NativeSyntheticEvent,
-  type NativeScrollEvent,
+  RefreshControl,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useTattoos, useStyles, useTags } from '@inkedin/shared/hooks';
-import { getCachedTattoos, saveTattoosToCache } from '../../lib/tattooCache';
+import { getCachedTattoos, saveTattoosToCache, clearTattooCache } from '../../lib/tattooCache';
 import SearchBar from '../components/search/SearchBar';
 import FilterDrawer, { type AppliedFilters } from '../components/search/FilterDrawer';
 import TattooCard from '../components/cards/TattooCard';
@@ -72,6 +71,15 @@ export default function HomeScreen({ navigation, route }: any) {
   const { tattoos, loading, loadingMore, hasMore, loadMore, refetch, removeTattoo } = useTattoos(api, searchParams as any);
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    clearTattooCache();
+    setCachedTattoos(null);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   // Save fresh results to cache (only for unfiltered default feed)
   useEffect(() => {
@@ -113,14 +121,6 @@ export default function HomeScreen({ navigation, route }: any) {
     />
   );
 
-  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-    const distanceFromEnd = contentSize.height - layoutMeasurement.height - contentOffset.y;
-    if (distanceFromEnd < layoutMeasurement.height && hasMore && !loadingMore && !loading) {
-      loadMore();
-    }
-  }, [hasMore, loadingMore, loading, loadMore]);
-
   return (
     <View style={styles.container}>
       <GrowingBanner />
@@ -158,11 +158,14 @@ export default function HomeScreen({ navigation, route }: any) {
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
-          onScroll={handleScroll}
-          scrollEventThrottle={400}
+          onEndReached={() => { if (hasMore && !loadingMore) loadMore(); }}
+          onEndReachedThreshold={0.3}
           ListFooterComponent={loadingMore ? (
             <ActivityIndicator color={colors.accent} style={{ paddingVertical: 16 }} />
           ) : null}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+          }
         />
       )}
 

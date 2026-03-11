@@ -99,6 +99,10 @@ export function createApiClient(config: ApiConfig) {
         );
       }
 
+      if (endpoint.includes('/tattoos')) {
+        console.log('[API]', method, endpoint, '→ has_more:', data?.has_more, 'response count:', Array.isArray(data?.response) ? data.response.length : 'n/a', 'keys:', Object.keys(data || {}));
+      }
+
       return data as T;
     } catch (error) {
       if (error instanceof ApiError) {

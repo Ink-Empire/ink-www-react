@@ -36,6 +36,8 @@ export function useTattoos(
   const loadingRef = useRef(false);
 
   const searchParamsKey = JSON.stringify(searchParams || {});
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
 
   const fetchTattoos = useCallback(async (pageNum: number, append: boolean) => {
     if (skip || loadingRef.current) return;
@@ -49,12 +51,14 @@ export function useTattoos(
     setError(null);
 
     try {
-      const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
+      const currentParams = searchParamsRef.current;
+      const requestBody: Record<string, any> = { ...currentParams, page: pageNum, per_page: 50 };
       if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
         const coords = requestBody.locationCoords as any;
         requestBody.locationCoords = `${coords.lat || coords.latitude},${coords.lng || coords.longitude}`;
       }
 
+      console.log('[useTattoos] fetching page', pageNum, 'append:', append);
       const response = await api.post<any>('/tattoos', requestBody, {
         headers: { 'X-Account-Type': 'user' },
       });
@@ -65,12 +69,14 @@ export function useTattoos(
       if (response) {
         if ('response' in response && Array.isArray(response.response)) {
           items = response.response;
-          hasMorePages = response.has_more ?? items.length >= 50;
+          hasMorePages = response.has_more === true || (response.has_more === undefined && items.length >= 50);
         } else if (Array.isArray(response)) {
           items = response;
           hasMorePages = items.length >= 50;
         }
       }
+
+      console.log('[useTattoos] page', pageNum, 'got', items.length, 'items, hasMore:', hasMorePages, 'has_more raw:', response?.has_more);
 
       if (append) {
         setTattoos((prev: Tattoo[]) => [...prev, ...items]);
@@ -80,13 +86,14 @@ export function useTattoos(
       setHasMore(hasMorePages);
       pageRef.current = pageNum;
     } catch (err) {
+      console.log('[useTattoos] fetch error:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
     } finally {
       setLoading(false);
       setLoadingMore(false);
       loadingRef.current = false;
     }
-  }, [api, searchParams, skip]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [api, searchParamsKey, skip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch page 1 on mount and when search params change
   useEffect(() => {
@@ -98,6 +105,7 @@ export function useTattoos(
   }, [searchParamsKey, skip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = useCallback(() => {
+    console.log('[useTattoos] loadMore called, loadingRef:', loadingRef.current, 'hasMore:', hasMore);
     if (!loadingRef.current && hasMore) {
       fetchTattoos(pageRef.current + 1, true);
     }
