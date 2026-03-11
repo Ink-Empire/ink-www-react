@@ -31,26 +31,15 @@ export function useTattoos(
   const [loading, setLoading] = useState(!skip);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const mountedRef = useRef(true);
+  const pageRef = useRef(1);
+  const loadingRef = useRef(false);
 
-  // Stringify params for dependency comparison
   const searchParamsKey = JSON.stringify(searchParams || {});
-  const prevSearchParamsKey = useRef(searchParamsKey);
 
-  // Reset pagination when search params change
-  useEffect(() => {
-    if (prevSearchParamsKey.current !== searchParamsKey) {
-      setPage(1);
-      setTattoos([]);
-      setHasMore(false);
-      prevSearchParamsKey.current = searchParamsKey;
-    }
-  }, [searchParamsKey]);
-
-  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
-    if (skip) return;
+  const fetchTattoos = useCallback(async (pageNum: number, append: boolean) => {
+    if (skip || loadingRef.current) return;
+    loadingRef.current = true;
 
     if (append) {
       setLoadingMore(true);
@@ -60,7 +49,6 @@ export function useTattoos(
     setError(null);
 
     try {
-      // Convert locationCoords if needed
       const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
       if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
         const coords = requestBody.locationCoords as any;
@@ -71,48 +59,56 @@ export function useTattoos(
         headers: { 'X-Account-Type': 'user' },
       });
 
-      if (mountedRef.current) {
-        const data = response?.response ?? response;
-        const items = Array.isArray(data) ? data : [];
-        setTattoos((prev: Tattoo[]) => append ? [...prev, ...items] : items);
-        setHasMore(response?.has_more ?? items.length >= 50);
+      let items: Tattoo[] = [];
+      let hasMorePages = false;
+
+      if (response) {
+        if ('response' in response && Array.isArray(response.response)) {
+          items = response.response;
+          hasMorePages = response.has_more ?? items.length >= 50;
+        } else if (Array.isArray(response)) {
+          items = response;
+          hasMorePages = items.length >= 50;
+        }
       }
+
+      if (append) {
+        setTattoos((prev: Tattoo[]) => [...prev, ...items]);
+      } else {
+        setTattoos(items);
+      }
+      setHasMore(hasMorePages);
+      pageRef.current = pageNum;
     } catch (err) {
-      if (mountedRef.current) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
-      }
+      setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
     } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-        setLoadingMore(false);
-      }
+      setLoading(false);
+      setLoadingMore(false);
+      loadingRef.current = false;
     }
-  }, [api, searchParamsKey, skip]);
+  }, [api, searchParams, skip]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch page 1 on mount or when params change
+  // Fetch page 1 on mount and when search params change
   useEffect(() => {
-    mountedRef.current = true;
-    setPage(1);
-    fetchPage(1, false);
-
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [fetchPage]);
+    if (skip) return;
+    pageRef.current = 1;
+    setTattoos([]);
+    setHasMore(true);
+    fetchTattoos(1, false);
+  }, [searchParamsKey, skip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchPage(nextPage, true);
+    if (!loadingRef.current && hasMore) {
+      fetchTattoos(pageRef.current + 1, true);
     }
-  }, [loadingMore, hasMore, page, fetchPage]);
+  }, [hasMore, fetchTattoos]);
 
   const refetch = useCallback(async () => {
-    setPage(1);
+    pageRef.current = 1;
     setTattoos([]);
-    await fetchPage(1, false);
-  }, [fetchPage]);
+    setHasMore(true);
+    await fetchTattoos(1, false);
+  }, [fetchTattoos]);
 
   const removeTattoo = useCallback((id: number) => {
     setTattoos((prev: Tattoo[]) => prev.filter((t: Tattoo) => t.id !== id));
