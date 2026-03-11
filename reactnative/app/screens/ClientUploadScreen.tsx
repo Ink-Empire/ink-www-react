@@ -59,6 +59,8 @@ export default function ClientUploadScreen({ navigation }: any) {
   const [attributedLocation, setAttributedLocation] = useState('');
   const [attributedLocationLatLong, setAttributedLocationLatLong] = useState('');
   const [artistInviteEmail, setArtistInviteEmail] = useState('');
+  const [artistInvitePhone, setArtistInvitePhone] = useState('');
+  const [inviteMethod, setInviteMethod] = useState<'email' | 'phone'>('email');
   const [emailExistsOnPlatform, setEmailExistsOnPlatform] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
 
@@ -414,9 +416,14 @@ export default function ClientUploadScreen({ navigation }: any) {
         if (artistInviteEmail.trim()) tattooData.artist_invite_email = artistInviteEmail.trim();
       }
 
-      await tattooService.clientUpload(tattooData);
+      const response = await tattooService.clientUpload(tattooData);
 
       clearTattooCache();
+
+      // If the user provided a phone number for the artist, open native SMS composer
+      const invitationToken = (response as any)?.invitation_token;
+      const phoneToText = artistInvitePhone.trim();
+      const artistName = attributedArtistName.trim();
 
       // Reset form
       setStep(0);
@@ -431,6 +438,7 @@ export default function ClientUploadScreen({ navigation }: any) {
       setSelectedStudio(null);
       setAttributedLocation('');
       setArtistInviteEmail('');
+      setArtistInvitePhone('');
       setEmailExistsOnPlatform(false);
       setCheckingEmail(false);
       setUploadedImageIds([]);
@@ -443,6 +451,19 @@ export default function ClientUploadScreen({ navigation }: any) {
         : 'Your tattoo has been shared to the feed!';
       showSnackbar(message);
       navigation.navigate('HomeTab');
+
+      // Open SMS composer after navigating (non-blocking)
+      if (phoneToText && invitationToken) {
+        const claimUrl = `https://getinked.in/claim/${invitationToken}`;
+        const smsBody = artistName
+          ? `Hey ${artistName}! I just posted your tattoo work on InkedIn. Claim your profile and portfolio here: ${claimUrl}`
+          : `Hey! I just posted your tattoo work on InkedIn. Claim your profile and portfolio here: ${claimUrl}`;
+        const separator = Platform.OS === 'ios' ? '&' : '?';
+        const smsUrl = `sms:${phoneToText}${separator}body=${encodeURIComponent(smsBody)}`;
+        Linking.openURL(smsUrl).catch(() => {
+          // SMS not available — invite email was sent as fallback
+        });
+      }
     } catch (err: any) {
       console.error('Tattoo publish failed:', err);
       showSnackbar(err.message || 'Failed to publish. Please try again.', 'error');
@@ -769,50 +790,79 @@ export default function ClientUploadScreen({ navigation }: any) {
             }}
             placeholder="City/Location (optional)"
           />
-          <View>
-            <TextInput
-              style={s.textInput}
-              value={artistInviteEmail}
-              onChangeText={setArtistInviteEmail}
-              placeholder="Artist email (sends invite)"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            {checkingEmail && (
-              <ActivityIndicator size="small" color={colors.accent} style={{ position: 'absolute', right: 12, top: 14 }} />
-            )}
-          </View>
-          {emailExistsOnPlatform ? (
-            <View style={s.emailExistsBanner}>
-              <Text style={s.emailExistsText}>
-                This email belongs to an artist already on InkedIn. You can tag them directly instead of sending an invite.
-              </Text>
-              <TouchableOpacity
-                style={s.emailExistsButton}
-                onPress={() => {
-                  const email = artistInviteEmail.trim();
-                  setArtistMode('search');
-                  setArtistInviteEmail('');
-                  setEmailExistsOnPlatform(false);
-                  setAttributedArtistName('');
-                  setSelectedStudio(null);
-                  setAttributedLocation('');
-                  setAttributedLocationLatLong('');
-                  searchArtists(email);
-                }}
-              >
-                <Text style={s.emailExistsButtonText}>Search instead</Text>
+          {inviteMethod === 'email' ? (
+            <>
+              <View>
+                <TextInput
+                  style={s.textInput}
+                  value={artistInviteEmail}
+                  onChangeText={setArtistInviteEmail}
+                  placeholder="Artist email (sends invite)"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                {checkingEmail && (
+                  <ActivityIndicator size="small" color={colors.accent} style={{ position: 'absolute', right: 12, top: 14 }} />
+                )}
+              </View>
+              {emailExistsOnPlatform ? (
+                <View style={s.emailExistsBanner}>
+                  <Text style={s.emailExistsText}>
+                    This email belongs to an artist already on InkedIn. You can tag them directly instead of sending an invite.
+                  </Text>
+                  <TouchableOpacity
+                    style={s.emailExistsButton}
+                    onPress={() => {
+                      const email = artistInviteEmail.trim();
+                      setArtistMode('search');
+                      setArtistInviteEmail('');
+                      setEmailExistsOnPlatform(false);
+                      setAttributedArtistName('');
+                      setSelectedStudio(null);
+                      setAttributedLocation('');
+                      setAttributedLocationLatLong('');
+                      searchArtists(email);
+                    }}
+                  >
+                    <Text style={s.emailExistsButtonText}>Search instead</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : artistInviteEmail.trim() && !checkingEmail ? (
+                <View style={s.infoNotice}>
+                  <MaterialIcons name="info-outline" size={16} color={colors.accent} />
+                  <Text style={s.infoNoticeText}>
+                    An invitation email will be sent so the artist can claim this tattoo on InkedIn.
+                  </Text>
+                </View>
+              ) : null}
+              <TouchableOpacity onPress={() => { setInviteMethod('phone'); setArtistInviteEmail(''); setEmailExistsOnPlatform(false); }}>
+                <Text style={s.inviteMethodToggle}>Rather send a text?</Text>
               </TouchableOpacity>
-            </View>
-          ) : artistInviteEmail.trim() && !checkingEmail ? (
-            <View style={s.infoNotice}>
-              <MaterialIcons name="info-outline" size={16} color={colors.accent} />
-              <Text style={s.infoNoticeText}>
-                An invitation email will be sent so the artist can claim this tattoo on InkedIn.
-              </Text>
-            </View>
-          ) : null}
+            </>
+          ) : (
+            <>
+              <TextInput
+                style={s.textInput}
+                value={artistInvitePhone}
+                onChangeText={setArtistInvitePhone}
+                placeholder="Artist phone number"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
+              />
+              {artistInvitePhone.trim() ? (
+                <View style={s.infoNotice}>
+                  <MaterialIcons name="textsms" size={16} color={colors.accent} />
+                  <Text style={s.infoNoticeText}>
+                    After posting, your Messages app will open so you can text the artist a link to claim this tattoo.
+                  </Text>
+                </View>
+              ) : null}
+              <TouchableOpacity onPress={() => { setInviteMethod('email'); setArtistInvitePhone(''); }}>
+                <Text style={s.inviteMethodToggle}>Rather send an email?</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       )}
 
@@ -905,6 +955,11 @@ export default function ClientUploadScreen({ navigation }: any) {
             {attributedArtistName.trim()}
             {attributedLocation.trim() ? ` - ${attributedLocation.trim()}` : ''}
           </Text>
+          {artistInvitePhone.trim() ? (
+            <Text style={[s.reviewValue, { fontSize: 13, color: colors.textMuted, marginTop: 4 }]}>
+              Text invite will be sent to {artistInvitePhone.trim()}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -1169,6 +1224,8 @@ const s = StyleSheet.create({
     backgroundColor: colors.accent, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8,
   },
   emailExistsButtonText: { color: colors.background, fontSize: 13, fontWeight: '600' },
+
+  inviteMethodToggle: { color: colors.accent, fontSize: 13, marginTop: 6 },
 
   infoNotice: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,

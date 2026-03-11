@@ -11,11 +11,13 @@ import {
   Image,
   DeviceEventEmitter,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useArtist } from '@inkedin/shared/hooks';
+import { createTattooService } from '@inkedin/shared/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import LoadingScreen from '../components/common/LoadingScreen';
@@ -48,6 +50,10 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
   const [activeTab, setActiveTab] = useState<TabType>('portfolio');
   const [activeStyleFilter, setActiveStyleFilter] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const tattooService = useMemo(() => createTattooService(api), []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -93,6 +99,65 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
     }
   }, [toggleFavorite, artist?.id, favoriteType, isFavorited, isStudio, showSnackbar]);
 
+  const isOwner = user?.id === artist?.id;
+
+  const toggleSelectMode = useCallback(() => {
+    setSelectMode(prev => {
+      if (prev) setSelectedIds(new Set());
+      return !prev;
+    });
+  }, []);
+
+  const toggleSelected = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const allIds = filteredPortfolio.map((t: any) => t.id);
+    setSelectedIds(prev => prev.size === allIds.length ? new Set() : new Set(allIds));
+  }, [filteredPortfolio]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    Alert.alert(
+      `Delete ${selectedIds.size} post${selectedIds.size > 1 ? 's' : ''}?`,
+      'This will permanently remove the selected tattoos and their images. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              console.log('[BulkDelete] ids:', [...selectedIds]);
+              const idsToDelete = [...selectedIds];
+              const result = await tattooService.bulkDelete(idsToDelete);
+              console.log('[BulkDelete] result:', JSON.stringify(result));
+              const count = (result as any)?.deleted_count ?? idsToDelete.length;
+              // Notify other screens (home feed, search, user profile) to remove these tattoos
+              idsToDelete.forEach(id => DeviceEventEmitter.emit('tattoo-deleted', { id }));
+              showSnackbar(`Deleted ${count} post${count !== 1 ? 's' : ''}`);
+              setSelectMode(false);
+              setSelectedIds(new Set());
+              refetch();
+            } catch (err: any) {
+              console.error('[BulkDelete] error:', err?.message, err?.status, JSON.stringify(err?.data));
+              showSnackbar('Failed to delete posts', 'error');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [selectedIds, tattooService, showSnackbar, refetch]);
+
   if (loading) return <LoadingScreen />;
   if (error || !artist) return <ErrorView message={error?.message || 'Artist not found'} />;
 
@@ -135,7 +200,7 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
       </View>
 
       {/* Actions */}
-      {user?.id === artist?.id ? (
+      {isOwner ? (
         <ArtistOwnerDashboard
           artistId={artist.id}
           artistName={artist.name}
@@ -251,32 +316,69 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
       {/* Tab Content */}
       {activeTab === 'portfolio' ? (
         <>
-          {/* Style Filter */}
-          {artistStyles.length > 1 && portfolio.length > 0 && (
-            <View style={styles.filterSection}>
-              <TouchableOpacity
-                style={[styles.filterPill, !activeStyleFilter && styles.filterPillActive]}
-                onPress={() => setActiveStyleFilter(null)}
-              >
-                <Text style={[styles.filterPillText, !activeStyleFilter && styles.filterPillTextActive]}>
-                  All ({portfolio.length})
+          {/* Select mode bar OR Style filters */}
+          {selectMode ? (
+            <View style={styles.selectBar}>
+              <TouchableOpacity onPress={selectAll} activeOpacity={0.7}>
+                <Text style={styles.selectBarLink}>
+                  {selectedIds.size === filteredPortfolio.length ? 'Deselect All' : 'Select All'}
                 </Text>
               </TouchableOpacity>
-              {artistStyles.map((style: any) => (
-                <TouchableOpacity
-                  key={style.id}
-                  style={[styles.filterPill, activeStyleFilter === style.id && styles.filterPillActive]}
-                  onPress={() => setActiveStyleFilter(activeStyleFilter === style.id ? null : style.id)}
-                >
-                  <Text style={[
-                    styles.filterPillText,
-                    activeStyleFilter === style.id && styles.filterPillTextActive,
-                  ]}>
-                    {style.name}
-                  </Text>
+              <View style={styles.selectBarRight}>
+                {selectedIds.size > 0 && (
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={handleBulkDelete}
+                    disabled={deleting}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name="delete-outline" size={18} color="#fff" />
+                    <Text style={styles.deleteBtnText}>
+                      {deleting ? 'Deleting...' : `Delete (${selectedIds.size})`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={toggleSelectMode} activeOpacity={0.7}>
+                  <Text style={styles.selectBarLink}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
+              </View>
             </View>
+          ) : (
+            <>
+              {isOwner && portfolio.length > 0 && (
+                <View style={styles.selectBar}>
+                  <TouchableOpacity onPress={toggleSelectMode} activeOpacity={0.7}>
+                    <Text style={styles.selectBarLink}>Select</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {artistStyles.length > 1 && portfolio.length > 0 && (
+                <View style={styles.filterSection}>
+                  <TouchableOpacity
+                    style={[styles.filterPill, !activeStyleFilter && styles.filterPillActive]}
+                    onPress={() => setActiveStyleFilter(null)}
+                  >
+                    <Text style={[styles.filterPillText, !activeStyleFilter && styles.filterPillTextActive]}>
+                      All ({portfolio.length})
+                    </Text>
+                  </TouchableOpacity>
+                  {artistStyles.map((style: any) => (
+                    <TouchableOpacity
+                      key={style.id}
+                      style={[styles.filterPill, activeStyleFilter === style.id && styles.filterPillActive]}
+                      onPress={() => setActiveStyleFilter(activeStyleFilter === style.id ? null : style.id)}
+                    >
+                      <Text style={[
+                        styles.filterPillText,
+                        activeStyleFilter === style.id && styles.filterPillTextActive,
+                      ]}>
+                        {style.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </>
           )}
 
           {loading && (
@@ -390,17 +492,37 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
 
   const renderTattoo = ({ item }: any) => {
     const imageSource = item.primary_image?.uri || item.images?.[0]?.uri;
+    const isSelected = selectedIds.has(item.id);
     return (
       <TouchableOpacity
-        style={styles.gridItem}
+        style={[styles.gridItem, selectMode && isSelected && styles.gridItemSelected]}
         activeOpacity={0.8}
-        onPress={() => navigation.push('TattooDetail', { id: item.id })}
+        onPress={() => {
+          if (selectMode) {
+            toggleSelected(item.id);
+          } else {
+            navigation.push('TattooDetail', { id: item.id });
+          }
+        }}
+        onLongPress={() => {
+          if (isOwner && !selectMode) {
+            setSelectMode(true);
+            setSelectedIds(new Set([item.id]));
+          }
+        }}
       >
         {imageSource ? (
           <Image source={{ uri: imageSource }} style={styles.gridImage} />
         ) : (
           <View style={styles.gridPlaceholder}>
             <MaterialIcons name="image" size={28} color={colors.textMuted} />
+          </View>
+        )}
+        {selectMode && (
+          <View style={styles.checkOverlay}>
+            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+              {isSelected && <MaterialIcons name="check" size={16} color="#fff" />}
+            </View>
           </View>
         )}
       </TouchableOpacity>
@@ -701,6 +823,63 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  // Select mode
+  selectBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  selectBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectBarLink: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.error,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  gridItemSelected: {
+    opacity: 0.7,
+  },
+  checkOverlay: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
 
   // Misc

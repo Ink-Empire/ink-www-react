@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -37,6 +38,7 @@ export default function ArtistOwnerDashboard({
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [draftCount, setDraftCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [statModal, setStatModal] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     prefetchCalendarData(artistId, artistSlug);
@@ -106,11 +108,13 @@ export default function ArtistOwnerDashboard({
       label: 'Views',
       value: stats?.profile_views ?? 0,
       icon: 'visibility' as const,
+      onPress: () => setStatModal({ title: 'Profile Views', message: `Viewed by ${stats?.profile_views ?? 0} users` }),
     },
     {
       label: 'Saves',
       value: stats?.saves_this_week ?? 0,
       icon: 'bookmark' as const,
+      onPress: () => setStatModal({ title: 'Saves', message: `Saved by ${stats?.saves_this_week ?? 0} users` }),
     },
     {
       label: 'Messages',
@@ -172,6 +176,37 @@ export default function ArtistOwnerDashboard({
           style={styles.actionButton}
         />
       </View>
+
+      {/* Stat detail modal */}
+      <Modal
+        visible={!!statModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStatModal(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setStatModal(null)}
+        >
+          <View style={styles.modalCard}>
+            <MaterialIcons
+              name={statModal?.title === 'Saves' ? 'bookmark' : 'visibility'}
+              size={32}
+              color={colors.accent}
+            />
+            <Text style={styles.modalTitle}>{statModal?.title}</Text>
+            <Text style={styles.modalMessage}>{statModal?.message}</Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setStatModal(null)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -222,5 +257,43 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 16,
+    padding: 28,
+    alignItems: 'center',
+    minWidth: 260,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalTitle: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  modalMessage: {
+    color: colors.textMuted,
+    fontSize: 15,
+    marginTop: 6,
+  },
+  modalButton: {
+    marginTop: 20,
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 32,
+  },
+  modalButtonText: {
+    color: colors.background,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

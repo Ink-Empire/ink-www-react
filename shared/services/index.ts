@@ -97,6 +97,13 @@ export function createTattooService(api: ApiClient) {
     delete: (id: number) =>
       api.delete(`/tattoos/${id}`, { requiresAuth: true }),
 
+    bulkDelete: (ids: number[]) =>
+      api.post<{ success: boolean; deleted_count: number; failed_ids: number[] }>(
+        '/tattoos/bulk-delete',
+        { ids },
+        { requiresAuth: true },
+      ),
+
     getPendingApprovals: () =>
       api.get<{ tattoos: PendingTattoo[] }>('/tattoos/pending-approvals', { requiresAuth: true }),
 
@@ -114,9 +121,10 @@ export function createTattooService(api: ApiClient) {
       attributed_artist_name?: string;
       attributed_studio_name?: string;
       attributed_location?: string;
+      attributed_location_lat_long?: string;
       artist_invite_email?: string;
     }) =>
-      api.post<{ tattoo: Tattoo }>('/tattoos/create', data, { requiresAuth: true }),
+      api.post<{ tattoo: Tattoo; invitation_token?: string }>('/tattoos/create', data, { requiresAuth: true }),
 
     getInvitation: (token: string) =>
       api.get<{ invitation: any }>(`/invitations/${token}`),
