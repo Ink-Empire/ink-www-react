@@ -414,6 +414,7 @@ export default function ClientUploadScreen({ navigation }: any) {
         if (attributedLocation.trim()) tattooData.attributed_location = attributedLocation.trim();
         if (attributedLocationLatLong) tattooData.attributed_location_lat_long = attributedLocationLatLong;
         if (artistInviteEmail.trim()) tattooData.artist_invite_email = artistInviteEmail.trim();
+        if (artistInvitePhone.trim()) tattooData.artist_invite_phone = artistInvitePhone.trim();
       }
 
       const response = await tattooService.clientUpload(tattooData);
@@ -453,6 +454,7 @@ export default function ClientUploadScreen({ navigation }: any) {
       navigation.navigate('HomeTab');
 
       // Open SMS composer after navigating (non-blocking)
+      console.log('[ClientUpload] SMS check:', { phoneToText, invitationToken });
       if (phoneToText && invitationToken) {
         const claimUrl = `https://getinked.in/claim/${invitationToken}`;
         const smsBody = artistName

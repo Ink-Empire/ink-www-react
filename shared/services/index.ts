@@ -123,6 +123,7 @@ export function createTattooService(api: ApiClient) {
       attributed_location?: string;
       attributed_location_lat_long?: string;
       artist_invite_email?: string;
+      artist_invite_phone?: string;
     }) =>
       api.post<{ tattoo: Tattoo; invitation_token?: string }>('/tattoos/create', data, { requiresAuth: true }),
 
