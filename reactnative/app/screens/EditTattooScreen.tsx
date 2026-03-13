@@ -460,11 +460,13 @@ export default function EditTattooScreen({ navigation, route }: any) {
       <KeyboardAvoidingView
         style={formStyles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
       <ScrollView
         style={formStyles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={formStyles.scrollContent}
       >
         {/* Images section */}
