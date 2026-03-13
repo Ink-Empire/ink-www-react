@@ -20,7 +20,7 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
-import { tattooService, tagService } from '../../lib/services';
+import { tattooService, tagService, messageService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
 import type { AiTagSuggestion } from '@inkedin/shared/services';
 import { useTattoo, useStyles, useTags, usePlacements } from '@inkedin/shared/hooks';
@@ -73,6 +73,16 @@ export default function EditTattooScreen({ navigation, route }: any) {
   const [showTagsPicker, setShowTagsPicker] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
+  // Artist tagging (client only)
+  const isClientUploader = !isArtistOwner && user?.id === tattoo?.uploaded_by_user_id;
+  const [artistMode, setArtistMode] = useState<'search' | 'invite'>('search');
+  const [taggedArtist, setTaggedArtist] = useState<any>(null);
+  const [artistSearchQuery, setArtistSearchQuery] = useState('');
+  const [artistSearchResults, setArtistSearchResults] = useState<any[]>([]);
+  const [searchingArtists, setSearchingArtists] = useState(false);
+  const [attributedArtistName, setAttributedArtistName] = useState('');
+  const [artistInviteEmail, setArtistInviteEmail] = useState('');
+
   // AI tag suggestions
   const [aiSuggestions, setAiSuggestions] = useState<AiTagSuggestion[]>([]);
   const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
@@ -121,6 +131,21 @@ export default function EditTattooScreen({ navigation, route }: any) {
       if (pi.id && pi.uri) imgs.push({ id: pi.id, uri: pi.uri });
     }
     setExistingImages(imgs);
+
+    // Populate tagged artist for client uploads
+    if (tattoo.artist && tattoo.artist_id) {
+      const a = tattoo.artist as any;
+      setTaggedArtist({
+        id: tattoo.artist_id,
+        name: a.name || a.username || '',
+        username: a.username || a.slug || '',
+        image: a.primary_image || a.image || null,
+      });
+    } else if ((tattoo as any).attributed_artist_name) {
+      setArtistMode('invite');
+      setAttributedArtistName((tattoo as any).attributed_artist_name);
+    }
+
     setInitialized(true);
   }, [tattoo, initialized, tagsList]);
 
@@ -214,6 +239,51 @@ export default function EditTattooScreen({ navigation, route }: any) {
     }
   }, [totalImages, showSnackbar]);
 
+  const handleCropExisting = useCallback(async (index: number) => {
+    const img = visibleExistingImages[index];
+    try {
+      const cropped = await ImageCropPicker.openCropper({
+        path: img.uri,
+        freeStyleCropEnabled: true,
+        compressImageQuality: 0.8,
+        forceJpg: true,
+      });
+      const croppedFile: ImageFile = {
+        uri: cropped.path,
+        type: cropped.mime || 'image/jpeg',
+        name: cropped.filename || `cropped_${Date.now()}.jpg`,
+      };
+      // Remove the existing image and add the cropped version as a new image
+      setDeletedImageIds(prev => [...prev, img.id]);
+      setNewImages(prev => [...prev, croppedFile]);
+    } catch (err: any) {
+      if (err?.code !== 'E_PICKER_CANCELLED') {
+        showSnackbar('Failed to crop image', 'error');
+      }
+    }
+  }, [visibleExistingImages, showSnackbar]);
+
+  const handleCropNew = useCallback(async (index: number) => {
+    try {
+      const cropped = await ImageCropPicker.openCropper({
+        path: newImages[index].uri,
+        freeStyleCropEnabled: true,
+        compressImageQuality: 0.8,
+        forceJpg: true,
+      });
+      const croppedFile: ImageFile = {
+        uri: cropped.path,
+        type: cropped.mime || 'image/jpeg',
+        name: cropped.filename || `cropped_${Date.now()}.jpg`,
+      };
+      setNewImages(prev => prev.map((img, i) => (i === index ? croppedFile : img)));
+    } catch (err: any) {
+      if (err?.code !== 'E_PICKER_CANCELLED') {
+        showSnackbar('Failed to crop image', 'error');
+      }
+    }
+  }, [newImages, showSnackbar]);
+
   const handleAddImage = useCallback(() => {
     Alert.alert('Add Photo', undefined, [
       { text: 'Photo Library', onPress: handleAddPhotos },
@@ -300,6 +370,34 @@ export default function EditTattooScreen({ navigation, route }: any) {
     return null;
   }, [tagNameMap, showSnackbar]);
 
+  // Artist search (client tagging)
+  const searchArtists = useCallback(async (query: string) => {
+    setArtistSearchQuery(query);
+    if (query.length < 2) {
+      setArtistSearchResults([]);
+      return;
+    }
+    setSearchingArtists(true);
+    try {
+      const response = await messageService.searchUsers(query, 2);
+      setArtistSearchResults(response.users || []);
+    } catch {
+      setArtistSearchResults([]);
+    } finally {
+      setSearchingArtists(false);
+    }
+  }, []);
+
+  const selectArtist = useCallback((artist: any) => {
+    setTaggedArtist(artist);
+    setArtistSearchQuery('');
+    setArtistSearchResults([]);
+  }, []);
+
+  const clearArtist = useCallback(() => {
+    setTaggedArtist(null);
+  }, []);
+
   // Save
   const handleSave = async () => {
     setSaving(true);
@@ -326,6 +424,17 @@ export default function EditTattooScreen({ navigation, route }: any) {
         updateData.styles = selectedStyles.filter(Boolean);
         updateData.tag_ids = selectedTags.filter(Boolean);
         updateData.is_public = isPublic ? '1' : '0';
+      }
+
+      if (isClientUploader) {
+        if (artistMode === 'search') {
+          updateData.tagged_artist_id = taggedArtist?.id || null;
+        } else {
+          updateData.attributed_artist_name = attributedArtistName.trim() || null;
+          if (artistInviteEmail.trim()) {
+            updateData.artist_invite_email = artistInviteEmail.trim();
+          }
+        }
       }
 
       if (deletedImageIds.length > 0) {
@@ -363,7 +472,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         <Text style={formStyles.sectionSubtitle}>{totalImages}/{MAX_IMAGES} images</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled style={formStyles.imageStrip}>
-          {visibleExistingImages.map(img => (
+          {visibleExistingImages.map((img, index) => (
             <View key={`existing-${img.id}`} style={formStyles.imageWrap}>
               <Image source={{ uri: img.uri }} style={formStyles.imageThumb} />
               <TouchableOpacity
@@ -371,6 +480,12 @@ export default function EditTattooScreen({ navigation, route }: any) {
                 onPress={() => handleRemoveExisting(img.id)}
               >
                 <MaterialIcons name="close" size={16} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={formStyles.cropImageBtn}
+                onPress={() => handleCropExisting(index)}
+              >
+                <MaterialIcons name="crop" size={14} color="#fff" />
               </TouchableOpacity>
             </View>
           ))}
@@ -385,6 +500,12 @@ export default function EditTattooScreen({ navigation, route }: any) {
                 onPress={() => handleRemoveNew(index)}
               >
                 <MaterialIcons name="close" size={16} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={formStyles.cropImageBtn}
+                onPress={() => handleCropNew(index)}
+              >
+                <MaterialIcons name="crop" size={14} color="#fff" />
               </TouchableOpacity>
             </View>
           ))}
@@ -416,6 +537,119 @@ export default function EditTattooScreen({ navigation, route }: any) {
           multiline
           numberOfLines={3}
         />
+
+        {/* Artist tagging (client only) */}
+        {isClientUploader && (
+          <>
+            <Text style={formStyles.fieldLabel}>Artist</Text>
+
+            {/* Search / Invite toggle */}
+            <View style={formStyles.modeToggle}>
+              <TouchableOpacity
+                style={[formStyles.modeToggleBtn, artistMode === 'search' && formStyles.modeToggleBtnActive]}
+                onPress={() => { setArtistMode('search'); setAttributedArtistName(''); setArtistInviteEmail(''); }}
+              >
+                <Text style={[formStyles.modeToggleText, artistMode === 'search' && formStyles.modeToggleTextActive]}>Search</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[formStyles.modeToggleBtn, artistMode === 'invite' && formStyles.modeToggleBtnActive]}
+                onPress={() => { setArtistMode('invite'); clearArtist(); }}
+              >
+                <Text style={[formStyles.modeToggleText, artistMode === 'invite' && formStyles.modeToggleTextActive]}>Invite</Text>
+              </TouchableOpacity>
+            </View>
+
+            {artistMode === 'search' && (
+              <>
+                {taggedArtist ? (
+                  <View style={formStyles.selectedArtistRow}>
+                    {taggedArtist.image?.uri ? (
+                      <Image source={{ uri: taggedArtist.image.uri }} style={formStyles.artistAvatar} />
+                    ) : (
+                      <View style={[formStyles.artistAvatar, formStyles.artistAvatarPlaceholder]}>
+                        <MaterialIcons name="person" size={20} color={colors.textMuted} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={formStyles.selectedArtistName}>{taggedArtist.name}</Text>
+                      {taggedArtist.username ? (
+                        <Text style={formStyles.selectedArtistUsername}>@{taggedArtist.username}</Text>
+                      ) : null}
+                    </View>
+                    <TouchableOpacity onPress={clearArtist}>
+                      <MaterialIcons name="close" size={20} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View>
+                    <TextInput
+                      style={formStyles.textInput}
+                      value={artistSearchQuery}
+                      onChangeText={searchArtists}
+                      placeholder="Search for the artist"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                    {searchingArtists && (
+                      <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 8 }} />
+                    )}
+                    {artistSearchResults.length > 0 && (
+                      <View style={formStyles.artistResults}>
+                        {artistSearchResults.map((artist) => (
+                          <TouchableOpacity
+                            key={artist.id}
+                            style={formStyles.artistResultRow}
+                            onPress={() => selectArtist(artist)}
+                          >
+                            {artist.image?.uri ? (
+                              <Image source={{ uri: artist.image.uri }} style={formStyles.artistResultAvatar} />
+                            ) : (
+                              <View style={[formStyles.artistResultAvatar, formStyles.artistAvatarPlaceholder]}>
+                                <MaterialIcons name="person" size={16} color={colors.textMuted} />
+                              </View>
+                            )}
+                            <View style={{ flex: 1 }}>
+                              <Text style={formStyles.artistResultName}>{artist.name}</Text>
+                              <Text style={formStyles.artistResultUsername}>@{artist.username}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+
+            {artistMode === 'invite' && (
+              <View style={{ gap: 10 }}>
+                <TextInput
+                  style={formStyles.textInput}
+                  value={attributedArtistName}
+                  onChangeText={setAttributedArtistName}
+                  placeholder="Artist name"
+                  placeholderTextColor={colors.textMuted}
+                />
+                <TextInput
+                  style={formStyles.textInput}
+                  value={artistInviteEmail}
+                  onChangeText={setArtistInviteEmail}
+                  placeholder="Artist email (sends invite)"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                {artistInviteEmail.trim() && attributedArtistName.trim() ? (
+                  <View style={formStyles.infoNotice}>
+                    <MaterialIcons name="info-outline" size={16} color={colors.accent} />
+                    <Text style={formStyles.infoNoticeText}>
+                      An invitation email will be sent so the artist can claim this tattoo on InkedIn.
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            )}
+          </>
+        )}
 
         {isArtistOwner && (
           <>
@@ -741,6 +975,17 @@ const formStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  cropImageBtn: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   newBadge: {
     position: 'absolute',
     top: 6,
@@ -983,6 +1228,107 @@ const formStyles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     marginTop: 4,
+  },
+
+  // Artist tagging
+  modeToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  modeToggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  modeToggleBtnActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent,
+  },
+  modeToggleText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modeToggleTextActive: {
+    color: colors.background,
+  },
+  infoNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: colors.accentDim,
+    borderRadius: 8,
+    padding: 12,
+  },
+  infoNoticeText: {
+    flex: 1,
+    color: colors.accent,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  selectedArtistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    gap: 10,
+  },
+  artistAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  artistAvatarPlaceholder: {
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedArtistName: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  selectedArtistUsername: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 1,
+  },
+  artistResults: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  artistResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    gap: 10,
+  },
+  artistResultAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  artistResultName: {
+    color: colors.textPrimary,
+    fontSize: 15,
+  },
+  artistResultUsername: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 1,
   },
 });
 

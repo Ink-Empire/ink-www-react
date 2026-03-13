@@ -183,6 +183,27 @@ export default function ClientUploadScreen({ navigation }: any) {
     setImages(prev => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleCropImage = useCallback(async (index: number) => {
+    try {
+      const cropped = await ImageCropPicker.openCropper({
+        path: images[index].uri,
+        freeStyleCropEnabled: true,
+        compressImageQuality: 0.8,
+        forceJpg: true,
+      });
+      const croppedFile: ImageFile = {
+        uri: cropped.path,
+        type: cropped.mime || 'image/jpeg',
+        name: cropped.filename || `cropped_${Date.now()}.jpg`,
+      };
+      setImages(prev => prev.map((img, i) => (i === index ? croppedFile : img)));
+    } catch (err: any) {
+      if (err?.code !== 'E_PICKER_CANCELLED') {
+        showSnackbar('Failed to crop image', 'error');
+      }
+    }
+  }, [images, showSnackbar]);
+
   // -- Style/Tag toggling --
 
   const toggleStyle = (id: number) => {
@@ -494,6 +515,9 @@ export default function ClientUploadScreen({ navigation }: any) {
               )}
               <TouchableOpacity style={s.removeImageBtn} onPress={() => handleRemoveImage(index)}>
                 <MaterialIcons name="close" size={16} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={s.cropImageBtn} onPress={() => handleCropImage(index)}>
+                <MaterialIcons name="crop" size={16} color="#fff" />
               </TouchableOpacity>
             </View>
           ))}
@@ -1091,6 +1115,10 @@ const s = StyleSheet.create({
   primaryBadgeText: { color: colors.background, fontSize: 11, fontWeight: '700' },
   removeImageBtn: {
     position: 'absolute', top: 8, right: 8, width: 28, height: 28,
+    borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center',
+  },
+  cropImageBtn: {
+    position: 'absolute', bottom: 8, right: 8, width: 28, height: 28,
     borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center',
   },
   imageActions: { flexDirection: 'row', gap: 12 },
