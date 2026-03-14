@@ -12,8 +12,6 @@ import {
   SafeAreaView,
   Dimensions,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
   Switch,
 } from 'react-native';
 import ImageCropPicker from 'react-native-image-crop-picker';
@@ -457,16 +455,12 @@ export default function EditTattooScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={formStyles.container}>
-      <KeyboardAvoidingView
-        style={formStyles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-      >
       <ScrollView
         style={formStyles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={formStyles.scrollContent}
       >
         {/* Images section */}
@@ -811,7 +805,6 @@ export default function EditTattooScreen({ navigation, route }: any) {
           style={formStyles.saveBtn}
         />
       </View>
-      </KeyboardAvoidingView>
 
       {/* Placement picker modal */}
       <PickerModal
