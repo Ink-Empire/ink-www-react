@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -84,6 +84,8 @@ export default function EditTattooScreen({ navigation, route }: any) {
 
   // Studio tagging
   const [selectedStudio, setSelectedStudio] = useState<StudioOption | null>(null);
+
+  const scrollRef = useRef<ScrollView>(null);
 
   // AI tag suggestions
   const [aiSuggestions, setAiSuggestions] = useState<AiTagSuggestion[]>([]);
@@ -489,6 +491,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
   return (
     <SafeAreaView style={formStyles.container}>
       <ScrollView
+        ref={scrollRef}
         style={formStyles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -574,6 +577,9 @@ export default function EditTattooScreen({ navigation, route }: any) {
           onChange={(studio) => setSelectedStudio(studio)}
           label=""
           placeholder="Search for the studio"
+          onFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+          }}
         />
 
         {/* Artist tagging (client only) */}
