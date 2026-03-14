@@ -28,6 +28,7 @@ import LoadingScreen from '../components/common/LoadingScreen';
 import ErrorView from '../components/common/ErrorView';
 import Button from '../components/common/Button';
 import MultiSelectPicker from '../components/common/MultiSelectPicker';
+import StudioAutocomplete, { StudioOption } from '../components/common/StudioAutocomplete';
 
 const MAX_IMAGES = 5;
 const screenWidth = Dimensions.get('window').width;
@@ -81,6 +82,9 @@ export default function EditTattooScreen({ navigation, route }: any) {
   const [attributedArtistName, setAttributedArtistName] = useState('');
   const [artistInviteEmail, setArtistInviteEmail] = useState('');
 
+  // Studio tagging
+  const [selectedStudio, setSelectedStudio] = useState<StudioOption | null>(null);
+
   // AI tag suggestions
   const [aiSuggestions, setAiSuggestions] = useState<AiTagSuggestion[]>([]);
   const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
@@ -129,6 +133,26 @@ export default function EditTattooScreen({ navigation, route }: any) {
       if (pi.id && pi.uri) imgs.push({ id: pi.id, uri: pi.uri });
     }
     setExistingImages(imgs);
+
+    // Populate studio
+    if (tattoo.studio && (tattoo as any).studio_id) {
+      const s = tattoo.studio as any;
+      setSelectedStudio({
+        id: s.id || (tattoo as any).studio_id,
+        name: s.name || s.studio_name || '',
+        location: s.location || '',
+        slug: s.slug,
+        is_claimed: true,
+        is_new: false,
+      });
+    } else if ((tattoo as any).attributed_studio_name) {
+      setSelectedStudio({
+        id: 0,
+        name: (tattoo as any).attributed_studio_name,
+        is_claimed: false,
+        is_new: false,
+      });
+    }
 
     // Populate tagged artist for client uploads
     if (tattoo.artist && tattoo.artist_id) {
@@ -435,6 +459,15 @@ export default function EditTattooScreen({ navigation, route }: any) {
         }
       }
 
+      // Studio
+      if (selectedStudio && selectedStudio.id) {
+        updateData.studio_id = selectedStudio.id;
+        updateData.attributed_studio_name = selectedStudio.name;
+      } else {
+        updateData.studio_id = null;
+        updateData.attributed_studio_name = null;
+      }
+
       if (deletedImageIds.length > 0) {
         updateData.deleted_image_ids = deletedImageIds.filter(Boolean);
       }
@@ -532,6 +565,15 @@ export default function EditTattooScreen({ navigation, route }: any) {
           placeholderTextColor={colors.textMuted}
           multiline
           numberOfLines={3}
+        />
+
+        {/* Studio */}
+        <Text style={formStyles.fieldLabel}>Studio <Text style={{ fontSize: 12, fontWeight: '400', color: colors.textMuted }}>(try adding city for better results)</Text></Text>
+        <StudioAutocomplete
+          value={selectedStudio}
+          onChange={(studio) => setSelectedStudio(studio)}
+          label=""
+          placeholder="Search for the studio"
         />
 
         {/* Artist tagging (client only) */}
