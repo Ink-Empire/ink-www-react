@@ -41,6 +41,11 @@ export default function DraftsScreen({ navigation, route }: any) {
   const { tags: tagsList } = useTags(api);
   const { placements } = usePlacements(api);
 
+  // Selection state for bulk operations
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   // Edit state for selected item
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -295,26 +300,112 @@ export default function DraftsScreen({ navigation, route }: any) {
     );
   }, [showSnackbar]);
 
-  const renderItem = useCallback(({ item }: { item: BulkUploadItem }) => (
-    <TouchableOpacity
-      style={gridStyles.item}
-      onPress={() => openEditModal(item)}
-      activeOpacity={0.7}
-    >
-      {item.thumbnail_url ? (
-        <Image source={{ uri: item.thumbnail_url }} style={gridStyles.image} />
-      ) : (
-        <View style={[gridStyles.image, gridStyles.placeholder]}>
-          <MaterialIcons name="image" size={24} color={colors.textMuted} />
-        </View>
-      )}
-      {item.is_ready_for_publish && (
-        <View style={gridStyles.readyBadge}>
-          <MaterialIcons name="check" size={12} color={colors.background} />
-        </View>
-      )}
-    </TouchableOpacity>
-  ), [openEditModal]);
+  const toggleSelectMode = useCallback(() => {
+    setSelectMode(prev => {
+      if (prev) setSelectedIds(new Set());
+      return !prev;
+    });
+  }, []);
+
+  const toggleSelected = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(prev => prev.size === items.length ? new Set() : new Set(items.map(i => i.id)));
+  }, [items]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    Alert.alert(
+      `Delete ${selectedIds.size} draft${selectedIds.size > 1 ? 's' : ''}?`,
+      'This will skip the selected drafts. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setBulkDeleting(true);
+            try {
+              // Group selected items by bulk_upload_id
+              const grouped: Record<number, number[]> = {};
+              for (const item of items) {
+                if (selectedIds.has(item.id)) {
+                  if (!grouped[item.bulk_upload_id]) grouped[item.bulk_upload_id] = [];
+                  grouped[item.bulk_upload_id].push(item.id);
+                }
+              }
+
+              await Promise.all(
+                Object.entries(grouped).map(([uploadId, itemIds]) =>
+                  bulkUploadService.batchUpdateItems(Number(uploadId), itemIds, { is_skipped: true }),
+                ),
+              );
+
+              setItems(prev => prev.filter(i => !selectedIds.has(i.id)));
+              showSnackbar(`Deleted ${selectedIds.size} draft${selectedIds.size > 1 ? 's' : ''}`);
+              setSelectMode(false);
+              setSelectedIds(new Set());
+            } catch (err) {
+              console.error('Bulk delete failed:', err);
+              showSnackbar('Failed to delete drafts', 'error');
+            } finally {
+              setBulkDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [selectedIds, items, showSnackbar]);
+
+  const renderItem = useCallback(({ item }: { item: BulkUploadItem }) => {
+    const isSelected = selectedIds.has(item.id);
+    return (
+      <TouchableOpacity
+        style={[gridStyles.item, selectMode && isSelected && gridStyles.itemSelected]}
+        onPress={() => {
+          if (selectMode) {
+            toggleSelected(item.id);
+          } else {
+            openEditModal(item);
+          }
+        }}
+        onLongPress={() => {
+          if (!selectMode) {
+            setSelectMode(true);
+            setSelectedIds(new Set([item.id]));
+          }
+        }}
+        activeOpacity={0.7}
+      >
+        {item.thumbnail_url ? (
+          <Image source={{ uri: item.thumbnail_url }} style={gridStyles.image} />
+        ) : (
+          <View style={[gridStyles.image, gridStyles.placeholder]}>
+            <MaterialIcons name="image" size={24} color={colors.textMuted} />
+          </View>
+        )}
+        {!selectMode && item.is_ready_for_publish && (
+          <View style={gridStyles.readyBadge}>
+            <MaterialIcons name="check" size={12} color={colors.background} />
+          </View>
+        )}
+        {selectMode && (
+          <View style={gridStyles.checkOverlay}>
+            <View style={[gridStyles.checkbox, isSelected && gridStyles.checkboxSelected]}>
+              {isSelected && <MaterialIcons name="check" size={16} color="#fff" />}
+            </View>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }, [openEditModal, selectMode, selectedIds, toggleSelected]);
 
   if (loading) {
     return (
@@ -344,29 +435,60 @@ export default function DraftsScreen({ navigation, route }: any) {
         </Text>
       </View>
 
-      <View style={localStyles.topBar}>
-        <Text style={localStyles.countText}>{items.length} drafts</Text>
-        <View style={localStyles.topBarActions}>
-          <TouchableOpacity
-            style={[localStyles.publishAllNowBtn, publishing && localStyles.btnDisabled]}
-            onPress={handlePublishAllNow}
-            disabled={publishing}
-          >
-            <Text style={localStyles.publishAllNowText}>Publish All</Text>
+      {selectMode ? (
+        <View style={localStyles.selectBar}>
+          <TouchableOpacity onPress={selectAll} activeOpacity={0.7}>
+            <Text style={localStyles.selectBarLink}>
+              {selectedIds.size === items.length ? 'Deselect All' : 'Select All'}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[localStyles.publishAllBtn, publishing && localStyles.btnDisabled]}
-            onPress={handlePublishAll}
-            disabled={publishing}
-          >
-            {publishing ? (
-              <ActivityIndicator size="small" color={colors.background} />
-            ) : (
-              <Text style={localStyles.publishAllText}>Publish Ready</Text>
+          <View style={localStyles.selectBarRight}>
+            {selectedIds.size > 0 && (
+              <TouchableOpacity
+                style={localStyles.deleteBtn}
+                onPress={handleBulkDelete}
+                disabled={bulkDeleting}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons name="delete-outline" size={18} color="#fff" />
+                <Text style={localStyles.deleteBtnText}>
+                  {bulkDeleting ? 'Deleting...' : `Delete (${selectedIds.size})`}
+                </Text>
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+            <TouchableOpacity onPress={toggleSelectMode} activeOpacity={0.7}>
+              <Text style={localStyles.selectBarLink}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={localStyles.topBar}>
+          <Text style={localStyles.countText}>{items.length} drafts</Text>
+          <View style={localStyles.topBarActions}>
+            <TouchableOpacity onPress={toggleSelectMode} activeOpacity={0.7}>
+              <Text style={localStyles.selectBarLink}>Select</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[localStyles.publishAllNowBtn, publishing && localStyles.btnDisabled]}
+              onPress={handlePublishAllNow}
+              disabled={publishing}
+            >
+              <Text style={localStyles.publishAllNowText}>Publish All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[localStyles.publishAllBtn, publishing && localStyles.btnDisabled]}
+              onPress={handlePublishAll}
+              disabled={publishing}
+            >
+              {publishing ? (
+                <ActivityIndicator size="small" color={colors.background} />
+              ) : (
+                <Text style={localStyles.publishAllText}>Publish Ready</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <FlatList
         data={items}
@@ -721,6 +843,39 @@ const localStyles = StyleSheet.create({
   btnDisabled: {
     opacity: 0.6,
   },
+  selectBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  selectBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectBarLink: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.error,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
 });
 
 const gridStyles = StyleSheet.create({
@@ -751,6 +906,28 @@ const gridStyles = StyleSheet.create({
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  itemSelected: {
+    opacity: 0.7,
+  },
+  checkOverlay: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
 });
 
