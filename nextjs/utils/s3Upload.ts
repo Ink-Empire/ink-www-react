@@ -1,4 +1,5 @@
 import { api } from './api';
+import { compressImage } from './compressImage';
 
 interface PresignedUrlResponse {
   success: boolean;
@@ -75,14 +76,24 @@ export async function uploadImagesToS3(
   };
 
   try {
-    // Step 1: Get presigned URLs (batched in groups of 10 to respect API limit)
-    updateProgress({ status: 'getting-urls', current: 'Getting upload URLs...' });
+    // Step 1: Compress images before requesting presigned URLs
+    updateProgress({ status: 'getting-urls', current: 'Preparing images...' });
 
+    const maxDimension = purpose === 'profile' ? 512 : 2048;
+    const compressedFiles = await Promise.all(
+      files.map(file => compressImage(file, {
+        maxWidth: maxDimension,
+        maxHeight: maxDimension,
+        quality: 0.85,
+      }))
+    );
+
+    // Step 2: Get presigned URLs (batched in groups of 10 to respect API limit)
     const PRESIGN_BATCH_SIZE = 10;
     const uploads: PresignedUrlsResponse['data']['uploads'] = [];
 
-    for (let i = 0; i < files.length; i += PRESIGN_BATCH_SIZE) {
-      const batch = files.slice(i, i + PRESIGN_BATCH_SIZE);
+    for (let i = 0; i < compressedFiles.length; i += PRESIGN_BATCH_SIZE) {
+      const batch = compressedFiles.slice(i, i + PRESIGN_BATCH_SIZE);
       const filesData = batch.map(file => ({
         content_type: file.type || 'image/jpeg',
       }));
@@ -100,10 +111,10 @@ export async function uploadImagesToS3(
       uploads.push(...presignedResponse.data.uploads);
     }
 
-    // Step 2: Upload each file directly to S3 in parallel
+    // Step 3: Upload each file directly to S3 in parallel
     updateProgress({ status: 'uploading', completed: 0, current: 'Uploading images...' });
 
-    const uploadPromises = files.map(async (file, index) => {
+    const uploadPromises = compressedFiles.map(async (file, index) => {
       const { upload_url, filename } = uploads[index];
 
       const response = await fetch(upload_url, {
@@ -130,7 +141,7 @@ export async function uploadImagesToS3(
 
     const filenames = await Promise.all(uploadPromises);
 
-    // Step 3: Confirm uploads and create Image records (batched in groups of 10)
+    // Step 4: Confirm uploads and create Image records (batched in groups of 10)
     updateProgress({ status: 'confirming', current: 'Confirming uploads...' });
 
     const allImages: ConfirmUploadsResponse['data']['images'] = [];

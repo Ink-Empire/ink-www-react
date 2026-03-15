@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -30,10 +31,14 @@ import TattooModal from '@/components/TattooModal';
 import { studioService } from '@/services/studioService';
 import { colors } from '@/styles/colors';
 
-export default function StudioDetail() {
+interface StudioDetailProps {
+    initialStudio?: any;
+}
+
+export default function StudioDetail({ initialStudio }: StudioDetailProps) {
   const router = useRouter();
   const { slug } = router.query;
-  const { studio, loading: studioLoading, error: studioError } = useStudio(slug as string);
+  const { studio, loading: studioLoading, error: studioError } = useStudio(slug as string, initialStudio);
   const { artists: allArtists } = useStudioArtists(slug as string);
   const artists = useMemo(() => (allArtists || []).filter((a: any) => a.is_verified), [allArtists]);
   const { gallery } = useStudioGallery(slug as string);
@@ -173,9 +178,12 @@ export default function StudioDetail() {
     return studio.hours.find((h: any) => h.day === today);
   };
 
-  if (studioLoading) {
+  if (studioLoading && !studio) {
     return (
       <Layout>
+        <Head>
+          <title>Studio | InkedIn</title>
+        </Head>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
           <Typography sx={{ color: colors.textSecondary }}>Loading studio details...</Typography>
         </Box>
@@ -1796,3 +1804,46 @@ export default function StudioDetail() {
     </Layout>
   );
 }
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+    const { slug } = context.params || {};
+    if (!slug || typeof slug !== 'string') {
+        return { notFound: true };
+    }
+
+    // Cache the SSR response for 60s, serve stale for up to 5 minutes while revalidating
+    context.res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+    const appToken = process.env.NEXT_PUBLIC_API_APP_TOKEN || '';
+
+    try {
+        const response = await fetch(`${apiUrl}/api/studios/${slug}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                ...(appToken ? { 'X-App-Token': appToken } : {}),
+            },
+        });
+
+        if (!response.ok) {
+            return { notFound: true };
+        }
+
+        const data = await response.json();
+        const studio = data?.studio || null;
+
+        if (!studio) {
+            return { notFound: true };
+        }
+
+        return {
+            props: {
+                initialStudio: studio,
+            },
+        };
+    } catch {
+        // If server-side fetch fails, fall back to client-side rendering
+        return { props: {} };
+    }
+};

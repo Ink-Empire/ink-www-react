@@ -1,8 +1,8 @@
 import { getToken } from './auth';
-import { 
-  generateCacheKey, 
-  getCacheItem, 
-  setCacheItem, 
+import {
+  generateCacheKey,
+  getCacheItem,
+  setCacheItem,
   clearCacheItem,
   clearCache
 } from './apiCache';
@@ -343,28 +343,35 @@ export const api = {
   
   // PUT requests with cache invalidation
   put: <T>(endpoint: string, data: any, options: Omit<ApiOptions, 'method'> = {}) => {
-    // When we update a resource, invalidate related GET caches
-    const relatedGetEndpoint = endpoint.split('/').slice(0, -1).join('/');
-    clearCacheItem(generateCacheKey(relatedGetEndpoint, 'GET'));
-    
-    return fetchApi<T>(endpoint, { 
-      ...options, 
-      method: 'PUT', 
+    // Clear caches for the resource and its parent collection (including paginated variants)
+    // e.g. PUT /artists/123 clears GET:/artists/123, GET:/artists, GET:/artists?page=2, etc.
+    clearCache(`GET:${endpoint}`);
+    const parentEndpoint = endpoint.split('/').slice(0, -1).join('/');
+    if (parentEndpoint) {
+      clearCache(`GET:${parentEndpoint}`);
+    }
+
+    return fetchApi<T>(endpoint, {
+      ...options,
+      method: 'PUT',
       body: data,
-      useCache: false 
+      useCache: false
     });
   },
-  
+
   // DELETE requests with cache invalidation
   delete: <T>(endpoint: string, options: Omit<ApiOptions, 'method'> = {}) => {
-    // When we delete a resource, invalidate related GET caches
-    const relatedGetEndpoint = endpoint.split('/').slice(0, -1).join('/');
-    clearCacheItem(generateCacheKey(relatedGetEndpoint, 'GET'));
-    
-    return fetchApi<T>(endpoint, { 
-      ...options, 
+    // Clear caches for the resource and its parent collection (including paginated variants)
+    clearCache(`GET:${endpoint}`);
+    const parentEndpoint = endpoint.split('/').slice(0, -1).join('/');
+    if (parentEndpoint) {
+      clearCache(`GET:${parentEndpoint}`);
+    }
+
+    return fetchApi<T>(endpoint, {
+      ...options,
       method: 'DELETE',
-      useCache: false 
+      useCache: false
     });
   },
   

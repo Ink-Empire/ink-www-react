@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -28,11 +29,15 @@ import { colors } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
 import SocialMediaIcons from '@/components/SocialMediaIcons';
 
-export default function ArtistDetail() {
+interface ArtistDetailProps {
+    initialArtist?: any;
+}
+
+export default function ArtistDetail({ initialArtist }: ArtistDetailProps) {
     const router = useRouter();
     const { slug } = router.query;
     const slugString = typeof slug === 'string' ? slug : null;
-    const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString);
+    const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString, initialArtist);
     const { portfolio, loading: portfolioLoading, hasMore, loadMore, refetch: fetchPortfolio } = useArtistPortfolio(slugString, artist?.tattoos);
     const { user, isAuthenticated } = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -351,9 +356,12 @@ export default function ArtistDetail() {
         window.open(`sms:?body=${text}`);
     };
 
-    if (artistLoading) {
+    if (artistLoading && !artist) {
         return (
             <Layout>
+                <Head>
+                    <title>Artist | InkedIn</title>
+                </Head>
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                     <Typography sx={{ color: colors.textSecondary }}>Loading artist details...</Typography>
                 </Box>
@@ -386,7 +394,11 @@ export default function ArtistDetail() {
         <Layout>
             <Head>
                 <title>{artist.name} | InkedIn</title>
-                <meta name="description" content={`Learn more about ${artist.name} and their tattoo work`} />
+                <meta name="description" content={`View ${artist.name}'s tattoo portfolio on InkedIn${artist.location ? ` - based in ${artist.location}` : ''}`} />
+                <meta property="og:title" content={`${artist.name} | InkedIn`} />
+                <meta property="og:description" content={`View ${artist.name}'s tattoo portfolio on InkedIn${artist.location ? ` - based in ${artist.location}` : ''}`} />
+                {artist.image?.uri && <meta property="og:image" content={artist.image.uri} />}
+                <meta property="og:type" content="profile" />
                 <link rel="icon" href="/assets/img/logo.png" />
             </Head>
 
@@ -1408,3 +1420,48 @@ export default function ArtistDetail() {
         </Layout>
     );
 }
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+    const { slug } = context.params || {};
+    if (!slug || typeof slug !== 'string') {
+        return { notFound: true };
+    }
+
+    // Cache the SSR response for 60s, serve stale for up to 5 minutes while revalidating
+    context.res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+    const appToken = process.env.NEXT_PUBLIC_API_APP_TOKEN || '';
+
+    try {
+        const response = await fetch(`${apiUrl}/api/artists`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                ...(appToken ? { 'X-App-Token': appToken } : {}),
+            },
+            body: JSON.stringify({ slug }),
+        });
+
+        if (!response.ok) {
+            return { notFound: true };
+        }
+
+        const data = await response.json();
+        const artist = data?.artist || null;
+
+        if (!artist) {
+            return { notFound: true };
+        }
+
+        return {
+            props: {
+                initialArtist: artist,
+            },
+        };
+    } catch {
+        // If server-side fetch fails, fall back to client-side rendering
+        return { props: {} };
+    }
+};

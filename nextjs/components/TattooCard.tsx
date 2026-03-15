@@ -140,6 +140,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                                 src={tattoo.uploader_image_uri}
                                 alt={tattoo.uploader_name || 'User'}
                                 fill
+                                sizes="44px"
                                 style={{ objectFit: 'cover' }}
                             />
                         </Box>
@@ -189,6 +190,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                                     src={artistImageUri}
                                     alt={tattoo.artist_name || 'Artist'}
                                     fill
+                                    sizes="44px"
                                     style={{ objectFit: 'cover' }}
                                 />
                             </Box>
@@ -429,6 +431,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         src={imageUri}
                         alt={tattoo.title || 'Tattoo'}
                         fill
+                        sizes="(max-width: 600px) 50vw, (max-width: 960px) 33vw, 25vw"
                         style={{
                             objectFit: 'cover',
                             transition: 'transform 0.3s ease'

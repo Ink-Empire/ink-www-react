@@ -2,6 +2,7 @@
 // Works with both Next.js (web) and React Native (mobile)
 
 import type { ApiResponse, AuthResponse, User } from '../types';
+import { getCacheItem, setCacheItem, clearCache, generateCacheKey } from './cache';
 
 // =============================================================================
 // Types
@@ -14,6 +15,7 @@ export interface ApiConfig {
   removeToken: () => Promise<void>;
   onUnauthorized?: () => void;
   defaultHeaders?: Record<string, string>;
+  enableCache?: boolean; // Enable in-memory caching for GET requests (default: true)
 }
 
 export interface RequestOptions {
@@ -21,6 +23,7 @@ export interface RequestOptions {
   body?: any;
   headers?: Record<string, string>;
   requiresAuth?: boolean;
+  useCache?: boolean; // Override per-request cache behavior
 }
 
 // =============================================================================
@@ -28,7 +31,7 @@ export interface RequestOptions {
 // =============================================================================
 
 export function createApiClient(config: ApiConfig) {
-  const { baseUrl, getToken, setToken, removeToken, onUnauthorized, defaultHeaders = {} } = config;
+  const { baseUrl, getToken, setToken, removeToken, onUnauthorized, defaultHeaders = {}, enableCache = true } = config;
 
   async function request<T>(
     endpoint: string,
@@ -39,7 +42,19 @@ export function createApiClient(config: ApiConfig) {
       body,
       headers = {},
       requiresAuth = false,
+      useCache,
     } = options;
+
+    // Determine if caching applies: enabled globally, GET request, not explicitly disabled
+    const shouldCache = enableCache && method === 'GET' && useCache !== false;
+
+    if (shouldCache) {
+      const cacheKey = generateCacheKey(endpoint, method);
+      const cached = getCacheItem<T>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
+    }
 
     const url = `${baseUrl}${endpoint}`;
 
@@ -99,6 +114,11 @@ export function createApiClient(config: ApiConfig) {
         );
       }
 
+      // Cache successful GET responses
+      if (shouldCache) {
+        setCacheItem(generateCacheKey(endpoint, method), data);
+      }
+
       return data as T;
     } catch (error) {
       if (error instanceof ApiError) {
@@ -119,19 +139,40 @@ export function createApiClient(config: ApiConfig) {
     post: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) =>
       request<T>(endpoint, { ...options, method: 'POST', body }),
 
-    put: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) =>
-      request<T>(endpoint, { ...options, method: 'PUT', body }),
+    put: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) => {
+      if (enableCache) {
+        clearCache(`GET:${endpoint}`);
+        const parent = endpoint.split('/').slice(0, -1).join('/');
+        if (parent) clearCache(`GET:${parent}`);
+      }
+      return request<T>(endpoint, { ...options, method: 'PUT', body });
+    },
 
-    patch: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) =>
-      request<T>(endpoint, { ...options, method: 'PATCH', body }),
+    patch: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) => {
+      if (enableCache) {
+        clearCache(`GET:${endpoint}`);
+        const parent = endpoint.split('/').slice(0, -1).join('/');
+        if (parent) clearCache(`GET:${parent}`);
+      }
+      return request<T>(endpoint, { ...options, method: 'PATCH', body });
+    },
 
-    delete: <T>(endpoint: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
-      request<T>(endpoint, { ...options, method: 'DELETE' }),
+    delete: <T>(endpoint: string, options?: Omit<RequestOptions, 'method' | 'body'>) => {
+      if (enableCache) {
+        clearCache(`GET:${endpoint}`);
+        const parent = endpoint.split('/').slice(0, -1).join('/');
+        if (parent) clearCache(`GET:${parent}`);
+      }
+      return request<T>(endpoint, { ...options, method: 'DELETE' });
+    },
 
     // Auth-specific methods
     setToken,
     getToken,
     removeToken,
+
+    // Cache management
+    clearCache: (pattern?: string) => clearCache(pattern),
   };
 
   return api;

@@ -161,11 +161,13 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
 }
 
 // Hook for fetching a single artist by ID or slug
-export function useArtist(idOrSlug: string | null) {
-  const [artist, setArtist] = useState<ArtistType | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+// Pass initialData from getServerSideProps to skip the first client-side fetch
+export function useArtist(idOrSlug: string | null, initialData?: ArtistType | null) {
+  const [artist, setArtist] = useState<ArtistType | null>(initialData || null);
+  const [loading, setLoading] = useState<boolean>(!initialData);
   const [error, setError] = useState<Error | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const initialDataUsedRef = useRef(!!initialData);
 
   const fetchArtist = useCallback(async () => {
     if (!idOrSlug) {
@@ -186,6 +188,11 @@ export function useArtist(idOrSlug: string | null) {
   }, [idOrSlug]);
 
   useEffect(() => {
+    // Skip the first fetch if initial data was provided via SSR
+    if (initialDataUsedRef.current) {
+      initialDataUsedRef.current = false;
+      return;
+    }
     fetchArtist();
   }, [fetchArtist, refreshCounter]);
 
