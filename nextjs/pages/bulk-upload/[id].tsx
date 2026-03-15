@@ -23,6 +23,7 @@ import PublishIcon from '@mui/icons-material/Publish';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
+import { clearCache } from '@/utils/apiCache';
 import { useBulkUpload, BulkUpload, BulkUploadItem, ItemsResponse } from '@/hooks/useBulkUpload';
 import { colors } from '@/styles/colors';
 import BatchProgress from '@/components/BulkUpload/BatchProgress';
@@ -195,6 +196,8 @@ export default function BulkUploadReviewPage() {
       };
 
       await pollForCompletion();
+      clearCache('portfolio');
+      clearCache('tattoo');
       setPublishSuccess(publishedCount);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {

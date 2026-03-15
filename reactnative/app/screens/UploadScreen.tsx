@@ -22,6 +22,7 @@ import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { tagService, styleService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
+import { clearTattooCache } from '../../lib/tattooCache';
 import { useStyles, useTags, usePlacements } from '@inkedin/shared/hooks';
 import type { AiTagSuggestion } from '@inkedin/shared/services';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -418,6 +419,9 @@ export default function UploadScreen({ navigation }: any) {
       if (hours) tattooData.hours_to_complete = hours;
 
       await api.post('/tattoos/create', tattooData, { requiresAuth: true });
+
+      clearTattooCache();
+      api.clearCache('portfolio');
 
       // Reset form
       setStep(0);
