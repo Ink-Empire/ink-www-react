@@ -273,7 +273,10 @@ export function useConversations(): UseConversationsReturn {
 
   // Poll for conversation list updates (slower when Echo is connected)
   useEffect(() => {
-    const interval = setInterval(async () => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+
+    const poll = async () => {
       try {
         const params = lastParamsRef.current;
         const response = await messageService.getConversations({
@@ -288,9 +291,16 @@ export function useConversations(): UseConversationsReturn {
       } catch {
         // Silent fail on poll
       }
-    }, echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL);
+      if (!cancelled) {
+        const delay = echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL;
+        timeoutId = setTimeout(poll, delay);
+      }
+    };
 
-    return () => clearInterval(interval);
+    const delay = echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL;
+    timeoutId = setTimeout(poll, delay);
+
+    return () => { cancelled = true; clearTimeout(timeoutId); };
   }, []);
 
   return {
@@ -548,27 +558,36 @@ export function useConversation(conversationId?: number): UseConversationReturn 
   useEffect(() => {
     if (!conversationId) return;
 
-    const interval = setInterval(async () => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+
+    const poll = async () => {
       try {
         const currentMessages = messagesRef.current;
         const latestId = currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : undefined;
-        if (!latestId) return;
-
-        const response = await messageService.getConversationMessages(conversationId, undefined, latestId);
-        if (response.messages && response.messages.length > 0) {
-          // Deduplicate by message ID
-          setMessages((prev) => {
-            const existingIds = new Set(prev.map((m) => m.id));
-            const newMessages = response.messages.filter((m: ApiMessage) => !existingIds.has(m.id));
-            return newMessages.length > 0 ? [...prev, ...newMessages] : prev;
-          });
+        if (latestId) {
+          const response = await messageService.getConversationMessages(conversationId, undefined, latestId);
+          if (response.messages && response.messages.length > 0) {
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const newMessages = response.messages.filter((m: ApiMessage) => !existingIds.has(m.id));
+              return newMessages.length > 0 ? [...prev, ...newMessages] : prev;
+            });
+          }
         }
       } catch {
         // Silent fail on poll
       }
-    }, echoConnectedRef.current ? MESSAGE_POLL_INTERVAL_WITH_ECHO : MESSAGE_POLL_INTERVAL);
+      if (!cancelled) {
+        const delay = echoConnectedRef.current ? MESSAGE_POLL_INTERVAL_WITH_ECHO : MESSAGE_POLL_INTERVAL;
+        timeoutId = setTimeout(poll, delay);
+      }
+    };
 
-    return () => clearInterval(interval);
+    const delay = echoConnectedRef.current ? MESSAGE_POLL_INTERVAL_WITH_ECHO : MESSAGE_POLL_INTERVAL;
+    timeoutId = setTimeout(poll, delay);
+
+    return () => { cancelled = true; clearTimeout(timeoutId); };
   }, [conversationId]);
 
   return {
@@ -652,16 +671,26 @@ export function useUnreadConversationCount(): UseUnreadCountReturn {
 
   // Poll unread count (slower when Echo connected)
   useEffect(() => {
-    const interval = setInterval(async () => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+
+    const poll = async () => {
       try {
         const response = await messageService.getUnreadConversationCount();
         setUnreadCount(response.unread_count || 0);
       } catch {
         // Silent fail on poll
       }
-    }, echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL);
+      if (!cancelled) {
+        const delay = echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL;
+        timeoutId = setTimeout(poll, delay);
+      }
+    };
 
-    return () => clearInterval(interval);
+    const delay = echoConnectedRef.current ? CONVERSATION_LIST_POLL_INTERVAL_WITH_ECHO : CONVERSATION_LIST_POLL_INTERVAL;
+    timeoutId = setTimeout(poll, delay);
+
+    return () => { cancelled = true; clearTimeout(timeoutId); };
   }, []);
 
   // Listen for mark-as-read events from the inbox to refresh immediately
