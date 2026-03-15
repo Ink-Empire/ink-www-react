@@ -16,6 +16,7 @@ import { getEcho } from '../utils/echo';
 import type { Conversation } from '@inkedin/shared/types';
 
 const NOTIFICATION_POLL_INTERVAL = 10000;
+const NOTIFICATION_POLL_INTERVAL_WITH_ECHO = 30000;
 const AUTO_DISMISS_MS = 5000;
 
 export interface MessageNotification {
@@ -140,14 +141,26 @@ export const MessageNotificationProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [conversations, user?.id]);
 
-  // Poll conversation list for updates
+  // Poll conversation list for updates (slower when Echo is connected)
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchConversations();
-    }, NOTIFICATION_POLL_INTERVAL);
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
 
-    return () => clearInterval(interval);
-  }, [fetchConversations]);
+    const poll = () => {
+      fetchConversations();
+      if (!cancelled) {
+        const hasEcho = !!realtime;
+        const delay = hasEcho ? NOTIFICATION_POLL_INTERVAL_WITH_ECHO : NOTIFICATION_POLL_INTERVAL;
+        timeoutId = setTimeout(poll, delay);
+      }
+    };
+
+    const hasEcho = !!realtime;
+    const delay = hasEcho ? NOTIFICATION_POLL_INTERVAL_WITH_ECHO : NOTIFICATION_POLL_INTERVAL;
+    timeoutId = setTimeout(poll, delay);
+
+    return () => { cancelled = true; clearTimeout(timeoutId); };
+  }, [fetchConversations, realtime]);
 
   // Refetch when app returns to foreground
   useEffect(() => {

@@ -54,6 +54,10 @@ export default function StudioAutocomplete({
   const [showDropdown, setShowDropdown] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const valueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  valueRef.current = value;
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     if (value?.name) {
@@ -74,7 +78,7 @@ export default function StudioAutocomplete({
   const handleChangeText = useCallback(
     (text: string) => {
       setInputValue(text);
-      if (value) onChange(null);
+      if (valueRef.current) onChangeRef.current(null);
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -98,7 +102,7 @@ export default function StudioAutocomplete({
         setLoading(false);
       }, 300);
     },
-    [apiKey, location, value, onChange],
+    [apiKey, location],
   );
 
   const handleSelect = useCallback(

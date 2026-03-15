@@ -18,26 +18,29 @@ export default function VerifyEmailGate({ email }: VerifyEmailGateProps) {
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
 
-    pollRef.current = setInterval(async () => {
+    const poll = async () => {
       try {
         const user = await refreshUser();
-        if (user?.is_email_verified && mountedRef.current) {
-          if (pollRef.current) clearInterval(pollRef.current);
-        }
+        if (user?.is_email_verified || !mountedRef.current) return;
       } catch {
         // Not verified yet, silently continue
       }
-    }, POLL_INTERVAL_MS);
+      if (mountedRef.current) {
+        pollRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+      }
+    };
+
+    pollRef.current = setTimeout(poll, POLL_INTERVAL_MS);
 
     return () => {
       mountedRef.current = false;
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current);
     };
   }, [refreshUser]);
 
@@ -80,7 +83,7 @@ export default function VerifyEmailGate({ email }: VerifyEmailGateProps) {
   };
 
   const handleLogout = async () => {
-    if (pollRef.current) clearInterval(pollRef.current);
+    if (pollRef.current) clearTimeout(pollRef.current);
     await logout();
   };
 
