@@ -424,6 +424,11 @@ export default function EditTattooScreen({ navigation, route }: any) {
 
   // Save
   const handleSave = async () => {
+    if (visibleExistingImages.length === 0 && newImages.length === 0) {
+      showSnackbar('At least one image is required', 'error');
+      return;
+    }
+
     setSaving(true);
     setUploadProgress(null);
 
