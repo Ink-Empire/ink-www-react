@@ -1,11 +1,13 @@
-import Config from 'react-native-config';
 import { api } from '../../lib/api';
+
+const PUSHER_APP_KEY = 'c1ad2e756fdefd4952e5';
+const PUSHER_APP_CLUSTER = 'mt1';
 
 let echoInstance: any = null;
 
 export function getEcho(): any {
-  const key = Config.PUSHER_APP_KEY;
-  const cluster = Config.PUSHER_APP_CLUSTER;
+  const key = PUSHER_APP_KEY;
+  const cluster = PUSHER_APP_CLUSTER;
   if (!key || !cluster) return null;
 
   if (!echoInstance) {

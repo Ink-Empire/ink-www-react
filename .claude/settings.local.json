@@ -17,7 +17,16 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(xargs:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git:*)",
+      "Bash(echo EXIT: $?:*)",
+      "Bash(npm run:*)",
+      "Read(//Users/rensley/Library/Android/sdk/platform-tools/**)",
+      "Bash(/usr/libexec/java_home)",
+      "Read(//opt/homebrew/opt/**)",
+      "Bash(export:*)",
+      "Bash(ls:*)"
     ]
   }
 }
