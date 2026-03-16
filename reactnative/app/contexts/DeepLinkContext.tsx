@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { Linking } from 'react-native';
 import { useAuth } from './AuthContext';
 
@@ -15,6 +15,8 @@ const DeepLinkContext = createContext<DeepLinkContextType>({
 export function DeepLinkProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const pendingUrlRef = useRef(pendingUrl);
+  pendingUrlRef.current = pendingUrl;
 
   useEffect(() => {
     // Only capture URLs when the user is NOT authenticated
@@ -34,10 +36,10 @@ export function DeepLinkProvider({ children }: { children: ReactNode }) {
   }, [isLoading, isAuthenticated]);
 
   const consumePendingUrl = useCallback(() => {
-    const url = pendingUrl;
+    const url = pendingUrlRef.current;
     setPendingUrl(null);
     return url;
-  }, [pendingUrl]);
+  }, []);
 
   return (
     <DeepLinkContext.Provider value={{ pendingUrl, consumePendingUrl }}>

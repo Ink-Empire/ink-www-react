@@ -29,6 +29,7 @@ export type HomeStackParamList = {
   StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
   UserProfile: { slug: string; name?: string };
+  ClaimInvitation: { token: string };
 };
 
 export type SearchStackParamList = {
@@ -63,6 +64,7 @@ export type ArtistsStackParamList = {
 export type UploadStackParamList = {
   Upload: undefined;
   ClientUpload: undefined;
+  BulkUploadConfirm: { images: Array<{ uri: string; type: string; name: string }> };
 };
 
 export type InboxStackParamList = {
@@ -74,6 +76,7 @@ export type ProfileStackParamList = {
   ProfileMain: undefined;
   Profile: undefined;
   EditProfile: undefined;
+  Drafts: undefined;
   Notifications: undefined;
   NotificationSettings: undefined;
   BookingSettings: undefined;

@@ -3,6 +3,7 @@ import { artistService } from '@/services/artistService';
 import { tattooService } from '@/services/tattooService';
 import { ArtistType } from '@/models/artist.interface';
 import { useDemoMode } from '@/contexts/DemoModeContext';
+import { clearCache } from '@/utils/apiCache';
 
 // Unclaimed studio type
 export interface UnclaimedStudio {
@@ -30,19 +31,9 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
   const searchParamsKey = JSON.stringify({ ...(searchParams || {}), _demoMode: isDemoMode });
   const prevSearchParamsKey = useRef<string>(searchParamsKey);
 
-  // Reset pagination when search params change
-  useEffect(() => {
-    if (prevSearchParamsKey.current !== searchParamsKey) {
-      setPage(1);
-      setArtists([]);
-      setHasMore(true);
-      prevSearchParamsKey.current = searchParamsKey;
-    }
-  }, [searchParamsKey]);
-
   // Build request body from search params
   const buildRequestBody = useCallback((pageNum: number) => {
-    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
+    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
     if (requestBody.locationCoordsString) {
       requestBody.locationCoords = requestBody.locationCoordsString;
       delete requestBody.locationCoordsString;
@@ -62,7 +53,6 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
 
     try {
       const requestBody = buildRequestBody(pageNum);
-      console.log(`Fetching artists page ${pageNum}:`, requestBody);
 
       const response = await artistService.search(requestBody);
 
@@ -79,7 +69,6 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
           artistsData = response as unknown as ArtistType[];
           totalCount = artistsData.length;
         }
-        console.log(`Artists page ${pageNum} fetched:`, artistsData.length, 'of', totalCount, 'total, hasMore:', hasMorePages);
       }
 
       if (append) {
@@ -91,7 +80,6 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
       setHasMore(hasMorePages);
       setError(null);
     } catch (err) {
-      console.error('Error fetching artists:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch artists'));
     } finally {
       setLoading(false);
@@ -99,8 +87,18 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
     }
   }, [buildRequestBody]);
 
-  // Fetch unclaimed studios asynchronously (only on first page)
+  // Single effect: reset pagination, fetch page 1, and fetch unclaimed studios when search params change
   useEffect(() => {
+    // Reset pagination
+    setPage(1);
+    setArtists([]);
+    setHasMore(true);
+    prevSearchParamsKey.current = searchParamsKey;
+
+    // Fetch page 1
+    fetchArtists(1, false);
+
+    // Fetch unclaimed studios in parallel
     const requestBody = buildRequestBody(1);
     const locationCoords = requestBody.locationCoords;
     const useAnyLocation = requestBody.useAnyLocation;
@@ -108,26 +106,19 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
 
     if (!locationCoords || useAnyLocation || isDemoData) {
       setUnclaimedStudios([]);
-      return;
-    }
-
-    tattooService.fetchUnclaimedStudios(requestBody)
-      .then((res) => {
-        if (res?.unclaimed_studios && Array.isArray(res.unclaimed_studios)) {
-          setUnclaimedStudios(res.unclaimed_studios);
-        } else {
+    } else {
+      tattooService.fetchUnclaimedStudios(requestBody)
+        .then((res) => {
+          if (res?.unclaimed_studios && Array.isArray(res.unclaimed_studios)) {
+            setUnclaimedStudios(res.unclaimed_studios);
+          } else {
+            setUnclaimedStudios([]);
+          }
+        })
+        .catch(() => {
           setUnclaimedStudios([]);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch unclaimed studios:', err);
-        setUnclaimedStudios([]);
-      });
-  }, [searchParamsKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Initial fetch when search params change
-  useEffect(() => {
-    fetchArtists(1, false);
+        });
+    }
   }, [searchParamsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load more function for infinite scroll
@@ -161,11 +152,13 @@ export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: 
 }
 
 // Hook for fetching a single artist by ID or slug
-export function useArtist(idOrSlug: string | null) {
-  const [artist, setArtist] = useState<ArtistType | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+// Pass initialData from getServerSideProps to skip the first client-side fetch
+export function useArtist(idOrSlug: string | null, initialData?: ArtistType | null) {
+  const [artist, setArtist] = useState<ArtistType | null>(initialData || null);
+  const [loading, setLoading] = useState<boolean>(!initialData);
   const [error, setError] = useState<Error | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const initialDataUsedRef = useRef(!!initialData);
 
   const fetchArtist = useCallback(async () => {
     if (!idOrSlug) {
@@ -186,6 +179,11 @@ export function useArtist(idOrSlug: string | null) {
   }, [idOrSlug]);
 
   useEffect(() => {
+    // Skip the first fetch if initial data was provided via SSR
+    if (initialDataUsedRef.current) {
+      initialDataUsedRef.current = false;
+      return;
+    }
     fetchArtist();
   }, [fetchArtist, refreshCounter]);
 
@@ -214,8 +212,7 @@ export function useArtistPortfolio(artistIdOrSlug: string | null, initialData?: 
       setPortfolio(initialData);
       setLoading(false);
       initialDataUsedRef.current = true;
-      // If we got a full page (25), there's likely more
-      setHasMore(initialData.length >= 25);
+      setHasMore(initialData.length >= 50);
     }
   }, [initialData]);
 
@@ -280,6 +277,7 @@ export function useArtistPortfolio(artistIdOrSlug: string | null, initialData?: 
   }, [loadingMore, hasMore, page, fetchPage]);
 
   const refetch = useCallback(() => {
+    clearCache('portfolio');
     setPage(1);
     setPortfolio([]);
     initialDataUsedRef.current = false;

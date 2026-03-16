@@ -9,6 +9,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import StarIcon from '@mui/icons-material/Star';
 import AddIcon from '@mui/icons-material/Add';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
+import EditIcon from '@mui/icons-material/Edit';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 
 // Lazy load heavy modals - only loaded when needed
 const ChangePasswordModal = dynamic(() => import('./ChangePasswordModal'), { ssr: false });
@@ -40,6 +42,9 @@ import { useUser } from '@/contexts/AuthContext';
 import InfoTooltip from './InfoTooltip';
 import { RescheduleAppointmentModal } from './inbox/RescheduleAppointmentModal';
 import { CancelAppointmentModal } from './inbox/CancelAppointmentModal';
+import { userProfileService } from '@/services/userProfileService';
+
+const TattooModal = dynamic(() => import('./TattooModal'), { ssr: false });
 
 interface ClientDashboardContentProps {
   userName: string;
@@ -108,6 +113,37 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
     refresh: refreshDashboard,
   } = useClientDashboard();
 
+  // My Uploads state
+  const [uploadedTattoos, setUploadedTattoos] = useState<any[]>([]);
+  const [uploadsLoading, setUploadsLoading] = useState(true);
+  const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
+  const [tattooModalOpen, setTattooModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchUploads = async () => {
+      if (!userData?.slug) { setUploadsLoading(false); return; }
+      try {
+        const response = await userProfileService.getTattoos(userData.slug, { per_page: 12 });
+        setUploadedTattoos(response.tattoos || []);
+      } catch (err) {
+        console.error('Failed to fetch uploads:', err);
+      } finally {
+        setUploadsLoading(false);
+      }
+    };
+    fetchUploads();
+  }, [userData?.slug]);
+
+  const refreshUploads = async () => {
+    if (!userData?.slug) return;
+    try {
+      const response = await userProfileService.getTattoos(userData.slug, { per_page: 12 });
+      setUploadedTattoos(response.tattoos || []);
+    } catch (err) {
+      console.error('Failed to refresh uploads:', err);
+    }
+  };
+
   // Appointment detail modal state
   const [selectedAppointment, setSelectedAppointment] = useState<DashboardAppointment | null>(null);
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
@@ -146,6 +182,29 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   // Use favorites from main dashboard call (avoids separate API call)
   const wishlist = favorites;
   const wishlistLoading = dashboardLoading;
+
+  // Saved tattoos and studios for the My Saved Items card
+  const [savedTattoos, setSavedTattoos] = useState<any[]>([]);
+  const [savedStudios, setSavedStudios] = useState<any[]>([]);
+  const [savedExtrasLoading, setSavedExtrasLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSavedExtras = async () => {
+      try {
+        const [tattooRes, studioRes] = await Promise.all([
+          clientService.getSavedTattoos(),
+          clientService.getSavedStudios(),
+        ]);
+        setSavedTattoos(tattooRes.tattoos || []);
+        setSavedStudios(studioRes.studios || []);
+      } catch (err) {
+        console.error('Failed to fetch saved items:', err);
+      } finally {
+        setSavedExtrasLoading(false);
+      }
+    };
+    fetchSavedExtras();
+  }, []);
 
   // Fetch lead status on mount
   useEffect(() => {
@@ -525,6 +584,125 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         );
       })()}
 
+      {/* My Uploads */}
+      <Card
+        title={`My Uploads${uploadedTattoos.length > 0 ? ` (${uploadedTattoos.length})` : ''}`}
+        icon={<PhotoLibraryIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+        action={
+          uploadedTattoos.length > 0 && userData?.slug ? (
+            <CardLink href={`/users/${userData.slug}`}>
+              View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
+            </CardLink>
+          ) : undefined
+        }
+        sx={{ mb: 3 }}
+      >
+        {uploadsLoading ? (
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+            gap: 1,
+            p: 2,
+          }}>
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} variant="rounded" sx={{ paddingBottom: '100%', bgcolor: colors.background }} />
+            ))}
+          </Box>
+        ) : uploadedTattoos.length > 0 ? (
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(4, 1fr)' },
+            gap: 1,
+            p: 2,
+          }}>
+            {uploadedTattoos.map((tattoo: any) => {
+              const imageUri = tattoo.primary_image?.uri || tattoo.images?.[0]?.uri;
+              return (
+                <Box
+                  key={tattoo.id}
+                  onClick={() => { setSelectedTattooId(String(tattoo.id)); setTattooModalOpen(true); }}
+                  sx={{
+                    position: 'relative',
+                    paddingBottom: '100%',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    bgcolor: colors.background,
+                    '&:hover .edit-overlay': { opacity: 1 },
+                    '&:hover': { opacity: 0.9 },
+                    transition: 'opacity 0.2s',
+                  }}
+                >
+                  {imageUri && (
+                    <Box
+                      component="img"
+                      src={imageUri}
+                      alt={tattoo.title || 'Tattoo'}
+                      sx={{
+                        position: 'absolute',
+                        top: 0, left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  )}
+                  <Box
+                    className="edit-overlay"
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      router.push(`/tattoos/update?id=${tattoo.id}`);
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      bgcolor: 'rgba(0, 0, 0, 0.6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: 0,
+                      transition: 'opacity 0.2s',
+                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.8)' },
+                    }}
+                  >
+                    <EditIcon sx={{ fontSize: 14, color: '#fff' }} />
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        ) : (
+          <EmptyState
+            icon={<PhotoLibraryIcon sx={{ fontSize: 32, color: colors.textMuted }} />}
+            message="You haven't uploaded any tattoos yet"
+            action={
+              <Button
+                onClick={() => setUploadWizardOpen(true)}
+                sx={{
+                  mt: 1,
+                  px: 2,
+                  py: 0.75,
+                  bgcolor: colors.accent,
+                  color: colors.background,
+                  borderRadius: '6px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.85rem',
+                  '&:hover': { bgcolor: colors.accentHover }
+                }}
+                startIcon={<AddAPhotoIcon sx={{ fontSize: 16 }} />}
+              >
+                Upload a Tattoo
+              </Button>
+            }
+          />
+        )}
+      </Card>
+
       {/* Two Column Layout */}
       <Box sx={{
         display: 'grid',
@@ -534,7 +712,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         {/* My Saved Items */}
         <Card
           title="My Saved Items"
-          subtitle="Artists and tattoos you've saved"
+          subtitle="Artists, tattoos, and studios you've saved"
           icon={<BookmarkIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
             <CardLink href="/wishlist">
@@ -542,28 +720,61 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             </CardLink>
           }
         >
-          {wishlistLoading ? (
+          {(wishlistLoading || savedExtrasLoading) ? (
             <Box sx={{ p: 2 }}>
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} variant="rounded" height={60} sx={{ bgcolor: colors.background, mb: 1 }} />
               ))}
             </Box>
-          ) : wishlist.length > 0 ? (
+          ) : (wishlist.length > 0 || savedTattoos.length > 0 || savedStudios.length > 0) ? (
             <Box>
-              {wishlist.slice(0, 5).map((artist, index) => (
-                <WishlistRow
-                  key={artist.id}
-                  artist={artist}
-                  onRemove={handleRemoveFromWishlist}
-                  isLast={index === Math.min(wishlist.length, 5) - 1}
-                />
-              ))}
+              {(() => {
+                const items: { type: 'artist' | 'tattoo' | 'studio'; data: any }[] = [
+                  ...wishlist.map(a => ({ type: 'artist' as const, data: a })),
+                  ...savedTattoos.map(t => ({ type: 'tattoo' as const, data: t })),
+                  ...savedStudios.map(s => ({ type: 'studio' as const, data: s })),
+                ];
+                const displayed = items.slice(0, 5);
+                return displayed.map((item, index) => {
+                  const isLast = index === displayed.length - 1;
+                  if (item.type === 'artist') {
+                    return (
+                      <WishlistRow
+                        key={`artist-${item.data.id}`}
+                        artist={item.data}
+                        onRemove={handleRemoveFromWishlist}
+                        isLast={isLast}
+                      />
+                    );
+                  }
+                  if (item.type === 'tattoo') {
+                    const tattoo = item.data;
+                    const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+                    return (
+                      <SavedTattooRow
+                        key={`tattoo-${tattoo.id}`}
+                        tattoo={tattoo}
+                        imageUri={imageUri}
+                        isLast={isLast}
+                      />
+                    );
+                  }
+                  const studio = item.data;
+                  return (
+                    <SavedStudioRow
+                      key={`studio-${studio.id}`}
+                      studio={studio}
+                      isLast={isLast}
+                    />
+                  );
+                });
+              })()}
             </Box>
           ) : (
             <EmptyState
               icon={<BookmarkIcon sx={{ fontSize: 32, color: colors.textMuted }} />}
-              message="Your wishlist is empty"
-              subMessage="Add artists to get notified when their books open"
+              message="No saved items yet"
+              subMessage="Save artists, tattoos, and studios to see them here"
             />
           )}
         </Card>
@@ -949,8 +1160,17 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
       <ClientUploadWizard
         open={uploadWizardOpen}
         onClose={() => setUploadWizardOpen(false)}
-        onSuccess={() => refreshDashboard()}
+        onSuccess={() => { refreshDashboard(); refreshUploads(); }}
       />
+
+      {tattooModalOpen && selectedTattooId && (
+        <TattooModal
+          tattooId={selectedTattooId}
+          open={tattooModalOpen}
+          onClose={() => setTattooModalOpen(false)}
+          onSuccess={refreshUploads}
+        />
+      )}
     </Box>
   );
 }
@@ -1415,6 +1635,158 @@ function WishlistRow({ artist, onRemove, isLast }: {
         <DeleteIcon sx={{ fontSize: { xs: 16, sm: 18 } }} aria-hidden="true" />
       </Button>
     </Box>
+  );
+}
+
+// Saved Tattoo Row Component (compact, for dashboard)
+function SavedTattooRow({ tattoo, imageUri, isLast }: {
+  tattoo: any;
+  imageUri?: string;
+  isLast: boolean;
+}) {
+  return (
+    <Link href={`/wishlist`} style={{ textDecoration: 'none' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: { xs: 1, sm: 1.5 },
+          p: { xs: 1.5, sm: 2 },
+          borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+          transition: 'background 0.15s',
+          '&:hover': { bgcolor: colors.background },
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: 36, sm: 40 },
+            height: { xs: 36, sm: 40 },
+            borderRadius: '6px',
+            overflow: 'hidden',
+            bgcolor: colors.background,
+            flexShrink: 0,
+          }}
+        >
+          {imageUri ? (
+            <Box
+              component="img"
+              src={imageUri}
+              alt={tattoo.title || 'Tattoo'}
+              sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PhotoLibraryIcon sx={{ fontSize: 18, color: colors.textMuted }} />
+            </Box>
+          )}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <Typography sx={{
+            fontWeight: 500,
+            color: colors.textPrimary,
+            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {tattoo.artist_name || 'Unknown Artist'}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {tattoo.primary_style || 'Tattoo'}
+          </Typography>
+        </Box>
+        <Typography sx={{
+          px: { xs: 1, sm: 1.5 },
+          py: 0.5,
+          bgcolor: `${colors.accent}15`,
+          borderRadius: '6px',
+          fontSize: { xs: '0.65rem', sm: '0.75rem' },
+          color: colors.accent,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          fontWeight: 500,
+        }}>
+          Tattoo
+        </Typography>
+      </Box>
+    </Link>
+  );
+}
+
+// Saved Studio Row Component (compact, for dashboard)
+function SavedStudioRow({ studio, isLast }: {
+  studio: any;
+  isLast: boolean;
+}) {
+  return (
+    <Link href={`/studios/${studio.slug}`} style={{ textDecoration: 'none' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: { xs: 1, sm: 1.5 },
+          p: { xs: 1.5, sm: 2 },
+          borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+          transition: 'background 0.15s',
+          '&:hover': { bgcolor: colors.background },
+        }}
+      >
+        <Avatar
+          src={studio.image?.uri}
+          alt={studio.name}
+          sx={{
+            width: { xs: 36, sm: 40 },
+            height: { xs: 36, sm: 40 },
+            bgcolor: colors.accent,
+            color: colors.background,
+            fontSize: '0.85rem',
+            fontWeight: 600,
+          }}
+        >
+          {(studio.name || 'S').charAt(0).toUpperCase()}
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <Typography sx={{
+            fontWeight: 500,
+            color: colors.textPrimary,
+            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {studio.name}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {studio.location || 'Studio'}
+          </Typography>
+        </Box>
+        <Typography sx={{
+          px: { xs: 1, sm: 1.5 },
+          py: 0.5,
+          bgcolor: `${colors.accent}15`,
+          borderRadius: '6px',
+          fontSize: { xs: '0.65rem', sm: '0.75rem' },
+          color: colors.accent,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          fontWeight: 500,
+        }}>
+          Studio
+        </Typography>
+      </Box>
+    </Link>
   );
 }
 

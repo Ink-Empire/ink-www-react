@@ -15,6 +15,7 @@ import BookingSettingsScreen from '../screens/BookingSettingsScreen';
 import MyBookingsScreen from '../screens/MyBookingsScreen';
 import PendingApprovalsScreen from '../screens/PendingApprovalsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import DraftsScreen from '../screens/DraftsScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { ProfileStackParamList } from './types';
 
@@ -38,6 +39,7 @@ export default function ProfileStack() {
       <Stack.Screen name="BookingSettings" component={BookingSettingsScreen} options={{ title: 'Booking Settings' }} />
       <Stack.Screen name="MyBookings" component={MyBookingsScreen} options={{ title: 'My Upcoming Bookings' }} />
       <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ title: 'Pending Approvals' }} />
+      <Stack.Screen name="Drafts" component={DraftsScreen} options={{ title: 'Drafts' }} />
       <Stack.Screen
         name="ArtistDetail"
         component={ArtistDetailScreen}

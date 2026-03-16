@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { studioService } from '../services/studioService';
 import { StudioType } from '../models/studio.interface';
 
@@ -107,12 +107,20 @@ export function useStudios(searchParams?: Record<string, any>) {
 }
 
 // Hook for fetching a single studio by ID or slug
-export function useStudio(idOrSlug: string | null) {
-  const [studio, setStudio] = useState<StudioType | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+// Pass initialData from getServerSideProps to skip the first client-side fetch
+export function useStudio(idOrSlug: string | null, initialData?: StudioType | null) {
+  const [studio, setStudio] = useState<StudioType | null>(initialData || null);
+  const [loading, setLoading] = useState<boolean>(!initialData);
   const [error, setError] = useState<Error | null>(null);
+  const initialDataUsedRef = useRef(!!initialData);
 
   useEffect(() => {
+    // Skip the first fetch if initial data was provided via SSR
+    if (initialDataUsedRef.current) {
+      initialDataUsedRef.current = false;
+      return;
+    }
+
     if (!idOrSlug) {
       setLoading(false);
       return;

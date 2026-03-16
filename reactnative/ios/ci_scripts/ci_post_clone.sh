@@ -1,23 +1,25 @@
 #!/bin/sh
 set -e
 
+# Ensure Homebrew is on PATH
+if [ -f /opt/homebrew/bin/brew ]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -f /usr/local/bin/brew ]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
 echo "Installing Node.js..."
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 brew install node 2>/dev/null || brew link --overwrite node 2>/dev/null || true
 
-# Ensure Homebrew bin paths are available (Xcode Cloud may not have them in PATH)
 eval "$(brew shellenv)"
 export NODE_BINARY=$(which node)
-echo "Node version: $(node --version)"
+echo "Node: $(node --version), npm: $(npm --version)"
 
 echo "Installing npm dependencies..."
 cd "$CI_PRIMARY_REPOSITORY_PATH/reactnative"
 npm install
-
-echo "Setting up CocoaPods repo..."
-pod repo remove trunk 2>/dev/null || true
-pod repo add-cdn trunk https://cdn.cocoapods.org/
 
 echo "Installing CocoaPods dependencies..."
 cd ios

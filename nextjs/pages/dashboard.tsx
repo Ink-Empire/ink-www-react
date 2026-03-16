@@ -741,6 +741,50 @@ export default function Dashboard() {
           <ClientDashboardContent userName={userName} userId={user?.id || 0} />
         )}
 
+        {/* Pending approvals banner */}
+        {activeTab === 'artist' && pendingApprovalsCount > 0 && (
+          <Box
+            onClick={() => setPendingApprovalsOpen(true)}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              p: 2,
+              mb: 2,
+              bgcolor: `${colors.accent}15`,
+              border: `1px solid ${colors.accent}`,
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': { bgcolor: `${colors.accent}25` },
+            }}
+          >
+            <Box sx={{
+              width: 44,
+              height: 44,
+              bgcolor: colors.accent,
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <CheckCircleIcon sx={{ color: colors.background, fontSize: 24 }} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: colors.textPrimary }}>
+                {pendingApprovalsCount} tattoo{pendingApprovalsCount === 1 ? '' : 's'} waiting for your approval
+              </Typography>
+              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
+                A client tagged you as the artist. Review and claim your work.
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: colors.accent, flexShrink: 0 }}>
+              Review &rarr;
+            </Typography>
+          </Box>
+        )}
+
         {/* Stats Row - for artists or studio tab */}
         {(isArtist || activeTab === 'studio') && (
         <Box sx={{

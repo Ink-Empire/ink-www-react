@@ -1,6 +1,6 @@
 {
   "name": "InkedinApp",
-  "version": "1.5.9",
+  "version": "1.6.8",
   "private": true,
   "scripts": {
     "android": "react-native run-android",

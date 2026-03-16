@@ -6,20 +6,22 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useTattoo } from '../hooks';
-import { useAuth } from '../contexts/AuthContext';
-import { useUserData } from '../contexts/AuthContext';
+import { useAuth, useUserData } from '../contexts/AuthContext';
+import { deleteTattoo } from '../hooks/useTattoos';
 import { useImageCache } from '../contexts/ImageCacheContext';
 import { colors, modalStyles } from '@/styles/colors';
 
 interface TattooModalProps {
   tattooId: string | null;
-  artistName: string | null;
+  artistName?: string | null;
   open: boolean;
   onClose: () => void;
   onPrevious?: () => void;
@@ -27,6 +29,7 @@ interface TattooModalProps {
   hasPrevious?: boolean;
   hasNext?: boolean;
   tattooFavorite?: boolean;
+  onSuccess?: () => void;
 }
 
 const TattooModal: React.FC<TattooModalProps> = ({
@@ -39,6 +42,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
   hasPrevious = false,
   hasNext = false,
   tattooFavorite = false,
+  onSuccess,
 }) => {
   const { tattoo, loading, error } = useTattoo(tattooId);
   const router = useRouter();
@@ -49,6 +53,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
   const [isTattooSaved, setIsTattooSaved] = useState(tattooFavorite);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Sync state with props
   useEffect(() => {
@@ -127,6 +134,22 @@ const TattooModal: React.FC<TattooModalProps> = ({
     router.push({ pathname: '/tattoos', query: { style: styleName } });
   };
 
+  const handleDelete = async () => {
+    if (!tattooId) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteTattoo(tattooId);
+      setShowDeleteConfirm(false);
+      onClose();
+      onSuccess?.();
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to delete tattoo');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const isOwner = isAuthenticated && user && tattoo && (
     user.id === tattoo.artist_id || user.id === tattoo.uploaded_by_user_id
   );
@@ -178,6 +201,12 @@ const TattooModal: React.FC<TattooModalProps> = ({
     if (studio && location) return `${studio} · ${location}`;
     return studio || location || '';
   };
+
+  // Pre-compute studio data with fallbacks (matching RN pattern)
+  const studioData = tattoo?.studio || (tattoo as any)?.artist?.studio;
+  const studioName = studioData?.name || (tattoo as any)?.studio_name;
+  const studioSlug = studioData?.slug;
+  const studioLocation = studioData?.location || (tattoo as any)?.artist_location;
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -457,7 +486,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                {/* Artist Avatar */}
+                {/* Avatar */}
                 <Avatar
                   src={getArtistAvatarUri() || undefined}
                   sx={{
@@ -472,58 +501,151 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   {!getArtistAvatarUri() && getArtistInitials()}
                 </Avatar>
 
-                {/* Artist Info */}
+                {/* Info */}
                 <Box sx={{ flex: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Typography
-                      component={Link}
-                      href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
-                      sx={{
+                  {!tattoo?.artist_id && tattoo?.attributed_artist_name ? (
+                    <>
+                      <Typography sx={{
                         fontWeight: 600,
                         fontSize: '0.95rem',
                         color: colors.textPrimary,
-                        textDecoration: 'none',
-                        '&:hover': { color: colors.accent },
-                      }}
-                    >
-                      {artistName || tattoo?.artist_name || 'Unknown Artist'}
-                    </Typography>
-                    {tattoo?.approval_status === 'pending' && (
-                      <Typography
-                        component="span"
-                        sx={{
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          color: colors.warning,
-                        }}
-                      >
-                        (pending)
+                      }}>
+                        {tattoo.attributed_artist_name}
                       </Typography>
-                    )}
-                  </Box>
-                  {tattoo?.studio?.name && (
-                    tattoo.studio.slug ? (
-                      <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                      {studioName ? (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {studioName}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {studioName}
+                          </Typography>
+                        )
+                      ) : tattoo.attributed_studio_name ? (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          at {tattoo.attributed_studio_name}
+                        </Typography>
+                      ) : null}
+                      {studioLocation ? (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {studioLocation}
+                        </Typography>
+                      ) : tattoo.attributed_location ? (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {tattoo.attributed_location}
+                        </Typography>
+                      ) : null}
+                      <Box sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        px: '0.5rem',
+                        py: '0.15rem',
+                        bgcolor: colors.infoDim,
+                        borderRadius: '4px',
+                        mt: '0.25rem',
+                      }}>
+                        <Typography sx={{ fontSize: '0.65rem', color: colors.info, fontWeight: 600 }}>
+                          Not yet on InkedIn
+                        </Typography>
+                      </Box>
+                    </>
+                  ) : tattoo?.artist_id ? (
+                    <>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Typography
+                          component={Link}
+                          href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
                           sx={{
-                            fontSize: '0.8rem',
-                            color: colors.accent,
-                            '&:hover': { textDecoration: 'underline' }
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            color: colors.textPrimary,
+                            textDecoration: 'none',
+                            '&:hover': { color: colors.accent },
                           }}
                         >
-                          {tattoo.studio.name}
+                          {artistName || tattoo?.artist_name || 'Unknown Artist'}
                         </Typography>
-                      </Link>
-                    ) : (
-                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                        {tattoo.studio.name}
+                        {tattoo?.approval_status === 'pending' && (
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: '0.75rem',
+                              fontWeight: 500,
+                              color: colors.warning,
+                            }}
+                          >
+                            (pending)
+                          </Typography>
+                        )}
+                      </Box>
+                      {studioName && (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {studioName}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {studioName}
+                          </Typography>
+                        )
+                      )}
+                      {studioLocation && (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {studioLocation}
+                        </Typography>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Typography sx={{
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
+                        color: colors.textMuted,
+                      }}>
+                        Artist Unknown
                       </Typography>
-                    )
-                  )}
-                  {tattoo?.studio?.location && (
-                    <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                      {tattoo.studio.location}
-                    </Typography>
+                      {studioName && (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {studioName}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {studioName}
+                          </Typography>
+                        )
+                      )}
+                      {studioLocation && (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {studioLocation}
+                        </Typography>
+                      )}
+                    </>
                   )}
                 </Box>
               </Box>
@@ -733,6 +855,126 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   <ShareIcon sx={{ fontSize: 18 }} />
                   <span>Share</span>
                 </Box>
+
+                {isOwner && (
+                  <>
+                    <Box
+                      component="button"
+                      onClick={() => router.push(`/tattoos/update?id=${tattooId}`)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        px: '0.875rem',
+                        py: '0.5rem',
+                        bgcolor: colors.surfaceElevated,
+                        border: `1px solid ${colors.borderLight}`,
+                        borderRadius: '6px',
+                        color: colors.textSecondary,
+                        fontFamily: 'inherit',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          borderColor: colors.accent,
+                          color: colors.accent,
+                        },
+                      }}
+                    >
+                      <EditIcon sx={{ fontSize: 18 }} />
+                      <span>Edit</span>
+                    </Box>
+
+                    <Box
+                      component="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        px: '0.875rem',
+                        py: '0.5rem',
+                        bgcolor: colors.surfaceElevated,
+                        border: `1px solid ${colors.borderLight}`,
+                        borderRadius: '6px',
+                        color: colors.textSecondary,
+                        fontFamily: 'inherit',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          borderColor: colors.error,
+                          color: colors.error,
+                        },
+                      }}
+                    >
+                      <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                      <span>Delete</span>
+                    </Box>
+                  </>
+                )}
+
+                {/* Delete Confirmation */}
+                {showDeleteConfirm && (
+                  <Box sx={{
+                    width: '100%',
+                    mt: '0.5rem',
+                    p: '0.75rem',
+                    bgcolor: colors.background,
+                    border: `1px solid ${colors.error}`,
+                    borderRadius: '8px',
+                  }}>
+                    <Typography sx={{ fontSize: '0.85rem', color: colors.textPrimary, mb: '0.5rem' }}>
+                      Delete this tattoo?
+                    </Typography>
+                    {deleteError && (
+                      <Typography sx={{ fontSize: '0.8rem', color: colors.error, mb: '0.5rem' }}>
+                        {deleteError}
+                      </Typography>
+                    )}
+                    <Box sx={{ display: 'flex', gap: '0.5rem' }}>
+                      <Box
+                        component="button"
+                        onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}
+                        disabled={deleting}
+                        sx={{
+                          px: '0.75rem',
+                          py: '0.35rem',
+                          bgcolor: colors.surfaceElevated,
+                          border: `1px solid ${colors.borderLight}`,
+                          borderRadius: '6px',
+                          color: colors.textSecondary,
+                          fontFamily: 'inherit',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          '&:hover': { borderColor: colors.accent },
+                        }}
+                      >
+                        Cancel
+                      </Box>
+                      <Box
+                        component="button"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        sx={{
+                          px: '0.75rem',
+                          py: '0.35rem',
+                          bgcolor: colors.error,
+                          border: `1px solid ${colors.error}`,
+                          borderRadius: '6px',
+                          color: '#fff',
+                          fontFamily: 'inherit',
+                          fontSize: '0.8rem',
+                          cursor: deleting ? 'wait' : 'pointer',
+                          opacity: deleting ? 0.7 : 1,
+                          '&:hover': { opacity: 0.9 },
+                        }}
+                      >
+                        {deleting ? 'Deleting...' : 'Delete'}
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
 
               </Box>
 

@@ -11,12 +11,15 @@ export interface UseTattoosOptions {
 export interface UseTattoosResult {
   tattoos: Tattoo[];
   loading: boolean;
+  loadingMore: boolean;
   error: Error | null;
+  hasMore: boolean;
+  loadMore: () => void;
   refetch: () => Promise<void>;
   removeTattoo: (id: number) => void;
 }
 
-// Hook for fetching tattoos list with search/filter
+// Hook for fetching tattoos list with search/filter and pagination
 export function useTattoos(
   api: ApiClient,
   searchParams?: SearchFilters,
@@ -26,58 +29,98 @@ export function useTattoos(
 
   const [tattoos, setTattoos] = useState<Tattoo[]>([]);
   const [loading, setLoading] = useState(!skip);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const mountedRef = useRef(true);
+  const [hasMore, setHasMore] = useState(true);
+  const pageRef = useRef(1);
+  const loadingRef = useRef(false);
 
-  // Stringify params for dependency comparison
   const searchParamsKey = JSON.stringify(searchParams || {});
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
 
-  const fetchTattoos = useCallback(async () => {
-    if (skip) return;
+  const fetchTattoos = useCallback(async (pageNum: number, append: boolean) => {
+    if (skip || loadingRef.current) return;
+    loadingRef.current = true;
 
-    setLoading(true);
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     try {
-      // Convert locationCoords if needed
-      const requestBody = { ...searchParams };
+      const currentParams = searchParamsRef.current;
+      const requestBody: Record<string, any> = { ...currentParams, page: pageNum, per_page: 50 };
       if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
         const coords = requestBody.locationCoords as any;
         requestBody.locationCoords = `${coords.lat || coords.latitude},${coords.lng || coords.longitude}`;
       }
 
-      const response = await api.post<any>('/tattoos', requestBody);
+      console.log('[useTattoos] fetching page', pageNum, 'append:', append);
+      const response = await api.post<any>('/tattoos', requestBody, {
+        headers: { 'X-Account-Type': 'user' },
+      });
 
-      if (mountedRef.current) {
-        // API returns { response: [...], total, has_more } or a plain array
-        const data = response?.response ?? response;
-        setTattoos(Array.isArray(data) ? data : []);
+      let items: Tattoo[] = [];
+      let hasMorePages = false;
+
+      if (response) {
+        if ('response' in response && Array.isArray(response.response)) {
+          items = response.response;
+          hasMorePages = response.has_more === true || (response.has_more === undefined && items.length >= 50);
+        } else if (Array.isArray(response)) {
+          items = response;
+          hasMorePages = items.length >= 50;
+        }
       }
+
+      if (append) {
+        setTattoos((prev: Tattoo[]) => [...prev, ...items]);
+      } else {
+        setTattoos(items);
+      }
+      setHasMore(hasMorePages);
+      pageRef.current = pageNum;
     } catch (err) {
-      if (mountedRef.current) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
-      }
+      console.log('[useTattoos] fetch error:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
     } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-      }
+      setLoading(false);
+      setLoadingMore(false);
+      loadingRef.current = false;
     }
-  }, [api, searchParamsKey, skip]);
+  }, [api, searchParamsKey, skip]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch page 1 on mount and when search params change
   useEffect(() => {
-    mountedRef.current = true;
-    fetchTattoos();
+    if (skip) return;
+    pageRef.current = 1;
+    setTattoos([]);
+    setHasMore(true);
+    fetchTattoos(1, false);
+  }, [searchParamsKey, skip]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    return () => {
-      mountedRef.current = false;
-    };
+  const loadMore = useCallback(() => {
+    console.log('[useTattoos] loadMore called, loadingRef:', loadingRef.current, 'hasMore:', hasMore);
+    if (!loadingRef.current && hasMore) {
+      fetchTattoos(pageRef.current + 1, true);
+    }
+  }, [hasMore, fetchTattoos]);
+
+  const refetch = useCallback(async () => {
+    pageRef.current = 1;
+    setTattoos([]);
+    setHasMore(true);
+    await fetchTattoos(1, false);
   }, [fetchTattoos]);
 
   const removeTattoo = useCallback((id: number) => {
-    setTattoos(prev => prev.filter(t => t.id !== id));
+    setTattoos((prev: Tattoo[]) => prev.filter((t: Tattoo) => t.id !== id));
   }, []);
 
-  return { tattoos, loading, error, refetch: fetchTattoos, removeTattoo };
+  return { tattoos, loading, loadingMore, error, hasMore, loadMore, refetch, removeTattoo };
 }
 
 // Hook for fetching a single tattoo

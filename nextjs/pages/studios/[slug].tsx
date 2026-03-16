@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -23,15 +24,21 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
+import TextField from '@mui/material/TextField';
 import { useStudio, useStudioArtists, useStudioGallery, useStudioHours } from '../../hooks/useStudios';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooModal from '@/components/TattooModal';
+import { studioService } from '@/services/studioService';
 import { colors } from '@/styles/colors';
 
-export default function StudioDetail() {
+interface StudioDetailProps {
+    initialStudio?: any;
+}
+
+export default function StudioDetail({ initialStudio }: StudioDetailProps) {
   const router = useRouter();
   const { slug } = router.query;
-  const { studio, loading: studioLoading, error: studioError } = useStudio(slug as string);
+  const { studio, loading: studioLoading, error: studioError } = useStudio(slug as string, initialStudio);
   const { artists: allArtists } = useStudioArtists(slug as string);
   const artists = useMemo(() => (allArtists || []).filter((a: any) => a.is_verified), [allArtists]);
   const { gallery } = useStudioGallery(slug as string);
@@ -44,6 +51,10 @@ export default function StudioDetail() {
   const [isTattooModalOpen, setIsTattooModalOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteError, setInviteError] = useState('');
 
   // Check if studio is verified/claimed or if the current user owns it
   const isOwner = isAuthenticated && user && studio?.owner_id === user.id;
@@ -140,6 +151,25 @@ export default function StudioDetail() {
     }
   };
 
+  const handleSendInvite = async () => {
+    if (!inviteEmail || !studio) return;
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+    setInviteLoading(true);
+    setInviteError('');
+    try {
+      await studioService.inviteStudioOwner(studio.id, inviteEmail);
+      setInviteSent(true);
+      setInviteEmail('');
+    } catch (err: any) {
+      setInviteError(err.message || 'Failed to send invitation. Please try again.');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   // Get studio hours for today
   const getTodayHours = () => {
     if (!studio?.hours) return null;
@@ -148,9 +178,12 @@ export default function StudioDetail() {
     return studio.hours.find((h: any) => h.day === today);
   };
 
-  if (studioLoading) {
+  if (studioLoading && !studio) {
     return (
       <Layout>
+        <Head>
+          <title>Studio | InkedIn</title>
+        </Head>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
           <Typography sx={{ color: colors.textSecondary }}>Loading studio details...</Typography>
         </Box>
@@ -180,11 +213,55 @@ export default function StudioDetail() {
 
   // Unclaimed/Stub Studio View
   if (!isVerified) {
+    const seoTitle = `${studio.name}${studio.city ? ` - ${studio.city}, ${studio.state}` : ''} | Tattoo Studio | InkedIn`;
+    const seoDescription = studio.about?.substring(0, 160)
+      || `${studio.name} is a tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}. View their portfolio, hours, and contact info on InkedIn.`;
+    const studioUrl = `https://getinked.in/studios/${slug}`;
+    const studioImage = studio.image?.uri || studio.primary_image?.uri || null;
+
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'TattooParlor',
+      name: studio.name,
+      ...(studioImage && { image: studioImage }),
+      url: studioUrl,
+      ...(studio.phone && { telephone: studio.phone }),
+      ...(studio.email && { email: studio.email }),
+      ...(studio.website && { sameAs: [studio.website] }),
+      ...(studio.address && {
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: studio.address,
+          addressLocality: studio.city,
+          addressRegion: studio.state,
+          postalCode: studio.postal_code,
+        },
+      }),
+      ...(studio.location_lat_long && {
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: studio.location_lat_long.split(',')[0],
+          longitude: studio.location_lat_long.split(',')[1],
+        },
+      }),
+    };
+
     return (
       <Layout>
         <Head>
-          <title>{studio.name} | InkedIn</title>
-          <meta name="description" content={`${studio.name} tattoo studio`} />
+          <title>{seoTitle}</title>
+          <meta name="description" content={seoDescription} />
+          <link rel="canonical" href={studioUrl} />
+          <meta property="og:type" content="business.business" />
+          <meta property="og:title" content={seoTitle} />
+          <meta property="og:description" content={seoDescription} />
+          <meta property="og:url" content={studioUrl} />
+          {studioImage && <meta property="og:image" content={studioImage} />}
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={seoTitle} />
+          <meta name="twitter:description" content={seoDescription} />
+          {studioImage && <meta name="twitter:image" content={studioImage} />}
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         </Head>
 
         <Box sx={{ maxWidth: 1200, mx: 'auto', py: 3 }}>
@@ -311,7 +388,7 @@ export default function StudioDetail() {
               Claim this profile to manage your studio's presence on InkedIn. Add photos, update hours, respond to reviews, and connect with clients.
             </Typography>
             <Button
-              href="/claim-studio"
+              href={`/register?userType=studio&studioSlug=${slug}`}
               sx={{
                 px: 4,
                 py: 1.25,
@@ -476,14 +553,201 @@ export default function StudioDetail() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 1,
+                mb: 3,
                 '&:hover': { borderColor: colors.accent, color: colors.accent }
               }}
             >
               <ContentCopyIcon sx={{ fontSize: 18 }} />
               {copied ? 'Copied!' : 'Copy Link'}
             </Button>
+
+            <Box sx={{ borderTop: `1px solid ${colors.border}`, pt: 3 }}>
+              <Typography sx={{ color: colors.textSecondary, mb: 2, fontSize: '0.9rem' }}>
+                Or send them an email invite to claim this studio
+              </Typography>
+              {inviteSent ? (
+                <Typography sx={{ color: colors.accent, fontWeight: 500 }}>
+                  Invitation sent successfully!
+                </Typography>
+              ) : (
+                <Box sx={{ display: 'flex', gap: 1, maxWidth: 400, mx: 'auto' }}>
+                  <TextField
+                    size="small"
+                    placeholder="owner@email.com"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    sx={{
+                      flex: 1,
+                      '& .MuiOutlinedInput-root': {
+                        color: colors.textPrimary,
+                        '& fieldset': { borderColor: colors.border },
+                        '&:hover fieldset': { borderColor: colors.accent },
+                        '&.Mui-focused fieldset': { borderColor: colors.accent },
+                      },
+                      '& .MuiInputBase-input::placeholder': { color: colors.textMuted },
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendInvite(); }}
+                  />
+                  <Button
+                    onClick={handleSendInvite}
+                    disabled={inviteLoading || !inviteEmail}
+                    sx={{
+                      px: 3,
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      '&:hover': { bgcolor: colors.accentHover || colors.accent },
+                      '&.Mui-disabled': { bgcolor: colors.border, color: colors.textMuted },
+                    }}
+                  >
+                    {inviteLoading ? 'Sending...' : 'Send Invite'}
+                  </Button>
+                </Box>
+              )}
+              {inviteError && (
+                <Typography sx={{ color: colors.error, mt: 1, fontSize: '0.85rem' }}>
+                  {inviteError}
+                </Typography>
+              )}
+            </Box>
           </Box>
+
+          {/* Tattoo Gallery */}
+          {gallery.length > 0 && (
+            <Box sx={{
+              bgcolor: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '12px',
+              p: 3,
+              mt: 3,
+            }}>
+              <Typography sx={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: '1.75rem',
+                fontWeight: 500,
+                color: colors.textPrimary,
+                mb: 0.5,
+              }}>
+                Portfolio
+              </Typography>
+              <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary, mb: 2 }}>
+                <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{gallery.length}</Box> pieces from this studio
+              </Typography>
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
+                gap: 1.5,
+              }}>
+                {gallery.map((tattoo: any, index: number) => {
+                  const tattooStyle = tattoo.styles?.[0];
+                  const styleName = typeof tattooStyle === 'string' ? tattooStyle : tattooStyle?.name;
+
+                  return (
+                    <Box
+                      key={tattoo.id}
+                      onClick={() => handleTattooClick(tattoo.id.toString())}
+                      sx={{
+                        aspectRatio: '1',
+                        bgcolor: colors.background,
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'scale(1.02)',
+                          zIndex: 2,
+                          '& img': { transform: 'scale(1.05)' },
+                          '& .overlay': { opacity: 1 },
+                        },
+                      }}
+                    >
+                      {tattoo.primary_image?.uri ? (
+                        <Image
+                          src={tattoo.primary_image.uri}
+                          alt={tattoo.title || 'Tattoo work'}
+                          fill
+                          style={{ objectFit: 'cover', transition: 'transform 0.3s ease' }}
+                        />
+                      ) : (
+                        <Box sx={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: colors.textSecondary,
+                          fontSize: '0.8rem',
+                          background: `linear-gradient(135deg, ${colors.background} 0%, ${colors.surface} 100%)`,
+                        }}>
+                          No Image
+                        </Box>
+                      )}
+                      <Box
+                        className="overlay"
+                        sx={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(to top, rgba(15, 15, 15, 0.9) 0%, transparent 50%)',
+                          opacity: 0,
+                          transition: 'opacity 0.3s ease',
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          p: 1.5,
+                        }}
+                      >
+                        <Box>
+                          {styleName && (
+                            <Typography sx={{
+                              fontSize: '0.7rem',
+                              color: colors.accent,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              mb: 0.25,
+                            }}>
+                              {styleName}
+                            </Typography>
+                          )}
+                          <Typography sx={{
+                            fontSize: '0.9rem',
+                            fontWeight: 500,
+                            color: colors.textPrimary,
+                          }}>
+                            {tattoo.title || 'Untitled'}
+                          </Typography>
+                          {tattoo.artist_name && (
+                            <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                              by {tattoo.artist_name}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
         </Box>
+
+        {/* Tattoo Modal */}
+        <TattooModal
+          tattooId={selectedTattooId}
+          open={isTattooModalOpen}
+          onClose={() => { setIsTattooModalOpen(false); setSelectedTattooId(null); }}
+          onPrevious={gallery.length > 1 ? () => {
+            const idx = gallery.findIndex((t: any) => t.id.toString() === selectedTattooId);
+            if (idx > 0) setSelectedTattooId(gallery[idx - 1].id.toString());
+          } : undefined}
+          onNext={gallery.length > 1 ? () => {
+            const idx = gallery.findIndex((t: any) => t.id.toString() === selectedTattooId);
+            if (idx < gallery.length - 1) setSelectedTattooId(gallery[idx + 1].id.toString());
+          } : undefined}
+          hasPrevious={gallery.findIndex((t: any) => t.id.toString() === selectedTattooId) > 0}
+          hasNext={gallery.findIndex((t: any) => t.id.toString() === selectedTattooId) < gallery.length - 1}
+        />
       </Layout>
     );
   }
@@ -492,8 +756,50 @@ export default function StudioDetail() {
   return (
     <Layout>
       <Head>
-        <title>{studio.name} | InkedIn</title>
-        <meta name="description" content={studio.about?.substring(0, 160) || `${studio.name} tattoo studio`} />
+        <title>{`${studio.name}${studio.city ? ` - ${studio.city}, ${studio.state}` : ''} | Tattoo Studio | InkedIn`}</title>
+        <meta name="description" content={studio.about?.substring(0, 160) || `${studio.name} is a tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}. View their portfolio, hours, and contact info on InkedIn.`} />
+        <link rel="canonical" href={`https://getinked.in/studios/${slug}`} />
+        <meta property="og:type" content="business.business" />
+        <meta property="og:title" content={`${studio.name} | Tattoo Studio | InkedIn`} />
+        <meta property="og:description" content={studio.about?.substring(0, 160) || `${studio.name} tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}`} />
+        <meta property="og:url" content={`https://getinked.in/studios/${slug}`} />
+        {(studio.image?.uri || studio.primary_image?.uri) && <meta property="og:image" content={studio.image?.uri || studio.primary_image?.uri} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${studio.name} | Tattoo Studio | InkedIn`} />
+        <meta name="twitter:description" content={studio.about?.substring(0, 160) || `${studio.name} tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}`} />
+        {(studio.image?.uri || studio.primary_image?.uri) && <meta name="twitter:image" content={studio.image?.uri || studio.primary_image?.uri} />}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'TattooParlor',
+          name: studio.name,
+          ...(studio.about && { description: studio.about }),
+          ...((studio.image?.uri || studio.primary_image?.uri) && { image: studio.image?.uri || studio.primary_image?.uri }),
+          url: `https://getinked.in/studios/${slug}`,
+          ...(studio.phone && { telephone: studio.phone }),
+          ...(studio.email && { email: studio.email }),
+          ...(studio.website && { sameAs: [studio.website] }),
+          ...(studio.address && {
+            address: {
+              '@type': 'PostalAddress',
+              streetAddress: studio.address,
+              addressLocality: studio.city,
+              addressRegion: studio.state,
+              postalCode: studio.postal_code,
+            },
+          }),
+          ...(studio.location_lat_long && {
+            geo: {
+              '@type': 'GeoCoordinates',
+              latitude: studio.location_lat_long.split(',')[0],
+              longitude: studio.location_lat_long.split(',')[1],
+            },
+          }),
+          ...(gallery.length > 0 && { hasOfferCatalog: {
+            '@type': 'OfferCatalog',
+            name: 'Tattoo Portfolio',
+            numberOfItems: gallery.length,
+          }}),
+        }) }} />
       </Head>
 
       <Box sx={{ maxWidth: 1200, mx: 'auto', py: 3 }}>
@@ -1498,3 +1804,46 @@ export default function StudioDetail() {
     </Layout>
   );
 }
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+    const { slug } = context.params || {};
+    if (!slug || typeof slug !== 'string') {
+        return { notFound: true };
+    }
+
+    // Cache the SSR response for 60s, serve stale for up to 5 minutes while revalidating
+    context.res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+    const appToken = process.env.NEXT_PUBLIC_API_APP_TOKEN || '';
+
+    try {
+        const response = await fetch(`${apiUrl}/api/studios/${slug}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                ...(appToken ? { 'X-App-Token': appToken } : {}),
+            },
+        });
+
+        if (!response.ok) {
+            return { notFound: true };
+        }
+
+        const data = await response.json();
+        const studio = data?.studio || null;
+
+        if (!studio) {
+            return { notFound: true };
+        }
+
+        return {
+            props: {
+                initialStudio: studio,
+            },
+        };
+    } catch {
+        // If server-side fetch fails, fall back to client-side rendering
+        return { props: {} };
+    }
+};

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,15 @@ import {
   TouchableOpacity,
   DeviceEventEmitter,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { useUserProfile, useUserTattoos } from '@inkedin/shared/hooks';
-import TattooCard from '../components/cards/TattooCard';
+import { createTattooService } from '@inkedin/shared/services';
+import { useAuth } from '../contexts/AuthContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -24,7 +27,15 @@ export default function UserProfileScreen({ route, navigation }: any) {
   const { slug } = route.params;
   const { profile, loading: profileLoading, refetch: refetchProfile } = useUserProfile(api, slug);
   const { tattoos, loading: tattoosLoading, loadMore, removeTattoo, refetch: refetchTattoos } = useUserTattoos(api, slug);
+  const { user } = useAuth();
+  const { showSnackbar } = useSnackbar();
   const [refreshing, setRefreshing] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const tattooService = useMemo(() => createTattooService(api), []);
+
+  const isOwner = user?.slug === slug;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -38,6 +49,58 @@ export default function UserProfileScreen({ route, navigation }: any) {
     });
     return () => sub.remove();
   }, [removeTattoo]);
+
+  const toggleSelectMode = useCallback(() => {
+    setSelectMode(prev => {
+      if (prev) setSelectedIds(new Set());
+      return !prev;
+    });
+  }, []);
+
+  const toggleSelected = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(prev => prev.size === tattoos.length ? new Set() : new Set(tattoos.map(t => t.id)));
+  }, [tattoos]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    Alert.alert(
+      `Delete ${selectedIds.size} upload${selectedIds.size > 1 ? 's' : ''}?`,
+      'This will permanently remove the selected tattoos and their images. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const idsToDelete = [...selectedIds];
+              const result = await tattooService.bulkDelete(idsToDelete);
+              const count = (result as any)?.deleted_count ?? idsToDelete.length;
+              idsToDelete.forEach(id => DeviceEventEmitter.emit('tattoo-deleted', { id }));
+              showSnackbar(`Deleted ${count} upload${count !== 1 ? 's' : ''}`);
+              setSelectMode(false);
+              setSelectedIds(new Set());
+              refetchTattoos();
+            } catch (err: any) {
+              showSnackbar('Failed to delete uploads', 'error');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [selectedIds, tattooService, showSnackbar, refetchTattoos]);
 
   if (profileLoading) {
     return (
@@ -89,16 +152,84 @@ export default function UserProfileScreen({ route, navigation }: any) {
       )}
 
       <View style={s.divider} />
+
+      {isOwner && tattoos.length > 0 && (
+        selectMode ? (
+          <View style={s.selectBar}>
+            <TouchableOpacity onPress={selectAll} activeOpacity={0.7}>
+              <Text style={s.selectBarLink}>
+                {selectedIds.size === tattoos.length ? 'Deselect All' : 'Select All'}
+              </Text>
+            </TouchableOpacity>
+            <View style={s.selectBarRight}>
+              {selectedIds.size > 0 && (
+                <TouchableOpacity
+                  style={s.deleteBtn}
+                  onPress={handleBulkDelete}
+                  disabled={deleting}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons name="delete-outline" size={18} color="#fff" />
+                  <Text style={s.deleteBtnText}>
+                    {deleting ? 'Deleting...' : `Delete (${selectedIds.size})`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={toggleSelectMode} activeOpacity={0.7}>
+                <Text style={s.selectBarLink}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={s.selectBar}>
+            <TouchableOpacity onPress={toggleSelectMode} activeOpacity={0.7}>
+              <Text style={s.selectBarLink}>Select</Text>
+            </TouchableOpacity>
+          </View>
+        )
+      )}
     </View>
   );
 
-  const renderTattoo = ({ item }: { item: any }) => (
-    <TattooCard
-      tattoo={item}
-      onPress={() => navigation.navigate('TattooDetail', { id: item.id })}
-      size="small"
-    />
-  );
+  const renderTattoo = ({ item }: { item: any }) => {
+    const imageUri = item.primary_image?.uri || item.images?.[0]?.uri;
+    const isSelected = selectedIds.has(item.id);
+    const cardSize = (screenWidth - 48) / 3;
+    return (
+      <TouchableOpacity
+        style={[s.gridItem, { width: cardSize, height: cardSize }, selectMode && isSelected && s.gridItemSelected]}
+        activeOpacity={0.8}
+        onPress={() => {
+          if (selectMode) {
+            toggleSelected(item.id);
+          } else {
+            navigation.navigate('TattooDetail', { id: item.id });
+          }
+        }}
+        onLongPress={() => {
+          if (isOwner && !selectMode) {
+            setSelectMode(true);
+            setSelectedIds(new Set([item.id]));
+          }
+        }}
+      >
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={s.gridImage} />
+        ) : (
+          <View style={s.gridPlaceholder}>
+            <MaterialIcons name="image" size={28} color={colors.textMuted} />
+          </View>
+        )}
+        {selectMode && (
+          <View style={s.checkOverlay}>
+            <View style={[s.checkbox, isSelected && s.checkboxSelected]}>
+              {isSelected && <MaterialIcons name="check" size={16} color="#fff" />}
+            </View>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={s.container}>
@@ -165,4 +296,75 @@ const s = StyleSheet.create({
   gridRow: { paddingHorizontal: 8, gap: 4 },
   emptyState: { alignItems: 'center', paddingTop: 40 },
   emptyText: { color: colors.textMuted, fontSize: 16 },
+  selectBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  selectBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectBarLink: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.error,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  gridItem: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceElevated,
+    margin: 4,
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  gridPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridItemSelected: {
+    opacity: 0.7,
+  },
+  checkOverlay: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
 });

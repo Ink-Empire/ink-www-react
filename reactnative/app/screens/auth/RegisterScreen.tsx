@@ -125,6 +125,7 @@ export default function RegisterScreen({ navigation }: Props) {
         studio_id: data.userDetails.studioAffiliation?.studioId,
         has_accepted_toc: credentials.has_accepted_toc,
         has_accepted_privacy_policy: credentials.has_accepted_privacy_policy,
+        signup_platform: Platform.OS === 'ios' ? 'ios' : 'android',
       });
 
       // Fire off photo upload and lead creation in the background
@@ -233,6 +234,7 @@ export default function RegisterScreen({ navigation }: Props) {
           claim_studio_id: studioDetails.studioResult?.id,
           has_accepted_toc: true,
           has_accepted_privacy_policy: true,
+          signup_platform: Platform.OS === 'ios' ? 'ios' : 'android',
         });
 
         // Upload photo to S3 and link to both studio and user profile

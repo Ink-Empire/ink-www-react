@@ -75,24 +75,30 @@ export async function uploadImagesToS3(
   };
 
   try {
-    // Step 1: Get presigned URLs
+    // Step 1: Get presigned URLs (batched in groups of 10 to respect API limit)
     updateProgress({ status: 'getting-urls', current: 'Getting upload URLs...' });
 
-    const filesData = files.map(file => ({
-      content_type: normalizeContentType(file.type || 'image/jpeg'),
-    }));
+    const PRESIGN_BATCH_SIZE = 10;
+    const uploads: PresignedUrlsResponse['data']['uploads'] = [];
 
-    const presignedResponse = await api.post<PresignedUrlsResponse>(
-      '/uploads/presign-batch',
-      { files: filesData, purpose },
-      { requiresAuth: true },
-    );
+    for (let i = 0; i < files.length; i += PRESIGN_BATCH_SIZE) {
+      const batch = files.slice(i, i + PRESIGN_BATCH_SIZE);
+      const filesData = batch.map(file => ({
+        content_type: normalizeContentType(file.type || 'image/jpeg'),
+      }));
 
-    if (!presignedResponse.success || !presignedResponse.data?.uploads) {
-      throw new Error('Failed to get upload URLs');
+      const presignedResponse = await api.post<PresignedUrlsResponse>(
+        '/uploads/presign-batch',
+        { files: filesData, purpose },
+        { requiresAuth: true },
+      );
+
+      if (!presignedResponse.success || !presignedResponse.data?.uploads) {
+        throw new Error('Failed to get upload URLs');
+      }
+
+      uploads.push(...presignedResponse.data.uploads);
     }
-
-    const uploads = presignedResponse.data.uploads;
 
     // Step 2: Upload each file directly to S3 in parallel
     updateProgress({ status: 'uploading', completed: 0, current: 'Uploading images...' });
@@ -128,22 +134,30 @@ export async function uploadImagesToS3(
 
     const filenames = await Promise.all(uploadPromises);
 
-    // Step 3: Confirm uploads and create Image records
+    // Step 3: Confirm uploads and create Image records (batched in groups of 10)
     updateProgress({ status: 'confirming', current: 'Saving...' });
 
-    const confirmResponse = await api.post<ConfirmUploadsResponse>(
-      '/uploads/confirm',
-      { filenames },
-      { requiresAuth: true },
-    );
+    const allImages: ConfirmUploadsResponse['data']['images'] = [];
 
-    if (!confirmResponse.success || !confirmResponse.data?.images) {
-      throw new Error('Failed to confirm uploads');
+    for (let i = 0; i < filenames.length; i += PRESIGN_BATCH_SIZE) {
+      const batch = filenames.slice(i, i + PRESIGN_BATCH_SIZE);
+
+      const confirmResponse = await api.post<ConfirmUploadsResponse>(
+        '/uploads/confirm',
+        { filenames: batch },
+        { requiresAuth: true },
+      );
+
+      if (!confirmResponse.success || !confirmResponse.data?.images) {
+        throw new Error('Failed to confirm uploads');
+      }
+
+      allImages.push(...confirmResponse.data.images);
     }
 
     updateProgress({ status: 'complete', completed: files.length, current: 'Upload complete!' });
 
-    return confirmResponse.data.images;
+    return allImages;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Upload failed';
     updateProgress({ status: 'error', error: errorMessage });

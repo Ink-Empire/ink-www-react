@@ -150,6 +150,7 @@ const RegisterPage: React.FC = () => {
           studio_phone: data.studioDetails?.phone || '',
           has_accepted_toc: data.credentials?.has_accepted_toc ?? true,
           has_accepted_privacy_policy: data.credentials?.has_accepted_privacy_policy ?? true,
+          signup_platform: 'web',
         };
 
         const response = await fetch('/api/register', {
@@ -219,6 +220,7 @@ const RegisterPage: React.FC = () => {
         experience_level: data.experienceLevel,
         has_accepted_toc: data.credentials?.has_accepted_toc ?? false,
         has_accepted_privacy_policy: data.credentials?.has_accepted_privacy_policy ?? false,
+        signup_platform: 'web',
       };
 
       // Add studio affiliation for artists
@@ -275,7 +277,8 @@ const RegisterPage: React.FC = () => {
 
         // Redirect to verify email page with email for resend functionality
         const email = encodeURIComponent(result.email || data.credentials?.email || '');
-        router.push(`/verify-email?email=${email}`);
+        const redirect = router.query.redirect ? `&redirect=${encodeURIComponent(router.query.redirect as string)}` : '';
+        router.push(`/verify-email?email=${email}${redirect}`);
 
       } else {
         const errorData = await response.json();
@@ -293,8 +296,8 @@ const RegisterPage: React.FC = () => {
     router.push('/');
   };
 
-  // Show loading while clearing previous auth state
-  if (isClearing) {
+  // Show loading while clearing previous auth state or waiting for query params
+  if (isClearing || !router.isReady) {
     return (
       <>
         <Head>
@@ -328,6 +331,8 @@ const RegisterPage: React.FC = () => {
       <OnboardingWizard
         onComplete={handleRegistrationComplete}
         onCancel={handleRegistrationCancel}
+        initialUserType={router.query.userType as 'client' | 'artist' | 'studio' | undefined}
+        claimStudioSlug={router.query.studioSlug as string | undefined}
       />
 
       {/* Loading Backdrop */}

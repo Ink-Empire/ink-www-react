@@ -9,6 +9,7 @@
 - When updating a shared hook or service, verify both `nextjs/` and `reactnative/` (and `shared/`) are updated.
 - When adding a new API endpoint, ensure both platforms have corresponding service methods and hooks.
 - When fixing a bug on one platform, check if the same bug exists on the other.
+- When the same feature exists in multiple flows (e.g., artist upload vs client upload), it must use the same underlying components. Never reimplement a component's functionality inline.
 
 ## Code Completion Guidelines
 - Never use hardcoded data when fulfilling prompts. We will get data from the API and generate test data in the API.

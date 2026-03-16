@@ -1,4 +1,5 @@
 import { api } from '../utils/api';
+import { clearCache } from '../utils/apiCache';
 
 export interface DashboardAppointment {
   id: number;
@@ -66,7 +67,6 @@ export const clientService = {
   getSavedTattoos: async (): Promise<{ tattoos: any[] }> => {
     return api.get('/client/saved-tattoos', {
       requiresAuth: true,
-      useCache: false,
     });
   },
 
@@ -74,7 +74,6 @@ export const clientService = {
   getSavedStudios: async (): Promise<{ studios: any[] }> => {
     return api.get('/client/saved-studios', {
       requiresAuth: true,
-      useCache: false,
     });
   },
 
@@ -88,18 +87,24 @@ export const clientService = {
 
   // Add artist to favorites (requires auth)
   addFavorite: async (artistId: number): Promise<void> => {
-    return api.post('/users/favorites/artist', {
+    const result = await api.post('/users/favorites/artist', {
       ids: artistId,
       action: 'add'
     }, { requiresAuth: true });
+    clearCache('/client/saved-');
+    clearCache('/client/favorites');
+    return result;
   },
 
   // Remove artist from favorites (requires auth)
   removeFavorite: async (artistId: number): Promise<void> => {
-    return api.post('/users/favorites/artist', {
+    const result = await api.post('/users/favorites/artist', {
       ids: artistId,
       action: 'remove'
     }, { requiresAuth: true });
+    clearCache('/client/saved-');
+    clearCache('/client/favorites');
+    return result;
   },
 
   // Update wishlist notification preference (requires auth)

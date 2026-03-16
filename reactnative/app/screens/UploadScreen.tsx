@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Switch,
   Modal,
   ActivityIndicator,
   SafeAreaView,
@@ -21,8 +20,9 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
-import { tagService } from '../../lib/services';
+import { tagService, styleService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
+import { clearTattooCache } from '../../lib/tattooCache';
 import { useStyles, useTags, usePlacements } from '@inkedin/shared/hooks';
 import type { AiTagSuggestion } from '@inkedin/shared/services';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -61,9 +61,6 @@ export default function UploadScreen({ navigation }: any) {
   const [size, setSize] = useState('');
   const [hours, setHours] = useState('');
 
-  // Step 4: Review
-  const [isPublic, setIsPublic] = useState(true);
-
   // Publishing state
   const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
@@ -82,13 +79,16 @@ export default function UploadScreen({ navigation }: any) {
   const [showStylesPicker, setShowStylesPicker] = useState(false);
   const [showTagsPicker, setShowTagsPicker] = useState(false);
 
-  // AI tag suggestions
+  // AI suggestions
+  const [aiStyleSuggestions, setAiStyleSuggestions] = useState<{ id: number; name: string }[]>([]);
   const [uploadedImageIds, setUploadedImageIds] = useState<number[]>([]);
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<AiTagSuggestion[]>([]);
+  const allAiSuggestionsRef = useRef<AiTagSuggestion[]>([]);
   const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
   const [addingAiTag, setAddingAiTag] = useState<string | null>(null);
   const [tagNameMap] = useState(() => new Map<number, string>());
+  const [createdTags, setCreatedTags] = useState<{ id: number; name: string }[]>([]);
 
   // -- Image handling --
 
@@ -152,9 +152,55 @@ export default function UploadScreen({ navigation }: any) {
     }
   }, [images.length, showSnackbar]);
 
+  const handleBulkUpload = useCallback(async () => {
+    try {
+      const results = await ImageCropPicker.openPicker({
+        mediaType: 'photo',
+        multiple: true,
+        maxFiles: 50,
+        compressImageQuality: 0.8,
+        forceJpg: true,
+      });
+
+      if (results.length === 0) return;
+
+      const selectedImages = results.map((img, index) => ({
+        uri: img.path,
+        type: img.mime || 'image/jpeg',
+        name: img.filename || `bulk_${Date.now()}_${index}.jpg`,
+      }));
+
+      navigation.navigate('BulkUploadConfirm', { images: selectedImages });
+    } catch (err: any) {
+      if (err?.code === 'E_PICKER_CANCELLED') return;
+      console.error('Bulk picker error:', err);
+      showSnackbar('Unable to open photo library. Please try again.', 'error');
+    }
+  }, [navigation, showSnackbar]);
+
   const handleRemoveImage = useCallback((index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
   }, []);
+
+  const handleCropImage = useCallback(async (index: number) => {
+    try {
+      const cropped = await ImageCropPicker.openCropper({
+        path: images[index].uri,
+        freeStyleCropEnabled: true,
+        compressImageQuality: 1.0,
+      });
+      const croppedFile: ImageFile = {
+        uri: cropped.path,
+        type: cropped.mime || 'image/jpeg',
+        name: cropped.filename || `cropped_${Date.now()}.jpg`,
+      };
+      setImages(prev => prev.map((img, i) => (i === index ? croppedFile : img)));
+    } catch (err: any) {
+      if (err?.code !== 'E_PICKER_CANCELLED') {
+        showSnackbar('Failed to crop image', 'error');
+      }
+    }
+  }, [images, showSnackbar]);
 
   // -- Style/tag toggles --
 
@@ -165,10 +211,24 @@ export default function UploadScreen({ navigation }: any) {
   }, []);
 
   const toggleTag = useCallback((id: number) => {
-    setSelectedTags(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id],
-    );
-  }, []);
+    setSelectedTags(prev => {
+      if (prev.includes(id)) {
+        // Removing a tag — restore to AI suggestions using name matching
+        const tagName = tagsList.find((t: any) => t.id === id)?.name || tagNameMap.get(id);
+        if (tagName) {
+          const aiTag = allAiSuggestionsRef.current.find(t => t.name === tagName);
+          if (aiTag) {
+            setAiSuggestions(suggestions => {
+              if (suggestions.some(t => t.name === aiTag.name)) return suggestions;
+              return [...suggestions, aiTag];
+            });
+          }
+        }
+        return prev.filter(t => t !== id);
+      }
+      return [...prev, id];
+    });
+  }, [tagsList, tagNameMap]);
 
   // -- AI tag suggestions --
 
@@ -181,10 +241,26 @@ export default function UploadScreen({ navigation }: any) {
       setUploadedImageIds(ids);
       setUploadedImageUrls(urls);
 
-      const response = await tagService.suggest(urls);
-      if (response.success && response.data) {
-        setAiSuggestions(response.data.filter(
-          tag => !selectedTags.includes(tag.id as number),
+      const [styleRes, tagRes] = await Promise.all([
+        styleService.suggestStyles(urls).catch((err: any) => {
+          console.error('Style suggestion failed:', err);
+          return null;
+        }),
+        tagService.suggest(urls).catch((err: any) => {
+          console.error('Tag suggestion failed:', err);
+          return null;
+        }),
+      ]);
+
+      if (styleRes?.success && styleRes.data) {
+        setAiStyleSuggestions(styleRes.data.filter(
+          (s: any) => !selectedStyles.includes(s.id)
+        ));
+      }
+      if (tagRes?.success && tagRes.data) {
+        allAiSuggestionsRef.current = tagRes.data;
+        setAiSuggestions(tagRes.data.filter(
+          (tag: AiTagSuggestion) => !selectedTags.includes(tag.id as number),
         ));
       }
     } catch {
@@ -193,7 +269,48 @@ export default function UploadScreen({ navigation }: any) {
       setLoadingAiSuggestions(false);
       setUploadProgress(null);
     }
-  }, [images, selectedTags]);
+  }, [images, selectedStyles, selectedTags]);
+
+  const refetchAiSuggestions = useCallback(async () => {
+    if (uploadedImageUrls.length === 0 || loadingAiSuggestions) return;
+    setLoadingAiSuggestions(true);
+    setAiStyleSuggestions([]);
+    setAiSuggestions([]);
+
+    try {
+      const [styleRes, tagRes] = await Promise.all([
+        styleService.suggestStyles(uploadedImageUrls).catch((err: any) => {
+          console.error('Style suggestion failed:', err);
+          return null;
+        }),
+        tagService.suggest(uploadedImageUrls).catch((err: any) => {
+          console.error('Tag suggestion failed:', err);
+          return null;
+        }),
+      ]);
+
+      if (styleRes?.success && styleRes.data) {
+        setAiStyleSuggestions(styleRes.data.filter(
+          (s: any) => !selectedStyles.includes(s.id)
+        ));
+      }
+      if (tagRes?.success && tagRes.data) {
+        allAiSuggestionsRef.current = tagRes.data;
+        setAiSuggestions(tagRes.data.filter(
+          (tag: AiTagSuggestion) => !selectedTags.includes(tag.id as number),
+        ));
+      }
+    } catch {
+      // Don't block the flow
+    } finally {
+      setLoadingAiSuggestions(false);
+    }
+  }, [uploadedImageUrls, loadingAiSuggestions, selectedStyles, selectedTags]);
+
+  const handleAddAiStyleSuggestion = useCallback((style: { id: number; name: string }) => {
+    setSelectedStyles(prev => prev.includes(style.id) ? prev : [...prev, style.id]);
+    setAiStyleSuggestions(prev => prev.filter(s => s.id !== style.id));
+  }, []);
 
   const handleAddAiSuggestion = useCallback(async (tag: AiTagSuggestion) => {
     let tagId = tag.id;
@@ -217,11 +334,18 @@ export default function UploadScreen({ navigation }: any) {
     }
 
     if (tagId) {
+      if (!tagsList.find((t: any) => t.id === tagId)) {
+        setCreatedTags(prev => [...prev, { id: tagId as number, name: tag.name }]);
+      }
+      // Update the ref so restoration uses the real ID
+      allAiSuggestionsRef.current = allAiSuggestionsRef.current.map(t =>
+        t.name === tag.name ? { ...t, id: tagId as number, is_new_suggestion: false } : t
+      );
       setSelectedTags(prev => prev.includes(tagId as number) ? prev : [...prev, tagId as number]);
       if (tag.name) tagNameMap.set(tagId as number, tag.name);
       setAiSuggestions(prev => prev.filter(t => t.name !== tag.name));
     }
-  }, [tagNameMap]);
+  }, [tagNameMap, tagsList]);
 
   const handleCreateTag = useCallback(async (name: string) => {
     try {
@@ -229,6 +353,7 @@ export default function UploadScreen({ navigation }: any) {
       if (response.success && response.data) {
         const newTag = response.data;
         tagNameMap.set(newTag.id, newTag.name);
+        setCreatedTags(prev => [...prev, { id: newTag.id, name: newTag.name }]);
         return { id: newTag.id, name: newTag.name };
       }
     } catch (err: any) {
@@ -242,7 +367,7 @@ export default function UploadScreen({ navigation }: any) {
   const canProceed = step === 0
     ? images.length > 0
     : step === 1
-    ? title.trim().length > 0
+    ? true
     : true;
 
   const handleNext = () => {
@@ -276,10 +401,10 @@ export default function UploadScreen({ navigation }: any) {
       // Create tattoo
       const tattooData: Record<string, any> = {
         image_ids: imageIds,
-        title: title.trim(),
-        description: description.trim() || title.trim(),
-        is_public: isPublic ? '1' : '0',
+        is_public: '1',
       };
+      if (title.trim()) tattooData.title = title.trim();
+      if (description.trim()) tattooData.description = description.trim();
 
       if (selectedStyles.length > 0) {
         tattooData.style_ids = JSON.stringify(selectedStyles);
@@ -294,6 +419,9 @@ export default function UploadScreen({ navigation }: any) {
 
       await api.post('/tattoos/create', tattooData, { requiresAuth: true });
 
+      clearTattooCache();
+      api.clearCache('portfolio');
+
       // Reset form
       setStep(0);
       setImages([]);
@@ -304,11 +432,12 @@ export default function UploadScreen({ navigation }: any) {
       setPlacement('');
       setSize('');
       setHours('');
-      setIsPublic(true);
       setUploadedImageIds([]);
       setUploadedImageUrls([]);
+      setAiStyleSuggestions([]);
       setAiSuggestions([]);
       setLoadingAiSuggestions(false);
+      setCreatedTags([]);
 
       showSnackbar('Your tattoo has been published! It will appear in search shortly.');
       navigation.navigate('HomeTab');
@@ -326,7 +455,7 @@ export default function UploadScreen({ navigation }: any) {
     stylesList.filter(s => selectedStyles.includes(s.id)).map(s => s.name);
 
   const getTagNames = () =>
-    tagsList.filter(t => selectedTags.includes(t.id)).map(t => t.name);
+    [...tagsList, ...createdTags].filter(t => selectedTags.includes(t.id)).map(t => t.name);
 
   // -- Render steps --
 
@@ -351,6 +480,12 @@ export default function UploadScreen({ navigation }: any) {
               >
                 <MaterialIcons name="close" size={16} color={colors.textPrimary} />
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cropImageBtn}
+                onPress={() => handleCropImage(index)}
+              >
+                <MaterialIcons name="crop" size={16} color="#fff" />
+              </TouchableOpacity>
             </View>
           ))}
         </ScrollView>
@@ -366,14 +501,20 @@ export default function UploadScreen({ navigation }: any) {
           <Text style={styles.imageActionText}>Take Photo</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity style={styles.bulkUploadBtn} onPress={handleBulkUpload}>
+        <MaterialIcons name="collections" size={22} color={colors.accent} />
+        <Text style={styles.bulkUploadText}>Bulk Upload from Album</Text>
+        <Text style={styles.bulkUploadSubtext}>Upload up to 50 photos at once</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 
   const renderStep1 = () => (
-    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={styles.stepTitle}>Details</Text>
 
-      <Text style={styles.fieldLabel}>Title *</Text>
+      <Text style={styles.fieldLabel}>Title</Text>
       <TextInput
         style={styles.textInput}
         value={title}
@@ -393,7 +534,48 @@ export default function UploadScreen({ navigation }: any) {
         numberOfLines={3}
       />
 
-      <Text style={styles.fieldLabel}>Styles</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+        <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>Styles</Text>
+        {uploadedImageUrls.length > 0 && !loadingAiSuggestions && (
+          <TouchableOpacity
+            onPress={refetchAiSuggestions}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="refresh" size={14} color={colors.textMuted} />
+            <Text style={{ fontSize: 12, color: colors.textMuted }}>Regenerate suggestions</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {(loadingAiSuggestions || aiStyleSuggestions.length > 0) && (
+        <View style={[styles.aiSection, { marginBottom: 8 }]}>
+          <View style={styles.aiHeader}>
+            <MaterialIcons name="auto-awesome" size={14} color={colors.aiSuggestion} />
+            <Text style={styles.aiHeaderText}>SUGGESTIONS</Text>
+            {loadingAiSuggestions && aiStyleSuggestions.length === 0 && (
+              <ActivityIndicator size="small" color={colors.aiSuggestion} />
+            )}
+          </View>
+          {loadingAiSuggestions && aiStyleSuggestions.length === 0 && (
+            <Text style={styles.aiLoadingText}>Analyzing your images...</Text>
+          )}
+          {aiStyleSuggestions.length > 0 && (
+            <View style={styles.aiChips}>
+              {aiStyleSuggestions.map(style => (
+                <TouchableOpacity
+                  key={style.id}
+                  style={styles.aiChip}
+                  onPress={() => handleAddAiStyleSuggestion(style)}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons name="add" size={14} color={colors.aiSuggestion} />
+                  <Text style={styles.aiChipText}>{style.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
       <TouchableOpacity
         style={styles.pickerButton}
         onPress={() => setShowStylesPicker(true)}
@@ -424,43 +606,13 @@ export default function UploadScreen({ navigation }: any) {
   );
 
   const renderStep2 = () => (
-    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={styles.stepTitle}>Tags & Info</Text>
 
       <Text style={styles.fieldLabel}>Tags</Text>
-      <TouchableOpacity
-        style={styles.pickerButton}
-        onPress={() => setShowTagsPicker(true)}
-      >
-        <Text style={selectedTags.length > 0 ? styles.pickerText : styles.pickerPlaceholder}>
-          {selectedTags.length > 0 ? `${selectedTags.length} selected` : 'Select tags'}
-        </Text>
-        <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
-      </TouchableOpacity>
-
-      {selectedTags.length > 0 && (
-        <View style={styles.selectedChips}>
-          {selectedTags.map(id => {
-            const tag = tagsList.find((t: any) => t.id === id);
-            const name = tag?.name || tagNameMap.get(id);
-            if (!name) return null;
-            return (
-              <TouchableOpacity
-                key={id}
-                style={styles.selectedTagChip}
-                onPress={() => toggleTag(id)}
-              >
-                <Text style={styles.selectedTagChipText}>{name}</Text>
-                <MaterialIcons name="close" size={14} color={colors.tag} style={{ marginLeft: 4 }} />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-
       {/* AI Tag Suggestions */}
       {(loadingAiSuggestions || aiSuggestions.length > 0) && (
-        <View style={styles.aiSection}>
+        <View style={[styles.aiSection, { marginBottom: 8 }]}>
           <View style={styles.aiHeader}>
             <MaterialIcons name="auto-awesome" size={16} color={colors.aiSuggestion} />
             <Text style={styles.aiHeaderText}>AI SUGGESTIONS</Text>
@@ -499,6 +651,36 @@ export default function UploadScreen({ navigation }: any) {
           ) : null}
         </View>
       )}
+
+      {selectedTags.length > 0 && (
+        <View style={styles.selectedChips}>
+          {selectedTags.map(id => {
+            const tag = tagsList.find((t: any) => t.id === id);
+            const name = tag?.name || tagNameMap.get(id);
+            if (!name) return null;
+            return (
+              <TouchableOpacity
+                key={id}
+                style={styles.selectedTagChip}
+                onPress={() => toggleTag(id)}
+              >
+                <Text style={styles.selectedTagChipText}>{name}</Text>
+                <MaterialIcons name="close" size={14} color={colors.tag} style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={styles.pickerButton}
+        onPress={() => setShowTagsPicker(true)}
+      >
+        <Text style={selectedTags.length > 0 ? styles.pickerText : styles.pickerPlaceholder}>
+          {selectedTags.length > 0 ? `${selectedTags.length} selected` : 'Select tags'}
+        </Text>
+        <MaterialIcons name="expand-more" size={20} color={colors.textMuted} />
+      </TouchableOpacity>
 
       <Text style={styles.fieldLabel}>Placement</Text>
       <TouchableOpacity
@@ -614,20 +796,6 @@ export default function UploadScreen({ navigation }: any) {
         </View>
       )}
 
-      <View style={styles.visibilityRow}>
-        <View>
-          <Text style={styles.visibilityLabel}>{isPublic ? 'Public' : 'Unlisted'}</Text>
-          <Text style={styles.visibilityHint}>
-            {isPublic ? 'Visible to everyone' : 'Only visible via direct link'}
-          </Text>
-        </View>
-        <Switch
-          value={isPublic}
-          onValueChange={setIsPublic}
-          trackColor={{ false: colors.border, true: colors.accentDark }}
-          thumbColor={isPublic ? colors.accent : colors.textMuted}
-        />
-      </View>
     </ScrollView>
   );
 
@@ -640,6 +808,7 @@ export default function UploadScreen({ navigation }: any) {
       <KeyboardAvoidingView
         style={styles.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         <View style={styles.body}>
           {stepRenderers[step]()}
@@ -686,7 +855,7 @@ export default function UploadScreen({ navigation }: any) {
       <MultiSelectPicker
         visible={showTagsPicker}
         title="Select Tags"
-        options={tagsList}
+        options={[...tagsList, ...createdTags.filter(ct => !tagsList.some((t: any) => t.id === ct.id))]}
         selected={selectedTags}
         onToggle={toggleTag}
         onClose={() => setShowTagsPicker(false)}
@@ -837,6 +1006,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  cropImageBtn: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   imageActions: {
     flexDirection: 'row',
     gap: 12,
@@ -857,6 +1037,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 8,
     fontWeight: '600',
+  },
+  bulkUploadBtn: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    gap: 4,
+  },
+  bulkUploadText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  bulkUploadSubtext: {
+    color: colors.textMuted,
+    fontSize: 12,
   },
 
   // Form fields
@@ -1034,28 +1233,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 4,
   },
-  visibilityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 24,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  visibilityLabel: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  visibilityHint: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 2,
-  },
-
   // Bottom bar
   bottomBar: {
     flexDirection: 'row',

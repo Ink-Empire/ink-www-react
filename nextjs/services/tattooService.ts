@@ -114,8 +114,25 @@ export const tattooService = {
     title?: string;
     description?: string;
     tagged_artist_id?: number;
+    style_ids?: string;
+    tag_ids?: string;
+    studio_id?: number;
+    attributed_artist_name?: string;
+    attributed_studio_name?: string;
+    attributed_location?: string;
+    artist_invite_email?: string;
   }): Promise<any> => {
     return api.post('/tattoos/create', data, { requiresAuth: true });
+  },
+
+  // Get artist invitation details by token (public)
+  getInvitation: async (token: string): Promise<{ invitation: any }> => {
+    return api.get(`/invitations/${token}`);
+  },
+
+  // Claim artist invitation (requires auth)
+  claimInvitation: async (token: string): Promise<{ success: boolean; claimed_count: number; tattoo_ids: number[] }> => {
+    return api.post(`/invitations/${token}/claim`, {}, { requiresAuth: true });
   },
 
   // Get tattoo with full details including tags (public access)

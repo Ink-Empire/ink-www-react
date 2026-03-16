@@ -15,8 +15,20 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    domains: [],
-    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'dd2gdmvaew6fu.cloudfront.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'inked-in-images.s3.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'inked-in-images.s3.us-east-1.amazonaws.com',
+      },
+    ],
   },
   webpack(config) {
     // This config allows properly importing SVG files

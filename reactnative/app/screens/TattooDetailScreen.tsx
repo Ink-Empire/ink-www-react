@@ -133,7 +133,34 @@ export default function TattooDetailScreen({ navigation, route }: any) {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Artist header + save — above image */}
       <View style={styles.artistBar}>
-        {artistName ? (
+        {!tattoo.artist_id && (tattoo as any).attributed_artist_name ? (
+          <View style={styles.artistHeader}>
+            <View style={[styles.attributedAvatar]}>
+              <MaterialIcons name="person" size={20} color={colors.textMuted} />
+            </View>
+            <View style={styles.artistHeaderInfo}>
+              <Text style={styles.artistName}>{(tattoo as any).attributed_artist_name}</Text>
+              {studioName ? (
+                <TouchableOpacity
+                  onPress={() => studioSlug && navigation.push('StudioDetail', { slug: studioSlug, name: studioName })}
+                  activeOpacity={studioSlug ? 0.7 : 1}
+                >
+                  <Text style={styles.studioName}>{studioName}</Text>
+                </TouchableOpacity>
+              ) : (tattoo as any).attributed_studio_name ? (
+                <Text style={styles.studioName}>at {(tattoo as any).attributed_studio_name}</Text>
+              ) : null}
+              {location ? (
+                <Text style={styles.artistLocation}>{location}</Text>
+              ) : (tattoo as any).attributed_location ? (
+                <Text style={styles.artistLocation}>{(tattoo as any).attributed_location}</Text>
+              ) : null}
+              <View style={styles.notOnInkedinBadge}>
+                <Text style={styles.notOnInkedinText}>Not yet on InkedIn</Text>
+              </View>
+            </View>
+          </View>
+        ) : artistName ? (
           <TouchableOpacity
             style={styles.artistHeader}
             onPress={() => artistSlug && navigation.push('ArtistDetail', {
@@ -164,7 +191,25 @@ export default function TattooDetailScreen({ navigation, route }: any) {
             </View>
           </TouchableOpacity>
         ) : (
-          <View style={styles.artistHeader} />
+          <View style={styles.artistHeader}>
+            <View style={[styles.attributedAvatar]}>
+              <MaterialIcons name="person" size={20} color={colors.textMuted} />
+            </View>
+            <View style={styles.artistHeaderInfo}>
+              <Text style={styles.unknownArtistText}>Artist Unknown</Text>
+              {studioName ? (
+                <TouchableOpacity
+                  onPress={() => studioSlug && navigation.push('StudioDetail', { slug: studioSlug, name: studioName })}
+                  activeOpacity={studioSlug ? 0.7 : 1}
+                >
+                  <Text style={styles.studioName}>{studioName}</Text>
+                </TouchableOpacity>
+              ) : null}
+              {location ? (
+                <Text style={styles.artistLocation}>{location}</Text>
+              ) : null}
+            </View>
+          </View>
         )}
         {user && !isOwner && (
           <Button
@@ -222,7 +267,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
                   <StyleTag
                     key={style.id}
                     label={style.name}
-                    onPress={() => navigation.navigate('Home', { filterStyles: [style.id] })}
+                    onPress={() => navigation.navigate('HomeTab', { screen: 'Home', params: { filterStyles: [style.id] } })}
                   />
                 ))}
               </View>
@@ -237,10 +282,12 @@ export default function TattooDetailScreen({ navigation, route }: any) {
                     <TouchableOpacity
                       key={key}
                       style={styles.tag}
-                      onPress={() => tagId
-                        ? navigation.navigate('Home', { filterTags: [tagId] })
-                        : navigation.navigate('Home', { filterTagNames: [name] })
-                      }
+                      onPress={() => navigation.navigate('HomeTab', {
+                        screen: 'Home',
+                        params: tagId
+                          ? { filterTags: [tagId] }
+                          : { filterTagNames: [name] },
+                      })}
                     >
                       <Text style={styles.tagText}>{name}</Text>
                     </TouchableOpacity>
@@ -498,6 +545,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: 4,
+    fontStyle: 'italic',
+  },
+  attributedAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notOnInkedinBadge: {
+    backgroundColor: colors.infoDim,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  notOnInkedinText: {
+    color: colors.info,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  unknownArtistText: {
+    color: colors.textMuted,
+    fontSize: 15,
     fontStyle: 'italic',
   },
 });

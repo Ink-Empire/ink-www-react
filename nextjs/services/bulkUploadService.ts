@@ -2,8 +2,8 @@ import { api } from '../utils/api';
 
 export interface BulkUpload {
   id: number;
-  source: 'instagram' | 'manual';
-  status: 'scanning' | 'cataloged' | 'processing' | 'ready' | 'completed' | 'failed';
+  source: 'instagram' | 'manual' | 'album';
+  status: 'scanning' | 'cataloged' | 'processing' | 'ready' | 'completed' | 'failed' | 'deleting' | 'incomplete';
   original_filename: string | null;
   total_images: number;
   cataloged_images: number;
@@ -37,14 +37,15 @@ export interface BulkUploadItem {
   image_id: number | null;
   thumbnail_url: string | null;
   tattoo_id: number | null;
-  zip_path: string;
-  filename: string;
+  zip_path: string | null;
+  filename: string | null;
   title: string | null;
   description: string | null;
   placement_id: number | null;
   primary_style_id: number | null;
   additional_style_ids: number[];
-  ai_suggested_tags: Array<{ id: number; name: string; slug: string }>;
+  ai_suggested_tags: Array<{ id?: number; name: string; is_new_suggestion?: boolean }>;
+  ai_suggested_styles: Array<{ id: number; name: string }>;
   approved_tag_ids: number[];
   sort_order: number;
   created_at: string;
@@ -89,7 +90,7 @@ export const bulkUploadService = {
   getItems: async (
     uploadId: number,
     options: {
-      filter?: 'all' | 'unprocessed' | 'processed' | 'ready' | 'published' | 'skipped';
+      filter?: 'all' | 'unprocessed' | 'processed' | 'unpublished' | 'ready' | 'published' | 'skipped';
       page?: number;
       perPage?: number;
       primaryOnly?: boolean;
@@ -120,6 +121,7 @@ export const bulkUploadService = {
       approved_tag_ids?: number[];
       is_skipped?: boolean;
       apply_to_group?: boolean;
+      image_id?: number;
     }
   ): Promise<BulkUploadItem> => {
     const response = await api.put<{ data: BulkUploadItem }>(
@@ -170,6 +172,11 @@ export const bulkUploadService = {
     return api.post(`/bulk-uploads/${uploadId}/publish`, {}, { requiresAuth: true });
   },
 
+  // Publish all items regardless of details (requires auth)
+  publishAll: async (uploadId: number): Promise<{ message: string; count: number }> => {
+    return api.post(`/bulk-uploads/${uploadId}/publish-all`, {}, { requiresAuth: true });
+  },
+
   // Get publish status (requires auth)
   getPublishStatus: async (uploadId: number): Promise<{
     status: string;
@@ -183,5 +190,15 @@ export const bulkUploadService = {
       requiresAuth: true,
       useCache: false,
     });
+  },
+
+  // Upload album of images (requires auth)
+  uploadAlbum: async (imageIds: number[], aiTag: boolean = false): Promise<{ data: BulkUpload; message: string }> => {
+    return api.post('/bulk-uploads/album', { image_ids: imageIds, ai_tag: aiTag }, { requiresAuth: true });
+  },
+
+  // Get total draft count (requires auth)
+  getDraftCount: async (): Promise<{ draft_count: number }> => {
+    return api.get('/bulk-uploads/draft-count', { requiresAuth: true, useCache: false });
   },
 };

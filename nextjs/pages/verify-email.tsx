@@ -43,6 +43,12 @@ export default function VerifyEmailPage() {
       setResendEmail(emailFromUrl);
     }
 
+    // Honor redirect param from claim flow
+    const redirectParam = router.query.redirect as string | undefined;
+    if (redirectParam) {
+      setRedirectUrl(redirectParam);
+    }
+
     // If there's a verification URL and we haven't already attempted, verify
     // This prevents duplicate verification calls from useEffect re-running
     if (verifyUrl && !verificationAttempted) {

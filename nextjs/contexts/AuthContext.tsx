@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { api } from '../utils/api';
 import { setToken, removeToken } from '../utils/auth';
 import { disconnectEcho } from '../utils/echo';
+import { clearCache } from '../utils/apiCache';
 
 // User interface - complete user data
 interface User {
@@ -422,6 +423,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         ids: id,
         action: isAlreadyFavorite ? 'remove' : 'add'
       }, { requiresAuth: true });
+
+      clearCache('/client/saved-');
+      clearCache('/client/favorites');
 
       const updatedUser = { ...user, favorites: updatedFavorites };
       setUser(updatedUser);

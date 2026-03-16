@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -28,7 +28,8 @@ import {
   Check as CheckIcon,
   AutoAwesome as AiIcon,
   Add as AddIcon,
-  LocalOffer as TagIcon
+  LocalOffer as TagIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useStyles } from '../contexts/StyleContext';
@@ -36,6 +37,8 @@ import { tattooService } from '../services/tattooService';
 import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
 import { colors, inputStyles } from '@/styles/colors';
 import { api } from '../utils/api';
+import { stylesService } from '../services/stylesService';
+import type { AiStyleSuggestion } from '../services/stylesService';
 import TagsAutocomplete, { Tag } from './TagsAutocomplete';
 
 interface Placement {
@@ -98,7 +101,9 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   // AI suggestions during upload flow (shown in Details step)
+  const [aiStyleSuggestions, setAiStyleSuggestions] = useState<AiStyleSuggestion[]>([]);
   const [aiSuggestedTags, setAiSuggestedTags] = useState<(Tag & { is_new_suggestion?: boolean })[]>([]);
+  const allAiSuggestionsRef = useRef<(Tag & { is_new_suggestion?: boolean })[]>([]);
   const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
   const [creatingTag, setCreatingTag] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<{ id: number; url: string }[]>([]);
@@ -173,6 +178,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     setHoursToComplete('');
     setIsPublic(true);
     setError(null);
+    setAiStyleSuggestions([]);
     setAiSuggestedTags([]);
     setLoadingAiSuggestions(false);
     setCreatingTag(null);
@@ -300,22 +306,35 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       console.log('[AI Tags] Image URLs:', imageUrls);
 
       // Fetch AI suggestions based on uploaded images
-      console.log('[AI Tags] Fetching AI tag suggestions...');
-      const response = await api.post<{ success: boolean; data: (Tag & { is_new_suggestion?: boolean })[] }>('/tags/suggest', {
-        image_urls: imageUrls
-      }, { requiresAuth: true });
+      console.log('[AI Tags] Fetching AI suggestions...');
+      const [styleRes, tagRes] = await Promise.all([
+        stylesService.suggestStyles(imageUrls).catch((err: any) => {
+          console.error('[AI Suggestions] Style suggestion failed:', err);
+          return null;
+        }),
+        api.post<{ success: boolean; data: (Tag & { is_new_suggestion?: boolean })[] }>('/tags/suggest', {
+          image_urls: imageUrls
+        }, { requiresAuth: true }).catch((err: any) => {
+          console.error('[AI Suggestions] Tag suggestion failed:', err);
+          return null;
+        }),
+      ]);
 
-      console.log('[AI Tags] API response:', response);
+      if (styleRes?.success && styleRes.data) {
+        setAiStyleSuggestions(styleRes.data.filter(
+          s => !selectedStyles.includes(s.id)
+        ));
+      }
 
-      if (response.success && response.data) {
+      if (tagRes?.success && tagRes?.data) {
+        // Store the full unfiltered list so we can restore tags later
+        allAiSuggestionsRef.current = tagRes.data;
         // Filter out tags that are already selected
-        const suggestions = response.data.filter(
+        const suggestions = tagRes.data.filter(
           (tag) => !selectedTags.some(selected => selected.id === tag.id)
         );
         console.log('[AI Tags] Setting suggestions:', suggestions);
         setAiSuggestedTags(suggestions);
-      } else {
-        console.log('[AI Tags] No suggestions in response');
       }
     } catch (error) {
       console.error('[AI Tags] Error:', error);
@@ -324,6 +343,50 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       setLoadingAiSuggestions(false);
       setUploadProgress(null);
     }
+  };
+
+  const refetchAiSuggestions = async () => {
+    if (uploadedImages.length === 0 || loadingAiSuggestions) return;
+    setLoadingAiSuggestions(true);
+    setAiStyleSuggestions([]);
+    setAiSuggestedTags([]);
+
+    try {
+      const imageUrls = uploadedImages.map(img => img.url);
+      const [styleRes, tagRes] = await Promise.all([
+        stylesService.suggestStyles(imageUrls).catch((err: any) => {
+          console.error('[AI Suggestions] Style suggestion failed:', err);
+          return null;
+        }),
+        api.post<{ success: boolean; data: (Tag & { is_new_suggestion?: boolean })[] }>('/tags/suggest', {
+          image_urls: imageUrls
+        }, { requiresAuth: true }).catch((err: any) => {
+          console.error('[AI Suggestions] Tag suggestion failed:', err);
+          return null;
+        }),
+      ]);
+
+      if (styleRes?.success && styleRes.data) {
+        setAiStyleSuggestions(styleRes.data.filter(
+          s => !selectedStyles.includes(s.id)
+        ));
+      }
+      if (tagRes?.success && tagRes?.data) {
+        allAiSuggestionsRef.current = tagRes.data;
+        setAiSuggestedTags(tagRes.data.filter(
+          (tag) => !selectedTags.some(selected => selected.id === tag.id)
+        ));
+      }
+    } catch (error) {
+      console.error('[AI Suggestions] Refetch error:', error);
+    } finally {
+      setLoadingAiSuggestions(false);
+    }
+  };
+
+  const handleAddAiStyleSuggestion = (style: AiStyleSuggestion) => {
+    setSelectedStyles(prev => prev.includes(style.id) ? prev : [...prev, style.id]);
+    setAiStyleSuggestions(prev => prev.filter(s => s.id !== style.id));
   };
 
   // Add an AI-suggested tag to selected tags
@@ -353,6 +416,10 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       setCreatingTag(null);
     }
 
+    // Update the ref so restoration uses the real tag data
+    allAiSuggestionsRef.current = allAiSuggestionsRef.current.map(t =>
+      t.name === tag.name ? { ...tagToAdd, is_new_suggestion: false } : t
+    );
     // Add to selected tags with is_ai_suggested flag
     const tagWithFlag = { ...tagToAdd, is_ai_suggested: true };
     setSelectedTags(prev => [...prev, tagWithFlag]);
@@ -365,11 +432,6 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       setError('Please upload at least one image');
       return;
     }
-    if (activeStep === 1 && !title.trim()) {
-      setError('Please provide a title');
-      return;
-    }
-
     setError(null);
 
     // When moving from Upload to Details, upload images and get AI suggestions
@@ -425,8 +487,8 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
       // Create the tattoo with the uploaded image IDs
       const tattooData = {
         image_ids: imageIds,
-        title: title.trim(),
-        description: description.trim() || title.trim(),
+        title: title.trim() || undefined,
+        description: description.trim() || undefined,
         placement,
         size,
         is_public: isPublic ? '1' : '0',
@@ -513,8 +575,8 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
     switch (activeStep) {
       case 0: // Upload
         return images.length > 0;
-      case 1: // Details - only require title
-        return title.trim() !== '';
+      case 1: // Details - all optional
+        return true;
       case 2: // Additional - all optional
         return true;
       case 3: // Review
@@ -691,9 +753,67 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
 
       {/* Styles */}
       <Box>
-        <Typography variant="subtitle2" sx={{ color: colors.textPrimary, mb: 2, fontWeight: 600 }}>
-          Styles
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ color: colors.textPrimary, fontWeight: 600 }}>
+            Styles
+          </Typography>
+          {uploadedImages.length > 0 && !loadingAiSuggestions && (
+            <Typography
+              onClick={refetchAiSuggestions}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                fontSize: '0.75rem',
+                color: colors.textMuted,
+                cursor: 'pointer',
+                '&:hover': { color: colors.aiSuggestion },
+              }}
+            >
+              <RefreshIcon sx={{ fontSize: 14 }} />
+              Regenerate suggestions
+            </Typography>
+          )}
+        </Box>
+        {(loadingAiSuggestions || aiStyleSuggestions.length > 0) && (
+          <Box sx={{ mb: 2, p: 1.5, bgcolor: colors.aiSuggestionDim, borderRadius: '8px', border: `1px solid ${colors.aiSuggestion}30` }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+              <AiIcon sx={{ fontSize: 14, color: colors.aiSuggestion }} />
+              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: colors.aiSuggestion, letterSpacing: '0.08em' }}>
+                SUGGESTIONS
+              </Typography>
+              {loadingAiSuggestions && aiStyleSuggestions.length === 0 && (
+                <CircularProgress size={12} sx={{ color: colors.aiSuggestion }} />
+              )}
+            </Box>
+            {loadingAiSuggestions && aiStyleSuggestions.length === 0 && (
+              <Typography sx={{ fontSize: '0.7rem', color: colors.textMuted, fontStyle: 'italic' }}>
+                Analyzing your images...
+              </Typography>
+            )}
+            {aiStyleSuggestions.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {aiStyleSuggestions.map(style => (
+                  <Chip
+                    key={style.id}
+                    label={style.name}
+                    onClick={() => handleAddAiStyleSuggestion(style)}
+                    size="small"
+                    icon={<AddIcon sx={{ fontSize: 14, color: `${colors.aiSuggestion} !important` }} />}
+                    sx={{
+                      bgcolor: 'transparent',
+                      color: colors.aiSuggestion,
+                      border: `1px solid ${colors.aiSuggestion}`,
+                      fontSize: '0.75rem',
+                      '&:hover': { bgcolor: `${colors.aiSuggestion}20` },
+                      '& .MuiChip-icon': { marginLeft: '4px' },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
+        )}
         {stylesLoading ? (
           <CircularProgress size={24} sx={{ color: colors.accent }} />
         ) : (
@@ -743,17 +863,9 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         <Typography variant="subtitle2" sx={{ color: colors.textPrimary, mb: 2, fontWeight: 600 }}>
           Tags
         </Typography>
-        <TagsAutocomplete
-          value={selectedTags}
-          onChange={setSelectedTags}
-          label=""
-          placeholder="Search and add tags..."
-          maxTags={10}
-        />
-
         {/* AI Tag Suggestions */}
         {(loadingAiSuggestions || aiSuggestedTags.length > 0) && (
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
               <AiIcon sx={{ fontSize: 18, color: colors.aiSuggestion }} />
               <Typography variant="caption" sx={{ color: colors.aiSuggestion, fontWeight: 600 }}>
@@ -816,10 +928,40 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
         )}
 
         {!loadingAiSuggestions && aiSuggestedTags.length === 0 && uploadedImages.length === 0 && (
-          <Typography variant="caption" sx={{ color: colors.textMuted, mt: 1, display: 'block' }}>
+          <Typography variant="caption" sx={{ color: colors.textMuted, mb: 1, display: 'block' }}>
             AI will suggest tags based on your images
           </Typography>
         )}
+
+        <TagsAutocomplete
+          value={selectedTags}
+          onChange={(newTags) => {
+            // Find tags that were removed
+            const removedTags = selectedTags.filter(
+              old => !newTags.some(t => t.id === old.id)
+            );
+            setSelectedTags(newTags);
+            // Restore any removed tags that came from AI suggestions
+            if (removedTags.length > 0) {
+              const toRestore = removedTags.filter(removed =>
+                allAiSuggestionsRef.current.some(ai => ai.name === removed.name) &&
+                !newTags.some(t => t.name === removed.name)
+              );
+              if (toRestore.length > 0) {
+                setAiSuggestedTags(prev => {
+                  const existing = new Set(prev.map(t => t.name));
+                  const restored = toRestore
+                    .map(t => allAiSuggestionsRef.current.find(ai => ai.name === t.name)!)
+                    .filter(t => t && !existing.has(t.name));
+                  return [...prev, ...restored];
+                });
+              }
+            }
+          }}
+          label=""
+          placeholder="Search and add tags..."
+          maxTags={10}
+        />
       </Box>
 
       {/* Placement, Size, Hours Row */}

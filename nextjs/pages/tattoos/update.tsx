@@ -534,8 +534,8 @@ export default function UpdateTattoo() {
 
     try {
       await deleteTattoo(tattooId as string);
-      // Navigate to artist's public profile after successful deletion
-      if (user?.slug) {
+      // Navigate back to the appropriate profile after deletion
+      if (user?.type === 'artist' && user?.slug) {
         router.push(`/artists/${user.slug}`);
       } else {
         router.push('/profile');

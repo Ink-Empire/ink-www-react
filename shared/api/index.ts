@@ -9,3 +9,5 @@ export {
   type LoginCredentials,
   type RegisterData,
 } from './client';
+
+export { clearCache, getCacheItem, setCacheItem, generateCacheKey } from './cache';

@@ -3,6 +3,7 @@ export type DeepLinkTarget =
   | { type: 'tattoo'; id: number }
   | { type: 'conversation'; conversationId: number }
   | { type: 'inbox' }
+  | { type: 'claim'; token: string }
   | null;
 
 export function parseDeepLink(url: string): DeepLinkTarget {
@@ -39,6 +40,12 @@ export function parseDeepLink(url: string): DeepLinkTarget {
     // /inbox
     if (pathname === '/inbox') {
       return { type: 'inbox' };
+    }
+
+    // /claim/:token
+    const claimMatch = pathname.match(/^\/claim\/([a-zA-Z0-9]+)$/);
+    if (claimMatch) {
+      return { type: 'claim', token: claimMatch[1] };
     }
 
     return null;

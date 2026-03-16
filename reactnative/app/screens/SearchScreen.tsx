@@ -36,16 +36,16 @@ export default function SearchScreen({ navigation, route }: any) {
     styles: selectedStyles.length > 0 ? selectedStyles : undefined,
   };
 
-  const { tattoos, loading: tattoosLoading, removeTattoo, refetch: refetchTattoos } = useTattoos(
-    api,
-    activeTab === 'tattoos' ? searchParams : undefined,
-    { skip: activeTab !== 'tattoos' },
-  );
-  const { artists, loading: artistsLoading, refetch: refetchArtists } = useArtists(
-    api,
-    activeTab === 'artists' ? searchParams : undefined,
-    { skip: activeTab !== 'artists' },
-  );
+  const {
+    tattoos, loading: tattoosLoading, loadingMore: tattoosLoadingMore,
+    hasMore: tattoosHasMore, loadMore: tattoosLoadMore,
+    removeTattoo, refetch: refetchTattoos,
+  } = useTattoos(api, activeTab === 'tattoos' ? searchParams : undefined, { skip: activeTab !== 'tattoos' });
+  const {
+    artists, loading: artistsLoading, loadingMore: artistsLoadingMore,
+    hasMore: artistsHasMore, loadMore: artistsLoadMore,
+    refetch: refetchArtists,
+  } = useArtists(api, activeTab === 'artists' ? searchParams : undefined, { skip: activeTab !== 'artists' });
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -178,6 +178,11 @@ export default function SearchScreen({ navigation, route }: any) {
           renderItem={renderTattooItem}
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => { if (tattoosHasMore && !tattoosLoadingMore) tattoosLoadMore(); }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={tattoosLoadingMore ? (
+            <ActivityIndicator color={colors.accent} style={{ paddingVertical: 16 }} />
+          ) : null}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
@@ -189,6 +194,11 @@ export default function SearchScreen({ navigation, route }: any) {
           renderItem={renderArtistItem}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => { if (artistsHasMore && !artistsLoadingMore) artistsLoadMore(); }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={artistsLoadingMore ? (
+            <ActivityIndicator color={colors.accent} style={{ paddingVertical: 16 }} />
+          ) : null}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
           }
