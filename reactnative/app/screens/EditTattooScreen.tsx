@@ -269,8 +269,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
       const cropped = await ImageCropPicker.openCropper({
         path: img.uri,
         freeStyleCropEnabled: true,
-        compressImageQuality: 0.8,
-        forceJpg: true,
+        compressImageQuality: 1.0,
       });
       const croppedFile: ImageFile = {
         uri: cropped.path,
@@ -292,8 +291,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
       const cropped = await ImageCropPicker.openCropper({
         path: newImages[index].uri,
         freeStyleCropEnabled: true,
-        compressImageQuality: 0.8,
-        forceJpg: true,
+        compressImageQuality: 1.0,
       });
       const croppedFile: ImageFile = {
         uri: cropped.path,

@@ -175,8 +175,7 @@ export default function DraftsScreen({ navigation, route }: any) {
       const cropped = await ImageCropPicker.openCropper({
         path: selectedItem.thumbnail_url,
         freeStyleCropEnabled: true,
-        compressImageQuality: 0.8,
-        forceJpg: true,
+        compressImageQuality: 1.0,
       });
 
       const imageFile: ImageFile = {

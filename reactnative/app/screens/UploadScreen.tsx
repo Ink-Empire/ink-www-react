@@ -187,8 +187,7 @@ export default function UploadScreen({ navigation }: any) {
       const cropped = await ImageCropPicker.openCropper({
         path: images[index].uri,
         freeStyleCropEnabled: true,
-        compressImageQuality: 0.8,
-        forceJpg: true,
+        compressImageQuality: 1.0,
       });
       const croppedFile: ImageFile = {
         uri: cropped.path,
