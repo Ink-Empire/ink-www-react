@@ -434,16 +434,23 @@ export default function EditTattooScreen({ navigation, route }: any) {
       let newImageIds: number[] = [];
       if (newImages.length > 0) {
         const uploaded = await uploadImagesToS3(api, newImages, 'tattoo', setUploadProgress);
-        newImageIds = uploaded.map(img => img.id);
+        newImageIds = uploaded.map(img => img.id).filter(Boolean);
+        if (newImageIds.length === 0) {
+          throw new Error('Image upload failed. Please try again.');
+        }
       }
 
-      const keepImageIds = visibleExistingImages.map(img => img.id);
+      const keepImageIds = visibleExistingImages.map(img => img.id).filter(Boolean);
       const allImageIds = [...keepImageIds, ...newImageIds];
+
+      if (allImageIds.length === 0) {
+        throw new Error('At least one image is required');
+      }
 
       const updateData: Record<string, any> = {
         title: title.trim(),
         description: description.trim(),
-        image_ids: allImageIds.filter(Boolean),
+        image_ids: allImageIds,
       };
 
       if (isArtistOwner) {
