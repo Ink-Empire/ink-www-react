@@ -76,8 +76,6 @@ export function useTattoos(
         }
       }
 
-      console.log('[useTattoos] page', pageNum, 'got', items.length, 'items, hasMore:', hasMorePages, 'has_more raw:', response?.has_more);
-
       if (append) {
         setTattoos((prev: Tattoo[]) => [...prev, ...items]);
       } else {

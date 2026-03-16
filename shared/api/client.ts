@@ -107,8 +107,13 @@ export function createApiClient(config: ApiConfig) {
           onUnauthorized?.();
         }
 
+        let errorMessage = data?.message || `Request failed with status ${response.status}`;
+        if (errorMessage.includes('SQLSTATE') || errorMessage.includes('SQL:')) {
+          errorMessage = 'Something went wrong. Please try again.';
+        }
+
         throw new ApiError(
-          data?.message || `Request failed with status ${response.status}`,
+          errorMessage,
           response.status,
           data
         );

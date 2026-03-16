@@ -451,6 +451,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         title: title.trim(),
         description: description.trim(),
         image_ids: allImageIds,
+        primary_image_id: allImageIds[0],
       };
 
       if (isArtistOwner) {
@@ -488,7 +489,9 @@ export default function EditTattooScreen({ navigation, route }: any) {
       showSnackbar('Tattoo updated');
       navigation.goBack();
     } catch (err: any) {
-      showSnackbar(err.message || 'Failed to save changes', 'error');
+      const msg = err.message || '';
+      const isSafe = msg && !msg.includes('SQLSTATE') && !msg.includes('SQL:') && msg.length < 200;
+      showSnackbar(isSafe ? msg : 'Failed to save changes. Please try again.', 'error');
     } finally {
       setSaving(false);
       setUploadProgress(null);
