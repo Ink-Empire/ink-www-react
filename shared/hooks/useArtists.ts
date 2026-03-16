@@ -170,7 +170,7 @@ export function useArtistPortfolio(
   api: ApiClient,
   artistIdOrSlug: string | number | null,
   initialData?: any[]
-): { portfolio: any[]; loading: boolean; error: Error | null; hasMore: boolean; loadMore: () => void } {
+): { portfolio: any[]; loading: boolean; error: Error | null; hasMore: boolean; loadMore: () => void; refetch: () => Promise<void> } {
   const [portfolio, setPortfolio] = useState<any[]>(initialData || []);
   const [loading, setLoading] = useState(initialData ? false : !!artistIdOrSlug);
   const [error, setError] = useState<Error | null>(null);
@@ -250,5 +250,13 @@ export function useArtistPortfolio(
     }
   }, [loadingMore, hasMore, page, fetchPage]);
 
-  return { portfolio, loading, error, hasMore, loadMore };
+  const refetch = useCallback(async () => {
+    api.clearCache('portfolio');
+    initialDataUsedRef.current = false;
+    setPage(1);
+    setPortfolio([]);
+    await fetchPage(1, false);
+  }, [api, fetchPage]);
+
+  return { portfolio, loading, error, hasMore, loadMore, refetch };
 }

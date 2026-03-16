@@ -3,6 +3,7 @@ import { artistService } from '@/services/artistService';
 import { tattooService } from '@/services/tattooService';
 import { ArtistType } from '@/models/artist.interface';
 import { useDemoMode } from '@/contexts/DemoModeContext';
+import { clearCache } from '@/utils/apiCache';
 
 // Unclaimed studio type
 export interface UnclaimedStudio {
@@ -276,6 +277,7 @@ export function useArtistPortfolio(artistIdOrSlug: string | null, initialData?: 
   }, [loadingMore, hasMore, page, fetchPage]);
 
   const refetch = useCallback(() => {
+    clearCache('portfolio');
     setPage(1);
     setPortfolio([]);
     initialDataUsedRef.current = false;

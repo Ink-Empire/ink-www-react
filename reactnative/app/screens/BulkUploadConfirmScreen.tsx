@@ -15,6 +15,7 @@ import { colors } from '../../lib/colors';
 import { bulkUploadService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
 import { api } from '../../lib/api';
+import { clearTattooCache } from '../../lib/tattooCache';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
 const screenWidth = Dimensions.get('window').width;
@@ -50,6 +51,9 @@ export default function BulkUploadConfirmScreen({ route, navigation }: Props) {
       const imageIds = uploadedImages.map(img => img.id);
 
       await bulkUploadService.uploadAlbum(imageIds, aiTag);
+
+      clearTattooCache();
+      api.clearCache('portfolio');
 
       setUploadedCount(images.length);
       setUploadComplete(true);
