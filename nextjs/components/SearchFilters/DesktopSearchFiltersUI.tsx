@@ -22,8 +22,8 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
       sx={{
         position: 'fixed',
         left: 0,
-        top: { sm: '80px', lg: '140px' },
-        height: { sm: 'calc(100vh - 80px)', lg: 'calc(100vh - 140px)' },
+        top: '80px',
+        height: 'calc(100vh - 80px)',
         width: isExpanded ? '320px' : '48px',
         transition: 'width 0.3s ease, transform 0.3s ease',
         zIndex: 10,
@@ -116,6 +116,7 @@ export const DesktopSearchFiltersUI: React.FC<DesktopSearchFiltersUIProps> = ({
           <Box sx={{
             flex: 1,
             overflowY: 'auto',
+            overscrollBehavior: 'contain',
             p: '1rem 1.25rem',
             '&::-webkit-scrollbar': { width: 6 },
             '&::-webkit-scrollbar-track': { background: 'transparent' },
