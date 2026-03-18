@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
+import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { api } from '../../lib/api';
 import { useStudio, useStudioGallery, useStudioArtists } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
@@ -387,7 +388,9 @@ export default function StudioDetailScreen({ navigation, route }: any) {
   const renderFooter = () => <View style={styles.bottomPadding} />;
 
   const renderTattoo = ({ item }: any) => {
-    const imageSource = item.primary_image?.uri || item.images?.[0]?.uri;
+    const rawUri = item.primary_image?.uri || item.images?.[0]?.uri;
+    const editParams = item.primary_image?.edit_params || item.images?.[0]?.edit_params;
+    const imageSource = rawUri ? tattooCardUrl(rawUri, editParams) : undefined;
     const tattooArtistName = item.artist?.name || item.artist_name;
     const tattooArtistSlug = item.artist?.slug || item.artist_slug;
     return (

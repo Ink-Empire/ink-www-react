@@ -117,7 +117,8 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         <View style={styles.preview}>
           {previewUrl ? (
             <Image
-              source={{ uri: previewUrl }}
+              key={previewUrl}
+              source={{ uri: previewUrl, cache: 'reload' }}
               style={styles.previewImage}
               resizeMode="contain"
             />

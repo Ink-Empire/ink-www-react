@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { colors } from '../../lib/colors';
 import { tattooService } from '../../lib/services';
+import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
 const screenWidth = Dimensions.get('window').width;
@@ -113,7 +114,7 @@ export default function ClaimInvitationScreen({ route, navigation }: any) {
             {invitation.tattoos.map((tattoo: any) => (
               <View key={tattoo.id} style={s.imageWrap}>
                 {tattoo.primary_image && (
-                  <Image source={{ uri: tattoo.primary_image }} style={s.image} />
+                  <Image source={{ uri: tattooCardUrl(tattoo.primary_image) }} style={s.image} />
                 )}
               </View>
             ))}

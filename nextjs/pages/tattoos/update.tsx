@@ -637,7 +637,9 @@ export default function UpdateTattoo() {
                   const img = allImages[selectedImageIndex];
                   if (img.type === 'existing') {
                     const existing = existingImages.find(e => e.id === img.id);
-                    setEditorImage({ id: img.id, uri: img.url, edit_params: existing?.edit_params });
+                    if (existing) {
+                      setEditorImage({ id: existing.id, uri: existing.url, edit_params: existing?.edit_params });
+                    }
                   }
                 }}
               >
