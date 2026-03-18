@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TouchableOpacity, Image, Text, StyleSheet, Dimensions, Animated, View } from 'react-native';
 import { colors } from '../../../lib/colors';
+import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
 
 interface TattooCardProps {
   tattoo: {
     id: number;
     title?: string;
-    primary_image?: { uri: string } | null;
-    images?: { uri: string }[];
+    primary_image?: { uri: string; edit_params?: any } | null;
+    images?: { uri: string; edit_params?: any }[];
   };
   onPress: () => void;
   size?: 'small' | 'medium';
@@ -48,7 +49,9 @@ function ShimmerPlaceholder({ width, height }: { width: number; height: number }
 }
 
 export default function TattooCard({ tattoo, onPress, size = 'medium' }: TattooCardProps) {
-  const imageUri = tattoo.primary_image?.uri || tattoo.images?.[0]?.uri;
+  const rawUri = tattoo.primary_image?.uri || tattoo.images?.[0]?.uri;
+  const editParams = tattoo.primary_image?.edit_params || tattoo.images?.[0]?.edit_params;
+  const imageUri = rawUri ? tattooCardUrl(rawUri, editParams) : undefined;
   const cardSize = size === 'small' ? (screenWidth - 48) / 3 : (screenWidth - 36) / 2;
   const [loaded, setLoaded] = useState(false);
 

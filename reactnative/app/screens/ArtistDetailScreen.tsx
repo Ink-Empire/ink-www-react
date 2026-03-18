@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
+import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { api } from '../../lib/api';
 import { useArtist } from '@inkedin/shared/hooks';
 import { createTattooService } from '@inkedin/shared/services';
@@ -491,7 +492,9 @@ export default function ArtistDetailScreen({ navigation, route }: any) {
   );
 
   const renderTattoo = ({ item }: any) => {
-    const imageSource = item.primary_image?.uri || item.images?.[0]?.uri;
+    const rawUri = item.primary_image?.uri || item.images?.[0]?.uri;
+    const editParams = item.primary_image?.edit_params || item.images?.[0]?.edit_params;
+    const imageSource = rawUri ? tattooCardUrl(rawUri, editParams) : undefined;
     const isSelected = selectedIds.has(item.id);
     return (
       <TouchableOpacity

@@ -17,6 +17,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { tattooService } from '../../lib/services';
+import { tattooModalUrl, profileImageUrl } from '@inkedin/shared/utils/imgix';
 import { useTattoo } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -88,12 +89,14 @@ export default function TattooDetailScreen({ navigation, route }: any) {
     if (tattoo.images && Array.isArray(tattoo.images)) {
       tattoo.images.forEach((img: any) => {
         const uri = typeof img === 'string' ? img : img?.uri;
-        if (uri) imgs.push({ uri });
+        const ep = typeof img === 'object' ? img?.edit_params : undefined;
+        if (uri) imgs.push({ uri: tattooModalUrl(uri, ep) });
       });
     }
     if (imgs.length === 0) {
       const primaryUri = tattoo.primary_image?.uri;
-      if (primaryUri) imgs.push({ uri: primaryUri });
+      const ep = tattoo.primary_image?.edit_params;
+      if (primaryUri) imgs.push({ uri: tattooModalUrl(primaryUri, ep) });
     }
     return imgs;
   }, [tattoo]);
@@ -122,7 +125,8 @@ export default function TattooDetailScreen({ navigation, route }: any) {
   const artist = tattoo.artist;
   const artistName = artist?.name || (tattoo as any).artist_name;
   const artistSlug = artist?.slug || (tattoo as any).artist_slug;
-  const artistImageUri = artist?.primary_image?.uri || artist?.image?.uri || (tattoo as any).artist_image_uri;
+  const rawArtistImageUri = artist?.primary_image?.uri || artist?.image?.uri || (tattoo as any).artist_image_uri;
+  const artistImageUri = rawArtistImageUri ? profileImageUrl(rawArtistImageUri) : undefined;
   const studio = tattoo.studio || artist?.studio;
   const studioName = studio?.name || (tattoo as any).studio_name;
   const studioSlug = studio?.slug;

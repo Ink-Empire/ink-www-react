@@ -6,9 +6,9 @@ interface CompressOptions {
 }
 
 const DEFAULT_OPTIONS: Required<CompressOptions> = {
-  maxWidth: 2048,
-  maxHeight: 2048,
-  quality: 0.85,
+  maxWidth: 4096,
+  maxHeight: 4096,
+  quality: 0.95,
   skipIfUnder: 500 * 1024, // 500KB
 };
 

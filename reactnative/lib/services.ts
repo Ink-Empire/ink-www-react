@@ -12,6 +12,7 @@ import {
   createUserProfileService,
   createBulkUploadService,
 } from '@inkedin/shared/services';
+import type { ImageEditParams } from '@inkedin/shared/types';
 
 export const artistService = createArtistService(api);
 export const tattooService = createTattooService(api);
@@ -24,3 +25,8 @@ export const tagService = createTagService(api);
 export const clientService = createClientService(api);
 export const userProfileService = createUserProfileService(api);
 export const bulkUploadService = createBulkUploadService(api);
+
+export const imageService = {
+  updateEditParams: (imageId: number, editParams: ImageEditParams) =>
+    api.put(`/images/${imageId}/edit-params`, editParams, { requiresAuth: true }),
+};

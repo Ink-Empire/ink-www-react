@@ -17,6 +17,7 @@ import { useTattoo } from '../hooks';
 import { useAuth, useUserData } from '../contexts/AuthContext';
 import { deleteTattoo } from '../hooks/useTattoos';
 import { useImageCache } from '../contexts/ImageCacheContext';
+import { tattooModalUrl } from '@inkedin/shared/utils/imgix';
 import { colors, modalStyles } from '@/styles/colors';
 
 interface TattooModalProps {
@@ -155,7 +156,10 @@ const TattooModal: React.FC<TattooModalProps> = ({
   );
 
   const getPrimaryImageUri = () => {
-    return tattoo?.primary_image?.uri || tattoo?.image?.uri || null;
+    const raw = tattoo?.primary_image?.uri || tattoo?.image?.uri || null;
+    if (!raw) return null;
+    const ep = tattoo?.primary_image?.edit_params || tattoo?.image?.edit_params;
+    return tattooModalUrl(raw, ep);
   };
 
   // Get all images for the tattoo (images array, falling back to primary_image)
@@ -166,8 +170,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
     if (tattoo?.images && Array.isArray(tattoo.images)) {
       tattoo.images.forEach((img: any) => {
         const uri = typeof img === 'string' ? img : img?.uri;
+        const ep = typeof img === 'object' ? img?.edit_params : undefined;
         if (uri) {
-          images.push({ uri });
+          images.push({ uri: tattooModalUrl(uri, ep) });
         }
       });
     }

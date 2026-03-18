@@ -24,6 +24,9 @@ import type { AiTagSuggestion } from '@inkedin/shared/services';
 import { useTattoo, useStyles, useTags, usePlacements } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import ImageEditorModal from '../components/ImageEditorModal';
+import type { ImageEditParams } from '@inkedin/shared/types';
+import { buildImgixUrl } from '@inkedin/shared/utils/imgix';
 import LoadingScreen from '../components/common/LoadingScreen';
 import ErrorView from '../components/common/ErrorView';
 import Button from '../components/common/Button';
@@ -37,6 +40,7 @@ const IMAGE_SIZE = screenWidth * 0.28;
 interface ExistingImage {
   id: number;
   uri: string;
+  edit_params?: ImageEditParams | null;
 }
 
 export default function EditTattooScreen({ navigation, route }: any) {
@@ -63,6 +67,9 @@ export default function EditTattooScreen({ navigation, route }: any) {
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [deletedImageIds, setDeletedImageIds] = useState<number[]>([]);
   const [newImages, setNewImages] = useState<ImageFile[]>([]);
+
+  // Editor state
+  const [editorImage, setEditorImage] = useState<{ id: number; uri: string; edit_params?: ImageEditParams | null } | null>(null);
 
   // UI state
   const [saving, setSaving] = useState(false);
@@ -127,12 +134,12 @@ export default function EditTattooScreen({ navigation, route }: any) {
       tattoo.images.forEach((img: any) => {
         const uri = typeof img === 'string' ? img : img?.uri;
         const imgId = typeof img === 'object' ? img?.id : undefined;
-        if (uri && imgId) imgs.push({ id: imgId, uri });
+        if (uri && imgId) imgs.push({ id: imgId, uri, edit_params: img?.edit_params });
       });
     }
     if (imgs.length === 0 && tattoo.primary_image) {
       const pi = tattoo.primary_image as any;
-      if (pi.id && pi.uri) imgs.push({ id: pi.id, uri: pi.uri });
+      if (pi.id && pi.uri) imgs.push({ id: pi.id, uri: pi.uri, edit_params: pi.edit_params });
     }
     setExistingImages(imgs);
 
@@ -485,6 +492,24 @@ export default function EditTattooScreen({ navigation, route }: any) {
         updateData.deleted_image_ids = deletedImageIds.filter(Boolean);
       }
 
+      console.log('[EditTattoo] tattoo id:', id);
+      console.log(
+        '[EditTattoo] existingImages:',
+        JSON.stringify(existingImages),
+      );
+      console.log(
+        '[EditTattoo] visibleExistingImages:',
+        JSON.stringify(visibleExistingImages),
+      );
+      console.log(
+        '[EditTattoo] deletedImageIds:',
+        JSON.stringify(deletedImageIds),
+      );
+      console.log('[EditTattoo] newImages count:', newImages.length);
+      console.log('[EditTattoo] keepImageIds:', JSON.stringify(keepImageIds));
+      console.log('[EditTattoo] allImageIds:', JSON.stringify(allImageIds));
+      console.log('[EditTattoo] updateData:', JSON.stringify(updateData));
+
       await tattooService.update(id, updateData);
       showSnackbar('Tattoo updated');
       navigation.goBack();
@@ -519,12 +544,18 @@ export default function EditTattooScreen({ navigation, route }: any) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled style={formStyles.imageStrip}>
           {visibleExistingImages.map((img, index) => (
             <View key={`existing-${img.id}`} style={formStyles.imageWrap}>
-              <Image source={{ uri: img.uri }} style={formStyles.imageThumb} />
+              <Image source={{ uri: buildImgixUrl(img.uri, img.edit_params) }} style={formStyles.imageThumb} />
               <TouchableOpacity
                 style={formStyles.removeImageBtn}
                 onPress={() => handleRemoveExisting(img.id)}
               >
                 <MaterialIcons name="close" size={16} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={formStyles.editImageBtn}
+                onPress={() => setEditorImage({ id: img.id, uri: img.uri, edit_params: img.edit_params })}
+              >
+                <MaterialIcons name="tune" size={14} color="#fff" />
               </TouchableOpacity>
               <TouchableOpacity
                 style={formStyles.cropImageBtn}
@@ -917,6 +948,20 @@ export default function EditTattooScreen({ navigation, route }: any) {
           </View>
         </View>
       )}
+
+      {/* Image Editor */}
+      <ImageEditorModal
+        isOpen={!!editorImage}
+        image={editorImage}
+        onClose={() => setEditorImage(null)}
+        onSave={(imageId, editParams) => {
+          setExistingImages(prev =>
+            prev.map(img =>
+              img.id === imageId ? { ...img, edit_params: editParams } : img
+            )
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -1024,6 +1069,17 @@ const formStyles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editImageBtn: {
+    position: 'absolute',
+    bottom: 6,
+    right: 34,
     width: 24,
     height: 24,
     borderRadius: 12,

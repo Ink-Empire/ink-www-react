@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
+import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { api } from '../../lib/api';
 import { tattooService } from '../../lib/services';
 import { clearTattooCache } from '../../lib/tattooCache';
@@ -67,7 +68,9 @@ export default function PendingApprovalsScreen({ navigation }: any) {
 
   const renderItem = ({ item }: { item: PendingTattoo }) => {
     const isResponding = respondingId === item.id;
-    const imageUri = item.primary_image?.uri || item.images?.[0]?.uri;
+    const rawUri = item.primary_image?.uri || item.images?.[0]?.uri;
+    const editParams = item.primary_image?.edit_params || item.images?.[0]?.edit_params;
+    const imageUri = rawUri ? tattooCardUrl(rawUri, editParams) : undefined;
 
     return (
       <View style={s.card}>
