@@ -18,7 +18,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'dd2gdmvaew6fu.cloudfront.net',
+        hostname: 'inked-in.imgix.net',
       },
       {
         protocol: 'https',
