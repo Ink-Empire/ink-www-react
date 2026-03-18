@@ -114,7 +114,7 @@ export default function ClaimInvitationScreen({ route, navigation }: any) {
             {invitation.tattoos.map((tattoo: any) => (
               <View key={tattoo.id} style={s.imageWrap}>
                 {tattoo.primary_image && (
-                  <Image source={{ uri: tattooCardUrl(tattoo.primary_image) }} style={s.image} />
+                  <Image source={{ uri: tattooCardUrl(tattoo.primary_image?.uri || tattoo.primary_image, tattoo.primary_image?.edit_params) }} style={s.image} />
                 )}
               </View>
             ))}
