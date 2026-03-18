@@ -27,6 +27,10 @@ export const userProfileService = createUserProfileService(api);
 export const bulkUploadService = createBulkUploadService(api);
 
 export const imageService = {
-  updateEditParams: (imageId: number, editParams: ImageEditParams) =>
-    api.put(`/images/${imageId}/edit-params`, editParams, { requiresAuth: true }),
+  updateEditParams: async (imageId: number, editParams: ImageEditParams) => {
+    const result = await api.put(`/images/${imageId}/edit-params`, editParams, { requiresAuth: true });
+    // Clear all cached GET responses so tattoo detail/list pages fetch fresh data
+    api.clearCache();
+    return result;
+  },
 };

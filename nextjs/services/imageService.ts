@@ -65,6 +65,9 @@ export const imageService = {
   },
 
   updateEditParams: async (imageId: number, editParams: ImageEditParams) => {
-    return api.put(`/images/${imageId}/edit-params`, editParams, { requiresAuth: true });
+    const result = await api.put(`/images/${imageId}/edit-params`, editParams, { requiresAuth: true });
+    // Clear all cached GET responses so tattoo detail/list pages fetch fresh data
+    api.clearCache();
+    return result;
   },
 };
