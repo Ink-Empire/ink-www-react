@@ -79,6 +79,16 @@ export function buildImgixUrl(
     });
   }
 
+  // Cache-bust: hash editParams so image caches refresh when edits change
+  if (editParams) {
+    const sig = JSON.stringify(editParams);
+    let hash = 0;
+    for (let i = 0; i < sig.length; i++) {
+      hash = ((hash << 5) - hash + sig.charCodeAt(i)) | 0;
+    }
+    params.v = String(Math.abs(hash));
+  }
+
   const queryString = buildQueryString(params);
   return queryString ? `${urlBase}?${queryString}` : urlBase;
 }
