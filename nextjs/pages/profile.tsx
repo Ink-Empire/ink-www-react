@@ -8,6 +8,7 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 import StyleModal from '../components/StyleModal';
 import WorkingHoursModal from '../components/WorkingHoursModal';
 import ImageCropperModal from '../components/ImageCropperModal';
+import ImageEditorModal from '../components/ImageEditorModal';
 import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
 import {
   Box,
@@ -40,6 +41,7 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import EditIcon from '@mui/icons-material/Edit';
+import TuneIcon from '@mui/icons-material/Tune';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -95,6 +97,9 @@ const ProfilePage: React.FC = () => {
 
   // Only fetch working hours for artists
   const isArtist = userData?.type === 'artist';
+
+  // Image editor state
+  const [editorImage, setEditorImage] = useState<{ id: number; uri: string; edit_params?: any } | null>(null);
 
   // Sidebar navigation state
   const [activeSection, setActiveSection] = useState('photo');
@@ -1077,24 +1082,60 @@ const ProfilePage: React.FC = () => {
               Change Photo
             </Box>
             {imageUri && (
-              <Box
-                component="button"
-                onClick={deleteProfilePhoto}
-                sx={{
-                  px: '1rem',
-                  py: '0.5rem',
-                  background: 'none',
-                  border: 'none',
-                  color: colors.accent,
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  '&:hover': { textDecoration: 'underline' }
-                }}
-              >
-                Remove
-              </Box>
+              <>
+                <Box
+                  component="button"
+                  onClick={() => {
+                    const imgId = profilePhoto?.imageId || (typeof userData?.image === 'object' ? (userData.image as any)?.id : null);
+                    const imgUri = serverUri;
+                    if (imgId && imgUri) {
+                      const ep = typeof userData?.image === 'object' ? (userData.image as any)?.edit_params : null;
+                      setEditorImage({ id: imgId, uri: imgUri, edit_params: ep });
+                    }
+                  }}
+                  sx={{
+                    px: '1.25rem',
+                    py: '0.6rem',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: `1px solid ${colors.borderLight}`,
+                    bgcolor: 'transparent',
+                    color: colors.textPrimary,
+                    transition: 'all 0.2s ease',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    '&:hover': {
+                      borderColor: colors.accent,
+                      color: colors.accent
+                    }
+                  }}
+                >
+                  <TuneIcon sx={{ fontSize: 16 }} />
+                  Edit Photo
+                </Box>
+                <Box
+                  component="button"
+                  onClick={deleteProfilePhoto}
+                  sx={{
+                    px: '1rem',
+                    py: '0.5rem',
+                    background: 'none',
+                    border: 'none',
+                    color: colors.accent,
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    '&:hover': { textDecoration: 'underline' }
+                  }}
+                >
+                  Remove
+                </Box>
+              </>
             )}
           </Box>
 
@@ -2484,6 +2525,16 @@ const ProfilePage: React.FC = () => {
           onCropComplete={handleCropComplete}
         />
       )}
+
+      {/* Image Editor Modal */}
+      <ImageEditorModal
+        isOpen={!!editorImage}
+        image={editorImage}
+        onClose={() => setEditorImage(null)}
+        onSave={() => {
+          refreshUser();
+        }}
+      />
 
       {/* Delete Account Confirmation Modal */}
       <Dialog

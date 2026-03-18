@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
+import { profileImageUrl } from '@inkedin/shared/utils/imgix';
 import StyleTag from '../common/StyleTag';
 
 interface ArtistCardProps {
@@ -20,9 +21,10 @@ interface ArtistCardProps {
 }
 
 export default function ArtistCard({ artist, onPress, onStudioPress }: ArtistCardProps) {
-  const imageUri =
+  const rawUri =
     artist.primary_image?.uri ||
     (typeof artist.image === 'object' ? artist.image?.uri : artist.image);
+  const imageUri = rawUri ? profileImageUrl(rawUri) : undefined;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>

@@ -4,6 +4,24 @@
 // Common Types
 // =============================================================================
 
+export interface ImageEditParams {
+  bri?: number;
+  con?: number;
+  sat?: number;
+  sharp?: number;
+  rot?: number;
+  mono?: boolean;
+  auto_enhance?: boolean;
+  sepia?: number;
+  hue_shift?: number;
+  crop?: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+}
+
 export interface Image {
   id: number;
   uri: string;
@@ -11,6 +29,7 @@ export interface Image {
   filename?: string;
   artistId?: number;
   tattooId?: number;
+  edit_params?: ImageEditParams | null;
 }
 
 export interface Style {

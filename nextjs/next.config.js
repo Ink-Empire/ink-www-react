@@ -28,6 +28,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'inked-in-images.s3.us-east-1.amazonaws.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'inked-in.imgix.net',
+      },
     ],
   },
   webpack(config) {

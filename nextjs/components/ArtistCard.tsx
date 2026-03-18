@@ -9,6 +9,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { ArtistType } from '../models/artist.interface';
 import { useUserData } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { profileImageUrl, tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { colors } from '@/styles/colors';
 
 interface ArtistCardProps {
@@ -69,7 +70,10 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
     };
 
     // Get featured image (primary image or regular image)
-    const featuredImage = artist.primary_image?.uri || artist.image?.uri;
+    const rawFeaturedImage = artist.primary_image?.uri || artist.image?.uri;
+    const featuredImage = rawFeaturedImage ? tattooCardUrl(rawFeaturedImage) : undefined;
+    const avatarUri = (artist.image?.uri || artist.primary_image?.uri);
+    const avatarSrc = avatarUri ? profileImageUrl(avatarUri) : undefined;
 
     // Determine availability status
     const getAvailability = () => {
@@ -109,7 +113,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                     gap: '0.75rem'
                 }}>
                     {/* Avatar */}
-                    {(artist.image?.uri || artist.primary_image?.uri) ? (
+                    {avatarSrc ? (
                         <Box sx={{
                             width: 44,
                             height: 44,
@@ -119,7 +123,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                             position: 'relative'
                         }}>
                             <Image
-                                src={artist.image?.uri || artist.primary_image?.uri}
+                                src={avatarSrc}
                                 alt={artist.name || 'Artist'}
                                 fill
                                 style={{ objectFit: 'cover' }}

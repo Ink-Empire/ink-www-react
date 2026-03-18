@@ -25,6 +25,8 @@ import Button from '../components/common/Button';
 import StyleTag from '../components/common/StyleTag';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import Avatar from '../components/common/Avatar';
+import ImageEditorModal from '../components/ImageEditorModal';
+import type { ImageEditParams } from '@inkedin/shared/types';
 
 const SOCIAL_PLATFORMS = [
   { key: 'instagram', label: 'Instagram' },
@@ -88,8 +90,12 @@ export default function EditProfileScreen({ navigation }: any) {
 
   // Photo state
   const existingImageUri = typeof u?.image === 'string' && u.image ? u.image : u?.image?.uri;
+  const existingImageId = typeof u?.image === 'object' ? u?.image?.id : null;
+  const existingEditParams = typeof u?.image === 'object' ? u?.image?.edit_params : null;
   const [photoUri, setPhotoUri] = useState<string | null>(existingImageUri || null);
+  const [photoImageId, setPhotoImageId] = useState<number | null>(existingImageId || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [editorImage, setEditorImage] = useState<{ id: number; uri: string; edit_params?: ImageEditParams | null } | null>(null);
 
   // Form state
   const [saving, setSaving] = useState(false);
@@ -122,6 +128,7 @@ export default function EditProfileScreen({ navigation }: any) {
         };
         const uploaded = await uploadImagesToS3(api, [imageFile], 'profile');
         await userService.uploadProfilePhoto(uploaded[0].id);
+        setPhotoImageId(uploaded[0].id);
         await refreshUser();
         showSnackbar('Profile photo updated');
       } catch (err: any) {
@@ -276,9 +283,18 @@ export default function EditProfileScreen({ navigation }: any) {
             <Text style={styles.changePhotoText}>Change Photo</Text>
           </TouchableOpacity>
           {photoUri && !uploadingPhoto && (
-            <TouchableOpacity onPress={handleRemovePhoto}>
-              <Text style={styles.removePhotoText}>Remove</Text>
-            </TouchableOpacity>
+            <View style={styles.photoActions}>
+              {photoImageId && (
+                <TouchableOpacity
+                  onPress={() => setEditorImage({ id: photoImageId, uri: photoUri, edit_params: existingEditParams })}
+                >
+                  <Text style={styles.editPhotoText}>Edit Photo</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handleRemovePhoto}>
+                <Text style={styles.removePhotoText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -395,6 +411,15 @@ export default function EditProfileScreen({ navigation }: any) {
           />
         </View>
       </ScrollView>
+
+      <ImageEditorModal
+        isOpen={!!editorImage}
+        image={editorImage}
+        onClose={() => setEditorImage(null)}
+        onSave={() => {
+          refreshUser();
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -449,10 +474,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 8,
   },
+  photoActions: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
+  },
+  editPhotoText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   removePhotoText: {
     color: colors.textMuted,
     fontSize: 13,
-    marginTop: 4,
   },
   sectionTitle: {
     color: colors.textPrimary,

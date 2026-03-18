@@ -2,6 +2,8 @@ import { uploadImageToS3, UploadedImage } from '@/utils/s3Upload';
 import { userService } from './userService';
 import { studioService } from './studioService';
 import { artistService } from './artistService';
+import type { ImageEditParams } from '@inkedin/shared/types';
+import { api } from '@/utils/api';
 
 export type ImagePurpose = 'tattoo' | 'profile' | 'studio' | 'message';
 
@@ -60,5 +62,9 @@ export const imageService = {
     const uploaded = await uploadImageToS3(file, 'profile');
     await artistService.updateSettings(artistId, { watermark_image_id: uploaded.id });
     return uploaded;
+  },
+
+  updateEditParams: async (imageId: number, editParams: ImageEditParams) => {
+    return api.put(`/images/${imageId}/edit-params`, editParams, { requiresAuth: true });
   },
 };

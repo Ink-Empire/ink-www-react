@@ -8,6 +8,7 @@ import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { useUserData } from '@/contexts/AuthContext';
 import { useTattooImagePreload } from '@/contexts/ImageCacheContext';
+import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { colors } from '@/styles/colors';
 
 interface TattooCardProps {
@@ -20,7 +21,9 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
     const user = useUserData();
     const { preloadTattooImages } = useTattooImagePreload();
 
-    const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+    const rawImageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+    const editParams = tattoo.primary_image?.edit_params || tattoo.image?.edit_params;
+    const imageUri = rawImageUri ? tattooCardUrl(rawImageUri, editParams) : undefined;
     const artistImageUri = tattoo.artist_image_uri;
 
     // Preload all tattoo images on hover for instant modal display
