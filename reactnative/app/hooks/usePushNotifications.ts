@@ -1,6 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  getToken,
+  onTokenRefresh,
+  onMessage,
+  requestPermission,
+  AuthorizationStatus,
+} from '@react-native-firebase/messaging';
 import { createNotificationService } from '@inkedin/shared/services';
 import { api } from '../../lib/api';
 import { usePushNotificationBanner } from '../contexts/PushNotificationContext';
@@ -49,23 +56,24 @@ export function usePushNotifications(isAuthenticated: boolean) {
         );
       }
 
-      const authStatus = await messaging().requestPermission();
+      const msgInstance = getMessaging();
+      const authStatus = await requestPermission(msgInstance);
       const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        authStatus === AuthorizationStatus.AUTHORIZED ||
+        authStatus === AuthorizationStatus.PROVISIONAL;
 
       if (!enabled) return;
 
-      const fcmToken = await messaging().getToken();
+      const fcmToken = await getToken(msgInstance);
       if (fcmToken) {
         await registerToken(fcmToken);
       }
 
-      unsubscribeRefresh = messaging().onTokenRefresh(async (newToken) => {
+      unsubscribeRefresh = onTokenRefresh(msgInstance, async (newToken) => {
         await registerToken(newToken);
       });
 
-      unsubscribeMessage = messaging().onMessage(async (remoteMessage) => {
+      unsubscribeMessage = onMessage(msgInstance, async (remoteMessage) => {
         const { notification, data } = remoteMessage;
         if (notification?.title) {
           show({
