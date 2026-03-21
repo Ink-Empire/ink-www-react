@@ -11,6 +11,7 @@ import {
   createClientService,
   createUserProfileService,
   createBulkUploadService,
+  createClientInsightsService,
 } from '@inkedin/shared/services';
 import type { ImageEditParams } from '@inkedin/shared/types';
 
@@ -25,6 +26,7 @@ export const tagService = createTagService(api);
 export const clientService = createClientService(api);
 export const userProfileService = createUserProfileService(api);
 export const bulkUploadService = createBulkUploadService(api);
+export const clientInsightsService = createClientInsightsService(api);
 
 export const imageService = {
   updateEditParams: async (imageId: number, editParams: ImageEditParams) => {

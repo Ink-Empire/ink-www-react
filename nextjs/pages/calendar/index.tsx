@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import Layout from '@/components/Layout';
 import ArtistProfileCalendar, { ArtistProfileCalendarRef } from '@/components/ArtistProfileCalendar';
 import { useAuth } from '@/contexts/AuthContext';
-import { Box, Typography, Button, Switch, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, Button, Switch, Snackbar, Alert, Drawer } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import { colors } from '@/styles/colors';
@@ -14,6 +14,7 @@ import GoogleCalendarButton from '@/components/GoogleCalendarButton';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { useWorkingHours } from '@/hooks';
 import { artistService } from '@/services/artistService';
+import ClientInsightsPanel from '@/components/clients/ClientInsightsPanel';
 
 const WorkingHoursModal = dynamic(() => import('@/components/WorkingHoursModal'), { ssr: false });
 
@@ -27,6 +28,8 @@ interface UpcomingAppointment {
   clientName: string;
   clientInitials: string;
   type: string;
+  client_id?: number;
+  status?: string;
 }
 
 const MyCalendarPage: React.FC = () => {
@@ -45,6 +48,7 @@ const MyCalendarPage: React.FC = () => {
   const [booksOpen, setBooksOpen] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
+  const [insightsClientId, setInsightsClientId] = useState<number | null>(null);
   const pendingBooksOpen = useRef(false);
   const { workingHours, saveWorkingHours } = useWorkingHours(isArtist ? user?.id : null);
 
@@ -319,6 +323,7 @@ const MyCalendarPage: React.FC = () => {
             showExternalEvents={true}
             isOwnCalendar={true}
             onAppointmentChanged={fetchUpcoming}
+            onViewClientProfile={(clientId) => setInsightsClientId(clientId)}
           />
         ) : (
           <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -398,15 +403,34 @@ const MyCalendarPage: React.FC = () => {
                       {apt.time}
                     </Typography>
                   </Box>
-                  <Typography sx={{
-                    fontSize: '0.75rem',
-                    color: colors.textSecondary,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {apt.clientName}
-                  </Typography>
+                  {apt.client_id ? (
+                    <Typography
+                      onClick={(e) => { e.stopPropagation(); setInsightsClientId(apt.client_id!); }}
+                      sx={{
+                        fontSize: '0.75rem',
+                        color: colors.accent,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        textDecorationColor: `${colors.accent}40`,
+                        '&:hover': { textDecorationColor: colors.accent },
+                      }}
+                    >
+                      {apt.clientName}
+                    </Typography>
+                  ) : (
+                    <Typography sx={{
+                      fontSize: '0.75rem',
+                      color: colors.textSecondary,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {apt.clientName}
+                    </Typography>
+                  )}
                 </Box>
 
                 {/* Status badge */}
@@ -443,6 +467,27 @@ const MyCalendarPage: React.FC = () => {
           infoText={pendingBooksOpen.current ? 'In order to set your books to open you must have working hours set.' : undefined}
         />
       )}
+
+      {/* Client Insights Drawer */}
+      <Drawer
+        anchor="right"
+        open={insightsClientId !== null}
+        onClose={() => setInsightsClientId(null)}
+        PaperProps={{
+          sx: {
+            width: 360,
+            bgcolor: colors.background,
+            borderLeft: `1px solid ${colors.border}`,
+          },
+        }}
+      >
+        {insightsClientId && (
+          <ClientInsightsPanel
+            clientId={insightsClientId}
+            onClose={() => setInsightsClientId(null)}
+          />
+        )}
+      </Drawer>
 
       {/* Notification Snackbar */}
       <Snackbar

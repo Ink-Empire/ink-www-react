@@ -264,6 +264,12 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     );
   };
 
+  const handleViewClientProfile = (apt: UpcomingAppointment) => {
+    if (!apt.client_id) return;
+    setModalVisible(false);
+    navigation.navigate('ClientProfile', { clientId: apt.client_id, name: apt.clientName });
+  };
+
   const handleContactPress = (apt: UpcomingAppointment) => {
     if (!apt.client_id) {
       Alert.alert('Unavailable', 'Client information is not available for this appointment.');
@@ -361,7 +367,13 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
                       <MaterialIcons name="schedule" size={12} color={colors.textMuted} />
                       {'  '}{apt.time}
                     </Text>
-                    <Text style={styles.appointmentClient}>{apt.clientName}</Text>
+                    {apt.client_id ? (
+                      <TouchableOpacity onPress={() => handleViewClientProfile(apt)}>
+                        <Text style={[styles.appointmentClient, styles.clientLink]}>{apt.clientName}</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <Text style={styles.appointmentClient}>{apt.clientName}</Text>
+                    )}
                   </View>
                   <View style={[
                     styles.appointmentTypeBadge,
@@ -443,6 +455,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         onRescheduleAppointment={(apt) => handleReschedulePress(apt)}
         onDeleteAppointment={(apt) => handleDeletePress(apt)}
         onContactClient={(apt) => handleContactPress(apt)}
+        onViewClientProfile={(apt) => handleViewClientProfile(apt)}
       />
 
       {/* Booking Form Modal */}
@@ -628,6 +641,10 @@ const styles = StyleSheet.create({
   appointmentClient: {
     color: colors.textSecondary,
     fontSize: 12,
+  },
+  clientLink: {
+    color: colors.accent,
+    textDecorationLine: 'underline',
   },
   appointmentTypeBadge: {
     backgroundColor: colors.accentDim,

@@ -37,6 +37,16 @@
   --ai-suggestion: #5B8FB9;
   --ai-suggestion-dim: rgba(91, 143, 185, 0.15);
 
+  /* Tag Category Colors */
+  --tag-likes: #6B9E8A;
+  --tag-likes-bg: #111a16;
+  --tag-avoid: #C4784A;
+  --tag-avoid-bg: #1e1510;
+  --tag-personality: #9B8FC4;
+  --tag-personality-bg: #18162a;
+  --tag-notes: #5B8FB9;
+  --tag-notes-bg: #111820;
+
   /* Borders */
   --border: #2A2A2A;
   --border-light: #3A3A3A;

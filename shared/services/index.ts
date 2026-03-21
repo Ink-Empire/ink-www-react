@@ -344,6 +344,13 @@ export { createBulkUploadService } from './bulkUploadService';
 export type { BulkUpload, BulkUploadItem, BulkUploadItemsResponse } from './bulkUploadService';
 
 // =============================================================================
+// Client Insights Service
+// =============================================================================
+
+export { createClientInsightsService } from './clientInsightsService';
+export type { ClientInsightsService } from './clientInsightsService';
+
+// =============================================================================
 // Export types
 // =============================================================================
 

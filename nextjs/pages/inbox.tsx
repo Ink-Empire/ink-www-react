@@ -45,6 +45,7 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import CheckIcon from '@mui/icons-material/Check';
 import { colors } from '@/styles/colors';
+import ClientInsightsPanel from '@/components/clients/ClientInsightsPanel';
 import {
   useConversations,
   useConversation,
@@ -98,6 +99,9 @@ export default function InboxPage() {
   const [recipientError, setRecipientError] = useState('');
   const [searchingRecipient, setSearchingRecipient] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Client insights panel
+  const [insightsPanelOpen, setInsightsPanelOpen] = useState(false);
 
   // Modal states
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -346,6 +350,7 @@ export default function InboxPage() {
     if (conv.id !== selectedConversationId) {
       clearPendingAttachments();
       setMessageInput('');
+      setInsightsPanelOpen(false);
     }
     setSelectedConversationId(conv.id);
     setMobileShowConversation(true);
@@ -1142,6 +1147,21 @@ export default function InboxPage() {
                             'Unknown User'}
                         </Typography>
                       </Link>
+                    ) : isArtist && selectedConversation.participant?.id ? (
+                      <Typography
+                        onClick={() => setInsightsPanelOpen(true)}
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '1rem',
+                          color: colors.textPrimary,
+                          cursor: 'pointer',
+                          '&:hover': { color: colors.accent },
+                        }}
+                      >
+                        {selectedConversation.participant?.name ||
+                          selectedConversation.participant?.username ||
+                          'Unknown User'}
+                      </Typography>
                     ) : (
                       <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: colors.textPrimary }}>
                         {selectedConversation.participant?.name ||
@@ -1200,6 +1220,13 @@ export default function InboxPage() {
                     <MenuItem onClick={handleViewProfile} sx={{ color: colors.textPrimary }}>
                       <ListItemIcon><PersonIcon sx={{ color: colors.textSecondary }} /></ListItemIcon>
                       <ListItemText>View Profile</ListItemText>
+                    </MenuItem>
+                  )}
+                  {/* Show Client Insights for artists viewing non-artist participants */}
+                  {isArtist && selectedConversation?.participant?.id && selectedConversation?.participant?.type !== 2 && (
+                    <MenuItem onClick={() => { setInsightsPanelOpen(true); handleMoreMenuClose(); }} sx={{ color: colors.textPrimary }}>
+                      <ListItemIcon><PersonIcon sx={{ color: colors.textSecondary }} /></ListItemIcon>
+                      <ListItemText>Client Insights</ListItemText>
                     </MenuItem>
                   )}
                   <MenuItem onClick={handleBlockUser} sx={{ color: colors.textPrimary }}>
@@ -1568,6 +1595,25 @@ export default function InboxPage() {
             </Box>
           )}
         </Box>
+
+        {/* Client Insights Panel */}
+        {insightsPanelOpen && isArtist && selectedConversation?.participant?.id && (
+          <Box
+            sx={{
+              width: 340,
+              flexShrink: 0,
+              borderLeft: `1px solid ${colors.borderSubtle}`,
+              display: { xs: 'none', lg: 'flex' },
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <ClientInsightsPanel
+              clientId={selectedConversation.participant.id}
+              onClose={() => setInsightsPanelOpen(false)}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* New Message Dialog */}

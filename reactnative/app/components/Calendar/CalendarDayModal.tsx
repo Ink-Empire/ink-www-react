@@ -41,6 +41,7 @@ interface CalendarDayModalProps {
   onRescheduleAppointment?: (apt: UpcomingAppointment) => void;
   onDeleteAppointment?: (apt: UpcomingAppointment) => void;
   onContactClient?: (apt: UpcomingAppointment) => void;
+  onViewClientProfile?: (apt: UpcomingAppointment) => void;
 }
 
 export function CalendarDayModal({
@@ -61,6 +62,7 @@ export function CalendarDayModal({
   onRescheduleAppointment,
   onDeleteAppointment,
   onContactClient,
+  onViewClientProfile,
 }: CalendarDayModalProps) {
   const canConsult = Boolean(acceptsConsultations);
   const canAppoint = Boolean(acceptsAppointments);
@@ -123,7 +125,13 @@ export function CalendarDayModal({
                             </View>
                           </View>
                           <Text style={styles.eventTime}>{apt.time}</Text>
-                          <Text style={styles.eventClient}>{apt.clientName}</Text>
+                          {apt.client_id ? (
+                            <TouchableOpacity onPress={() => onViewClientProfile?.(apt)}>
+                              <Text style={[styles.eventClient, styles.clientLink]}>{apt.clientName}</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <Text style={styles.eventClient}>{apt.clientName}</Text>
+                          )}
                         </View>
                         <View style={styles.eventActions}>
                           {apt.client_id && (
@@ -483,6 +491,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  clientLink: {
+    color: colors.accent,
+    textDecorationLine: 'underline',
   },
   statusBadge: {
     backgroundColor: colors.accentDim,

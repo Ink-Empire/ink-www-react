@@ -56,6 +56,16 @@ export const colors = {
   textOnLight: '#000000',
   backgroundLight: '#ffffff',
 
+  // Tag Category Colors
+  tagLikes: '#6B9E8A',
+  tagLikesBg: '#111a16',
+  tagAvoid: '#C4784A',
+  tagAvoidBg: '#1e1510',
+  tagPersonality: '#9B8FC4',
+  tagPersonalityBg: '#18162a',
+  tagNotes: '#5B8FB9',
+  tagNotesBg: '#111820',
+
   // Aliases
   primary: '#C9A962',
   primaryLight: '#E4C675',

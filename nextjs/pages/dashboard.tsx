@@ -56,6 +56,7 @@ const ChangePasswordModal = dynamic(() => import('../components/ChangePasswordMo
 const TattooCreateWizard = dynamic(() => import('../components/TattooCreateWizard'), { ssr: false });
 const StudioInvitations = dynamic(() => import('../components/StudioInvitations'), { ssr: false });
 const ImageCropperModal = dynamic(() => import('../components/ImageCropperModal'), { ssr: false });
+const ClientsTabContent = dynamic(() => import('../components/clients/ClientsTabContent'), { ssr: false });
 
 // Dashboard components
 import {
@@ -704,8 +705,8 @@ export default function Dashboard() {
           </Box>
         </Box>
 
-        {/* Dashboard Tabs - for anyone with a studio (except pure studio accounts) */}
-        {hasStudio && !isStudioAccount && (
+        {/* Dashboard Tabs - for anyone with a studio or artists (for clients tab) */}
+        {(hasStudio && !isStudioAccount || isArtist) && (
           <Box sx={{
             display: 'flex',
             gap: 3,
@@ -721,19 +722,51 @@ export default function Dashboard() {
               onClick={() => setActiveTab('artist')}
               accentAvatar
             />
-            <DashboardTab
-              label={ownedStudio?.name || 'My Studio'}
-              initials={studioInitials}
-              imageUrl={typeof (ownedStudio?.image || studioData?.image) === 'string' ? (ownedStudio?.image || studioData?.image) : (ownedStudio?.image?.uri || studioData?.image?.uri)}
-              isActive={activeTab === 'studio'}
-              onClick={() => setActiveTab('studio')}
-            />
+            {hasStudio && !isStudioAccount && (
+              <DashboardTab
+                label={ownedStudio?.name || 'My Studio'}
+                initials={studioInitials}
+                imageUrl={typeof (ownedStudio?.image || studioData?.image) === 'string' ? (ownedStudio?.image || studioData?.image) : (ownedStudio?.image?.uri || studioData?.image?.uri)}
+                isActive={activeTab === 'studio'}
+                onClick={() => setActiveTab('studio')}
+              />
+            )}
+            {isArtist && (
+              <Box
+                onClick={() => setActiveTab('clients')}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  pb: 1.5,
+                  px: 0.5,
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'clients' ? `2px solid ${colors.accent}` : '2px solid transparent',
+                  mb: '-1px',
+                  minHeight: 32,
+                  transition: 'border-color 0.2s',
+                  '&:hover': { borderColor: activeTab === 'clients' ? colors.accent : colors.borderLight },
+                }}
+              >
+                <Typography sx={{
+                  fontSize: '0.95rem',
+                  fontWeight: activeTab === 'clients' ? 600 : 500,
+                  color: activeTab === 'clients' ? colors.textPrimary : colors.textSecondary,
+                }}>
+                  My Clients
+                </Typography>
+              </Box>
+            )}
           </Box>
         )}
 
         {/* Studio Invitations - Only for artists viewing artist tab */}
         {isArtist && activeTab === 'artist' && (
           <StudioInvitations onInvitationAccepted={refreshUser} />
+        )}
+
+        {/* Clients Tab - CRM for artists */}
+        {isArtist && activeTab === 'clients' && (
+          <ClientsTabContent />
         )}
 
         {/* Client Dashboard Content - for clients on their dashboard tab */}
@@ -785,8 +818,8 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {/* Stats Row - for artists or studio tab */}
-        {(isArtist || activeTab === 'studio') && (
+        {/* Stats Row - for artists or studio tab (not clients tab) */}
+        {(isArtist || activeTab === 'studio') && activeTab !== 'clients' && (
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: activeTab === 'artist' ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)' },
@@ -868,8 +901,8 @@ export default function Dashboard() {
         </Box>
         )}
 
-        {/* Main Grid - for artists or studio tab (not for clients on their dashboard tab) */}
-        {(isArtist || activeTab === 'studio') && (
+        {/* Main Grid - for artists or studio tab (not clients tab) */}
+        {(isArtist || activeTab === 'studio') && activeTab !== 'clients' && (
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '1fr 340px', lg: '1fr 380px' },

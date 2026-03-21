@@ -28,6 +28,7 @@ export type HomeStackParamList = {
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  ClientProfile: { clientId: number; name?: string };
   UserProfile: { slug: string; name?: string };
   ClaimInvitation: { token: string };
 };
@@ -58,6 +59,7 @@ export type ArtistsStackParamList = {
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  ClientProfile: { clientId: number; name?: string };
   UserProfile: { slug: string; name?: string };
 };
 
@@ -69,7 +71,8 @@ export type UploadStackParamList = {
 
 export type InboxStackParamList = {
   Inbox: undefined;
-  Conversation: { conversationId?: number; clientId?: number; participantName?: string };
+  Conversation: { conversationId?: number; clientId?: number; participantId?: number; participantName?: string };
+  ClientProfile: { clientId: number; name?: string };
 };
 
 export type ProfileStackParamList = {
@@ -87,5 +90,6 @@ export type ProfileStackParamList = {
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  ClientProfile: { clientId: number; name?: string };
   UserProfile: { slug: string; name?: string };
 };

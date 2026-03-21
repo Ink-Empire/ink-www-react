@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { colors } from '../../lib/colors';
 import InboxScreen from '../screens/InboxScreen';
 import ConversationScreen from '../screens/ConversationScreen';
+import ClientProfileScreen from '../screens/ClientProfileScreen';
 import type { InboxStackParamList } from './types';
 
 const Stack = createStackNavigator<InboxStackParamList>();
@@ -21,6 +22,11 @@ export default function InboxStack() {
         name="Conversation"
         component={ConversationScreen}
         options={({ route }) => ({ title: route.params?.participantName || 'Chat' })}
+      />
+      <Stack.Screen
+        name="ClientProfile"
+        component={ClientProfileScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Client' })}
       />
     </Stack.Navigator>
   );

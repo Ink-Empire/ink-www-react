@@ -18,6 +18,7 @@ export { tagService } from './tagService';
 export { tattooService } from './tattooService';
 export { userService } from './userService';
 export { userProfileService } from './userProfileService';
+export { clientInsightsService } from './clientInsightsService';
 
 // Re-export types
 export type {
@@ -91,3 +92,7 @@ export type {
 export type {
   UserProfile,
 } from './userProfileService';
+
+export type {
+  ClientListItem,
+} from './clientInsightsService';

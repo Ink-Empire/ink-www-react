@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ImageCropPicker from 'react-native-image-crop-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { messageService, appointmentService } from '../../lib/services';
@@ -40,7 +41,7 @@ interface OptimisticMessage {
 }
 
 export default function ConversationScreen({ route, navigation }: any) {
-  const { conversationId: initialConversationId, clientId } = route.params;
+  const { conversationId: initialConversationId, clientId, participantId: routeParticipantId } = route.params;
   const [resolvedId, setResolvedId] = useState<number | undefined>(
     initialConversationId ?? undefined,
   );
@@ -52,6 +53,51 @@ export default function ConversationScreen({ route, navigation }: any) {
   const { refresh: refreshUnreadCount } = useUnreadMessageCount();
   const { setActiveConversationId, clearActiveConversationId } = useMessageNotification();
   const isArtist = user?.type_id === 2;
+  const [showProfileTip, setShowProfileTip] = useState(false);
+  const tipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const participantRef = useRef<{ id: number | undefined; name: string }>({ id: undefined, name: 'Chat' });
+
+  useEffect(() => {
+    if (!isArtist) return;
+    navigation.setOptions({
+      headerTitle: () => (
+        <TouchableOpacity
+          onPress={() => {
+            const { id, name } = participantRef.current;
+            if (id) {
+              navigation.push('ClientProfile', { clientId: id, name });
+            }
+          }}
+          activeOpacity={0.7}
+          style={{ paddingVertical: 8, paddingHorizontal: 4 }}
+        >
+          <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: '600' }}>
+            {participantName}
+          </Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [isArtist, participantName, navigation]);
+
+  // One-time profile tip for artists
+  useEffect(() => {
+    if (!isArtist) return;
+    AsyncStorage.getItem('hasSeenProfileTip').then(val => {
+      if (!val) {
+        setShowProfileTip(true);
+        AsyncStorage.setItem('hasSeenProfileTip', '1');
+        tipTimerRef.current = setTimeout(() => setShowProfileTip(false), 3000);
+      }
+    });
+    return () => {
+      if (tipTimerRef.current) clearTimeout(tipTimerRef.current);
+    };
+  }, [isArtist]);
+
+  const dismissTip = useCallback(() => {
+    setShowProfileTip(false);
+    if (tipTimerRef.current) clearTimeout(tipTimerRef.current);
+  }, []);
 
   // Resolve conversation from clientId if no conversationId was provided
   useEffect(() => {
@@ -92,6 +138,11 @@ export default function ConversationScreen({ route, navigation }: any) {
     markAsRead,
     fetchMoreMessages,
   } = useConversation(api, resolvedId, realtime);
+
+  // Get participant ID from route params, conversation data, or clientId
+  const participantId = routeParticipantId || conversation?.participant?.id || clientId;
+  const participantName = route.params?.participantName || conversation?.participant?.name || 'Chat';
+  participantRef.current = { id: participantId, name: participantName };
 
   const [respondingToBooking, setRespondingToBooking] = useState<number | null>(null);
   const [respondedBookings, setRespondedBookings] = useState<Record<number, 'accepted' | 'declined'>>({});
@@ -350,6 +401,12 @@ export default function ConversationScreen({ route, navigation }: any) {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
 
+      {showProfileTip && (
+        <View style={styles.tipBar}>
+          <Text style={styles.tipText}>Tap name to view client profile &amp; notes</Text>
+        </View>
+      )}
+
       <FlatList
         ref={flatListRef}
         data={invertedMessages}
@@ -359,6 +416,7 @@ export default function ConversationScreen({ route, navigation }: any) {
         contentContainerStyle={styles.messageList}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.2}
+        onScrollBeginDrag={dismissTip}
       />
 
       {pendingAttachments.length > 0 && (
@@ -428,6 +486,15 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 40,
+  },
+  tipBar: {
+    paddingVertical: 6,
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  tipText: {
+    color: colors.accent,
+    fontSize: 11,
   },
   messageList: {
     paddingVertical: 12,

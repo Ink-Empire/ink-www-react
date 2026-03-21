@@ -512,3 +512,58 @@ export interface Country {
 // =============================================================================
 
 export * from './calendar';
+
+// =============================================================================
+// Client Insights Types
+// =============================================================================
+
+export interface UserTagCategory {
+  id: number;
+  name: string;
+  color: 'teal' | 'coral' | 'purple' | 'amber';
+  sort_order: number;
+}
+
+export interface UserTag {
+  id: number;
+  label: string;
+}
+
+export interface TagGroup {
+  category: UserTagCategory;
+  tags: UserTag[];
+}
+
+export interface ClientNote {
+  id: number;
+  body: string;
+  created_at: string;
+}
+
+export interface ClientAppointmentHistory {
+  id: number;
+  type: string;
+  date: string;
+  duration_minutes: number | null;
+  status: 'done' | 'upcoming' | 'booked' | 'cancelled';
+}
+
+export interface ClientProfileStats {
+  sessions: number;
+  total_spent: number;
+  hours_in_chair: number;
+  next_appointment: string | null;
+}
+
+export interface ClientProfile {
+  client: {
+    id: number;
+    name: string;
+    email: string;
+    created_at: string;
+  };
+  stats: ClientProfileStats;
+  tags: TagGroup[];
+  notes: ClientNote[];
+  history: ClientAppointmentHistory[];
+}

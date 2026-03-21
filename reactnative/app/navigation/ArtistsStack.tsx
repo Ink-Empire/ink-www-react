@@ -7,6 +7,7 @@ import TattooDetailScreen from '../screens/TattooDetailScreen';
 import EditTattooScreen from '../screens/EditTattooScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import ClientProfileScreen from '../screens/ClientProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
 import type { ArtistsStackParamList } from './types';
@@ -39,6 +40,11 @@ export default function ArtistsStack() {
         name="Calendar"
         component={CalendarScreen}
         options={{ title: '', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="ClientProfile"
+        component={ClientProfileScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Client' })}
       />
       <Stack.Screen
         name="UserProfile"

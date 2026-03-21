@@ -67,6 +67,7 @@ export default function InboxScreen({ navigation }: any) {
   const handlePress = useCallback((conversation: Conversation) => {
     navigation.push('Conversation', {
       conversationId: conversation.id,
+      participantId: conversation.participant?.id,
       participantName: conversation.participant?.name || conversation.participant?.username || 'Chat',
     });
   }, [navigation]);

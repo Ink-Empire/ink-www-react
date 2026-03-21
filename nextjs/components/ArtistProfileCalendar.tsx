@@ -42,6 +42,7 @@ interface ArtistProfileCalendarProps {
   showExternalEvents?: boolean;
   isOwnCalendar?: boolean;
   onAppointmentChanged?: () => void;
+  onViewClientProfile?: (clientId: number) => void;
 }
 
 export interface ArtistProfileCalendarRef {
@@ -57,6 +58,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   showExternalEvents = false,
   isOwnCalendar = false,
   onAppointmentChanged,
+  onViewClientProfile,
 }, ref) => {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -1813,7 +1815,20 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                           </Typography>
                         )}
                         {(apt.extendedProps?.clientName || apt.clientName) && (
-                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.25 }}>
+                          <Typography
+                            onClick={onViewClientProfile && apt.clientId ? (e) => { e.stopPropagation(); onViewClientProfile(Number(apt.clientId)); } : undefined}
+                            sx={{
+                              fontSize: '0.8rem',
+                              color: onViewClientProfile && apt.clientId ? colors.accent : colors.textSecondary,
+                              mt: 0.25,
+                              ...(onViewClientProfile && apt.clientId ? {
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                textDecorationColor: `${colors.accent}40`,
+                                '&:hover': { textDecorationColor: colors.accent },
+                              } : {}),
+                            }}
+                          >
                             Client: {apt.extendedProps?.clientName || apt.clientName}
                           </Typography>
                         )}

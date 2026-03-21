@@ -14,6 +14,7 @@ import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import BookingSettingsScreen from '../screens/BookingSettingsScreen';
 import MyBookingsScreen from '../screens/MyBookingsScreen';
 import PendingApprovalsScreen from '../screens/PendingApprovalsScreen';
+import ClientProfileScreen from '../screens/ClientProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import DraftsScreen from '../screens/DraftsScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
@@ -60,6 +61,11 @@ export default function ProfileStack() {
         name="Calendar"
         component={CalendarScreen}
         options={{ title: '', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="ClientProfile"
+        component={ClientProfileScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Client' })}
       />
       <Stack.Screen
         name="UserProfile"
