@@ -1,7 +1,5 @@
+import { PUSHER_APP_KEY, PUSHER_APP_CLUSTER } from '@env';
 import { api } from '../../lib/api';
-
-const PUSHER_APP_KEY = 'c1ad2e756fdefd4952e5';
-const PUSHER_APP_CLUSTER = 'mt1';
 
 let echoInstance: any = null;
 
