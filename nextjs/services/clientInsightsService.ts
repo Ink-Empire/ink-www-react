@@ -46,4 +46,7 @@ export const clientInsightsService = {
 
   addNote: (clientId: number, body: string) =>
     api.post<{ note: any }>(`/clients/${clientId}/notes`, { body }, { requiresAuth: true }),
+
+  updateNote: (clientId: number, noteId: number, body: string) =>
+    api.put<{ note: any }>(`/clients/${clientId}/notes/${noteId}`, { body }, { requiresAuth: true }),
 };

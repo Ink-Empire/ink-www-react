@@ -31,6 +31,9 @@ export function createClientInsightsService(api: ApiClient) {
 
     addNote: (clientId: number, body: string) =>
       api.post<{ note: ClientNote }>(`/clients/${clientId}/notes`, { body }, { requiresAuth: true }),
+
+    updateNote: (clientId: number, noteId: number, body: string) =>
+      api.put<{ note: ClientNote }>(`/clients/${clientId}/notes/${noteId}`, { body }, { requiresAuth: true }),
   };
 }
 

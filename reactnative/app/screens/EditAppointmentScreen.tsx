@@ -95,7 +95,8 @@ export default function EditAppointmentScreen({ route, navigation }: any) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.content}
@@ -194,7 +195,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 120,
   },
   header: {
     backgroundColor: colors.surfaceElevated,

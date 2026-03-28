@@ -59,6 +59,8 @@ export default function ClientProfileScreen({ route, navigation }: any) {
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [tagSheetVisible, setTagSheetVisible] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<number | string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -98,6 +100,35 @@ export default function ClientProfileScreen({ route, navigation }: any) {
       setSavingNote(false);
     }
   }, [clientId, noteText, savingNote]);
+
+  const handleEditNote = useCallback((note: ClientNote) => {
+    if (note.source === 'appointment') return;
+    setEditingNoteId(note.id);
+    setEditingNoteText(note.body);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingNoteText.trim() || !editingNoteId || savingNote) return;
+    setSavingNote(true);
+    try {
+      const response = await clientInsightsService.updateNote(clientId, editingNoteId as number, editingNoteText.trim());
+      setProfile(prev => prev ? {
+        ...prev,
+        notes: prev.notes.map(n => n.id === editingNoteId ? { ...n, body: response.note.body } : n),
+      } : prev);
+      setEditingNoteId(null);
+      setEditingNoteText('');
+    } catch {
+      // silently fail
+    } finally {
+      setSavingNote(false);
+    }
+  }, [clientId, editingNoteId, editingNoteText, savingNote]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingNoteId(null);
+    setEditingNoteText('');
+  }, []);
 
   if (loading) {
     return (
@@ -193,15 +224,44 @@ export default function ClientProfileScreen({ route, navigation }: any) {
         {notes.length > 0 ? (
           <View style={s.notesList}>
             {notes.map((note: ClientNote) => (
-              <View key={note.id} style={s.note}>
-                <Text style={s.noteText}>{note.body}</Text>
-                <Text style={s.noteMeta}>
-                  {formatDate(note.created_at)}
-                  {note.source === 'appointment' && note.appointment_title
-                    ? ` \u00B7 ${note.appointment_title}`
-                    : ''}
-                </Text>
-              </View>
+              <TouchableOpacity
+                key={note.id}
+                style={s.note}
+                onPress={() => handleEditNote(note)}
+                activeOpacity={note.source === 'appointment' ? 1 : 0.7}
+              >
+                {editingNoteId === note.id ? (
+                  <View>
+                    <TextInput
+                      style={s.editNoteInput}
+                      value={editingNoteText}
+                      onChangeText={setEditingNoteText}
+                      multiline
+                      autoFocus
+                    />
+                    <View style={s.editNoteActions}>
+                      <TouchableOpacity onPress={handleCancelEdit}>
+                        <Text style={s.editCancelBtn}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={handleSaveEdit} disabled={savingNote}>
+                        <Text style={[s.editSaveBtn, savingNote && { opacity: 0.4 }]}>
+                          {savingNote ? 'Saving...' : 'Save'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={s.noteText}>{note.body}</Text>
+                    <Text style={s.noteMeta}>
+                      {formatDate(note.created_at)}
+                      {note.source === 'appointment' && note.appointment_title
+                        ? ` \u00B7 ${note.appointment_title}`
+                        : ''}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
             ))}
           </View>
         ) : (
@@ -372,6 +432,25 @@ const s = StyleSheet.create({
   },
   noteText: { color: '#aaa', fontSize: 12, lineHeight: 18 },
   noteMeta: { color: colors.textMuted, fontSize: 10, marginTop: 4 },
+  editNoteInput: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    lineHeight: 18,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 6,
+    padding: 8,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  editNoteActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 8,
+  },
+  editCancelBtn: { color: colors.textMuted, fontSize: 12 },
+  editSaveBtn: { color: colors.accent, fontSize: 12, fontWeight: '600' },
 
   // Add Note
   addNoteBar: {

@@ -78,6 +78,8 @@ export default function ClientInsightsPanel({ clientId, onClose, compact }: Clie
   const [selectedCategory, setSelectedCategory] = useState<UserTagCategory | null>(null);
   const [categories, setCategories] = useState<UserTagCategory[]>([]);
   const [savingTag, setSavingTag] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<number | string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
   const prevClientId = useRef(clientId);
 
   const fetchProfile = useCallback(async () => {
@@ -116,6 +118,34 @@ export default function ClientInsightsPanel({ clientId, onClose, compact }: Clie
       setSavingNote(false);
     }
   }, [clientId, noteText, savingNote]);
+
+  const handleEditNote = useCallback((note: ClientNote) => {
+    if (note.source === 'appointment') return;
+    setEditingNoteId(note.id);
+    setEditingNoteText(note.body);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingNoteText.trim() || !editingNoteId || savingNote) return;
+    setSavingNote(true);
+    try {
+      const response = await clientInsightsService.updateNote(clientId, editingNoteId as number, editingNoteText.trim());
+      setProfile(prev =>
+        prev ? { ...prev, notes: prev.notes.map(n => n.id === editingNoteId ? { ...n, body: response.note.body } : n) } : prev,
+      );
+      setEditingNoteId(null);
+      setEditingNoteText('');
+    } catch {
+      // silently fail
+    } finally {
+      setSavingNote(false);
+    }
+  }, [clientId, editingNoteId, editingNoteText, savingNote]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingNoteId(null);
+    setEditingNoteText('');
+  }, []);
 
   const handleOpenTagForm = async () => {
     setAddingTag(true);
@@ -399,22 +429,69 @@ export default function ClientInsightsPanel({ clientId, onClose, compact }: Clie
         {notes.length > 0 ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 2.5 }}>
             {notes.map((note: ClientNote) => (
-              <Box key={note.id} sx={{
-                bgcolor: colors.surface,
-                borderRadius: '6px',
-                borderLeft: `2px solid ${colors.accent}40`,
-                p: 1.25,
-                pl: 1.5,
-              }}>
-                <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', lineHeight: 1.5 }}>
-                  {note.body}
-                </Typography>
-                <Typography sx={{ color: colors.textMuted, fontSize: '0.625rem', mt: 0.5 }}>
-                  {formatDate(note.created_at)}
-                  {note.source === 'appointment' && note.appointment_title
-                    ? ` \u00B7 ${note.appointment_title}`
-                    : ''}
-                </Typography>
+              <Box
+                key={note.id}
+                onClick={() => handleEditNote(note)}
+                sx={{
+                  bgcolor: colors.surface,
+                  borderRadius: '6px',
+                  borderLeft: `2px solid ${colors.accent}40`,
+                  p: 1.25,
+                  pl: 1.5,
+                  cursor: note.source === 'appointment' ? 'default' : 'pointer',
+                  '&:hover': note.source !== 'appointment' ? { borderLeftColor: colors.accent } : {},
+                }}
+              >
+                {editingNoteId === note.id ? (
+                  <Box>
+                    <TextField
+                      value={editingNoteText}
+                      onChange={e => setEditingNoteText(e.target.value)}
+                      multiline
+                      maxRows={5}
+                      fullWidth
+                      autoFocus
+                      size="small"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          color: colors.textPrimary,
+                          fontSize: '0.8rem',
+                          bgcolor: colors.background,
+                          '& fieldset': { borderColor: colors.accent },
+                        },
+                      }}
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
+                      <Button
+                        onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
+                        size="small"
+                        sx={{ color: colors.textMuted, fontSize: '0.7rem', textTransform: 'none' }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
+                        disabled={savingNote}
+                        size="small"
+                        sx={{ color: colors.accent, fontSize: '0.7rem', textTransform: 'none', '&:disabled': { opacity: 0.4 } }}
+                      >
+                        {savingNote ? 'Saving...' : 'Save'}
+                      </Button>
+                    </Box>
+                  </Box>
+                ) : (
+                  <>
+                    <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', lineHeight: 1.5 }}>
+                      {note.body}
+                    </Typography>
+                    <Typography sx={{ color: colors.textMuted, fontSize: '0.625rem', mt: 0.5 }}>
+                      {formatDate(note.created_at)}
+                      {note.source === 'appointment' && note.appointment_title
+                        ? ` \u00B7 ${note.appointment_title}`
+                        : ''}
+                    </Typography>
+                  </>
+                )}
               </Box>
             ))}
           </Box>
