@@ -25,4 +25,13 @@ echo "Installing CocoaPods dependencies..."
 cd ios
 pod install
 
+# Fix fmt consteval build error with newer Xcode/Clang versions
+# Apple Clang claims consteval support but has a buggy implementation.
+# Patch fmt headers to force FMT_USE_CONSTEVAL=0 everywhere.
+FMT_BASE="Pods/fmt/include/fmt/base.h"
+if [ -f "$FMT_BASE" ]; then
+  echo "Patching fmt base.h to disable consteval..."
+  sed -i '' 's/define FMT_USE_CONSTEVAL 1/define FMT_USE_CONSTEVAL 0/g' "$FMT_BASE"
+fi
+
 echo "Build setup complete."
