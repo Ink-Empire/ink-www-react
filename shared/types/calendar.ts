@@ -51,6 +51,10 @@ export interface Appointment {
   client_id?: number | null;
   artist_id: number;
   google_event_id?: string | null;
+  price?: string | number | null;
+  duration_minutes?: number | null;
+  notes?: string | null;
+  is_derived?: boolean;
   created_at?: string;
   updated_at?: string;
 }

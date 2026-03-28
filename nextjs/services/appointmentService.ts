@@ -58,7 +58,7 @@ export const appointmentService = {
     return api.put(`/appointments/${appointmentId}`, { status }, { requiresAuth: true });
   },
 
-  // Get artist appointments with filters (public)
+  // Get artist appointments with filters (requires auth - returns private data like notes)
   getArtistAppointments: async (params: {
     artist_id: number | string;
     status?: string;
@@ -66,7 +66,7 @@ export const appointmentService = {
     end_date?: string;
   }): Promise<any[]> => {
     const response = await api.post<{ data: any[] } | any[]>('/artists/appointments', params, {
-      requiresAuth: false,
+      requiresAuth: true,
       useCache: false,
     });
     return Array.isArray(response) ? response : (response as any).data || [];

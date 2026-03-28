@@ -270,6 +270,11 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     navigation.navigate('ClientProfile', { clientId: apt.client_id, name: apt.clientName });
   };
 
+  const handleEditPress = (apt: UpcomingAppointment) => {
+    setModalVisible(false);
+    navigation.navigate('EditAppointment', { appointmentId: apt.id, appointment: apt });
+  };
+
   const handleContactPress = (apt: UpcomingAppointment) => {
     if (!apt.client_id) {
       Alert.alert('Unavailable', 'Client information is not available for this appointment.');
@@ -456,6 +461,7 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         onDeleteAppointment={(apt) => handleDeletePress(apt)}
         onContactClient={(apt) => handleContactPress(apt)}
         onViewClientProfile={(apt) => handleViewClientProfile(apt)}
+        onEditAppointment={(apt) => handleEditPress(apt)}
       />
 
       {/* Booking Form Modal */}

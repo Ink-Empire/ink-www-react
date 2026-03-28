@@ -6,6 +6,8 @@ import ArtistDetailScreen from '../screens/ArtistDetailScreen';
 import TattooDetailScreen from '../screens/TattooDetailScreen';
 import EditTattooScreen from '../screens/EditTattooScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import ManageCalendarScreen from '../screens/ManageCalendarScreen';
+import EditAppointmentScreen from '../screens/EditAppointmentScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
 import ClientProfileScreen from '../screens/ClientProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
@@ -41,6 +43,8 @@ export default function ArtistsStack() {
         component={CalendarScreen}
         options={{ title: '', headerBackTitle: 'Back' }}
       />
+      <Stack.Screen name="ManageCalendar" component={ManageCalendarScreen} options={{ title: 'Manage Calendar' }} />
+      <Stack.Screen name="EditAppointment" component={EditAppointmentScreen} options={{ title: 'Edit Appointment' }} />
       <Stack.Screen
         name="ClientProfile"
         component={ClientProfileScreen}

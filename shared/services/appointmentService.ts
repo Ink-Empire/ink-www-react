@@ -37,6 +37,13 @@ export interface CalendarEventData {
   sync_to_google?: boolean;
 }
 
+export interface GetArtistAppointmentsParams {
+  artist_id: number | string;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
 export interface AppointmentInviteData {
   artist_id: number;
   date: string;
@@ -79,5 +86,8 @@ export function createAppointmentService(api: ApiClient) {
 
     createEvent: (data: CalendarEventData) =>
       api.post('/appointments/event', data, { requiresAuth: true }),
+
+    getArtistAppointments: (params: GetArtistAppointmentsParams) =>
+      api.post('/artists/appointments', params, { requiresAuth: true }),
   };
 }

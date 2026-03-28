@@ -411,6 +411,9 @@ export default function ClientInsightsPanel({ clientId, onClose, compact }: Clie
                 </Typography>
                 <Typography sx={{ color: colors.textMuted, fontSize: '0.625rem', mt: 0.5 }}>
                   {formatDate(note.created_at)}
+                  {note.source === 'appointment' && note.appointment_title
+                    ? ` \u00B7 ${note.appointment_title}`
+                    : ''}
                 </Typography>
               </Box>
             ))}

@@ -12,7 +12,6 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../../lib/colors';
 import { artistService, bulkUploadService } from '../../../lib/services';
 import { prefetchCalendarData } from '../../../lib/calendarCache';
-import Button from '../common/Button';
 
 interface DashboardStats {
   profile_views: number;
@@ -65,8 +64,8 @@ export default function ArtistOwnerDashboard({
     }
   };
 
-  const navigateToCalendar = () => {
-    navigation.navigate('Calendar', {
+  const navigateToManageCalendar = () => {
+    navigation.navigate('ManageCalendar', {
       artistId,
       artistName,
       artistSlug,
@@ -102,7 +101,7 @@ export default function ArtistOwnerDashboard({
       label: 'Upcoming',
       value: stats?.upcoming_appointments ?? 0,
       icon: 'event' as const,
-      onPress: navigateToCalendar,
+      onPress: navigateToManageCalendar,
     },
     {
       label: 'Views',
@@ -163,18 +162,23 @@ export default function ArtistOwnerDashboard({
       </View>
 
       {/* Action buttons */}
-      <View style={styles.actions}>
-        <Button
-          title="View Calendar"
-          onPress={navigateToCalendar}
-          style={styles.actionButton}
-        />
-        <Button
-          title="Edit Profile"
+      <View style={[styles.statsGrid, { marginTop: 8 }]}>
+        <TouchableOpacity
+          style={styles.statCard}
+          onPress={navigateToManageCalendar}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="calendar-today" size={18} color={colors.accent} />
+          <Text style={styles.statCardLabel}>Manage Calendar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.statCard}
           onPress={navigateToEditProfile}
-          variant="outline"
-          style={styles.actionButton}
-        />
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="edit" size={18} color={colors.accent} />
+          <Text style={styles.statCardLabel}>Edit Profile</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Stat detail modal */}
@@ -238,25 +242,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 8,
   },
   statCardLabel: {
     color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   statCardLabelHighlight: {
     color: colors.error,
-  },
-  actions: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
   },
   modalOverlay: {
     flex: 1,

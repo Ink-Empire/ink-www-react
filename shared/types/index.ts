@@ -535,8 +535,10 @@ export interface TagGroup {
 }
 
 export interface ClientNote {
-  id: number;
+  id: number | string;
   body: string;
+  source?: 'note' | 'appointment';
+  appointment_title?: string;
   created_at: string;
 }
 
@@ -545,6 +547,7 @@ export interface ClientAppointmentHistory {
   type: string;
   date: string;
   duration_minutes: number | null;
+  notes?: string | null;
   status: 'done' | 'upcoming' | 'booked' | 'cancelled';
 }
 

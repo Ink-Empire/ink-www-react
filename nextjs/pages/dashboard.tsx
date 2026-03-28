@@ -834,7 +834,7 @@ export default function Dashboard() {
                 label="Upcoming Appointments"
                 trend={dashboardStats.appointmentsTrend}
                 trendUp
-                href="/calendar"
+                href="/manage-calendar"
               />
               <StatCard
                 icon={<VisibilityIcon />}

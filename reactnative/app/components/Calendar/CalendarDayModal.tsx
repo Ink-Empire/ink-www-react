@@ -42,6 +42,7 @@ interface CalendarDayModalProps {
   onDeleteAppointment?: (apt: UpcomingAppointment) => void;
   onContactClient?: (apt: UpcomingAppointment) => void;
   onViewClientProfile?: (apt: UpcomingAppointment) => void;
+  onEditAppointment?: (apt: UpcomingAppointment) => void;
 }
 
 export function CalendarDayModal({
@@ -63,6 +64,7 @@ export function CalendarDayModal({
   onDeleteAppointment,
   onContactClient,
   onViewClientProfile,
+  onEditAppointment,
 }: CalendarDayModalProps) {
   const canConsult = Boolean(acceptsConsultations);
   const canAppoint = Boolean(acceptsAppointments);
@@ -134,6 +136,13 @@ export function CalendarDayModal({
                           )}
                         </View>
                         <View style={styles.eventActions}>
+                          <TouchableOpacity
+                            style={styles.eventActionButton}
+                            onPress={() => onEditAppointment?.(apt)}
+                          >
+                            <MaterialIcons name="edit" size={18} color={colors.accent} />
+                            <Text style={styles.eventActionText}>Edit</Text>
+                          </TouchableOpacity>
                           {apt.client_id && (
                             <>
                               <TouchableOpacity

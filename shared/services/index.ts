@@ -19,6 +19,10 @@ export interface UpcomingAppointment {
   status?: string;
   start_time?: string;
   end_time?: string;
+  price?: string | number | null;
+  duration_minutes?: number | null;
+  notes?: string | null;
+  is_derived?: boolean;
 }
 
 // =============================================================================

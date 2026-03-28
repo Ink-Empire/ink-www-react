@@ -195,7 +195,12 @@ export default function ClientProfileScreen({ route, navigation }: any) {
             {notes.map((note: ClientNote) => (
               <View key={note.id} style={s.note}>
                 <Text style={s.noteText}>{note.body}</Text>
-                <Text style={s.noteMeta}>{formatDate(note.created_at)}</Text>
+                <Text style={s.noteMeta}>
+                  {formatDate(note.created_at)}
+                  {note.source === 'appointment' && note.appointment_title
+                    ? ` \u00B7 ${note.appointment_title}`
+                    : ''}
+                </Text>
               </View>
             ))}
           </View>
@@ -235,16 +240,23 @@ export default function ClientProfileScreen({ route, navigation }: any) {
               const duration = formatDuration(appt.duration_minutes);
               return (
                 <View key={appt.id} style={s.historyRow}>
-                  <View>
-                    <Text style={s.historyType}>
-                      {appt.type === 'consultation' ? 'Consultation' : 'Tattoo'}
-                    </Text>
-                    <Text style={s.historyDate}>
-                      {formatShortDate(appt.date)}{duration ? ` \u00B7 ${duration}` : ''}
-                    </Text>
-                  </View>
-                  <View style={[s.hBadge, { backgroundColor: badge.bg }]}>
-                    <Text style={[s.hBadgeText, { color: badge.text }]}>{appt.status}</Text>
+                  <View style={s.historyInfo}>
+                    <View style={s.historyTopRow}>
+                      <View>
+                        <Text style={s.historyType}>
+                          {appt.type === 'consultation' ? 'Consultation' : 'Tattoo'}
+                        </Text>
+                        <Text style={s.historyDate}>
+                          {formatShortDate(appt.date)}{duration ? ` \u00B7 ${duration}` : ''}
+                        </Text>
+                      </View>
+                      <View style={[s.hBadge, { backgroundColor: badge.bg }]}>
+                        <Text style={[s.hBadgeText, { color: badge.text }]}>{appt.status}</Text>
+                      </View>
+                    </View>
+                    {appt.notes ? (
+                      <Text style={s.historyNotes} numberOfLines={2}>{appt.notes}</Text>
+                    ) : null}
                   </View>
                 </View>
               );
@@ -385,11 +397,22 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 11,
     paddingVertical: 9,
+    borderWidth: 0.5,
+    borderColor: '#1e1e1e',
+  },
+  historyInfo: {
+    gap: 4,
+  },
+  historyTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 0.5,
-    borderColor: '#1e1e1e',
+  },
+  historyNotes: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontStyle: 'italic',
+    lineHeight: 16,
   },
   historyType: { color: '#bbb', fontSize: 12 },
   historyDate: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
