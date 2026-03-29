@@ -77,8 +77,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             alignItems={{ xs: 'center', md: 'flex-start' }}
             spacing={2}
           >
-            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-              &copy; {new Date().getFullYear()} <img src="/assets/images/inkedin-logo.png" alt="InkedIn" width="20" height="20" style={{ verticalAlign: 'middle' }} /> InkedIn. All rights reserved.
+            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              &copy; {new Date().getFullYear()}{' '}
+              <a href="https://inkempire.net" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                Ink Empire Limited
+              </a>. All rights reserved.
             </Typography>
 
             <Stack direction="row" spacing={3}>
