@@ -312,7 +312,7 @@ export default function BookingModal({
             )}
 
             {slotsResponse?.working_hours && (
-              <Typography variant="body2" sx={{ mb: 1, color: '#888' }}>
+              <Typography variant="body2" sx={{ mb: 3, color: '#888' }}>
                 Artist's hours: {to12Hour(slotsResponse.working_hours.start)} - {to12Hour(slotsResponse.working_hours.end)}
                 {artistTimezone && showTimezoneConversion && (
                   <span style={{ marginLeft: 4 }}>({getTimezoneLabel(artistTimezone)})</span>
@@ -336,7 +336,7 @@ export default function BookingModal({
             )}
 
             {/* Deposit info */}
-            {effectiveBookingType === 'appointment' && slotsResponse?.deposit_amount && !loadingSlots && availableTimeSlots.length > 0 && (
+            {effectiveBookingType === 'appointment' && Number(slotsResponse?.deposit_amount) > 0 && !loadingSlots && availableTimeSlots.length > 0 && (
               <Alert
                 icon={false}
                 sx={{
@@ -362,7 +362,7 @@ export default function BookingModal({
             )}
 
             {/* Consultation fee */}
-            {effectiveBookingType === 'consultation' && slotsResponse?.consultation_fee && !loadingSlots && availableTimeSlots.length > 0 && (
+            {effectiveBookingType === 'consultation' && Number(slotsResponse?.consultation_fee) > 0 && !loadingSlots && availableTimeSlots.length > 0 && (
               <Alert
                 icon={false}
                 sx={{

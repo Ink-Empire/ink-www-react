@@ -128,17 +128,14 @@ export default function ArtistOwnerDashboard({
       icon: 'check-circle' as const,
       onPress: navigateToPendingApprovals,
     },
-    ...(draftCount > 0
-      ? [
-          {
-            label: 'Drafts',
-            value: draftCount,
-            icon: 'collections' as const,
-            onPress: navigateToDrafts,
-            highlight: true,
-          },
-        ]
-      : []),
+    {
+      label: 'Drafts',
+      value: draftCount,
+      icon: 'collections' as const,
+      onPress: draftCount > 0 ? navigateToDrafts : undefined,
+      highlight: draftCount > 0,
+      disabled: draftCount === 0,
+    },
   ];
 
   return (
@@ -146,16 +143,17 @@ export default function ArtistOwnerDashboard({
       <View style={styles.statsGrid}>
         {statItems.map((item, index) => {
           const isLastOdd = statItems.length % 2 === 1 && index === statItems.length - 1;
+          const isDisabled = item.disabled || !item.onPress;
           return (
             <TouchableOpacity
               key={item.label}
-              style={[styles.statCard, isLastOdd && styles.statCardFull, item.highlight && styles.statCardHighlight]}
+              style={[styles.statCard, isLastOdd && styles.statCardFull, item.highlight && styles.statCardHighlight, isDisabled && styles.statCardDisabled]}
               onPress={item.onPress}
-              disabled={!item.onPress}
+              disabled={isDisabled}
               activeOpacity={item.onPress ? 0.7 : 1}
             >
-              <MaterialIcons name={item.icon} size={18} color={item.highlight ? colors.error : colors.accent} />
-              <Text style={[styles.statCardLabel, item.highlight && styles.statCardLabelHighlight]}>{item.label}</Text>
+              <MaterialIcons name={item.icon} size={18} color={isDisabled ? colors.textMuted : item.highlight ? colors.error : colors.accent} />
+              <Text style={[styles.statCardLabel, item.highlight && styles.statCardLabelHighlight, isDisabled && styles.statCardLabelDisabled]}>{item.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -252,6 +250,12 @@ const styles = StyleSheet.create({
   },
   statCardLabelHighlight: {
     color: colors.error,
+  },
+  statCardDisabled: {
+    opacity: 0.4,
+  },
+  statCardLabelDisabled: {
+    color: colors.textMuted,
   },
   modalOverlay: {
     flex: 1,

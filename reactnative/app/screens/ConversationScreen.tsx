@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
 import { messageService, appointmentService } from '../../lib/services';
+import { clearCalendarCache } from '../../lib/calendarCache';
 import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useUnreadMessageCount } from '../contexts/UnreadCountContext';
@@ -28,7 +29,6 @@ import { useConversation, type RealtimeConfig } from '@inkedin/shared/hooks';
 import { getEcho } from '../utils/echo';
 import MessageBubble from '../components/inbox/MessageBubble';
 import { uploadImagesToS3, type ImageFile } from '../../lib/s3Upload';
-import { clearCalendarCache } from '../../lib/calendarCache';
 import type { Message } from '@inkedin/shared/types';
 
 const MAX_ATTACHMENTS = 5;
@@ -358,6 +358,7 @@ export default function ConversationScreen({ route, navigation }: any) {
 
   const handleViewCalendar = useCallback((date?: string) => {
     if (user?.id) {
+      clearCalendarCache();
       navigation.navigate('Main', {
         screen: 'ProfileTab',
         params: {

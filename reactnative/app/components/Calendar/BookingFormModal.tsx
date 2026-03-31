@@ -186,7 +186,7 @@ export function BookingFormModal({
                     )}
 
                     {/* Deposit info */}
-                    {bookingType === 'appointment' && slotsResponse?.deposit_amount && (
+                    {bookingType === 'appointment' && Number(slotsResponse?.deposit_amount) > 0 && (
                       <View style={styles.depositInfo}>
                         <Text style={styles.depositInfoLabel}>Deposit Required</Text>
                         <Text style={styles.depositInfoAmount}>
@@ -199,7 +199,7 @@ export function BookingFormModal({
                     )}
 
                     {/* Consultation fee */}
-                    {bookingType === 'consultation' && slotsResponse?.consultation_fee && (
+                    {bookingType === 'consultation' && Number(slotsResponse?.consultation_fee) > 0 && (
                       <View style={styles.depositInfo}>
                         <Text style={styles.depositInfoLabel}>Consultation Fee</Text>
                         <Text style={styles.depositInfoAmount}>
