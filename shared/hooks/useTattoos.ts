@@ -143,7 +143,7 @@ export function useTattoo(
     setError(null);
 
     try {
-      const response = await api.get<{ tattoo: Tattoo }>(`/tattoos/${id}`);
+      const response = await api.get<{ tattoo: Tattoo }>(`/tattoos/${id}`, { useCache: false });
       if (mountedRef.current) {
         setTattoo(response.tattoo || response as any);
       }

@@ -30,6 +30,8 @@ interface BookingFormModalProps {
   artistName: string;
   selectedDate: string | null;
   bookingType: 'consultation' | 'appointment';
+  flashTattooId?: number;
+  flashTattooTitle?: string;
 }
 
 export function BookingFormModal({
@@ -40,6 +42,8 @@ export function BookingFormModal({
   artistName,
   selectedDate,
   bookingType,
+  flashTattooId,
+  flashTattooTitle,
 }: BookingFormModalProps) {
   const { user, isAuthenticated } = useAuth();
   const { showSnackbar } = useSnackbar();
@@ -47,7 +51,7 @@ export function BookingFormModal({
   const [slotsResponse, setSlotsResponse] = useState<AvailableSlotsResponse | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(flashTattooTitle ? `Interested in flash design: "${flashTattooTitle}"` : '');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -96,7 +100,9 @@ export function BookingFormModal({
 
       const data: any = {
         artist_id: artistId,
-        title: `Tattoo ${finalType === 'consultation' ? 'Consultation' : 'Appointment'}`,
+        title: flashTattooId
+          ? `Flash Booking: ${flashTattooTitle || 'Flash Design'}`
+          : `Tattoo ${finalType === 'consultation' ? 'Consultation' : 'Appointment'}`,
         start_time: selectedSlot,
         end_time: endTime,
         date: selectedDate,
@@ -104,6 +110,7 @@ export function BookingFormModal({
         description: notes || '',
         type: finalType,
         client_id: user.id,
+        ...(flashTattooId && { tattoo_id: flashTattooId }),
       };
 
       const rawResponse = await appointmentService.create(data) as any;
@@ -128,7 +135,7 @@ export function BookingFormModal({
     setSlots([]);
     setSlotsResponse(null);
     setSelectedSlot(null);
-    setNotes('');
+    setNotes(flashTattooTitle ? `Interested in flash design: "${flashTattooTitle}"` : '');
     onClose();
   };
 

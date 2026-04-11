@@ -10,6 +10,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import SearchIcon from '@mui/icons-material/Search';
+import BrushIcon from '@mui/icons-material/Brush';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -68,6 +70,13 @@ const TattooModal: React.FC<TattooModalProps> = ({
     setSelectedImageIndex(0);
     setImageLoaded(false);
   }, [tattoo]);
+
+  // Fallback: force show image after 2s if onLoad never fires (browser cache race condition)
+  useEffect(() => {
+    if (imageLoaded) return;
+    const timer = setTimeout(() => setImageLoaded(true), 2000);
+    return () => clearTimeout(timer);
+  }, [imageLoaded, selectedImageIndex]);
 
   // Check if current image is cached and set loaded state accordingly
   useEffect(() => {
@@ -374,7 +383,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     }}
                     onLoad={() => {
                       setImageLoaded(true);
-                      // Also register in cache for future reference
                       preloadImage(currentImageUri);
                     }}
                   />
@@ -493,22 +501,47 @@ const TattooModal: React.FC<TattooModalProps> = ({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 {/* Avatar */}
                 <Avatar
-                  src={getArtistAvatarUri() || undefined}
+                  src={tattoo?.post_type === 'seeking' ? (tattoo?.uploader_image_uri || undefined) : (getArtistAvatarUri() || undefined)}
                   sx={{
                     width: 40,
                     height: 40,
                     bgcolor: colors.surfaceElevated,
                     fontSize: '0.9rem',
                     fontWeight: 600,
-                    color: colors.accent,
+                    color: tattoo?.post_type === 'seeking' ? colors.seeking : colors.accent,
                   }}
                 >
-                  {!getArtistAvatarUri() && getArtistInitials()}
+                  {tattoo?.post_type === 'seeking'
+                    ? (tattoo?.uploader_name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                    : (!getArtistAvatarUri() && getArtistInitials())
+                  }
                 </Avatar>
 
                 {/* Info */}
                 <Box sx={{ flex: 1 }}>
-                  {!tattoo?.artist_id && tattoo?.attributed_artist_name ? (
+                  {tattoo?.post_type === 'seeking' && tattoo?.uploader_name ? (
+                    <>
+                      <Typography
+                        component={tattoo?.uploader_slug ? Link : 'span'}
+                        {...(tattoo?.uploader_slug ? { href: `/users/${tattoo.uploader_slug}` } : {})}
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '0.95rem',
+                          color: colors.textPrimary,
+                          textDecoration: 'none',
+                          '&:hover': tattoo?.uploader_slug ? { color: colors.accent } : {},
+                        }}
+                      >
+                        {tattoo.uploader_name}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mt: '2px' }}>
+                        <SearchIcon sx={{ fontSize: 13, color: colors.seeking }} />
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: colors.seeking }}>
+                          Seeking Artist
+                        </Typography>
+                      </Box>
+                    </>
+                  ) : !tattoo?.artist_id && tattoo?.attributed_artist_name ? (
                     <>
                       <Typography sx={{
                         fontWeight: 600,
@@ -767,8 +800,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 </Typography>
               )}
 
-              {/* Description - only show here if NOT a client upload */}
-              {tattoo?.description && !(tattoo?.uploader_name && tattoo?.uploaded_by_user_id !== tattoo?.artist_id) && (
+              {/* Description - show inline for seeking posts and artist uploads, hidden for regular client uploads (shown in "Uploaded by" box instead) */}
+              {tattoo?.description && (tattoo?.post_type === 'seeking' || !(tattoo?.uploader_name && tattoo?.uploaded_by_user_id !== tattoo?.artist_id)) && (
                 <Typography
                   sx={{
                     color: colors.textSecondary,
@@ -1017,8 +1050,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 </Box>
               )}
 
-              {/* Uploaded by (client upload) */}
-              {tattoo?.uploader_name && tattoo?.uploaded_by_user_id !== tattoo?.artist_id && (
+              {/* Uploaded by (client upload) - hidden for seeking posts */}
+              {tattoo?.uploader_name && tattoo?.uploaded_by_user_id !== tattoo?.artist_id && tattoo?.post_type !== 'seeking' && (
                 <Box sx={{ mb: '1.25rem' }}>
                   <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted, mb: 0.75 }}>
                     Uploaded by
@@ -1055,6 +1088,25 @@ const TattooModal: React.FC<TattooModalProps> = ({
                       </Typography>
                     )}
                   </Box>
+                </Box>
+              )}
+
+              {/* Seeking CTA */}
+              {tattoo?.post_type === 'seeking' && (
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  p: '1rem',
+                  bgcolor: colors.seekingDim,
+                  border: `1px solid ${colors.seeking}30`,
+                  borderRadius: '10px',
+                  mb: '1.25rem',
+                }}>
+                  <BrushIcon sx={{ fontSize: 20, color: colors.seeking, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5 }}>
+                    Want to bid on this? Sign up as an artist to contact users for work!
+                  </Typography>
                 </Box>
               )}
 

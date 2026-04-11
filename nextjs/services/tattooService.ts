@@ -120,7 +120,15 @@ export const tattooService = {
     attributed_artist_name?: string;
     attributed_studio_name?: string;
     attributed_location?: string;
+    attributed_location_lat_long?: string;
     artist_invite_email?: string;
+    post_type?: string;
+    timing?: string;
+    allow_artist_contact?: boolean;
+    seeking_location?: string;
+    location_lat_long?: string;
+    seeking_radius?: number;
+    seeking_radius_unit?: string;
   }): Promise<any> => {
     return api.post('/tattoos/create', data, { requiresAuth: true });
   },

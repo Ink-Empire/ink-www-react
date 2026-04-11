@@ -60,11 +60,16 @@ export interface TattooType {
     sessions?: number;
     duration?: number;
     created_at?: string;
+    // Post type and seeking fields
+    post_type?: 'portfolio' | 'flash' | 'seeking';
+    flash_price?: number;
+    flash_size?: string;
     // User upload fields
     uploaded_by_user_id?: number;
     uploader_name?: string;
     uploader_slug?: string;
     uploader_username?: string;
+    uploader_image_uri?: string;
     is_user_upload?: boolean;
     approval_status?: 'approved' | 'pending' | 'user_only';
     is_visible?: boolean;

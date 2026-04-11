@@ -22,6 +22,8 @@ import { api } from '../../lib/api';
 import { messageService, tattooService, tagService, styleService, userService } from '../../lib/services';
 import { uploadImagesToS3, type ImageFile, type UploadProgress } from '../../lib/s3Upload';
 import { clearTattooCache } from '../../lib/tattooCache';
+import Slider from '@react-native-community/slider';
+import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import LocationAutocomplete from '../components/common/LocationAutocomplete';
 import StudioAutocomplete, { StudioOption } from '../components/common/StudioAutocomplete';
@@ -34,6 +36,18 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function ClientUploadScreen({ navigation }: any) {
   const [step, setStep] = useState(0);
+
+  // Post type
+  const [postType, setPostType] = useState<'portfolio' | 'seeking'>('portfolio');
+
+  // Seeking fields
+  const [seekingTiming, setSeekingTiming] = useState<'week' | 'month' | 'year' | undefined>(undefined);
+  const [allowArtistContact, setAllowArtistContact] = useState(true);
+  const [seekingLocationMode, setSeekingLocationMode] = useState<'near_me' | 'custom'>('near_me');
+  const [seekingLocation, setSeekingLocation] = useState('');
+  const [seekingLocationLatLong, setSeekingLocationLatLong] = useState('');
+  const [seekingRadius, setSeekingRadius] = useState(50);
+  const [seekingRadiusUnit, setSeekingRadiusUnit] = useState<'mi' | 'km'>('mi');
 
   // Step 0: Images
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -80,6 +94,7 @@ export default function ClientUploadScreen({ navigation }: any) {
   const [tagNameMap] = useState(() => new Map<number, string>());
   const [showTagsPicker, setShowTagsPicker] = useState(false);
 
+  const { user } = useAuth();
   const { showSnackbar } = useSnackbar();
   const { styles: stylesList } = useStyles(api);
   const { tags: tagsList } = useTags(api);
@@ -361,7 +376,8 @@ export default function ClientUploadScreen({ navigation }: any) {
     if (step === 0 && uploadedImageIds.length === 0) {
       uploadAndFetchSuggestions();
     }
-    if (step < 3) setStep(step + 1);
+    const max = postType === 'seeking' ? 2 : 3;
+    if (step < max) setStep(step + 1);
   };
 
   const handleBack = () => {
@@ -414,9 +430,24 @@ export default function ClientUploadScreen({ navigation }: any) {
         image_ids: imageIds,
         title: title.trim() || undefined,
         description: description.trim() || undefined,
+        post_type: postType,
       };
 
-      if (selectedArtist && artistMode === 'search') {
+      if (postType === 'seeking') {
+        if (seekingTiming) tattooData.timing = seekingTiming;
+        tattooData.allow_artist_contact = allowArtistContact;
+        tattooData.seeking_radius = seekingRadius;
+        tattooData.seeking_radius_unit = seekingRadiusUnit;
+        if (seekingLocationMode === 'custom' && seekingLocation) {
+          tattooData.seeking_location = seekingLocation;
+          if (seekingLocationLatLong) tattooData.location_lat_long = seekingLocationLatLong;
+        } else if (user?.location) {
+          tattooData.seeking_location = user.location;
+          if (user.location_lat_long) tattooData.location_lat_long = user.location_lat_long;
+        }
+      }
+
+      if (postType !== 'seeking' && selectedArtist && artistMode === 'search') {
         tattooData.tagged_artist_id = selectedArtist.id;
       }
       if (selectedStyleIds.length > 0) {
@@ -448,6 +479,9 @@ export default function ClientUploadScreen({ navigation }: any) {
 
       // Reset form
       setStep(0);
+      setPostType('portfolio');
+      setSeekingTiming(undefined);
+      setAllowArtistContact(true);
       setImages([]);
       setSelectedStyleIds([]);
       setSelectedTagIds([]);
@@ -499,6 +533,30 @@ export default function ClientUploadScreen({ navigation }: any) {
 
   const renderStep0 = () => (
     <ScrollView style={s.stepContent} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag">
+      <Text style={s.stepTitle}>What are you posting?</Text>
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+        <TouchableOpacity
+          style={[
+            s.postTypeOption,
+            postType === 'portfolio' && s.postTypeOptionActive,
+          ]}
+          onPress={() => setPostType('portfolio')}
+        >
+          <MaterialIcons name="photo-library" size={20} color={postType === 'portfolio' ? colors.accent : colors.textMuted} />
+          <Text style={[s.postTypeLabel, postType === 'portfolio' && s.postTypeLabelActive]}>Share my tattoo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            s.postTypeOption,
+            postType === 'seeking' && s.postTypeOptionActive,
+          ]}
+          onPress={() => setPostType('seeking')}
+        >
+          <MaterialIcons name="explore" size={20} color={postType === 'seeking' ? colors.seeking : colors.textMuted} />
+          <Text style={[s.postTypeLabel, postType === 'seeking' && { color: colors.seeking }]}>Looking for an artist</Text>
+        </TouchableOpacity>
+      </View>
+
       <Text style={s.stepTitle}>Add Photos</Text>
       <Text style={s.stepSubtitle}>{images.length}/{MAX_IMAGES} images</Text>
 
@@ -698,7 +756,7 @@ export default function ClientUploadScreen({ navigation }: any) {
         style={s.textInput}
         value={title}
         onChangeText={setTitle}
-        placeholder="Name your tattoo (optional)"
+        placeholder={postType === 'seeking' ? 'Briefly name this request' : 'Name your tattoo (optional)'}
         placeholderTextColor={colors.textMuted}
       />
 
@@ -707,12 +765,163 @@ export default function ClientUploadScreen({ navigation }: any) {
         style={[s.textInput, s.textArea]}
         value={description}
         onChangeText={setDescription}
-        placeholder="Tell the story behind this tattoo..."
+        placeholder={postType === 'seeking' ? "Describe what's important to you for this piece" : 'Tell the story behind this tattoo...'}
         placeholderTextColor={colors.textMuted}
         multiline
         numberOfLines={3}
       />
 
+      {postType === 'seeking' && (
+        <>
+          <Text style={s.fieldLabel}>When are you looking to get tattooed?</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+            {([
+              { label: 'This week', value: 'week' as const },
+              { label: 'This month', value: 'month' as const },
+              { label: 'This year', value: 'year' as const },
+            ]).map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  s.postTypeOption,
+                  { flex: 1 },
+                  seekingTiming === opt.value && { borderColor: colors.seeking, backgroundColor: colors.seekingDim },
+                ]}
+                onPress={() => setSeekingTiming(seekingTiming === opt.value ? undefined : opt.value)}
+              >
+                <Text style={[
+                  s.postTypeLabel,
+                  seekingTiming === opt.value && { color: colors.seeking },
+                ]}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, paddingVertical: 8 }}
+            onPress={() => setAllowArtistContact(!allowArtistContact)}
+          >
+            <MaterialIcons
+              name={allowArtistContact ? 'check-box' : 'check-box-outline-blank'}
+              size={24}
+              color={allowArtistContact ? colors.seeking : colors.textMuted}
+            />
+            <Text style={{ color: colors.textPrimary, fontSize: 14 }}>Allow artists to contact me</Text>
+          </TouchableOpacity>
+
+          {allowArtistContact && (
+            <>
+              <Text style={s.fieldLabel}>Notify artists near...</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <TouchableOpacity
+                  style={[
+                    s.postTypeOption,
+                    { flex: 1 },
+                    seekingLocationMode === 'near_me' && { borderColor: colors.seeking, backgroundColor: colors.seekingDim },
+                  ]}
+                  onPress={() => setSeekingLocationMode('near_me')}
+                >
+                  <Text style={[
+                    s.postTypeLabel,
+                    seekingLocationMode === 'near_me' && { color: colors.seeking },
+                  ]}>Near me</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    s.postTypeOption,
+                    { flex: 1 },
+                    seekingLocationMode === 'custom' && { borderColor: colors.seeking, backgroundColor: colors.seekingDim },
+                  ]}
+                  onPress={() => setSeekingLocationMode('custom')}
+                >
+                  <Text style={[
+                    s.postTypeLabel,
+                    seekingLocationMode === 'custom' && { color: colors.seeking },
+                  ]}>Near a location</Text>
+                </TouchableOpacity>
+              </View>
+
+              {seekingLocationMode === 'near_me' && user?.location ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <MaterialIcons name="location-on" size={18} color={colors.seeking} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 14, flex: 1 }}>{user.location}</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('ProfileTab', { screen: 'EditProfile' })}>
+                    <Text style={{ color: colors.accent, fontSize: 13 }}>Update</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : seekingLocationMode === 'near_me' ? (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                    No location on your profile.{' '}
+                    <Text
+                      style={{ color: colors.accent }}
+                      onPress={() => navigation.navigate('ProfileTab', { screen: 'EditProfile' })}
+                    >
+                      Add one
+                    </Text>
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ marginBottom: 16 }}>
+                  <LocationAutocomplete
+                    value={seekingLocation}
+                    onChange={(loc, latLng) => {
+                      setSeekingLocation(loc);
+                      if (latLng) setSeekingLocationLatLong(latLng);
+                    }}
+                    placeholder="Search for a city..."
+                  />
+                </View>
+              )}
+
+              <Text style={s.fieldLabel}>Search radius</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ color: colors.seeking, fontSize: 15, fontWeight: '600' }}>{seekingRadius} {seekingRadiusUnit}</Text>
+              </View>
+              <Slider
+                style={{ width: '100%', height: 40, marginBottom: 4 }}
+                minimumValue={5}
+                maximumValue={200}
+                step={5}
+                value={seekingRadius}
+                onValueChange={setSeekingRadius}
+                minimumTrackTintColor={colors.seeking}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.seeking}
+              />
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                <TouchableOpacity
+                  style={[
+                    s.postTypeOption,
+                    seekingRadiusUnit === 'mi' && { borderColor: colors.seeking, backgroundColor: colors.seekingDim },
+                  ]}
+                  onPress={() => setSeekingRadiusUnit('mi')}
+                >
+                  <Text style={[
+                    s.postTypeLabel,
+                    seekingRadiusUnit === 'mi' && { color: colors.seeking },
+                  ]}>mi</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    s.postTypeOption,
+                    seekingRadiusUnit === 'km' && { borderColor: colors.seeking, backgroundColor: colors.seekingDim },
+                  ]}
+                  onPress={() => setSeekingRadiusUnit('km')}
+                >
+                  <Text style={[
+                    s.postTypeLabel,
+                    seekingRadiusUnit === 'km' && { color: colors.seeking },
+                  ]}>km</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </>
+      )}
+
+      {postType !== 'seeking' && (
+        <>
       <Text style={s.fieldLabel}>Artist</Text>
 
       {/* Artist mode toggle */}
@@ -911,6 +1120,8 @@ export default function ClientUploadScreen({ navigation }: any) {
           setTimeout(() => detailsScrollRef.current?.scrollToEnd({ animated: true }), 300);
         }}
       />
+        </>
+      )}
     </ScrollView>
   );
 
@@ -1010,18 +1221,27 @@ export default function ClientUploadScreen({ navigation }: any) {
         <Text style={s.visibilityText}>
           {selectedArtist && artistMode === 'search'
             ? 'This tattoo will appear on your profile immediately and in the main feed after the artist approves.'
-            : 'This tattoo will be visible on the main feed immediately.'}
+            : postType === 'seeking'
+              ? 'This request will be visible on the main feed immediately.'
+              : 'This tattoo will be visible on the main feed immediately.'}
         </Text>
       </View>
     </ScrollView>
   );
 
-  const stepRenderers = [renderStep0, renderStep2, renderStep1, renderStep3];
+  const seekingSteps = [renderStep0, renderStep2, renderStep3];
+  const defaultSteps = [renderStep0, renderStep2, renderStep1, renderStep3];
+  const stepRenderers = postType === 'seeking' ? seekingSteps : defaultSteps;
+
+  const seekingLabels = ['Images', 'Details', 'Review'];
+  const defaultLabels = ['Images', 'Details', 'Styles', 'Review'];
+  const stepLabels = postType === 'seeking' ? seekingLabels : defaultLabels;
+  const maxStep = stepLabels.length - 1;
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.stepBar}>
-        {['Images', 'Details', 'Styles', 'Review'].map((label, i) => (
+        {stepLabels.map((label, i) => (
           <View key={label} style={[s.stepDot, i <= step && s.stepDotActive]}>
             <Text style={[s.stepDotText, i <= step && s.stepDotTextActive]}>{label}</Text>
           </View>
@@ -1046,7 +1266,7 @@ export default function ClientUploadScreen({ navigation }: any) {
             <View style={s.backButton} />
           )}
 
-          {step < 3 ? (
+          {step < maxStep ? (
             <TouchableOpacity
               style={[s.nextButton, !canProceed && s.nextButtonDisabled]}
               onPress={handleNext}
@@ -1097,6 +1317,30 @@ const s = StyleSheet.create({
   stepDotTextActive: { color: colors.accent },
   body: { flex: 1 },
   stepContent: { flex: 1, paddingHorizontal: 20 },
+  postTypeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  postTypeOptionActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentDim,
+  },
+  postTypeLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  postTypeLabelActive: {
+    color: colors.accent,
+  },
   stepTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: '700', marginBottom: 4 },
   stepSubtitle: { color: colors.textMuted, fontSize: 14, marginBottom: 16 },
   stepHint: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginBottom: 16 },

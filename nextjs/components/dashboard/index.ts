@@ -16,3 +16,4 @@ export { LeadCard } from './LeadCard';
 export { PendingApprovalsDialog, usePendingApprovalsCount } from './PendingApprovalsCard';
 export { StudioCard } from './StudioCard';
 export { RegionGroup } from './RegionGroup';
+export { BeaconCard } from './BeaconCard';

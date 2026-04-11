@@ -16,7 +16,7 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { api } from '../../lib/api';
-import { tattooService } from '../../lib/services';
+import { tattooService, messageService } from '../../lib/services';
 import { tattooModalUrl, profileImageUrl } from '@inkedin/shared/utils/imgix';
 import { useTattoo } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
@@ -122,7 +122,9 @@ export default function TattooDetailScreen({ navigation, route }: any) {
   if (loading) return <LoadingScreen />;
   if (error || !tattoo) return <ErrorView message={error?.message || 'Tattoo not found'} />;
 
+  const isSeeking = (tattoo as any).post_type === 'seeking';
   const artist = tattoo.artist;
+  const artistId = artist?.id || (tattoo as any).artist_id;
   const artistName = artist?.name || (tattoo as any).artist_name;
   const artistSlug = artist?.slug || (tattoo as any).artist_slug;
   const rawArtistImageUri = artist?.primary_image?.uri || artist?.image?.uri || (tattoo as any).artist_image_uri;
@@ -132,12 +134,32 @@ export default function TattooDetailScreen({ navigation, route }: any) {
   const studioSlug = studio?.slug;
   const location = studio?.location || (tattoo as any).artist_location;
   const duration = (tattoo as any).duration;
+  const uploaderName = (tattoo as any).uploader_name;
+  const uploaderSlug = (tattoo as any).uploader_slug;
+  const uploaderImageUri = (tattoo as any).uploader_image_uri ? profileImageUrl((tattoo as any).uploader_image_uri) : undefined;
+  const uploaderId = (tattoo as any).uploaded_by_user_id;
+  const isArtistUser = user?.type_id === 2;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Artist header + save — above image */}
+      {/* Header bar — above image */}
       <View style={styles.artistBar}>
-        {!tattoo.artist_id && (tattoo as any).attributed_artist_name ? (
+        {isSeeking && uploaderName ? (
+          <TouchableOpacity
+            style={styles.artistHeader}
+            onPress={() => uploaderSlug && navigation.push('UserProfile', { slug: uploaderSlug, name: uploaderName })}
+            activeOpacity={uploaderSlug ? 0.7 : 1}
+          >
+            <Avatar uri={uploaderImageUri} name={uploaderName} size={40} />
+            <View style={styles.artistHeaderInfo}>
+              <Text style={styles.artistName}>{uploaderName}</Text>
+              <View style={styles.seekingBadge}>
+                <MaterialIcons name="search" size={12} color={colors.seeking} />
+                <Text style={styles.seekingBadgeText}>Seeking Artist</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ) : !tattoo.artist_id && (tattoo as any).attributed_artist_name ? (
           <View style={styles.artistHeader}>
             <View style={[styles.attributedAvatar]}>
               <MaterialIcons name="person" size={20} color={colors.textMuted} />
@@ -305,8 +327,8 @@ export default function TattooDetailScreen({ navigation, route }: any) {
         {/* Title and description */}
         {tattoo.title && <Text style={styles.title}>{tattoo.title}</Text>}
 
-        {/* Description - only show here if NOT a client upload */}
-        {tattoo.description && !((tattoo as any).uploader_name && (tattoo as any).uploaded_by_user_id !== tattoo.artist_id) && (
+        {/* Description - show inline for seeking posts and non-client-uploads */}
+        {tattoo.description && (isSeeking || !((tattoo as any).uploader_name && (tattoo as any).uploaded_by_user_id !== tattoo.artist_id)) && (
           <Text style={styles.description}>{tattoo.description}</Text>
         )}
 
@@ -331,21 +353,97 @@ export default function TattooDetailScreen({ navigation, route }: any) {
           </View>
         )}
 
-        {/* Book button */}
-        {artist && (
+        {/* Flash details */}
+        {(tattoo as any).post_type === 'flash' && (
+          <View style={styles.flashSection}>
+            <View style={styles.flashHeader}>
+              <MaterialIcons name="flash-on" size={20} color={colors.flash} />
+              <Text style={styles.flashLabel}>Flash Design</Text>
+            </View>
+            {((tattoo as any).flash_price || (tattoo as any).flash_size) && (
+              <View style={styles.flashDetails}>
+                {(tattoo as any).flash_price && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Price: </Text>
+                    <Text style={styles.detailValue}>${(tattoo as any).flash_price}</Text>
+                  </View>
+                )}
+                {(tattoo as any).flash_size && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Size: </Text>
+                    <Text style={styles.detailValue}>{(tattoo as any).flash_size}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Seeking: offer consultation button for artists */}
+        {isSeeking && isArtistUser && !isOwner && uploaderId && (
+          <Button
+            title="Offer Consultation"
+            onPress={async () => {
+              try {
+                const response = await messageService.createConversation(
+                  uploaderId,
+                  'consultation' as any,
+                  `Hi ${uploaderName || 'there'}, I saw your post "${tattoo.title || 'seeking artist'}" and I'd love to discuss this piece with you!`,
+                );
+                const data = (response as any)?.data ?? response;
+                const conversationId = data?.conversation?.id || data?.id;
+                if (conversationId) {
+                  navigation.navigate('InboxStack', {
+                    screen: 'Conversation',
+                    params: { conversationId, participantName: uploaderName },
+                  });
+                }
+                showSnackbar('Consultation offer sent!', 'success');
+              } catch {
+                showSnackbar('Failed to send offer. Please try again.', 'error');
+              }
+            }}
+            style={styles.bookButton}
+          />
+        )}
+
+        {/* Seeking: CTA for non-artist users */}
+        {isSeeking && !isArtistUser && (
+          <View style={styles.seekingCta}>
+            <MaterialIcons name="brush" size={20} color={colors.seeking} />
+            <Text style={styles.seekingCtaText}>
+              Want to bid on this? Sign up as an artist to contact users for work!
+            </Text>
+          </View>
+        )}
+
+        {/* Book button (flash and portfolio) */}
+        {!isSeeking && artistId && (tattoo as any).post_type === 'flash' ? (
+          <Button
+            title={`Request to Book`}
+            onPress={() => navigation.navigate('Calendar', {
+              artistId: artistId,
+              artistName: artistName,
+              artistSlug: artistSlug,
+              flashTattooId: tattoo.id,
+              flashTattooTitle: tattoo.title || 'Flash Design',
+            })}
+            style={styles.bookButton}
+          />
+        ) : !isSeeking && artistId ? (
           <Button
             title={`Book with ${artistName}`}
             onPress={() => navigation.navigate('Calendar', {
-              artistId: artist.id,
+              artistId: artistId,
               artistName: artistName,
               artistSlug: artistSlug,
             })}
             style={styles.bookButton}
           />
-        )}
+        ) : null}
 
-        {/* Uploaded by (client upload) */}
-        {(tattoo as any).uploader_name && (tattoo as any).uploaded_by_user_id !== tattoo.artist_id && (
+        {/* Uploaded by (client upload, but NOT seeking posts) */}
+        {!isSeeking && (tattoo as any).uploader_name && (tattoo as any).uploaded_by_user_id !== tattoo.artist_id && (
           <View style={styles.uploaderSection}>
             <Text style={styles.uploaderLabel}>Uploaded by</Text>
             <View style={styles.uploaderBox}>
@@ -369,6 +467,7 @@ export default function TattooDetailScreen({ navigation, route }: any) {
           </View>
         )}
       </View>
+
     </ScrollView>
   );
 }
@@ -520,6 +619,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Flash section
+  flashSection: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 16,
+    marginTop: 4,
+  },
+  flashHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  flashLabel: {
+    color: colors.flash,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  flashDetails: {
+    marginTop: 4,
+  },
   // Book button
   bookButton: {
     marginTop: 16,
@@ -576,5 +696,31 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 15,
     fontStyle: 'italic',
+  },
+  seekingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  seekingBadgeText: {
+    color: colors.seeking,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  seekingCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.seekingDim,
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 16,
+  },
+  seekingCtaText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
   },
 });

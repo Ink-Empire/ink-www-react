@@ -30,6 +30,10 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'dd2gdmvaew6fu.cloudfront.net',
+      },
+      {
+        protocol: 'https',
         hostname: 'inked-in.imgix.net',
       },
     ],

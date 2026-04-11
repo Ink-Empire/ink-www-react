@@ -16,6 +16,7 @@ import { userService } from '../../lib/services';
 import { useTattoos, useArtists, useStyles } from '@inkedin/shared/hooks';
 import SearchBar from '../components/search/SearchBar';
 import FilterBar from '../components/search/FilterBar';
+import PostTypeFilter from '../components/search/PostTypeFilter';
 import TattooCard from '../components/cards/TattooCard';
 import ArtistCard from '../components/cards/ArtistCard';
 import EmptyState from '../components/common/EmptyState';
@@ -27,6 +28,7 @@ export default function SearchScreen({ navigation, route }: any) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
+  const [postType, setPostType] = useState<'portfolio' | 'flash' | 'seeking' | undefined>(undefined);
   const [clientResults, setClientResults] = useState<any[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
   const lastClientQuery = useRef('');
@@ -34,6 +36,7 @@ export default function SearchScreen({ navigation, route }: any) {
   const searchParams = {
     searchString: searchQuery || undefined,
     styles: selectedStyles.length > 0 ? selectedStyles : undefined,
+    post_type: postType || undefined,
   };
 
   const {
@@ -144,6 +147,9 @@ export default function SearchScreen({ navigation, route }: any) {
           onSearch={handleSearch}
           placeholder={activeTab === 'tattoos' ? 'Search tattoos...' : 'Search artists...'}
         />
+        {activeTab === 'tattoos' && (
+          <PostTypeFilter selected={postType} onSelect={setPostType} />
+        )}
         <FilterBar styles={stylesList} selectedIds={selectedStyles} onToggle={toggleStyle} />
 
         <View style={styles.tabs}>

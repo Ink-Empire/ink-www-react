@@ -37,13 +37,15 @@ interface CalendarScreenProps {
       artistName?: string;
       artistSlug?: string;
       initialDate?: string;
+      flashTattooId?: number;
+      flashTattooTitle?: string;
     };
   };
   navigation: any;
 }
 
 export default function CalendarScreen({ route, navigation }: CalendarScreenProps) {
-  const { artistId, artistName = 'Artist', artistSlug, initialDate } = route.params;
+  const { artistId, artistName = 'Artist', artistSlug, initialDate, flashTattooId, flashTattooTitle } = route.params;
   const { user } = useAuth();
   const isOwnProfile = user?.id === artistId;
 
@@ -485,6 +487,8 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           artistName={artistName}
           selectedDate={calendar.selectedDate}
           bookingType={selectedBookingType}
+          flashTattooId={flashTattooId}
+          flashTattooTitle={flashTattooTitle}
         />
       )}
 

@@ -175,6 +175,11 @@ export interface Tattoo {
   approval_status?: 'approved' | 'pending' | 'user_only';
   is_visible?: boolean;
 
+  // Post type
+  post_type?: 'portfolio' | 'flash' | 'seeking';
+  flash_price?: number;
+  flash_size?: string;
+
   type?: string;
 }
 
@@ -463,6 +468,9 @@ export interface SearchFilters {
   useAnyLocation?: boolean;
   studio_id?: number;
   user_id?: number;
+  post_type?: 'portfolio' | 'flash' | 'seeking';
+  post_types?: Array<'portfolio' | 'flash' | 'seeking'>;
+  sort?: string;
 }
 
 export interface SearchResponse<T> {

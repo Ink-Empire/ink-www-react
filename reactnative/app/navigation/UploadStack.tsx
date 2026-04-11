@@ -22,9 +22,9 @@ export default function UploadStack() {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       {isArtist ? (
-        <Stack.Screen name="Upload" component={UploadScreen} options={{ title: 'Upload Tattoo' }} />
+        <Stack.Screen name="Upload" component={UploadScreen} options={{ title: 'Make a Post' }} />
       ) : (
-        <Stack.Screen name="ClientUpload" component={ClientUploadScreen} options={{ title: 'Share Your Tattoo' }} />
+        <Stack.Screen name="ClientUpload" component={ClientUploadScreen} options={{ title: 'Make a Post' }} />
       )}
       <Stack.Screen name="BulkUploadConfirm" component={BulkUploadConfirmScreen} options={{ title: '' }} />
     </Stack.Navigator>

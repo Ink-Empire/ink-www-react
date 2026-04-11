@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { Box, Typography, Select, MenuItem, FormControl, Button, CircularProgress } from "@mui/material";
+import { Box, Typography, Select, MenuItem, FormControl, Button, CircularProgress, Tooltip, IconButton } from "@mui/material";
 import { useTheme, useMediaQuery } from "@mui/material";
 import FilterListIcon from '@mui/icons-material/FilterList';
+import SearchIcon from '@mui/icons-material/Search';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import TattooCard from "../components/TattooCard";
 import TattooModal from "../components/TattooModal";
 import SearchFilters from "../components/SearchFilters";
@@ -45,6 +48,17 @@ export default function TattoosPage() {
 
   // State for new user fallback (remove location filter if no results)
   const [hasAttemptedFallback, setHasAttemptedFallback] = useState(false);
+
+  // Quick filter toggles - seeking defaults ON for artists (type 2), OFF for clients (type 1)
+  const [showFlash, setShowFlash] = useState(false);
+  const [showSeeking, setShowSeeking] = useState(me?.type_id === 2);
+
+  // Update seeking default when user data loads
+  useEffect(() => {
+    if (me?.type_id === 2) {
+      setShowSeeking(true);
+    }
+  }, [me?.type_id]);
 
   // UI state
   const [sortBy, setSortBy] = useState<string>('relevant');
@@ -184,8 +198,9 @@ export default function TattoosPage() {
       distanceUnit: "mi",
       subject: "tattoos",
       studio_id: studio_id || undefined,
+      post_types: me?.type_id === 2 ? ['portfolio', 'seeking'] : ['portfolio'],
     };
-  }, [me?.location_lat_long, studio_id, router.query.searchString, router.query.search, router.query.styles, router.query.tags, router.query.tag, router.query.locationCoords, router.query.distance]);
+  }, [me?.location_lat_long, me?.type_id, studio_id, router.query.searchString, router.query.search, router.query.styles, router.query.tags, router.query.tag, router.query.locationCoords, router.query.distance]);
 
   // Check if there's a style in the URL to pass to SearchFilters
   const urlStyleParam = (router.query.styleSearch || router.query.style) as string | undefined;
@@ -193,8 +208,18 @@ export default function TattoosPage() {
   const [searchParams, setSearchParams] = useState<Record<string, any>>(() => initialSearchParams);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
+  // Merge sortBy directly into the params passed to the hook so it always reflects the dropdown
+  const effectiveSearchParams = useMemo(() => {
+    const sortParam = getSortParam(sortBy);
+    if (sortParam) {
+      return { ...searchParams, sort: sortParam };
+    }
+    const { sort, ...rest } = searchParams;
+    return rest;
+  }, [searchParams, sortBy]);
+
   // Fetch tattoos based on search params
-  const { tattoos, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useTattoos(searchParams, me?.blocked_user_ids);
+  const { tattoos, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useTattoos(effectiveSearchParams, me?.blocked_user_ids);
 
   // Ref for infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -294,24 +319,17 @@ export default function TattoosPage() {
     }
   }, [studio_id]);
 
-  // Update searchParams when sort changes (skip initial mount)
-  const sortMountRef = useRef(true);
+  // Update searchParams when quick filter toggles change
   useEffect(() => {
-    if (sortMountRef.current) {
-      sortMountRef.current = false;
-      return;
-    }
-    const sortParam = getSortParam(sortBy);
+    const postTypes: string[] = ['portfolio'];
+    if (showFlash) postTypes.push('flash');
+    if (showSeeking) postTypes.push('seeking');
     setSearchParams((prev) => {
-      const newParams = { ...prev };
-      if (sortParam) {
-        newParams.sort = sortParam;
-      } else {
-        delete newParams.sort;
-      }
-      return newParams;
+      const prevTypes = prev.post_types;
+      if (JSON.stringify(prevTypes) === JSON.stringify(postTypes)) return prev;
+      return { ...prev, post_types: postTypes };
     });
-  }, [sortBy]);
+  }, [showFlash, showSeeking]);
 
   // Update searchParams when URL query parameters change
   useEffect(() => {
@@ -384,11 +402,13 @@ export default function TattoosPage() {
       newParams.studio_id = studio_id;
     }
 
-    // Add sort parameter
-    const sortParam = getSortParam(sortBy);
-    if (sortParam) {
-      newParams.sort = sortParam;
-    }
+    // Preserve post_types from quick filter toggles
+    const postTypes: string[] = ['portfolio'];
+    if (showFlash) postTypes.push('flash');
+    if (showSeeking) postTypes.push('seeking');
+    newParams.post_types = postTypes;
+
+    // Sort is merged in via effectiveSearchParams from sortBy state
 
     // Store locationCoords as object for passing back to SearchFilters
     // Also create string version for API calls
@@ -606,7 +626,8 @@ export default function TattoosPage() {
           <Box sx={{
             display: 'flex',
             gap: '0.75rem',
-            alignItems: 'center'
+            alignItems: 'center',
+            flexWrap: 'wrap',
           }}>
             {/* Mobile Filter Button */}
             {!isDesktop && (
@@ -626,6 +647,92 @@ export default function TattoosPage() {
                 Filters
               </Button>
             )}
+
+            {/* Quick Filter Chips */}
+            <Box
+              component="button"
+              onClick={() => setShowFlash(!showFlash)}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                px: '0.85rem',
+                py: '0.45rem',
+                borderRadius: '100px',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                border: `1px solid ${showFlash ? colors.flash : colors.border}`,
+                bgcolor: showFlash ? colors.flashDim : 'transparent',
+                color: showFlash ? colors.flash : colors.textSecondary,
+                '&:hover': {
+                  borderColor: colors.flash,
+                  color: colors.flash,
+                },
+              }}
+            >
+              <FlashOnIcon sx={{ fontSize: 14 }} />
+              Flash
+            </Box>
+            <Box
+              component="button"
+              onClick={() => setShowSeeking(!showSeeking)}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                px: '0.85rem',
+                py: '0.45rem',
+                borderRadius: '100px',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                border: `1px solid ${showSeeking ? colors.seeking : colors.border}`,
+                bgcolor: showSeeking ? colors.seekingDim : 'transparent',
+                color: showSeeking ? colors.seeking : colors.textSecondary,
+                '&:hover': {
+                  borderColor: colors.seeking,
+                  color: colors.seeking,
+                },
+              }}
+            >
+              <SearchIcon sx={{ fontSize: 14 }} />
+              Seeking Work
+            </Box>
+
+            {/* What's this? info tooltip */}
+            <Tooltip
+              arrow
+              placement="bottom-end"
+              title={
+                <Box sx={{ p: '0.25rem', maxWidth: 260 }}>
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, mb: '0.4rem', color: '#fff' }}>
+                    What do these show?
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', mb: '0.35rem', color: '#fff' }}>
+                    <Box component="span" sx={{ color: colors.flash, fontWeight: 600 }}>Flash</Box>
+                    {' — '}available designs artists are ready to tattoo, often with a set price.
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#fff' }}>
+                    <Box component="span" sx={{ color: colors.seeking, fontWeight: 600 }}>Seeking Work</Box>
+                    {' — '}clients looking for an artist to bring their idea to life.
+                  </Typography>
+                </Box>
+              }
+            >
+              <IconButton
+                size="small"
+                aria-label="What do these toggles show?"
+                sx={{
+                  color: colors.textSecondary,
+                  '&:hover': { color: colors.accent },
+                }}
+              >
+                <InfoOutlinedIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
 
             {/* Sort Dropdown */}
             <FormControl size="small">
@@ -713,53 +820,113 @@ export default function TattoosPage() {
         ) : tattooCount === 0 && unclaimedStudios.length === 0 && !loading ? (
           // Show "founding artists" CTA when live site is empty (no demo mode, no restrictive filters)
           // Only count non-default filters as restrictive
-          !isDemoMode && activeFilters.filter(f => !(f as any).isDefault).length === 0 ? (
+          !isDemoMode && activeFilters.filter(f => !(f as any).isDefault).length === 0 && !showFlash && !showSeeking ? (
             <Box sx={{ py: 6 }}>
               <EmptyStateFoundingArtist />
             </Box>
-          ) : (
-            <Box sx={{ textAlign: 'center', py: 6 }}>
-              <Typography sx={{
-                color: colors.textPrimary,
-                fontSize: '1.25rem',
-                fontWeight: 500,
-                mb: 1
-              }}>
-                Nothing matches that search
-              </Typography>
-              <Typography sx={{
-                color: colors.textSecondary,
-                fontSize: '0.95rem',
-                mb: 3
-              }}>
-                Try removing some filters to see more results
-              </Typography>
-              {activeFilters.length > 0 && (
-                <Button
-                  onClick={() => {
-                    setSearchParams({
-                      ...initialSearchParams,
-                      subject: 'tattoos'
-                    });
-                    setDismissedStyles([]);
-                  }}
-                  sx={{
-                    color: colors.accent,
-                    borderColor: colors.accent,
-                    border: '1px solid',
-                    textTransform: 'none',
-                    px: 3,
-                    '&:hover': {
-                      bgcolor: `${colors.accent}1A`,
-                      borderColor: colors.accent
-                    }
-                  }}
-                >
-                  Clear all filters
-                </Button>
-              )}
-            </Box>
-          )
+          ) : (() => {
+            const isArtist = me?.type_id === 2;
+            // Contextual messages based on which post-type chip(s) are active
+            let title = 'Nothing matches that search';
+            let subtitle = 'Try removing some filters to see more results';
+            let ctaLabel: string | null = null;
+            let ctaAction: (() => void) | null = null;
+
+            if (showFlash && !showSeeking) {
+              title = 'No flash posts available';
+              if (isArtist) {
+                subtitle = 'Have some flash to sell? Add it here.';
+                ctaLabel = 'Add Flash';
+                ctaAction = () => setIsCreateModalOpen(true);
+              } else {
+                subtitle = 'Check back soon — artists are adding flash all the time.';
+              }
+            } else if (showSeeking && !showFlash) {
+              title = 'No seeking posts right now';
+              if (!isArtist) {
+                subtitle = 'Looking for an artist? Post your idea and let them find you.';
+                ctaLabel = 'Post a Request';
+                ctaAction = () => router.push('/dashboard');
+              } else {
+                subtitle = 'Check back soon — clients post new ideas every day.';
+              }
+            } else if (showFlash && showSeeking) {
+              title = 'No flash or seeking posts available';
+              subtitle = isArtist
+                ? 'Have flash to sell? Add it here.'
+                : 'Looking for an artist? Post your idea.';
+              if (isArtist) {
+                ctaLabel = 'Add Flash';
+                ctaAction = () => setIsCreateModalOpen(true);
+              } else {
+                ctaLabel = 'Post a Request';
+                ctaAction = () => router.push('/dashboard');
+              }
+            }
+
+            return (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Typography sx={{
+                  color: colors.textPrimary,
+                  fontSize: '1.25rem',
+                  fontWeight: 500,
+                  mb: 1
+                }}>
+                  {title}
+                </Typography>
+                <Typography sx={{
+                  color: colors.textSecondary,
+                  fontSize: '0.95rem',
+                  mb: 3
+                }}>
+                  {subtitle}
+                </Typography>
+                {ctaLabel && ctaAction && (
+                  <Button
+                    onClick={ctaAction}
+                    sx={{
+                      color: colors.accent,
+                      borderColor: colors.accent,
+                      border: '1px solid',
+                      textTransform: 'none',
+                      px: 3,
+                      mr: activeFilters.length > 0 ? 1.5 : 0,
+                      '&:hover': {
+                        bgcolor: `${colors.accent}1A`,
+                        borderColor: colors.accent
+                      }
+                    }}
+                  >
+                    {ctaLabel}
+                  </Button>
+                )}
+                {activeFilters.length > 0 && (
+                  <Button
+                    onClick={() => {
+                      setSearchParams({
+                        ...initialSearchParams,
+                        subject: 'tattoos'
+                      });
+                      setDismissedStyles([]);
+                    }}
+                    sx={{
+                      color: colors.accent,
+                      borderColor: colors.accent,
+                      border: '1px solid',
+                      textTransform: 'none',
+                      px: 3,
+                      '&:hover': {
+                        bgcolor: `${colors.accent}1A`,
+                        borderColor: colors.accent
+                      }
+                    }}
+                  >
+                    Clear all filters
+                  </Button>
+                )}
+              </Box>
+            );
+          })()
         ) : (
           <Box sx={{
             display: 'grid',

@@ -66,6 +66,12 @@ export const colors = {
   tagNotes: '#5B8FB9',
   tagNotesBg: '#111820',
 
+  // Post Type Colors
+  flash: '#C9A962',
+  flashDim: 'rgba(201, 169, 98, 0.15)',
+  seeking: '#4ABBA8',
+  seekingDim: 'rgba(74, 187, 168, 0.15)',
+
   // Aliases
   primary: '#C9A962',
   primaryLight: '#E4C675',

@@ -6,6 +6,8 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import SearchIcon from '@mui/icons-material/Search';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
 import { useUserData } from '@/contexts/AuthContext';
 import { useTattooImagePreload } from '@/contexts/ImageCacheContext';
 import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
@@ -75,6 +77,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
 
     const isAttributedArtist = !tattoo.artist_id && tattoo.attributed_artist_name;
     const isClientUpload = tattoo.is_user_upload && !tattoo.artist_id;
+    const isSeeking = tattoo.post_type === 'seeking';
 
     // Get artist initials for avatar fallback
     const getArtistInitials = () => {
@@ -111,6 +114,9 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                 border: `1px solid ${colors.border}`,
                 transition: 'all 0.25s ease',
                 cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
                 '&:hover': {
                     borderColor: `${colors.accent}4D`,
                     transform: 'translateY(-4px)',
@@ -126,7 +132,10 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                 p: '1rem 1rem 0.75rem',
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: '0.75rem'
+                gap: '0.75rem',
+                minHeight: 96,
+                boxSizing: 'border-box',
+                flexShrink: 0,
             }}>
                 {/* Avatar */}
                 {isClientUpload ? (
@@ -151,8 +160,8 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         <Avatar sx={{
                             width: 44,
                             height: 44,
-                            bgcolor: colors.background,
-                            color: colors.textSecondary,
+                            bgcolor: isSeeking ? colors.seekingDim : colors.background,
+                            color: isSeeking ? colors.seeking : colors.textSecondary,
                             fontSize: '1rem',
                             fontWeight: 600,
                             flexShrink: 0,
@@ -219,16 +228,34 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     {isClientUpload ? (
                         <>
-                            <Typography sx={{
-                                fontSize: '0.7rem',
-                                color: colors.textMuted,
-                                fontWeight: 500,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.04em',
-                                mb: '0.1rem',
-                            }}>
-                                Shared by
-                            </Typography>
+                            {isSeeking ? (
+                                <Box sx={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    px: '0.5rem',
+                                    py: '0.15rem',
+                                    bgcolor: colors.seekingDim,
+                                    borderRadius: '4px',
+                                    mb: '0.2rem',
+                                }}>
+                                    <SearchIcon sx={{ fontSize: 12, color: colors.seeking }} />
+                                    <Typography sx={{ fontSize: '0.65rem', color: colors.seeking, fontWeight: 600 }}>
+                                        Seeking Artist
+                                    </Typography>
+                                </Box>
+                            ) : (
+                                <Typography sx={{
+                                    fontSize: '0.7rem',
+                                    color: colors.textMuted,
+                                    fontWeight: 500,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    mb: '0.1rem',
+                                }}>
+                                    Shared by
+                                </Typography>
+                            )}
                             <Typography sx={{
                                 fontSize: '1rem',
                                 fontWeight: 600,
@@ -239,7 +266,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                             }}>
                                 {tattoo.uploader_name || 'Anonymous'}
                             </Typography>
-                            {isAttributedArtist && (
+                            {isAttributedArtist && !isSeeking && (
                                 <Typography sx={{
                                     fontSize: '0.75rem',
                                     color: colors.textSecondary,
@@ -423,10 +450,13 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
             <Box
                 className="card-image"
                 sx={{
-                    aspectRatio: '4/5',
+                    height: { xs: 320, sm: 360, md: 380 },
+                    minHeight: { xs: 320, sm: 360, md: 380 },
+                    maxHeight: { xs: 320, sm: 360, md: 380 },
                     bgcolor: colors.background,
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    flexShrink: 0,
                 }}
             >
                 {imageUri ? (
@@ -511,6 +541,60 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         ))}
                     </Box>
                 )}
+
+                {/* Post Type Strip */}
+                {tattoo.post_type === 'seeking' && (
+                    <Box sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 26,
+                        bgcolor: 'rgba(74, 187, 168, 0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                    }}>
+                        <SearchIcon sx={{ fontSize: 14, color: '#fff' }} />
+                        <Typography sx={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: '#fff',
+                            letterSpacing: '0.03em',
+                        }}>
+                            Seeking Artist
+                        </Typography>
+                    </Box>
+                )}
+                {tattoo.post_type === 'flash' && (
+                    <Box sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 26,
+                        bgcolor: 'rgba(201, 169, 98, 0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                    }}>
+                        <FlashOnIcon sx={{ fontSize: 14, color: colors.textOnLight }} />
+                        <Typography sx={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: colors.textOnLight,
+                            letterSpacing: '0.03em',
+                        }}>
+                            {tattoo.flash_price && tattoo.flash_size
+                                ? `$${tattoo.flash_price} · ${tattoo.flash_size}`
+                                : tattoo.flash_price
+                                    ? `$${tattoo.flash_price}`
+                                    : tattoo.flash_size || 'Flash'}
+                        </Typography>
+                    </Box>
+                )}
             </Box>
 
             {/* Card Footer */}
@@ -520,6 +604,8 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                 gap: '0.5rem',
                 alignItems: 'center',
                 borderTop: `1px solid ${colors.border}`,
+                flexShrink: 0,
+                marginTop: 'auto',
                 ...(!tattoo.title && !isClientUpload ? { display: 'none' } : {}),
             }}>
                 {isClientUpload && (
@@ -529,11 +615,11 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         py: '0.3rem',
                         borderRadius: '100px',
                         fontWeight: 500,
-                        bgcolor: colors.infoDim,
-                        color: colors.info,
+                        bgcolor: isSeeking ? colors.seekingDim : colors.infoDim,
+                        color: isSeeking ? colors.seeking : colors.info,
                         flexShrink: 0,
                     }}>
-                        Enthusiast
+                        {isSeeking ? 'Seeking' : 'Enthusiast'}
                     </Box>
                 )}
                 {tattoo.title && (

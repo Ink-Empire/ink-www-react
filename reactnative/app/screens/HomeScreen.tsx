@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   DeviceEventEmitter,
   RefreshControl,
+  Modal,
+  Pressable,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
@@ -19,11 +21,22 @@ import FilterDrawer, { type AppliedFilters } from '../components/search/FilterDr
 import TattooCard from '../components/cards/TattooCard';
 import EmptyState from '../components/common/EmptyState';
 import GrowingBanner from '../components/common/GrowingBanner';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function HomeScreen({ navigation, route }: any) {
+  const { user } = useAuth();
+  const isArtist = user?.type_id === 2;
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<AppliedFilters>({});
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [showFlash, setShowFlash] = useState(false);
+  const [showSeeking, setShowSeeking] = useState<boolean>(isArtist);
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  // Default seeking ON for artists once user loads
+  useEffect(() => {
+    if (isArtist) setShowSeeking(true);
+  }, [isArtist]);
 
   // Apply filters from navigation params (e.g. tapping a style/tag on TattooDetail)
   useEffect(() => {
@@ -42,6 +55,13 @@ export default function HomeScreen({ navigation, route }: any) {
     }
   }, [route?.params?.filterStyles, route?.params?.filterTags, route?.params?.filterTagNames]);
 
+  const postTypes = useMemo<Array<'portfolio' | 'flash' | 'seeking'>>(() => {
+    const types: Array<'portfolio' | 'flash' | 'seeking'> = ['portfolio'];
+    if (showFlash) types.push('flash');
+    if (showSeeking) types.push('seeking');
+    return types;
+  }, [showFlash, showSeeking]);
+
   const searchParams = {
     searchString: searchQuery || undefined,
     sort: filters.sort,
@@ -51,10 +71,19 @@ export default function HomeScreen({ navigation, route }: any) {
     distance: filters.distance,
     distanceUnit: filters.distanceUnit,
     useAnyLocation: filters.useAnyLocation,
+    post_types: postTypes,
   };
 
+  const chipsAtDefault = !showFlash && (isArtist ? showSeeking : !showSeeking);
   const [cachedTattoos, setCachedTattoos] = useState<any[] | null>(null);
-  const hasFilters = !!(searchQuery || filters.sort || filters.styles?.length || filters.tags?.length || filters.tagNames?.length);
+  const hasFilters = !!(
+    searchQuery ||
+    filters.sort ||
+    filters.styles?.length ||
+    filters.tags?.length ||
+    filters.tagNames?.length ||
+    !chipsAtDefault
+  );
 
   // Load cached tattoos on mount (only for unfiltered default feed)
   const cacheLoaded = useRef(false);
@@ -141,14 +170,129 @@ export default function HomeScreen({ navigation, route }: any) {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Quick filter chips */}
+        <View style={styles.chipRow}>
+          <TouchableOpacity
+            onPress={() => setShowFlash(!showFlash)}
+            style={[
+              styles.chip,
+              showFlash && { borderColor: colors.flash, backgroundColor: colors.flashDim },
+            ]}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons
+              name="flash-on"
+              size={14}
+              color={showFlash ? colors.flash : colors.textSecondary}
+            />
+            <Text style={[styles.chipText, showFlash && { color: colors.flash }]}>Flash</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowSeeking(!showSeeking)}
+            style={[
+              styles.chip,
+              showSeeking && { borderColor: colors.seeking, backgroundColor: colors.seekingDim },
+            ]}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons
+              name="search"
+              size={14}
+              color={showSeeking ? colors.seeking : colors.textSecondary}
+            />
+            <Text style={[styles.chipText, showSeeking && { color: colors.seeking }]}>
+              Seeking Work
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setInfoOpen(true)}
+            style={styles.infoBtn}
+            activeOpacity={0.7}
+            accessibilityLabel="What do these toggles show?"
+          >
+            <MaterialIcons name="info-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* What's this? info modal */}
+      <Modal
+        visible={infoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInfoOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setInfoOpen(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>What do these show?</Text>
+              <TouchableOpacity onPress={() => setInfoOpen(false)}>
+                <MaterialIcons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalRow}>
+              <MaterialIcons name="flash-on" size={18} color={colors.flash} />
+              <View style={styles.modalRowText}>
+                <Text style={[styles.modalLabel, { color: colors.flash }]}>Flash</Text>
+                <Text style={styles.modalDesc}>
+                  Available designs artists are ready to tattoo, often with a set price.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.modalRow}>
+              <MaterialIcons name="search" size={18} color={colors.seeking} />
+              <View style={styles.modalRowText}>
+                <Text style={[styles.modalLabel, { color: colors.seeking }]}>Seeking Work</Text>
+                <Text style={styles.modalDesc}>
+                  Clients looking for an artist to bring their idea to life.
+                </Text>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {showSpinner ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
       ) : displayTattoos.length === 0 && !loading ? (
-        <EmptyState message="No tattoos found. Try adjusting your search." />
+        (() => {
+          let message = 'No tattoos found. Try adjusting your search.';
+          let actionLabel: string | undefined;
+          let onAction: (() => void) | undefined;
+
+          if (showFlash && !showSeeking) {
+            if (isArtist) {
+              message = 'No flash posts available.\nHave some flash to sell? Add it here.';
+              actionLabel = 'Add Flash';
+              onAction = () => navigation.navigate('UploadTab' as never);
+            } else {
+              message = 'No flash posts available.\nCheck back soon — artists are adding flash all the time.';
+            }
+          } else if (showSeeking && !showFlash) {
+            if (!isArtist) {
+              message = 'No seeking posts right now.\nLooking for an artist? Post your idea and let them find you.';
+              actionLabel = 'Post a Request';
+              onAction = () => navigation.navigate('UploadTab' as never);
+            } else {
+              message = 'No seeking posts right now.\nCheck back soon — clients post new ideas every day.';
+            }
+          } else if (showFlash && showSeeking) {
+            if (isArtist) {
+              message = 'No flash or seeking posts available.\nHave flash to sell? Add it here.';
+              actionLabel = 'Add Flash';
+              onAction = () => navigation.navigate('UploadTab' as never);
+            } else {
+              message = 'No flash or seeking posts available.\nLooking for an artist? Post your idea.';
+              actionLabel = 'Post a Request';
+              onAction = () => navigation.navigate('UploadTab' as never);
+            }
+          }
+
+          return <EmptyState message={message} actionLabel={actionLabel} onAction={onAction} />;
+        })()
       ) : (
         <FlatList
           data={displayTattoos}
@@ -229,5 +373,80 @@ const styles = StyleSheet.create({
   grid: {
     paddingHorizontal: 12,
     paddingBottom: 24,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: 'transparent',
+  },
+  chipText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  infoBtn: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 18,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 10,
+  },
+  modalRowText: {
+    flex: 1,
+  },
+  modalLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  modalDesc: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

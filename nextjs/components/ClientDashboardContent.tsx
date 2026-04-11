@@ -2,7 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
-import { Box, Typography, Button, Avatar, Skeleton, Switch, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, Button, Avatar, Skeleton, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import CloseIcon from '@mui/icons-material/Close';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -16,8 +16,7 @@ import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 const ChangePasswordModal = dynamic(() => import('./ChangePasswordModal'), { ssr: false });
 const StyleModal = dynamic(() => import('./StyleModal'), { ssr: false });
 const ClientUploadWizard = dynamic(() => import('./ClientUploadWizard'), { ssr: false });
-const TattooIntent = dynamic(() => import('./Onboarding/TattooIntent').then(mod => ({ default: mod.default })), { ssr: false });
-import type { TattooIntentData } from './Onboarding/TattooIntent';
+import { BeaconCard } from '@/components/dashboard/BeaconCard';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -26,7 +25,6 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SearchIcon from '@mui/icons-material/Search';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import UpdateIcon from '@mui/icons-material/Update';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
@@ -34,7 +32,6 @@ import { colors } from '@/styles/colors';
 import { useClientDashboard, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
 import { clientService } from '@/services/clientService';
 import { ApiConversation } from '@/hooks/useConversations';
-import { leadService } from '@/services/leadService';
 import { messageService } from '@/services/messageService';
 import { appointmentService } from '@/services/appointmentService';
 import { useStyles } from '@/contexts/StyleContext';
@@ -51,30 +48,11 @@ interface ClientDashboardContentProps {
   userId: number;
 }
 
-interface LeadData {
-  id: number;
-  timing: 'week' | 'month' | 'year' | null;
-  allow_artist_contact: boolean;
-  style_ids: number[];
-  tag_ids: number[];
-  custom_themes: string[];
-  description: string;
-  is_active: boolean;
-}
-
 export default function ClientDashboardContent({ userName, userId }: ClientDashboardContentProps) {
   const router = useRouter();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [leadActive, setLeadActive] = useState(false);
-  const [leadData, setLeadData] = useState<LeadData | null>(null);
-  const [leadLoading, setLeadLoading] = useState(true);
-  const [leadToggling, setLeadToggling] = useState(false);
-  const [artistsNotified, setArtistsNotified] = useState(0);
-  const [intentDialogOpen, setIntentDialogOpen] = useState(false);
-  const [isEditingLead, setIsEditingLead] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
-  const [beaconSnackbarOpen, setBeaconSnackbarOpen] = useState(false);
   const [uploadWizardOpen, setUploadWizardOpen] = useState(false);
   const { styles, getStyleName } = useStyles();
   const { userData, updateStyles } = useUser();
@@ -205,90 +183,6 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
     };
     fetchSavedExtras();
   }, []);
-
-  // Fetch lead status on mount
-  useEffect(() => {
-    const fetchLeadStatus = async () => {
-      try {
-        const response = await leadService.getStatus();
-        setLeadActive(response.is_active || false);
-        setArtistsNotified(response.artists_notified || 0);
-        if (response.lead) {
-          setLeadData(response.lead);
-        }
-      } catch (err) {
-        console.error('Failed to fetch lead status:', err);
-      } finally {
-        setLeadLoading(false);
-      }
-    };
-    fetchLeadStatus();
-  }, []);
-
-  const handleLeadToggle = async () => {
-    if (!leadActive) {
-      // Turning ON - show the intent dialog to collect preferences
-      setIntentDialogOpen(true);
-    } else {
-      // Turning OFF - set is_active to false
-      setLeadToggling(true);
-      try {
-        await leadService.deactivate();
-        setLeadActive(false);
-      } catch (err) {
-        console.error('Failed to deactivate lead:', err);
-      } finally {
-        setLeadToggling(false);
-      }
-    }
-  };
-
-  const handleIntentSubmit = async (intentData: TattooIntentData) => {
-    setLeadToggling(true);
-    try {
-      const payload = {
-        timing: intentData.timing,
-        allow_artist_contact: intentData.allowArtistContact,
-        tag_ids: intentData.selectedTags,
-        custom_themes: intentData.customThemes || [],
-        description: intentData.description || '',
-      };
-
-      if (isEditingLead && leadData) {
-        // Update existing lead
-        await leadService.update(payload);
-      } else {
-        // Create new lead
-        await leadService.create(payload);
-        setBeaconSnackbarOpen(true);
-      }
-
-      // Refresh lead data
-      const response = await leadService.getStatus();
-      setLeadActive(response.is_active || false);
-      setArtistsNotified(response.artists_notified || 0);
-      if (response.lead) {
-        setLeadData(response.lead);
-      }
-
-      setIntentDialogOpen(false);
-      setIsEditingLead(false);
-    } catch (err) {
-      console.error('Failed to save lead preferences:', err);
-    } finally {
-      setLeadToggling(false);
-    }
-  };
-
-  const handleEditLead = () => {
-    setIsEditingLead(true);
-    setIntentDialogOpen(true);
-  };
-
-  const handleIntentDialogClose = () => {
-    setIntentDialogOpen(false);
-    setIsEditingLead(false);
-  };
 
   const handleAddToWishlist = async (artistId: number) => {
     try {
@@ -461,79 +355,8 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         )}
         </Card>
 
-        {/* Open to New Work Toggle */}
-        <Card
-          title="Let Artists Find You"
-          tooltip="With a few descriptive details, you can describe what work you're looking for, and artists in your area can contact you with quotes."
-          variant={leadActive ? 'highlight' : 'default'}
-          icon={<SearchIcon sx={{ color: leadActive ? colors.accent : colors.textMuted, fontSize: 20 }} />}
-          compact
-        >
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            p: 2,
-            textAlign: 'center',
-          }}>
-            <Typography sx={{ fontWeight: 500, color: leadActive ? colors.accent : colors.textPrimary, mb: 0.5 }}>
-              Looking for a Tattoo
-            </Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1.5, lineHeight: 1.4 }}>
-              {leadActive
-                ? artistsNotified > 0
-                  ? `${artistsNotified} artist${artistsNotified === 1 ? '' : 's'} in your area notified`
-                  : 'Artists in your area can reach out to you'
-                : 'Turn on to let artists know you\'re looking for work'}
-            </Typography>
-            {leadLoading ? (
-              <CircularProgress size={24} sx={{ color: colors.accent }} />
-            ) : (
-              <>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {leadToggling && <CircularProgress size={16} sx={{ color: colors.accent }} />}
-                  <Switch
-                    checked={leadActive}
-                    onChange={handleLeadToggle}
-                    disabled={leadToggling}
-                    sx={{
-                      '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: colors.accent,
-                      },
-                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: colors.accent,
-                      },
-                    }}
-                  />
-                </Box>
-                {leadActive && leadData && (
-                  <Button
-                    onClick={handleEditLead}
-                    size="small"
-                    sx={{
-                      mt: 1.5,
-                      px: 2,
-                      py: 0.5,
-                      color: colors.accent,
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      textTransform: 'none',
-                      border: `1px solid ${colors.accent}`,
-                      borderRadius: '6px',
-                      '&:hover': {
-                        bgcolor: colors.accent,
-                        color: colors.background,
-                      }
-                    }}
-                  >
-                    Edit My Idea
-                  </Button>
-                )}
-              </>
-            )}
-          </Box>
-        </Card>
+        {/* Beacon Card */}
+        <BeaconCard Card={Card} onRefresh={refreshDashboard} />
       </Box>
 
       {/* Artists You Might Like - always filter out demo artists on dashboard */}
@@ -943,83 +766,6 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         onApply={handleApplyStyles}
         selectedStyles={selectedStyles}
       />
-
-      {/* Tattoo Intent Dialog - shown when toggling Open to New Work ON */}
-      <Dialog
-        open={intentDialogOpen}
-        onClose={handleIntentDialogClose}
-        fullScreen={isMobile}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            bgcolor: colors.surface,
-            backgroundImage: 'none',
-            borderRadius: isMobile ? 0 : '16px',
-            maxHeight: isMobile ? '100%' : '90vh',
-            border: `1px solid ${colors.accent}50`,
-            boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 80px ${colors.accent}30`,
-          }
-        }}
-      >
-        <Box sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          p: 2,
-          borderBottom: `1px solid ${colors.border}`,
-        }}>
-          <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.textPrimary }}>
-            {isEditingLead ? 'Edit your tattoo idea' : 'Tell us about your tattoo plans'}
-          </Typography>
-          <IconButton
-            onClick={handleIntentDialogClose}
-            sx={{ color: colors.textMuted, '&:hover': { color: colors.textPrimary } }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Box>
-        <DialogContent sx={{ p: 0 }}>
-          <Box sx={{ p: { xs: 2, sm: 3 } }}>
-            <TattooIntent
-              key={isEditingLead ? 'edit' : 'create'}
-              onStepComplete={handleIntentSubmit}
-              onBack={handleIntentDialogClose}
-              selectedStyles={[]}
-              isModalMode
-              initialData={isEditingLead && leadData ? {
-                timing: leadData.timing,
-                tag_ids: leadData.tag_ids,
-                custom_themes: leadData.custom_themes,
-                description: leadData.description,
-                allow_artist_contact: leadData.allow_artist_contact,
-              } : undefined}
-            />
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      {/* Beacon Success Snackbar */}
-      <Snackbar
-        open={beaconSnackbarOpen}
-        autoHideDuration={10000}
-        onClose={() => setBeaconSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setBeaconSnackbarOpen(false)}
-          icon={false}
-          sx={{
-            bgcolor: colors.accent,
-            color: colors.background,
-            fontWeight: 500,
-            '& .MuiAlert-action': { color: colors.background },
-            '& .MuiAlert-action .MuiIconButton-root:hover': { bgcolor: 'rgba(0,0,0,0.1)' },
-          }}
-        >
-          <strong>Now what?</strong> Just sit back! Artists in your area will see your idea and can contact you via email with their availability and quotes.
-        </Alert>
-      </Snackbar>
 
       {/* Appointment Detail Modal */}
       <Dialog

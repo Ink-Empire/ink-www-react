@@ -26,11 +26,13 @@ import type { AiStyleSuggestion } from '@/services/stylesService';
 import type { AiTagSuggestion } from '@/services/tagService';
 import TagsAutocomplete, { Tag } from './TagsAutocomplete';
 import StudioAutocomplete, { StudioOption } from '@/components/StudioAutocomplete';
+import { SeekingPreferencesStep, SeekingPreferences } from '@/components/upload/SeekingPreferencesStep';
 
 interface ClientUploadWizardProps {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  seekingMode?: boolean;
 }
 
 interface ArtistResult {
@@ -40,10 +42,17 @@ interface ArtistResult {
   image?: { uri: string };
 }
 
-const STEPS = ['Images', 'Details', 'Styles & Tags', 'Review'];
+const STANDARD_STEPS = ['Images', 'Details', 'Styles & Tags', 'Review'];
+const SEEKING_STEPS = ['Images', 'Details', 'Beacon Preferences', 'Styles & Tags', 'Review'];
 const MAX_IMAGES = 5;
 
-export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientUploadWizardProps) {
+export default function ClientUploadWizard({ open, onClose, onSuccess, seekingMode = false }: ClientUploadWizardProps) {
+  const STEPS = seekingMode ? SEEKING_STEPS : STANDARD_STEPS;
+  const STEP_IMAGES = 0;
+  const STEP_DETAILS = 1;
+  const STEP_BEACON = seekingMode ? 2 : -1;
+  const STEP_STYLES = seekingMode ? 3 : 2;
+  const STEP_REVIEW = seekingMode ? 4 : 3;
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -89,6 +98,16 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
   const [successSnackbar, setSuccessSnackbar] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Seeking preferences state
+  const [seekingPrefs, setSeekingPrefs] = useState<SeekingPreferences>({
+    timing: null,
+    allowArtistContact: true,
+    seekingLocation: '',
+    locationLatLong: '',
+    seekingRadius: 50,
+    seekingRadiusUnit: 'mi',
+  });
+
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
 
@@ -104,7 +123,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
   // Reset all state when dialog closes
   useEffect(() => {
     if (!open) {
-      setStep(0);
+      setStep(STEP_IMAGES);
       setFiles([]);
       setPreviews([]);
       setUploadedImages([]);
@@ -131,6 +150,14 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
       setAiTagSuggestions([]);
       setLoadingAiSuggestions(false);
       setAddingAiTag(null);
+      setSeekingPrefs({
+        timing: null,
+        allowArtistContact: true,
+        seekingLocation: '',
+        locationLatLong: '',
+        seekingRadius: 50,
+        seekingRadiusUnit: 'mi',
+      });
     }
   }, [open]);
 
@@ -265,9 +292,9 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
     }
   };
 
-  // Advance from step 0 to step 1 - start uploading in background
+  // Advance from Images to Details - start uploading in background
   const handleNextFromImages = async () => {
-    setStep(1);
+    setStep(STEP_DETAILS);
     if (uploadedImages.length === 0 && files.length > 0) {
       setIsUploading(true);
       try {
@@ -279,7 +306,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
       } catch (err) {
         console.error('Upload failed:', err);
         setErrorMessage('Image upload failed. Please try again.');
-        setStep(0);
+        setStep(STEP_IMAGES);
       } finally {
         setIsUploading(false);
       }
@@ -400,6 +427,16 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
         if (artistInviteEmail.trim()) payload.artist_invite_email = artistInviteEmail.trim();
       }
 
+      if (seekingMode) {
+        payload.post_type = 'seeking';
+        if (seekingPrefs.timing) payload.timing = seekingPrefs.timing;
+        payload.allow_artist_contact = seekingPrefs.allowArtistContact;
+        if (seekingPrefs.seekingLocation) payload.seeking_location = seekingPrefs.seekingLocation;
+        if (seekingPrefs.locationLatLong) payload.location_lat_long = seekingPrefs.locationLatLong;
+        payload.seeking_radius = seekingPrefs.seekingRadius;
+        payload.seeking_radius_unit = seekingPrefs.seekingRadiusUnit;
+      }
+
       await tattooService.clientUpload(payload);
 
       clearCache('tattoo');
@@ -428,6 +465,9 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
   };
 
   const getVisibilityMessage = () => {
+    if (seekingMode) {
+      return 'This seeking post will appear in the feed. Artists in your area will be notified and can contact you with quotes.';
+    }
     if (selectedArtist && artistMode === 'search') {
       return 'This tattoo will appear on your profile immediately and in the main feed after the artist approves.';
     }
@@ -435,6 +475,9 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
   };
 
   const getSuccessMessage = () => {
+    if (seekingMode) {
+      return 'Your seeking post is live! Artists in your area will be notified.';
+    }
     if (selectedArtist && artistMode === 'search') {
       return 'Your tattoo has been submitted! The artist will be notified for approval.';
     }
@@ -494,7 +537,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
               </IconButton>
             )}
             <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.textPrimary }}>
-              Upload Tattoo
+              {seekingMode ? 'Create Seeking Post' : 'Upload Tattoo'}
             </Typography>
           </Box>
           <IconButton
@@ -535,7 +578,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
         </Box>
 
         {/* Loading overlay */}
-        {(isPublishing || (isUploading && step === 0)) && (
+        {(isPublishing || (isUploading && step === STEP_IMAGES)) && (
           <Box sx={{
             position: 'absolute',
             inset: 0,
@@ -567,7 +610,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
 
         <DialogContent sx={{ p: 0, position: 'relative' }}>
           {/* Step 0: Images */}
-          {step === 0 && (
+          {step === STEP_IMAGES && (
             <Box sx={{ p: { xs: 2, sm: 3 } }}>
               <Typography sx={{ fontSize: '0.85rem', color: colors.textMuted, mb: 2 }}>
                 Add up to {MAX_IMAGES} photos of your tattoo. The first image will be the primary photo.
@@ -686,8 +729,21 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
             </Box>
           )}
 
-          {/* Step 2: Styles & Tags */}
-          {step === 2 && (
+          {/* Beacon Preferences step (seeking mode only) */}
+          {step === STEP_BEACON && seekingMode && (
+            <Box sx={{ p: { xs: 2, sm: 3 } }}>
+              <SeekingPreferencesStep
+                preferences={seekingPrefs}
+                onChange={setSeekingPrefs}
+              />
+              <Button onClick={() => setStep(STEP_STYLES)} fullWidth sx={nextBtnSx}>
+                Next
+              </Button>
+            </Box>
+          )}
+
+          {/* Styles & Tags */}
+          {step === STEP_STYLES && (
             <Box sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               {/* Image preview */}
               {previews.length > 0 && (
@@ -898,14 +954,14 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                 </Box>
               )}
 
-              <Button onClick={() => setStep(3)} fullWidth sx={nextBtnSx}>
+              <Button onClick={() => setStep(STEP_REVIEW)} fullWidth sx={nextBtnSx}>
                 Next
               </Button>
             </Box>
           )}
 
-          {/* Step 1: Details */}
-          {step === 1 && (
+          {/* Details */}
+          {step === STEP_DETAILS && (
             <Box sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               <Box>
                 <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: colors.textPrimary, mb: 0.75 }}>
@@ -1168,14 +1224,14 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                 />
               </Box>
 
-              <Button onClick={() => setStep(2)} fullWidth sx={nextBtnSx}>
+              <Button onClick={() => setStep(seekingMode ? STEP_BEACON : STEP_STYLES)} fullWidth sx={nextBtnSx}>
                 Next
               </Button>
             </Box>
           )}
 
-          {/* Step 3: Review */}
-          {step === 3 && (
+          {/* Review */}
+          {step === STEP_REVIEW && (
             <Box sx={{ p: { xs: 2, sm: 3 } }}>
               {previews.length > 0 && (
                 <Box sx={{ mb: 2 }}>
@@ -1276,6 +1332,22 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                     )}
                   </Box>
                 )}
+                {seekingMode && seekingPrefs.timing && (
+                  <Box>
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 0.25 }}>Timing</Typography>
+                    <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary, fontWeight: 500 }}>
+                      {seekingPrefs.timing === 'week' ? 'Next week' : seekingPrefs.timing === 'month' ? 'Next month' : 'Next year'}
+                    </Typography>
+                  </Box>
+                )}
+                {seekingMode && seekingPrefs.seekingLocation && (
+                  <Box>
+                    <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 0.25 }}>Location</Typography>
+                    <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary, fontWeight: 500 }}>
+                      {seekingPrefs.seekingLocation} ({seekingPrefs.seekingRadius} mi radius)
+                    </Typography>
+                  </Box>
+                )}
                 {selectedStudio && (
                   <Box>
                     <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 0.5 }}>Studio</Typography>
@@ -1311,7 +1383,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess }: ClientU
                 fullWidth
                 sx={nextBtnSx}
               >
-                {isPublishing ? 'Publishing...' : 'Share'}
+                {isPublishing ? 'Publishing...' : seekingMode ? 'Post & Notify Artists' : 'Share'}
               </Button>
             </Box>
           )}

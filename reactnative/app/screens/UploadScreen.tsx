@@ -47,6 +47,13 @@ const SIZE_OPTIONS = [
 export default function UploadScreen({ navigation }: any) {
   const [step, setStep] = useState(0);
 
+  // Post type
+  const [postType, setPostType] = useState<'portfolio' | 'flash'>('portfolio');
+
+  // Flash fields
+  const [flashPrice, setFlashPrice] = useState('');
+  const [flashSize, setFlashSize] = useState('');
+
   // Step 1: Images
   const [images, setImages] = useState<ImageFile[]>([]);
 
@@ -402,9 +409,15 @@ export default function UploadScreen({ navigation }: any) {
       const tattooData: Record<string, any> = {
         image_ids: imageIds,
         is_public: '1',
+        post_type: postType,
       };
       if (title.trim()) tattooData.title = title.trim();
       if (description.trim()) tattooData.description = description.trim();
+
+      if (postType === 'flash') {
+        if (flashPrice) tattooData.flash_price = parseFloat(flashPrice);
+        if (flashSize.trim()) tattooData.flash_size = flashSize.trim();
+      }
 
       if (selectedStyles.length > 0) {
         tattooData.style_ids = JSON.stringify(selectedStyles);
@@ -424,6 +437,9 @@ export default function UploadScreen({ navigation }: any) {
 
       // Reset form
       setStep(0);
+      setPostType('portfolio');
+      setFlashPrice('');
+      setFlashSize('');
       setImages([]);
       setTitle('');
       setDescription('');
@@ -461,6 +477,30 @@ export default function UploadScreen({ navigation }: any) {
 
   const renderStep0 = () => (
     <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
+      <Text style={styles.stepTitle}>What are you posting?</Text>
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+        <TouchableOpacity
+          style={[
+            styles.postTypeOption,
+            postType === 'portfolio' && styles.postTypeOptionActive,
+          ]}
+          onPress={() => setPostType('portfolio')}
+        >
+          <MaterialIcons name="photo-library" size={20} color={postType === 'portfolio' ? colors.accent : colors.textMuted} />
+          <Text style={[styles.postTypeLabel, postType === 'portfolio' && styles.postTypeLabelActive]}>Portfolio</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.postTypeOption,
+            postType === 'flash' && styles.postTypeOptionActive,
+          ]}
+          onPress={() => setPostType('flash')}
+        >
+          <MaterialIcons name="flash-on" size={20} color={postType === 'flash' ? colors.flash : colors.textMuted} />
+          <Text style={[styles.postTypeLabel, postType === 'flash' && { color: colors.flash }]}>Flash Design</Text>
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.stepTitle}>Add Photos</Text>
       <Text style={styles.stepSubtitle}>{images.length}/{MAX_IMAGES} images</Text>
 
@@ -533,6 +573,31 @@ export default function UploadScreen({ navigation }: any) {
         multiline
         numberOfLines={3}
       />
+
+      {postType === 'flash' && (
+        <>
+          <Text style={styles.fieldLabel}>Price</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 16, marginRight: 4 }}>$</Text>
+            <TextInput
+              style={[styles.textInput, { flex: 1 }]}
+              value={flashPrice}
+              onChangeText={setFlashPrice}
+              placeholder="400"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <Text style={styles.fieldLabel}>Size</Text>
+          <TextInput
+            style={styles.textInput}
+            value={flashSize}
+            onChangeText={setFlashSize}
+            placeholder="e.g. palm-sized, half sleeve, fits forearm"
+            placeholderTextColor={colors.textMuted}
+          />
+        </>
+      )}
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
         <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>Styles</Text>
@@ -952,6 +1017,30 @@ const styles = StyleSheet.create({
   stepContent: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  postTypeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  postTypeOptionActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentDim,
+  },
+  postTypeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  postTypeLabelActive: {
+    color: colors.accent,
   },
   stepTitle: {
     color: colors.textPrimary,
