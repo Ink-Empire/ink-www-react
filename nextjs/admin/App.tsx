@@ -10,6 +10,7 @@ import BrushIcon from '@mui/icons-material/Brush';
 import EmailIcon from '@mui/icons-material/Email';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TerminalIcon from '@mui/icons-material/Terminal';
+import CellTowerIcon from '@mui/icons-material/CellTower';
 
 import authProvider from './authProvider';
 import dataProvider from './dataProvider';
@@ -20,6 +21,7 @@ import { TagList, TagEdit, TagCreate } from './resources/tags';
 import { PlacementList, PlacementEdit, PlacementCreate } from './resources/placements';
 import { BlockedTermList, BlockedTermEdit, BlockedTermCreate } from './resources/blockedTerms';
 import { TattooList, TattooEdit } from './resources/tattoos';
+import { TattooLeadList, TattooLeadShow } from './resources/tattooLeads';
 import ElasticPanel from './pages/ElasticPanel';
 import EmailTestPanel from './pages/EmailTestPanel';
 import DocsPanel from './pages/DocsPanel';
@@ -31,6 +33,7 @@ const CustomMenu = () => (
         <Menu.ResourceItem name="users" />
         <Menu.ResourceItem name="studios" />
         <Menu.ResourceItem name="tattoos" />
+        <Menu.ResourceItem name="tattoo-leads" />
         <Menu.ResourceItem name="tags" />
         <Menu.ResourceItem name="placements" />
         <Menu.ResourceItem name="blocked-terms" />
@@ -105,6 +108,13 @@ const AdminApp = () => (
             list={TattooList}
             edit={TattooEdit}
             icon={BrushIcon}
+        />
+        <Resource
+            name="tattoo-leads"
+            list={TattooLeadList}
+            show={TattooLeadShow}
+            icon={CellTowerIcon}
+            options={{ label: 'Beacons' }}
         />
         <Resource
             name="tags"
