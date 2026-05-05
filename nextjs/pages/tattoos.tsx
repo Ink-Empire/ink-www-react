@@ -49,16 +49,10 @@ export default function TattoosPage() {
   // State for new user fallback (remove location filter if no results)
   const [hasAttemptedFallback, setHasAttemptedFallback] = useState(false);
 
-  // Quick filter toggles - seeking defaults ON for artists (type 2), OFF for clients (type 1)
+  // Quick filter chips. When neither is on, the baseline post_types depend on user type
+  // (artists see portfolio + seeking, clients see portfolio). Toggling any chip is exclusive.
   const [showFlash, setShowFlash] = useState(false);
-  const [showSeeking, setShowSeeking] = useState(me?.type_id === 2);
-
-  // Update seeking default when user data loads
-  useEffect(() => {
-    if (me?.type_id === 2) {
-      setShowSeeking(true);
-    }
-  }, [me?.type_id]);
+  const [showSeeking, setShowSeeking] = useState(false);
 
   // UI state
   const [sortBy, setSortBy] = useState<string>('relevant');
@@ -321,15 +315,19 @@ export default function TattoosPage() {
 
   // Update searchParams when quick filter toggles change
   useEffect(() => {
-    const postTypes: string[] = ['portfolio'];
+    const postTypes: string[] = [];
     if (showFlash) postTypes.push('flash');
     if (showSeeking) postTypes.push('seeking');
+    if (postTypes.length === 0) {
+      postTypes.push('portfolio');
+      if (me?.type_id === 2) postTypes.push('seeking');
+    }
     setSearchParams((prev) => {
       const prevTypes = prev.post_types;
       if (JSON.stringify(prevTypes) === JSON.stringify(postTypes)) return prev;
       return { ...prev, post_types: postTypes };
     });
-  }, [showFlash, showSeeking]);
+  }, [showFlash, showSeeking, me?.type_id]);
 
   // Update searchParams when URL query parameters change
   useEffect(() => {
@@ -402,10 +400,15 @@ export default function TattoosPage() {
       newParams.studio_id = studio_id;
     }
 
-    // Preserve post_types from quick filter toggles
-    const postTypes: string[] = ['portfolio'];
+    // Preserve post_types from quick filter toggles (exclusive: toggle on => that type only;
+    // none on => artist sees portfolio+seeking, client sees portfolio).
+    const postTypes: string[] = [];
     if (showFlash) postTypes.push('flash');
     if (showSeeking) postTypes.push('seeking');
+    if (postTypes.length === 0) {
+      postTypes.push('portfolio');
+      if (me?.type_id === 2) postTypes.push('seeking');
+    }
     newParams.post_types = postTypes;
 
     // Sort is merged in via effectiveSearchParams from sortBy state
