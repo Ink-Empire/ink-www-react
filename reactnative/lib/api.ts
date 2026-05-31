@@ -2,7 +2,6 @@
 // Sets up the shared API client with AsyncStorage for token persistence
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Config from 'react-native-config';
 import { createApiClient, createAuthApi, type StorageAdapter } from '@inkedin/shared';
 
 // AsyncStorage adapter for React Native
