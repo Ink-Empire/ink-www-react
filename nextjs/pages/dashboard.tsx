@@ -909,7 +909,7 @@ export default function Dashboard() {
           gap: 2
         }}>
           {/* Main Column */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
             {/* Clients to Reach Out To */}
             {activeTab === 'artist' && (
               <Card
@@ -1210,7 +1210,7 @@ export default function Dashboard() {
           </Box>
 
           {/* Side Column */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
             {activeTab === 'artist' ? (
               <>
                 {/* Your Profile Card */}
