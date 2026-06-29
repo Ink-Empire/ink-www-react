@@ -48,6 +48,7 @@ interface User {
     name: string;
     slug: string;
   } | null;
+  force_password_reset?: boolean;
   [key: string]: any; // Allow additional properties from API
 }
 
@@ -299,7 +300,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         saveUser(userData);
         setError(null);
         console.log('Login successful:', userData.email);
-        onSuccess?.();
+        if (userData.force_password_reset) {
+          router.push('/change-password');
+        } else {
+          onSuccess?.();
+        }
       } else {
         throw new Error('Login succeeded but failed to get user data');
       }
