@@ -152,6 +152,32 @@ export default function HowItWorksPage() {
           name="description"
           content="Connect with world-class tattoo artists. Browse portfolios, book consultations, and collaborate on custom designs—all in one place."
         />
+        <link rel="canonical" href="https://www.getinked.in/" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'Organization',
+              '@id': 'https://www.getinked.in/#organization',
+              name: 'InkedIn',
+              url: 'https://www.getinked.in',
+              logo: 'https://www.getinked.in/assets/img/logo.png',
+              description: 'InkedIn connects tattoo artists, studios, and clients - searchable portfolios, direct booking, and client tools, without the social media algorithm.',
+            },
+            {
+              '@type': 'WebSite',
+              '@id': 'https://www.getinked.in/#website',
+              name: 'InkedIn',
+              url: 'https://www.getinked.in',
+              publisher: { '@id': 'https://www.getinked.in/#organization' },
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: { '@type': 'EntryPoint', urlTemplate: 'https://www.getinked.in/tattoos?search={search_term_string}' },
+                'query-input': 'required name=search_term_string',
+              },
+            },
+          ],
+        }) }} />
       </Head>
 
       {/* Hero Section */}

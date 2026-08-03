@@ -407,7 +407,20 @@ export default function ArtistDetail({ initialArtist }: ArtistDetailProps) {
                 <meta property="og:description" content={`View ${artist.name}'s tattoo portfolio on InkedIn${artist.location ? ` - based in ${artist.location}` : ''}`} />
                 {artist.image?.uri && <meta property="og:image" content={artist.image.uri} />}
                 <meta property="og:type" content="profile" />
+                <link rel="canonical" href={`https://www.getinked.in/artists/${artist.slug || slugString}`} />
                 <link rel="icon" href="/assets/img/logo.png" />
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+                    '@context': 'https://schema.org',
+                    '@type': 'Person',
+                    name: artist.name,
+                    url: `https://www.getinked.in/artists/${artist.slug || slugString}`,
+                    jobTitle: 'Tattoo Artist',
+                    ...(artist.about && { description: artist.about }),
+                    ...(artist.image?.uri && { image: artist.image.uri }),
+                    ...(artist.location && { address: { '@type': 'PostalAddress', addressLocality: artist.location } }),
+                    ...(artist.styles?.length && { knowsAbout: artist.styles.map((s: any) => `${s.name} tattoo`) }),
+                    ...(artist.studio_name && { worksFor: { '@type': 'TattooParlor', name: artist.studio_name } }),
+                }) }} />
             </Head>
 
             <Box sx={{ maxWidth: 1200, mx: 'auto', py: 3 }}>

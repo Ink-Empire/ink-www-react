@@ -1,0 +1,28 @@
+# InkedIn
+
+> InkedIn (getinked.in) is a platform that connects tattoo artists, studios, and clients — built as an alternative to social-media algorithms. Artists showcase searchable portfolios, take booking requests, and manage clients; people looking for a tattoo browse work by style and location, message artists, and post what they're looking for so nearby artists can respond.
+
+## What InkedIn does
+
+- Artist portfolios: searchable by style (traditional, neo-traditional, realism, Japanese, and more), subject, and location
+- Studio profiles: rosters, hours, and location for tattoo studios
+- Booking: consultation and appointment requests with artist availability, synced to Google Calendar
+- Tattoo Beacon: clients post what tattoo they want; nearby artists are notified and can reach out
+- Business inbox: real-time messaging with structured price quotes, deposit requests, and scheduling actions
+- Portfolio import: artists can import their entire Instagram portfolio or email photos to set up a profile in minutes, with AI-assisted tagging
+
+## Key pages
+
+- Find artists: https://www.getinked.in/artists
+- Browse tattoos: https://www.getinked.in/tattoos
+- How it works: https://www.getinked.in/how-it-works
+- FAQ: https://www.getinked.in/faq
+- Artist and studio profiles: https://www.getinked.in/artists/[slug], https://www.getinked.in/studios/[slug]
+
+## For tattoo artists
+
+Artists join free, import an existing portfolio (Instagram export or email), set availability and booking preferences, and receive client requests directly — no algorithm deciding who sees their work.
+
+## Contact
+
+https://www.getinked.in/contact
