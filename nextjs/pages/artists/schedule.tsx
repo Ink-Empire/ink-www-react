@@ -11,11 +11,7 @@ const ArtistSchedulePage: React.FC = () => {
   const { artistId, artistSlug, id, slug } = router.query;
   // Handle all possible URL parameter variations
   const artistIdOrSlug = (artistSlug || artistId || slug || id) as string;
-  
-  // Debug logging
-  console.log('URL params:', { artistId, artistSlug, id, slug });
-  console.log('Using artistIdOrSlug:', artistIdOrSlug);
-  
+
   const [calendarView, setCalendarView] = useState<'dayGridMonth' | 'timeGridWeek'>('dayGridMonth');
   const { artist, loading: artistLoading } = useArtist(artistIdOrSlug);
 

@@ -8,7 +8,7 @@ import { studioService } from '@/services/studioService';
 import { leadService } from '@/services/leadService';
 import { imageService } from '@/services/imageService';
 import { useAuth } from '../contexts/AuthContext';
-import { Box, CircularProgress, Typography, Backdrop } from '@mui/material';
+import { Box, CircularProgress, Typography, Backdrop, Snackbar, Alert } from '@mui/material';
 import { colors } from '@/styles/colors';
 
 const RegisterPage: React.FC = () => {
@@ -16,6 +16,7 @@ const RegisterPage: React.FC = () => {
   const { refreshUser } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [isClearing, setIsClearing] = useState(true);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   // Clear any existing auth state when visiting the register page
   // This ensures new registrations start with a clean slate
@@ -78,6 +79,7 @@ const RegisterPage: React.FC = () => {
   const handleRegistrationComplete = async (data: OnboardingData) => {
     try {
       setIsRegistering(true);
+      setRegistrationError(null);
 
       // Get CSRF token for the request
       await fetchCsrfToken();
@@ -287,7 +289,11 @@ const RegisterPage: React.FC = () => {
 
     } catch (error) {
       console.error('Error completing registration:', error);
-      // TODO: Show error message to user
+      setRegistrationError(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Something went wrong while creating your account. Please try again.'
+      );
     } finally {
       setIsRegistering(false);
     }
@@ -375,6 +381,22 @@ const RegisterPage: React.FC = () => {
           </Typography>
         </Box>
       </Backdrop>
+
+      <Snackbar
+        open={!!registrationError}
+        autoHideDuration={8000}
+        onClose={() => setRegistrationError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={() => setRegistrationError(null)}
+          sx={{ width: '100%' }}
+        >
+          {registrationError}
+        </Alert>
+      </Snackbar>
     </>
   );
 };
