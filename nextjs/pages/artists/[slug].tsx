@@ -14,6 +14,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
 import ShareIcon from '@mui/icons-material/Share';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -39,7 +40,7 @@ export default function ArtistDetail({ initialArtist }: ArtistDetailProps) {
     const slugString = typeof slug === 'string' ? slug : null;
     const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString, initialArtist);
     const { portfolio, loading: portfolioLoading, hasMore, loadMore, refetch: fetchPortfolio } = useArtistPortfolio(slugString, artist?.tattoos);
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, toggleFavorite } = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
     const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -305,12 +306,19 @@ export default function ArtistDetail({ initialArtist }: ArtistDetailProps) {
         router.push(`/inbox?artistId=${artist?.id}`);
     };
 
-    const handleSaveArtist = () => {
+    const isArtistSaved = !!(artist?.id && user?.favorites?.artists?.includes(Number(artist.id)));
+
+    const handleSaveArtist = async () => {
         if (!isAuthenticated) {
             setLoginModalOpen(true);
             return;
         }
-        // TODO: Implement save artist functionality
+        if (!artist?.id) return;
+        try {
+            await toggleFavorite('artist', Number(artist.id));
+        } catch (err) {
+            console.error('Error saving artist:', err);
+        }
     };
 
     const handleShareProfile = async () => {
@@ -1167,7 +1175,7 @@ export default function ArtistDetail({ initialArtist }: ArtistDetailProps) {
                                     {[
                                         { icon: <EventAvailableIcon sx={{ fontSize: '1.25rem' }} />, label: 'View Availability', onClick: () => handleTabChange(1) },
                                         { icon: <ChatBubbleOutlineIcon sx={{ fontSize: '1.25rem' }} />, label: 'Send Message', onClick: handleMessageArtist },
-                                        { icon: <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: 'Save Artist', onClick: handleSaveArtist },
+                                        { icon: isArtistSaved ? <BookmarkIcon sx={{ fontSize: '1.25rem', color: colors.accent }} /> : <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: isArtistSaved ? 'Saved' : 'Save Artist', onClick: handleSaveArtist },
                                         { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: 'Share Profile', onClick: handleShareProfile }
                                     ].map((action, idx) => (
                                         <Box
