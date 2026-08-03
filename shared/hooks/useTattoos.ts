@@ -83,8 +83,8 @@ export function useTattoos(
       }
       setHasMore(hasMorePages);
       pageRef.current = pageNum;
-    } catch (err) {
-      console.log('[useTattoos] fetch error:', err);
+    } catch (err: any) {
+      console.error('[DEBUG] useTattoos error:', err?.status, err?.message, JSON.stringify(err?.data)); // DEBUG: remove before commit
       setError(err instanceof Error ? err : new Error('Failed to fetch tattoos'));
     } finally {
       setLoading(false);

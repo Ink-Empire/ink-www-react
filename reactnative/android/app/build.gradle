@@ -93,6 +93,11 @@ android {
             keyPassword 'android'
         }
     }
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "inked-in-${variant.versionName}-${variant.buildType.name}.apk"
+        }
+    }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
@@ -116,4 +121,8 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+}
+
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
 }
