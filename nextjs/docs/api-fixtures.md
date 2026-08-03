@@ -25,6 +25,23 @@ Contract Tests ──> S3 Bucket ──> pull-fixtures.js ──> Playwright Tes
 
 ## Available Fixtures
 
+### Authentication
+
+| Fixture | Path | Description |
+|---------|------|-------------|
+| Client Registration | `auth/register-client.json` | Response after registering as client |
+| Artist Registration | `auth/register-artist.json` | Response after registering as artist |
+| Registration Validation | `auth/register-validation-error.json` | Validation error response |
+| Duplicate Email | `auth/register-duplicate-email.json` | Error when email already exists |
+| Login Success | `auth/login-success.json` | Successful login response |
+| Login Requires Verification | `auth/login-requires-verification.json` | Response when email not verified |
+| Invalid Credentials | `auth/login-invalid-credentials.json` | Error for bad login attempt |
+| Email Available | `auth/check-email-available.json` | Email availability check (available) |
+| Email Taken | `auth/check-email-taken.json` | Email availability check (taken) |
+| Username Available | `auth/check-username-available.json` | Username availability check |
+
+### Artist
+
 | Fixture | Path | Description |
 |---------|------|-------------|
 | Artist Detail | `artist/detail.json` | Single artist profile response |
@@ -32,14 +49,28 @@ Contract Tests ──> S3 Bucket ──> pull-fixtures.js ──> Playwright Tes
 | Artist Settings | `artist/settings-owner.json` | Artist settings (owner view) |
 | Artist Working Hours | `artist/working-hours.json` | Artist availability schedule |
 | Artist Dashboard Stats | `artist/dashboard-stats.json` | Artist dashboard statistics |
+
+### Client
+
+| Fixture | Path | Description |
+|---------|------|-------------|
 | Client Dashboard | `client/dashboard.json` | Client dashboard data |
 | Client Favorites | `client/favorites.json` | User's favorite artists |
 | Client Wishlist | `client/wishlist.json` | User's artist wishlist |
 | Suggested Artists | `client/suggested-artists.json` | Recommended artists |
+
+### Tattoo
+
+| Fixture | Path | Description |
+|---------|------|-------------|
 | Tattoo Detail | `tattoo/detail.json` | Single tattoo details |
 | Tattoo Search | `tattoo/search.json` | Tattoo search results |
-| Tattoo Create | `tattoo/create-response.json` | Response after creating tattoo |
 | Tattoo Update | `tattoo/update-response.json` | Response after updating tattoo |
+
+### User
+
+| Fixture | Path | Description |
+|---------|------|-------------|
 | User Profile | `user/profile.json` | User profile data |
 | User Update | `user/update-response.json` | Response after updating profile |
 
@@ -129,6 +160,19 @@ const dashboard: ClientDashboard = apiFixtures.client.dashboard;
 
 ## CI/CD Integration
 
+### E2E Workflow
+
+The E2E test workflow (`.github/workflows/e2e.yml`) runs automatically on:
+- Push to `main` or `develop` branches
+- Pull requests targeting `main` or `develop`
+
+The workflow:
+1. Sets up Node.js and installs dependencies
+2. Configures AWS credentials
+3. Pulls fixtures from S3
+4. Installs Playwright browsers
+5. Runs all E2E tests
+
 ### Vercel Deployment
 
 Fixtures are automatically pulled during Vercel builds. Ensure these environment variables are set in Vercel:
@@ -137,7 +181,7 @@ Fixtures are automatically pulled during Vercel builds. Ensure these environment
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION` (default: us-east-1)
 
-### GitHub Actions
+### GitHub Actions Example
 
 ```yaml
 jobs:
@@ -194,7 +238,8 @@ Fixtures are automatically updated when:
 
 ```bash
 # In ink-api directory
-EXPORT_FIXTURES=true php artisan test --filter=Contracts
+# IMPORTANT: Always use the test database to avoid wiping local data
+DB_DATABASE=inkedin_test EXPORT_FIXTURES=true php artisan test --filter=Contracts
 ```
 
 ### Triggering Update from GitHub

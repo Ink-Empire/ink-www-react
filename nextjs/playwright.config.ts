@@ -12,6 +12,9 @@ dotenv.config({ path: path.resolve(__dirname, 'tests/e2e/.env.test') });
 export default defineConfig({
   testDir: './tests/e2e',
 
+  // Pull fixtures from S3 before running tests
+  globalSetup: './tests/e2e/global-setup.ts',
+
   // Run tests in parallel
   fullyParallel: true,
 
@@ -63,11 +66,17 @@ export default defineConfig({
   ],
 
   // Run local dev server before starting the tests
+  // MSW is enabled to mock API requests without a backend
   webServer: {
-    command: 'npm run dev',
+    command: process.env.CI
+      ? 'NEXT_PUBLIC_MSW_ENABLED=true npm run start'
+      : 'NEXT_PUBLIC_MSW_ENABLED=true npm run dev',
     url: 'http://localhost:4000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000, // 2 minutes to start
+    timeout: 120000,
+    env: {
+      NEXT_PUBLIC_MSW_ENABLED: 'true',
+    },
   },
 
   // Global timeout for each test
