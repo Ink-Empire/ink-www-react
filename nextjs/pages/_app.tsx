@@ -14,15 +14,25 @@ import FeedbackFAB from '../components/FeedbackFAB';
 import theme from '../styles/theme';
 import '../styles/globals.css';
 
-// Initialize MSW for browser-side mocking in tests
-async function initMSW() {
-  if (process.env.NEXT_PUBLIC_MSW_ENABLED === 'true' && typeof window !== 'undefined') {
-    const { worker } = await import('../mocks/browser');
-    await worker.start({
-      onUnhandledRequest: 'bypass',
-      quiet: true,
-    });
+// Initialize MSW for browser-side mocking in tests.
+// The start promise is memoized: module scope, useEffect, and StrictMode
+// re-runs all share one worker.start() (msw v2 throws if started twice).
+let mswStartPromise: Promise<void> | null = null;
+function initMSW(): Promise<void> {
+  if (process.env.NEXT_PUBLIC_MSW_ENABLED !== 'true' || typeof window === 'undefined') {
+    return Promise.resolve();
   }
+  if (!mswStartPromise) {
+    mswStartPromise = import('../mocks/browser')
+      .then(({ worker }) =>
+        worker.start({
+          onUnhandledRequest: 'bypass',
+          quiet: true,
+        })
+      )
+      .then(() => undefined);
+  }
+  return mswStartPromise;
 }
 
 // Start MSW before app renders (only in test mode)

@@ -33,22 +33,21 @@ test.describe('Client Dashboard', () => {
     // Verify page loads
     await expect(page).toHaveURL(/dashboard/);
 
-    // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
-
-    // Verify dashboard content loaded (not an error page)
-    // Look for common dashboard elements
-    const hasContent = await page.locator('main, [role="main"], .dashboard, #dashboard').first().isVisible().catch(() => false);
-    expect(hasContent || await page.content().then(c => !c.includes('error'))).toBeTruthy();
+    // Wait for real content instead of networkidle: Pusher/polling
+    // connections keep the network busy, so networkidle never fires.
+    await expect(
+      page.locator('main, [role="main"], .dashboard, #dashboard').first()
+    ).toBeVisible({ timeout: 20000 });
   });
 
   test('loads dashboard data from API', async ({ page }) => {
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
 
     // Verify the page loaded successfully (MSW returned mocked data)
-    // The specific content depends on your dashboard layout
     await expect(page).toHaveURL(/dashboard/);
+    await expect(
+      page.locator('main, [role="main"], .dashboard, #dashboard').first()
+    ).toBeVisible({ timeout: 20000 });
   });
 });
 
@@ -79,10 +78,8 @@ test.describe('Tattoo Search', () => {
     // Verify gallery loads
     await expect(page).toHaveURL(/tattoos/);
 
-    // Wait for content to load
-    await page.waitForLoadState('networkidle');
-
-    // Verify some tattoo content loaded (artist name from fixture)
+    // Verify some tattoo content loaded (artist name from fixture).
+    // No networkidle wait: live socket connections keep the network busy.
     await expect(page.getByText('Alice Johnson').first()).toBeVisible({ timeout: 15000 });
   });
 });
