@@ -24,21 +24,12 @@ const ForgotPasswordPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const validateEmail = (email: string) => {
-    return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!email.trim()) {
-      setError('Please enter your email address');
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      setError('Please enter a valid email address');
+      setError('Please enter your email or username');
       return;
     }
 
@@ -233,7 +224,7 @@ const ForgotPasswordPage: React.FC = () => {
                 lineHeight: 1.6,
               }}
             >
-              Enter your email address and we'll send you a link to reset your password.
+              Enter your email or username and we'll send you a link to reset your password.
             </Typography>
           </Box>
 
@@ -256,8 +247,8 @@ const ForgotPasswordPage: React.FC = () => {
               )}
 
               <TextField
-                label="Email Address"
-                type="email"
+                label="Email or Username"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"

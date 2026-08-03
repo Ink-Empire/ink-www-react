@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import Image from 'next/image';
 import { Box, Typography, IconButton, Avatar } from '@mui/material';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
@@ -8,6 +9,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { ArtistType } from '../models/artist.interface';
 import { useUserData } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { profileImageUrl, tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { colors } from '@/styles/colors';
 
 interface ArtistCardProps {
@@ -16,6 +18,7 @@ interface ArtistCardProps {
 }
 
 const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
+    const router = useRouter();
     const user = useUserData();
     const { isAuthenticated } = useAuth();
     const [isSaved, setIsSaved] = useState(false);
@@ -67,14 +70,17 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
     };
 
     // Get featured image (primary image or regular image)
-    const featuredImage = artist.primary_image?.uri || artist.image?.uri;
+    const rawFeaturedImage = artist.primary_image?.uri || artist.image?.uri;
+    const featuredImage = rawFeaturedImage ? tattooCardUrl(rawFeaturedImage) : undefined;
+    const avatarUri = (artist.image?.uri || artist.primary_image?.uri);
+    const avatarSrc = avatarUri ? profileImageUrl(avatarUri) : undefined;
 
     // Determine availability status
     const getAvailability = () => {
         if (artist.settings?.books_open) {
             return { label: 'Books Open', status: 'open' };
         }
-        return { label: 'Limited', status: 'limited' };
+        return { label: 'Not Currently Booking', status: 'closed' };
     };
 
     const availability = getAvailability();
@@ -107,7 +113,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                     gap: '0.75rem'
                 }}>
                     {/* Avatar */}
-                    {(artist.image?.uri || artist.primary_image?.uri) ? (
+                    {avatarSrc ? (
                         <Box sx={{
                             width: 44,
                             height: 44,
@@ -117,7 +123,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                             position: 'relative'
                         }}>
                             <Image
-                                src={artist.image?.uri || artist.primary_image?.uri}
+                                src={avatarSrc}
                                 alt={artist.name || 'Artist'}
                                 fill
                                 style={{ objectFit: 'cover' }}
@@ -152,23 +158,25 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                         </Typography>
                         {(artist.studio?.name || artist.studio_name) && (
                             artist.studio?.slug ? (
-                                <Link
-                                    href={`/studios/${artist.studio.slug}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    style={{ textDecoration: 'none' }}
-                                >
-                                    <Typography sx={{
+                                <Typography
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        router.push(`/studios/${artist.studio!.slug}`);
+                                    }}
+                                    sx={{
                                         fontSize: '0.8rem',
                                         color: colors.accent,
                                         mb: '0.1rem',
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',
+                                        cursor: 'pointer',
                                         '&:hover': { textDecoration: 'underline' }
-                                    }}>
-                                        {artist.studio?.name || artist.studio_name}
-                                    </Typography>
-                                </Link>
+                                    }}
+                                >
+                                    {artist.studio?.name || artist.studio_name}
+                                </Typography>
                             ) : (
                                 <Typography sx={{
                                     fontSize: '0.8rem',
@@ -293,10 +301,22 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSaveClick }) => {
                 <Box sx={{
                     p: '0.75rem 1rem',
                     display: 'flex',
-                    justifyContent: 'flex-end',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     borderTop: `1px solid ${colors.border}`
                 }}>
+                    {/* Type Badge */}
+                    <Box sx={{
+                        fontSize: '0.75rem',
+                        px: '0.6rem',
+                        py: '0.3rem',
+                        borderRadius: '100px',
+                        fontWeight: 500,
+                        bgcolor: colors.successDim,
+                        color: colors.success
+                    }}>
+                        Artist
+                    </Box>
                     {/* Availability */}
                     <Box sx={{
                         fontSize: '0.75rem',

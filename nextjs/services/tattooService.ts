@@ -25,7 +25,6 @@ export const tattooService = {
   // Search tattoos with pagination
   search: async (params: Record<string, any>): Promise<{
     response: TattooType[];
-    unclaimed_studios?: any[];
     total: number;
     page: number;
     per_page: number;
@@ -90,6 +89,58 @@ export const tattooService = {
   // Remove tags from a tattoo (requires auth)
   removeTags: async (id: number | string, tagIds: number[]): Promise<any> => {
     return api.post(`/tattoos/${id}/tags/remove`, { tag_ids: tagIds }, { requiresAuth: true });
+  },
+
+  // Fetch unclaimed studios (async, separate from search)
+  fetchUnclaimedStudios: async (params: Record<string, any>): Promise<{ unclaimed_studios: any[] }> => {
+    return api.post('/unclaimed-studios', params, {
+      requiresAuth: false,
+    });
+  },
+
+  // Get pending tattoo approvals for the authenticated artist
+  getPendingApprovals: async (): Promise<{ tattoos: any[] }> => {
+    return api.get('/tattoos/pending-approvals', { requiresAuth: true });
+  },
+
+  // Respond to a tattoo tag request (approve or reject)
+  respondToTag: async (id: number | string, action: 'approve' | 'reject'): Promise<{ success: boolean; message: string }> => {
+    return api.post(`/tattoos/${id}/approve`, { action }, { requiresAuth: true });
+  },
+
+  // Client upload - simplified tattoo creation (requires auth)
+  clientUpload: async (data: {
+    image_ids: number[];
+    title?: string;
+    description?: string;
+    tagged_artist_id?: number;
+    style_ids?: string;
+    tag_ids?: string;
+    studio_id?: number;
+    attributed_artist_name?: string;
+    attributed_studio_name?: string;
+    attributed_location?: string;
+    attributed_location_lat_long?: string;
+    artist_invite_email?: string;
+    post_type?: string;
+    timing?: string;
+    allow_artist_contact?: boolean;
+    seeking_location?: string;
+    location_lat_long?: string;
+    seeking_radius?: number;
+    seeking_radius_unit?: string;
+  }): Promise<any> => {
+    return api.post('/tattoos/create', data, { requiresAuth: true });
+  },
+
+  // Get artist invitation details by token (public)
+  getInvitation: async (token: string): Promise<{ invitation: any }> => {
+    return api.get(`/invitations/${token}`);
+  },
+
+  // Claim artist invitation (requires auth)
+  claimInvitation: async (token: string): Promise<{ success: boolean; claimed_count: number; tattoo_ids: number[] }> => {
+    return api.post(`/invitations/${token}/claim`, {}, { requiresAuth: true });
   },
 
   // Get tattoo with full details including tags (public access)

@@ -4,7 +4,7 @@
  * Uses shared types and hooks from @inkedin/shared
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,23 +13,22 @@ import {
   ScrollView,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCalendar } from '@inkedin/shared/hooks';
 import { WorkingHour, Appointment, ExternalCalendarEvent } from '@inkedin/shared/types';
+import type { UpcomingAppointment } from '@inkedin/shared/services';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { colors } from '../../lib/colors';
+import { artistService, appointmentService, messageService } from '../../lib/services';
+import { getCachedCalendarData, fetchAndCacheCalendarData, isCacheStale, clearCalendarCache } from '../../lib/calendarCache';
+import { useAuth } from '../contexts/AuthContext';
 import { CalendarGrid } from '../components/Calendar/CalendarGrid';
 import { CalendarDayModal } from '../components/Calendar/CalendarDayModal';
-
-// Color palette matching the web app
-const colors = {
-  background: '#0D0D0D',
-  surface: '#1A1A1A',
-  border: '#2A2A2A',
-  textPrimary: '#E8E8E8',
-  textSecondary: '#888888',
-  accent: '#C9A962',
-  success: '#4CAF50',
-  error: '#FF5252',
-};
+import { BookingFormModal } from '../components/Calendar/BookingFormModal';
+import { CancelAppointmentModal } from '../components/Calendar/CancelAppointmentModal';
+import { RescheduleAppointmentModal } from '../components/Calendar/RescheduleAppointmentModal';
 
 interface CalendarScreenProps {
   route: {
@@ -37,13 +36,18 @@ interface CalendarScreenProps {
       artistId: number;
       artistName?: string;
       artistSlug?: string;
+      initialDate?: string;
+      flashTattooId?: number;
+      flashTattooTitle?: string;
     };
   };
   navigation: any;
 }
 
 export default function CalendarScreen({ route, navigation }: CalendarScreenProps) {
-  const { artistId, artistName = 'Artist', artistSlug } = route.params;
+  const { artistId, artistName = 'Artist', artistSlug, initialDate, flashTattooId, flashTattooTitle } = route.params;
+  const { user } = useAuth();
+  const isOwnProfile = user?.id === artistId;
 
   // State
   const [loading, setLoading] = useState(true);
@@ -51,7 +55,17 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
-
+  const [bookingFormVisible, setBookingFormVisible] = useState(false);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
+  const [depositAmount, setDepositAmount] = useState<number | null>(null);
+  const [consultationFee, setConsultationFee] = useState<number | null>(null);
+  const [acceptsConsultations, setAcceptsConsultations] = useState(true);
+  const [acceptsAppointments, setAcceptsAppointments] = useState(true);
+  const [selectedBookingType, setSelectedBookingType] = useState<'consultation' | 'appointment'>('consultation');
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<UpcomingAppointment | null>(null);
+  const lastFetchTime = useRef<number>(0);
   // Use the shared calendar hook
   const calendar = useCalendar({
     workingHours,
@@ -59,34 +73,103 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
     externalEvents,
   });
 
-  // Fetch data on mount
   useEffect(() => {
-    fetchCalendarData();
-  }, [artistId]);
+    if (initialDate && typeof initialDate === 'string' && initialDate.includes('-')) {
+      const [y, m] = initialDate.split('-').map(Number);
+      if (y && m) {
+        calendar.goToMonth(m - 1, y);
+        calendar.setSelectedDate(initialDate);
+      }
+    }
+  }, [initialDate]);
 
-  const fetchCalendarData = async () => {
-    setLoading(true);
+  const applyUpcoming = (upcoming: UpcomingAppointment[]) => {
+    setUpcomingAppointments(upcoming);
+    setAppointments(upcoming.map((ua) => ({
+      id: ua.id,
+      title: ua.title,
+      date: ua.date,
+      start_time: ua.time.split(' \u2013 ')[0] || '',
+      end_time: ua.time.split(' \u2013 ')[1] || '',
+      type: (ua.type || 'appointment') as 'consultation' | 'appointment' | 'other',
+      status: 'booked' as const,
+      artist_id: artistId,
+    })));
+  };
+
+  // Load from cache first, then refresh from API
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCalendar = async () => {
+      // 1. Try cache for instant render
+      const cached = await getCachedCalendarData(artistId);
+      if (cached && mounted) {
+        setWorkingHours(cached.workingHours);
+        if (isOwnProfile) {
+          applyUpcoming(cached.upcomingAppointments);
+        }
+        setLoading(false);
+
+        // If cache is fresh, we're done
+        if (!isCacheStale(cached)) return;
+      }
+
+      // 2. Fetch fresh data (either no cache or stale)
+      try {
+        if (isOwnProfile) {
+          const fresh = await fetchAndCacheCalendarData(artistId, artistSlug);
+          if (mounted) {
+            setWorkingHours(fresh.workingHours);
+            applyUpcoming(fresh.upcomingAppointments);
+            lastFetchTime.current = Date.now();
+          }
+        } else {
+          const idOrSlug = artistSlug || artistId;
+          const [hoursResponse, artistResponse] = await Promise.all([
+            artistService.getWorkingHours(idOrSlug),
+            artistService.getById(idOrSlug),
+          ]);
+          const data = (hoursResponse as any)?.data ?? hoursResponse ?? [];
+          if (mounted) {
+            setWorkingHours(Array.isArray(data) ? data : []);
+            const artist = (artistResponse as any)?.artist ?? artistResponse;
+            setDepositAmount(artist?.settings?.deposit_amount ?? null);
+            setConsultationFee(artist?.settings?.consultation_fee ?? null);
+            setAcceptsConsultations(Boolean(artist?.settings?.accepts_consultations));
+            setAcceptsAppointments(Boolean(artist?.settings?.accepts_appointments));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch calendar data:', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadCalendar();
+    return () => { mounted = false; };
+  }, [artistId, isOwnProfile]);
+
+  const refreshUpcomingAppointments = async () => {
     try {
-      // TODO: Replace with actual API calls
-      // const response = await api.get(`/artists/${artistSlug}/working-hours`);
-      // setWorkingHours(response.data);
-
-      // Mock data for now
-      setWorkingHours([
-        { artist_id: artistId, day_of_week: 0, start_time: '09:00', end_time: '17:00', is_day_off: true },
-        { artist_id: artistId, day_of_week: 1, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 2, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 3, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 4, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 5, start_time: '09:00', end_time: '17:00', is_day_off: false },
-        { artist_id: artistId, day_of_week: 6, start_time: '09:00', end_time: '17:00', is_day_off: true },
-      ]);
-    } catch (error) {
-      console.error('Failed to fetch calendar data:', error);
-    } finally {
-      setLoading(false);
+      const fresh = await fetchAndCacheCalendarData(artistId, artistSlug);
+      applyUpcoming(fresh.upcomingAppointments);
+      lastFetchTime.current = Date.now();
+    } catch (err) {
+      console.error('Failed to refresh appointments:', err);
     }
   };
+
+  // Silently refresh when screen regains focus (skip if fetched < 30s ago)
+  useFocusEffect(
+    useCallback(() => {
+      if (!isOwnProfile) return;
+      const elapsed = Date.now() - lastFetchTime.current;
+      if (elapsed < 30000) return;
+      refreshUpcomingAppointments();
+    }, [artistId, isOwnProfile]),
+  );
 
   const handleDayPress = (date: string) => {
     calendar.setSelectedDate(date);
@@ -96,6 +179,113 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
   const handleCloseModal = () => {
     setModalVisible(false);
     calendar.setSelectedDate(null);
+  };
+
+  const handleRequestBooking = (bookingType: 'consultation' | 'appointment') => {
+    setSelectedBookingType(bookingType);
+    setModalVisible(false);
+    setBookingFormVisible(true);
+  };
+
+  const handleCancelPress = (apt: UpcomingAppointment) => {
+    setModalVisible(false);
+    setSelectedAppointment(apt);
+    setCancelModalVisible(true);
+  };
+
+  const handleReschedulePress = (apt: UpcomingAppointment) => {
+    setModalVisible(false);
+    setSelectedAppointment(apt);
+    setRescheduleModalVisible(true);
+  };
+
+  const handleCancelSubmit = async (reason?: string) => {
+    if (!selectedAppointment) return;
+    if (selectedAppointment.conversation_id) {
+      await messageService.sendCancellation(
+        selectedAppointment.conversation_id,
+        selectedAppointment.id,
+        reason,
+      );
+    } else {
+      await appointmentService.cancel(selectedAppointment.id, reason);
+    }
+    clearCalendarCache();
+    await refreshUpcomingAppointments();
+    Alert.alert('Cancelled', 'The appointment has been cancelled.');
+  };
+
+  const handleRescheduleSubmit = async (
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string,
+  ) => {
+    if (!selectedAppointment) return;
+    if (selectedAppointment.conversation_id) {
+      await messageService.sendReschedule(
+        selectedAppointment.conversation_id,
+        selectedAppointment.id,
+        proposedDate,
+        proposedStartTime,
+        proposedEndTime,
+        reason,
+      );
+    } else {
+      await appointmentService.update(selectedAppointment.id, {
+        date: proposedDate,
+        start_time: proposedStartTime,
+        end_time: proposedEndTime,
+      });
+    }
+    clearCalendarCache();
+    await refreshUpcomingAppointments();
+    Alert.alert('Rescheduled', 'The reschedule request has been sent.');
+  };
+
+  const handleDeletePress = (apt: UpcomingAppointment) => {
+    Alert.alert(
+      'Delete Appointment',
+      'Are you sure you want to permanently delete this appointment? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await appointmentService.delete(apt.id);
+              Alert.alert('Deleted', 'The appointment has been deleted.');
+              refreshUpcomingAppointments();
+            } catch {
+              Alert.alert('Error', 'Failed to delete the appointment. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleViewClientProfile = (apt: UpcomingAppointment) => {
+    if (!apt.client_id) return;
+    setModalVisible(false);
+    navigation.navigate('ClientProfile', { clientId: apt.client_id, name: apt.clientName });
+  };
+
+  const handleEditPress = (apt: UpcomingAppointment) => {
+    setModalVisible(false);
+    navigation.navigate('EditAppointment', { appointmentId: apt.id, appointment: apt });
+  };
+
+  const handleContactPress = (apt: UpcomingAppointment) => {
+    if (!apt.client_id) {
+      Alert.alert('Unavailable', 'Client information is not available for this appointment.');
+      return;
+    }
+    navigation.navigate('InboxStack', {
+      screen: 'Conversation',
+      params: { clientId: apt.client_id, participantName: apt.clientName },
+    });
   };
 
   if (loading) {
@@ -143,54 +333,19 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
           </View>
         </View>
 
-        {/* Booking Type Toggle */}
-        <View style={styles.bookingTypeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.bookingTypeButton,
-              calendar.bookingType === 'consultation' && styles.bookingTypeButtonActive,
-            ]}
-            onPress={() => calendar.setBookingType('consultation')}
-          >
-            <Text
-              style={[
-                styles.bookingTypeText,
-                calendar.bookingType === 'consultation' && styles.bookingTypeTextActive,
-              ]}
-            >
-              Consultation
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.bookingTypeButton,
-              calendar.bookingType === 'appointment' && styles.bookingTypeButtonActive,
-            ]}
-            onPress={() => calendar.setBookingType('appointment')}
-          >
-            <Text
-              style={[
-                styles.bookingTypeText,
-                calendar.bookingType === 'appointment' && styles.bookingTypeTextActive,
-              ]}
-            >
-              Appointment
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Calendar Grid */}
         <CalendarGrid
           calendarDays={calendar.calendarDays}
           firstDayOfMonth={calendar.firstDayOfMonth}
           closedDays={calendar.closedDays}
           onDayPress={handleDayPress}
+          isOwnProfile={isOwnProfile}
         />
 
         {/* Legend */}
         <View style={styles.legend}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+            <View style={[styles.legendDot, { backgroundColor: colors.available }]} />
             <Text style={styles.legendText}>Available</Text>
           </View>
           <View style={styles.legendItem}>
@@ -198,6 +353,89 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
             <Text style={styles.legendText}>Unavailable</Text>
           </View>
         </View>
+
+        {/* Upcoming Appointments - own profile only */}
+        {isOwnProfile && upcomingAppointments.length > 0 && (
+          <View style={styles.upcomingSection}>
+            <Text style={styles.upcomingSectionTitle}>Upcoming Appointments</Text>
+            {upcomingAppointments.map((apt) => (
+              <View key={apt.id} style={[
+                styles.appointmentCard,
+                apt.status === 'cancelled' && styles.appointmentCardCancelled,
+              ]}>
+                <TouchableOpacity style={styles.appointmentCardContent} onPress={() => handleDayPress(apt.date)}>
+                  <View style={styles.appointmentDate}>
+                    <Text style={styles.appointmentDay}>{apt.day}</Text>
+                    <Text style={styles.appointmentMonth}>{apt.month}</Text>
+                  </View>
+                  <View style={styles.appointmentInfo}>
+                    <Text style={styles.appointmentTitle}>{apt.title}</Text>
+                    <Text style={styles.appointmentTime}>
+                      <MaterialIcons name="schedule" size={12} color={colors.textMuted} />
+                      {'  '}{apt.time}
+                    </Text>
+                    {apt.client_id ? (
+                      <TouchableOpacity onPress={() => handleViewClientProfile(apt)}>
+                        <Text style={[styles.appointmentClient, styles.clientLink]}>{apt.clientName}</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <Text style={styles.appointmentClient}>{apt.clientName}</Text>
+                    )}
+                  </View>
+                  <View style={[
+                    styles.appointmentTypeBadge,
+                    apt.status === 'cancelled' && styles.appointmentCancelledBadge,
+                    apt.status === 'booked' && styles.appointmentBookedBadge,
+                  ]}>
+                    <Text style={[
+                      styles.appointmentTypeText,
+                      apt.status === 'cancelled' && styles.appointmentCancelledText,
+                      apt.status === 'booked' && styles.appointmentBookedText,
+                    ]}>{apt.status || 'pending'}</Text>
+                  </View>
+                </TouchableOpacity>
+                {apt.status !== 'cancelled' && (
+                <View style={styles.appointmentActions}>
+                  {apt.client_id && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleContactPress(apt)}
+                      >
+                        <MaterialIcons name="chat-bubble-outline" size={16} color={colors.accent} />
+                        <Text style={styles.actionButtonText}>Contact</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => handleReschedulePress(apt)}
+                      >
+                        <MaterialIcons name="update" size={16} color={colors.accent} />
+                        <Text style={styles.actionButtonText}>Reschedule</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.actionButtonCancel]}
+                        onPress={() => handleCancelPress(apt)}
+                      >
+                        <MaterialIcons name="event-busy" size={16} color={colors.error} />
+                        <Text style={[styles.actionButtonText, styles.actionButtonTextCancel]}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  {!apt.client_id && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.actionButtonCancel]}
+                      onPress={() => handleDeletePress(apt)}
+                    >
+                      <MaterialIcons name="delete-outline" size={16} color={colors.error} />
+                      <Text style={[styles.actionButtonText, styles.actionButtonTextCancel]}>Delete</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* Day Detail Modal */}
@@ -205,10 +443,72 @@ export default function CalendarScreen({ route, navigation }: CalendarScreenProp
         visible={modalVisible}
         onClose={handleCloseModal}
         selectedDate={calendar.selectedDate}
-        bookingConfig={calendar.bookingConfig}
         artistName={artistName}
+        depositAmount={depositAmount}
+        consultationFee={consultationFee}
+        acceptsConsultations={acceptsConsultations}
+        acceptsAppointments={acceptsAppointments}
         appointments={calendar.selectedDate ? calendar.getAppointmentsForDate(calendar.selectedDate) : []}
         externalEvents={calendar.selectedDate ? calendar.getExternalEventsForDate(calendar.selectedDate) : []}
+        isOwnProfile={isOwnProfile}
+        ownerAppointments={calendar.selectedDate ? upcomingAppointments.filter(a => {
+          if (a.date) return a.date === calendar.selectedDate;
+          const d = new Date(calendar.selectedDate + 'T00:00:00');
+          const monthShort = d.toLocaleString('en-US', { month: 'short' });
+          return a.day === d.getDate() && a.month === monthShort;
+        }) : []}
+        onRequestBooking={handleRequestBooking}
+        onCancelAppointment={(apt) => handleCancelPress(apt)}
+        onRescheduleAppointment={(apt) => handleReschedulePress(apt)}
+        onDeleteAppointment={(apt) => handleDeletePress(apt)}
+        onContactClient={(apt) => handleContactPress(apt)}
+        onViewClientProfile={(apt) => handleViewClientProfile(apt)}
+        onEditAppointment={(apt) => handleEditPress(apt)}
+      />
+
+      {/* Booking Form Modal */}
+      {!isOwnProfile && (
+        <BookingFormModal
+          visible={bookingFormVisible}
+          onClose={() => {
+            setBookingFormVisible(false);
+            calendar.setSelectedDate(null);
+          }}
+          onSuccess={(conversationId) => {
+            navigation.navigate('InboxStack', {
+              screen: 'Conversation',
+              params: {
+                conversationId,
+                participantName: artistName,
+              },
+            });
+          }}
+          artistId={artistId}
+          artistName={artistName}
+          selectedDate={calendar.selectedDate}
+          bookingType={selectedBookingType}
+          flashTattooId={flashTattooId}
+          flashTattooTitle={flashTattooTitle}
+        />
+      )}
+
+      {/* Cancel Modal */}
+      <CancelAppointmentModal
+        visible={cancelModalVisible}
+        onClose={() => { setCancelModalVisible(false); setSelectedAppointment(null); }}
+        onSubmit={handleCancelSubmit}
+        clientName={selectedAppointment?.clientName}
+      />
+
+      {/* Reschedule Modal */}
+      <RescheduleAppointmentModal
+        visible={rescheduleModalVisible}
+        onClose={() => { setRescheduleModalVisible(false); setSelectedAppointment(null); }}
+        onSubmit={handleRescheduleSubmit}
+        clientName={selectedAppointment?.clientName}
+        currentDate={selectedAppointment?.date}
+        currentStartTime={selectedAppointment?.start_time}
+        currentEndTime={selectedAppointment?.end_time}
       />
     </SafeAreaView>
   );
@@ -271,34 +571,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  bookingTypeContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    gap: 8,
-  },
-  bookingTypeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  bookingTypeButtonActive: {
-    backgroundColor: `${colors.accent}20`,
-    borderColor: colors.accent,
-  },
-  bookingTypeText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  bookingTypeTextActive: {
-    color: colors.accent,
-  },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -318,5 +590,124 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+
+  // Upcoming Appointments
+  upcomingSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  upcomingSectionTitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  appointmentCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 10,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  appointmentCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+  },
+  appointmentDate: {
+    width: 44,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    paddingVertical: 6,
+  },
+  appointmentDay: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  appointmentMonth: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  appointmentInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  appointmentTitle: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  appointmentTime: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  appointmentClient: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  clientLink: {
+    color: colors.accent,
+    textDecorationLine: 'underline',
+  },
+  appointmentTypeBadge: {
+    backgroundColor: colors.accentDim,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  appointmentTypeText: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  appointmentBookedBadge: {
+    backgroundColor: colors.successDim,
+  },
+  appointmentBookedText: {
+    color: colors.success,
+  },
+  appointmentCancelledBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+  },
+  appointmentCancelledText: {
+    color: colors.error,
+  },
+  appointmentCardCancelled: {
+    opacity: 0.75,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  appointmentActions: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 4,
+  },
+  actionButtonCancel: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.border,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  actionButtonTextCancel: {
+    color: colors.error,
   },
 });

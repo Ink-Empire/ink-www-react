@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Select, MenuItem, SelectChangeEvent } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { colors } from '@/styles/colors';
 import { WorkingHour, isDayOff } from '@inkedin/shared/types';
+import { DayScheduleRow } from './DayScheduleRow';
+import type { DaySchedule } from './DayScheduleRow';
 
 // Re-export for backwards compatibility
 export type { WorkingHour } from '@inkedin/shared/types';
@@ -47,18 +49,9 @@ const TIME_OPTIONS = [
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// Internal schedule format
-interface DaySchedule {
-  active: boolean;
-  start: string;
-  end: string;
-}
-
 type Schedule = {
   [key: string]: DaySchedule;
 };
-
-// WorkingHour type is now imported from @inkedin/shared/types
 
 interface WorkingHoursEditorProps {
   initialHours?: WorkingHour[];
@@ -75,12 +68,6 @@ const formatTimeForSelect = (time: string): string => {
   return `${parts[0]}:${parts[1]}`;
 };
 
-// Helper to get time label from value
-const getTimeLabel = (value: string): string => {
-  const option = TIME_OPTIONS.find(t => t.value === value);
-  return option?.label || value;
-};
-
 const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
   initialHours,
   onChange,
@@ -88,20 +75,19 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
   entityType = 'artist',
   infoText = "These are your default weekly hours. You can still block specific dates on your calendar."
 }) => {
-  // Internal schedule state
   const [schedule, setSchedule] = useState<Schedule>({
-    sunday: { active: false, start: '10:00', end: '17:00' },
-    monday: { active: true, start: '09:00', end: '17:00' },
-    tuesday: { active: true, start: '09:00', end: '17:00' },
-    wednesday: { active: true, start: '09:00', end: '17:00' },
-    thursday: { active: true, start: '09:00', end: '17:00' },
-    friday: { active: true, start: '10:00', end: '18:00' },
-    saturday: { active: false, start: '10:00', end: '17:00' },
+    sunday: { active: false, start: '10:00', end: '17:00', consultationStart: null, consultationEnd: null },
+    monday: { active: true, start: '09:00', end: '17:00', consultationStart: null, consultationEnd: null },
+    tuesday: { active: true, start: '09:00', end: '17:00', consultationStart: null, consultationEnd: null },
+    wednesday: { active: true, start: '09:00', end: '17:00', consultationStart: null, consultationEnd: null },
+    thursday: { active: true, start: '09:00', end: '17:00', consultationStart: null, consultationEnd: null },
+    friday: { active: true, start: '10:00', end: '18:00', consultationStart: null, consultationEnd: null },
+    saturday: { active: false, start: '10:00', end: '17:00', consultationStart: null, consultationEnd: null },
   });
 
   const [appliedFeedback, setAppliedFeedback] = useState<string | null>(null);
+  const [activePresets, setActivePresets] = useState<Set<string>>(new Set());
 
-  // Day keys in order
   const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
   // Initialize from initial hours
@@ -109,7 +95,6 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
     if (initialHours && initialHours.length > 0) {
       const newSchedule: Schedule = {};
       dayKeys.forEach((day, index) => {
-        // API uses 0-6 (0 = Sunday)
         const hourData = initialHours.find(h => h.day_of_week === index);
         if (hourData) {
           const isDayOff = hourData.is_day_off ||
@@ -118,20 +103,56 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
             active: !isDayOff,
             start: formatTimeForSelect(hourData.start_time),
             end: formatTimeForSelect(hourData.end_time),
+            consultationStart: hourData.consultation_start_time
+              ? formatTimeForSelect(hourData.consultation_start_time)
+              : null,
+            consultationEnd: hourData.consultation_end_time
+              ? formatTimeForSelect(hourData.consultation_end_time)
+              : null,
           };
         } else {
-          // Default values
           const isWeekend = day === 'sunday' || day === 'saturday';
           newSchedule[day] = {
             active: !isWeekend,
             start: '09:00',
             end: '17:00',
+            consultationStart: null,
+            consultationEnd: null,
           };
         }
       });
       setSchedule(newSchedule);
+      setActivePresets(detectPresets(newSchedule));
+      notifyChange(newSchedule);
     }
   }, [initialHours]);
+
+  // Notify parent of default schedule on mount so pendingHours is never empty
+  useEffect(() => {
+    notifyChange(schedule);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Detect which presets match the current schedule
+  const detectPresets = useCallback((s: Schedule): Set<string> => {
+    const matched = new Set<string>();
+    const activeDays = dayKeys.filter(d => s[d].active);
+    const allActiveMatch = (start: string, end: string) =>
+      activeDays.length > 0 && activeDays.every(d => s[d].start === start && s[d].end === end);
+
+    if (allActiveMatch('09:00', '17:00')) matched.add('9to5');
+    if (allActiveMatch('10:00', '18:00')) matched.add('10to6');
+    if (allActiveMatch('11:00', '19:00')) matched.add('11to7');
+
+    const weekdaysOnly = dayKeys.every(d => {
+      const isWeekend = d === 'sunday' || d === 'saturday';
+      return s[d].active === !isWeekend;
+    });
+    if (weekdaysOnly) matched.add('weekdays');
+    if (dayKeys.every(d => s[d].active)) matched.add('alldays');
+
+    return matched;
+  }, []);
 
   // Convert schedule to WorkingHour format and notify parent
   const notifyChange = useCallback((newSchedule: Schedule) => {
@@ -142,14 +163,16 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
         day_of_week: index,
         start_time: dayData.active ? `${dayData.start}:00` : '00:00:00',
         end_time: dayData.active ? `${dayData.end}:00` : '00:00:00',
+        consultation_start_time: dayData.consultationStart ? `${dayData.consultationStart}:00` : null,
+        consultation_end_time: dayData.consultationEnd ? `${dayData.consultationEnd}:00` : null,
         is_day_off: !dayData.active,
         [idKey]: entityId,
       } as WorkingHour;
     });
     onChange(hours);
-  }, [onChange, entityId, entityType]);
+    setActivePresets(detectPresets(newSchedule));
+  }, [onChange, entityId, entityType, detectPresets]);
 
-  // Toggle a day on/off
   const toggleDay = (day: string) => {
     const newSchedule = {
       ...schedule,
@@ -159,7 +182,6 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
     notifyChange(newSchedule);
   };
 
-  // Update time
   const updateTime = (day: string, type: 'start' | 'end', value: string) => {
     const newSchedule = {
       ...schedule,
@@ -169,19 +191,52 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
     notifyChange(newSchedule);
   };
 
-  // Copy hours from one day to all active days
+  const toggleConsultation = (day: string) => {
+    const dayData = schedule[day];
+    const hasWindow = dayData.consultationStart !== null;
+    const newSchedule = {
+      ...schedule,
+      [day]: {
+        ...dayData,
+        consultationStart: hasWindow ? null : dayData.start,
+        consultationEnd: hasWindow ? null : (() => {
+          // Default: 2 hours after start, capped at end
+          const [h] = dayData.start.split(':').map(Number);
+          const defaultEnd = `${String(Math.min(h + 2, parseInt(dayData.end))).padStart(2, '0')}:00`;
+          return defaultEnd <= dayData.end ? defaultEnd : dayData.end;
+        })(),
+      },
+    };
+    setSchedule(newSchedule);
+    notifyChange(newSchedule);
+  };
+
+  const updateConsultationTime = (day: string, type: 'consultationStart' | 'consultationEnd', value: string) => {
+    const newSchedule = {
+      ...schedule,
+      [day]: { ...schedule[day], [type]: value }
+    };
+    setSchedule(newSchedule);
+    notifyChange(newSchedule);
+  };
+
   const copyToAll = (sourceDay: string) => {
     const source = schedule[sourceDay];
     const newSchedule = { ...schedule };
     dayKeys.forEach(day => {
       if (newSchedule[day].active) {
-        newSchedule[day] = { ...newSchedule[day], start: source.start, end: source.end };
+        newSchedule[day] = {
+          ...newSchedule[day],
+          start: source.start,
+          end: source.end,
+          consultationStart: source.consultationStart,
+          consultationEnd: source.consultationEnd,
+        };
       }
     });
     setSchedule(newSchedule);
     notifyChange(newSchedule);
 
-    // Show feedback
     setAppliedFeedback(sourceDay);
     setTimeout(() => setAppliedFeedback(null), 1500);
   };
@@ -190,8 +245,12 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
   const setPreset = (preset: string) => {
     const newSchedule = { ...schedule };
 
+    // If no days are active, activate all days first for time presets
+    const hasActiveDays = dayKeys.some(day => newSchedule[day].active);
+
     switch (preset) {
       case '9to5':
+        if (!hasActiveDays) dayKeys.forEach(day => { newSchedule[day].active = true; });
         dayKeys.forEach(day => {
           if (newSchedule[day].active) {
             newSchedule[day].start = '09:00';
@@ -200,6 +259,7 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
         });
         break;
       case '10to6':
+        if (!hasActiveDays) dayKeys.forEach(day => { newSchedule[day].active = true; });
         dayKeys.forEach(day => {
           if (newSchedule[day].active) {
             newSchedule[day].start = '10:00';
@@ -208,6 +268,7 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
         });
         break;
       case '11to7':
+        if (!hasActiveDays) dayKeys.forEach(day => { newSchedule[day].active = true; });
         dayKeys.forEach(day => {
           if (newSchedule[day].active) {
             newSchedule[day].start = '11:00';
@@ -232,7 +293,6 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
     notifyChange(newSchedule);
   };
 
-  // Select styles for time dropdowns
   const selectStyles = {
     bgcolor: colors.surface,
     color: colors.textPrimary,
@@ -287,9 +347,9 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
 
       <Box sx={{ display: 'flex', gap: '0.5rem', mb: '1.5rem', flexWrap: 'wrap' }}>
         {[
-          { id: '9to5', label: '9 AM – 5 PM' },
-          { id: '10to6', label: '10 AM – 6 PM' },
-          { id: '11to7', label: '11 AM – 7 PM' },
+          { id: '9to5', label: '9 AM \u2013 5 PM' },
+          { id: '10to6', label: '10 AM \u2013 6 PM' },
+          { id: '11to7', label: '11 AM \u2013 7 PM' },
           { id: 'weekdays', label: 'Weekdays Only' },
           { id: 'alldays', label: 'Every Day' },
         ].map(preset => (
@@ -300,11 +360,12 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
             sx={{
               px: '1rem',
               py: '0.5rem',
-              bgcolor: colors.surfaceElevated,
-              border: `1px solid ${colors.borderLight}`,
+              bgcolor: activePresets.has(preset.id) ? `${colors.accent}1A` : colors.surfaceElevated,
+              border: `1px solid ${activePresets.has(preset.id) ? colors.accent : colors.borderLight}`,
               borderRadius: '100px',
               fontSize: '0.8rem',
-              color: colors.textSecondary,
+              color: activePresets.has(preset.id) ? colors.accent : colors.textSecondary,
+              fontWeight: activePresets.has(preset.id) ? 600 : 400,
               cursor: 'pointer',
               fontFamily: 'inherit',
               transition: 'all 0.2s ease',
@@ -333,144 +394,23 @@ const WorkingHoursEditor: React.FC<WorkingHoursEditorProps> = ({
 
       {/* Day Rows */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {dayKeys.map((day, index) => {
-          const dayData = schedule[day];
-          const isActive = dayData.active;
-
-          return (
-            <Box
-              key={day}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                p: '1rem',
-                bgcolor: colors.background,
-                border: `1px solid ${colors.border}`,
-                borderRadius: '8px',
-                transition: 'border-color 0.2s ease',
-                opacity: isActive ? 1 : 0.5,
-                flexWrap: { xs: 'wrap', sm: 'nowrap' },
-                '&:hover': { borderColor: colors.borderLight }
-              }}
-            >
-              {/* Toggle Switch */}
-              <Box
-                onClick={() => toggleDay(day)}
-                sx={{
-                  width: 44,
-                  height: 24,
-                  bgcolor: isActive ? colors.accent : colors.surfaceElevated,
-                  borderRadius: '12px',
-                  position: 'relative',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s ease',
-                  flexShrink: 0,
-                  '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    width: 18,
-                    height: 18,
-                    bgcolor: isActive ? colors.background : colors.textPrimary,
-                    borderRadius: '50%',
-                    top: 3,
-                    left: 3,
-                    transition: 'transform 0.2s ease',
-                    transform: isActive ? 'translateX(20px)' : 'translateX(0)',
-                  }
-                }}
-              />
-
-              {/* Day Name */}
-              <Typography sx={{
-                width: '90px',
-                fontWeight: 500,
-                color: isActive ? colors.textPrimary : colors.textSecondary,
-                flexShrink: 0
-              }}>
-                {DAY_NAMES[index]}
-              </Typography>
-
-              {isActive ? (
-                <Box sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  flex: 1,
-                  justifyContent: { xs: 'flex-start', sm: 'flex-end' },
-                  flexWrap: 'wrap',
-                  width: { xs: '100%', sm: 'auto' },
-                  pl: { xs: '56px', sm: 0 }
-                }}>
-                  {/* Start Time */}
-                  <Select
-                    value={dayData.start}
-                    onChange={(e: SelectChangeEvent) => updateTime(day, 'start', e.target.value)}
-                    size="small"
-                    sx={selectStyles}
-                    MenuProps={menuProps}
-                  >
-                    {TIME_OPTIONS.map(opt => (
-                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                    ))}
-                  </Select>
-
-                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
-                    to
-                  </Typography>
-
-                  {/* End Time */}
-                  <Select
-                    value={dayData.end}
-                    onChange={(e: SelectChangeEvent) => updateTime(day, 'end', e.target.value)}
-                    size="small"
-                    sx={selectStyles}
-                    MenuProps={menuProps}
-                  >
-                    {TIME_OPTIONS.map(opt => (
-                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                    ))}
-                  </Select>
-
-                  {/* Apply to All Button */}
-                  <Box
-                    component="button"
-                    onClick={() => copyToAll(day)}
-                    sx={{
-                      background: 'none',
-                      border: 'none',
-                      color: colors.accent,
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      p: '0.25rem 0.5rem',
-                      ml: '0.25rem',
-                      whiteSpace: 'nowrap',
-                      opacity: { xs: 1, sm: 0 },
-                      transition: 'opacity 0.2s ease',
-                      '.MuiBox-root:hover &': { opacity: 1 },
-                      '&:hover': { textDecoration: 'underline' }
-                    }}
-                  >
-                    {appliedFeedback === day ? 'Applied!' : 'Apply to all'}
-                  </Box>
-                </Box>
-              ) : (
-                <Typography sx={{
-                  color: colors.textSecondary,
-                  fontSize: '0.9rem',
-                  fontStyle: 'italic',
-                  flex: 1,
-                  textAlign: { xs: 'left', sm: 'right' },
-                  pl: { xs: '56px', sm: 0 },
-                  width: { xs: '100%', sm: 'auto' }
-                }}>
-                  Day Off
-                </Typography>
-              )}
-            </Box>
-          );
-        })}
+        {dayKeys.map((day, index) => (
+          <DayScheduleRow
+            key={day}
+            day={day}
+            dayName={DAY_NAMES[index]}
+            dayData={schedule[day]}
+            timeOptions={TIME_OPTIONS}
+            selectStyles={selectStyles}
+            menuProps={menuProps}
+            appliedFeedback={appliedFeedback}
+            onToggleDay={toggleDay}
+            onUpdateTime={updateTime}
+            onToggleConsultation={toggleConsultation}
+            onUpdateConsultationTime={updateConsultationTime}
+            onCopyToAll={copyToAll}
+          />
+        ))}
       </Box>
 
       {/* Info Note */}

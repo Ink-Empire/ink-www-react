@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import dynamic from 'next/dynamic';
 import Layout from '../components/Layout';
 import {Box, Typography, Button, Avatar, Switch, TextField, IconButton, CircularProgress, Divider, Menu, MenuItem, ListItemIcon, ListItemText, Dialog, DialogContent, DialogTitle, Tooltip} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -24,11 +25,11 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CollectionsIcon from '@mui/icons-material/Collections';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import LockIcon from '@mui/icons-material/Lock';
-import SettingsIcon from '@mui/icons-material/Settings';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PhoneIcon from '@mui/icons-material/Phone';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import StarIcon from '@mui/icons-material/Star';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,16 +39,24 @@ import { studioService } from '@/services/studioService';
 import { artistService } from '@/services/artistService';
 import { leadService } from '@/services/leadService';
 import { userService } from '@/services/userService';
+import { messageService } from '@/services/messageService';
 import { tattooService } from '@/services/tattooService';
 import { StudioType } from '@/models/studio.interface';
-import EditStudioModal from '../components/EditStudioModal';
-import WorkingHoursModal, { WorkingHour } from '../components/WorkingHoursModal';
-import AddArtistModal from '../components/AddArtistModal';
-import ClientDashboardContent from '../components/ClientDashboardContent';
-import ChangePasswordModal from '../components/ChangePasswordModal';
-import TattooCreateWizard from '../components/TattooCreateWizard';
+import type { WorkingHour } from '../components/WorkingHoursModal';
 import ComingSoonBadge from '../components/ui/ComingSoonBadge';
-import StudioInvitations from '../components/StudioInvitations';
+
+import { useProfilePhoto } from '@/hooks';
+
+// Lazy load heavy modals - only loaded when needed
+const EditStudioModal = dynamic(() => import('../components/EditStudioModal'), { ssr: false });
+const WorkingHoursModal = dynamic(() => import('../components/WorkingHoursModal'), { ssr: false });
+const AddArtistModal = dynamic(() => import('../components/AddArtistModal'), { ssr: false });
+const ClientDashboardContent = dynamic(() => import('../components/ClientDashboardContent'), { ssr: false });
+const ChangePasswordModal = dynamic(() => import('../components/ChangePasswordModal'), { ssr: false });
+const TattooCreateWizard = dynamic(() => import('../components/TattooCreateWizard'), { ssr: false });
+const StudioInvitations = dynamic(() => import('../components/StudioInvitations'), { ssr: false });
+const ImageCropperModal = dynamic(() => import('../components/ImageCropperModal'), { ssr: false });
+const ClientsTabContent = dynamic(() => import('../components/clients/ClientsTabContent'), { ssr: false });
 
 // Dashboard components
 import {
@@ -55,16 +64,16 @@ import {
   CardLink,
   StatCard,
   DashboardTab,
-  ScheduleItem,
   ActivityItem,
   SavedArtistCard,
   LeadCard,
+  PendingApprovalsDialog,
+  usePendingApprovalsCount,
 } from '../components/dashboard';
 
 // Dashboard types
 import type {
   DashboardStats,
-  ScheduleItem as ScheduleItemType,
   ActivityItem as ActivityItemType,
   StudioArtist,
   Announcement,
@@ -117,7 +126,14 @@ export default function Dashboard() {
 
   // Artist data states
   const [artistSeekingSpots, setArtistSeekingSpots] = useState(false);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const {
+    loading: isUploadingAvatar,
+    cropperImage,
+    isCropperOpen,
+    takeProfilePhoto,
+    handleCropComplete,
+    handleCropCancel,
+  } = useProfilePhoto({ onSuccess: refreshUser });
   const [artistTattoos, setArtistTattoos] = useState<Tattoo[]>([]);
   const [isLoadingTattoos, setIsLoadingTattoos] = useState(false);
 
@@ -126,10 +142,13 @@ export default function Dashboard() {
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  // Dashboard stats and schedule (fetched from API)
+  // Dashboard stats (fetched from API)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>(defaultStats);
-  const [schedule, setSchedule] = useState<ScheduleItemType[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Pending approvals
+  const { count: pendingApprovalsCount } = usePendingApprovalsCount();
+  const [pendingApprovalsOpen, setPendingApprovalsOpen] = useState(false);
 
   // Saved artists (wishlist)
   const { wishlist: savedArtists, loading: savedArtistsLoading, removeFromWishlist } = useWishlist();
@@ -138,88 +157,98 @@ export default function Dashboard() {
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
   const [isAddingAnnouncement, setIsAddingAnnouncement] = useState(false);
 
-  // File input refs
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-
   const userName = user?.name?.split(' ')[0] || user?.username || '';
   const userInitials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.username?.slice(0, 2).toUpperCase() || 'U';
   const ownedStudio = user?.owned_studio || user?.studio;
+
   const studioInitials = ownedStudio?.name
     ? ownedStudio.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'ST';
   // type_id: 1 = client/enthusiast, 2 = artist, 3 = studio
   const isClient = user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client';
+  const isArtist = user?.type_id === 2 || user?.type_id === '2' || user?.type === 'artist';
   const isStudioAccount = user?.type_id === 3 || user?.type_id === '3' || user?.type === 'studio';
-  const hasStudio = (user?.is_studio_admin && ownedStudio) || isStudioAccount;
+  const hasStudio = !!ownedStudio || isStudioAccount;
 
+  // Get the correct avatar URL - for studio accounts, use studio image; otherwise user image
+  const getUserAvatarUrl = () => {
+    const studioImg = isStudioAccount ? (ownedStudio?.image || studioData?.image) : null;
+    const userImg = user?.image;
+    const img = studioImg || userImg;
+    if (!img) return undefined;
+    return typeof img === 'string' ? img : img?.uri;
+  };
+  const userAvatarUrl = getUserAvatarUrl();
 
-  // Set default tab to 'studio' for pure studio accounts
+  // Set default tab to 'studio' only for pure studio accounts
   useEffect(() => {
     if (isStudioAccount) {
       setActiveTab('studio');
     }
   }, [isStudioAccount]);
 
-  // Create or claim studio from pending data for newly verified studio accounts
+  // Handle pending studio data from registration (create studio or link image)
   useEffect(() => {
-    const createPendingStudio = async () => {
-      // Only run for studio accounts without an existing owned_studio
-      if (!isStudioAccount || ownedStudio || !user?.id) return;
+    const processPendingStudioData = async () => {
+      if (!isStudioAccount || !user?.id) return;
 
-      // Check for pending studio data from registration
       const pendingDataStr = localStorage.getItem('pendingStudioData');
       if (!pendingDataStr) return;
 
+      // IMMEDIATELY clear pending data to prevent duplicate processing
+      localStorage.removeItem('pendingStudioData');
+
       try {
         const pendingData = JSON.parse(pendingDataStr);
-        console.log('Processing pending studio data...', pendingData);
 
-        // Generate slug from username or name
-        const generateSlug = (text: string) => {
-          return text.toLowerCase()
-            .replace(/[^a-z0-9]/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '');
-        };
-
-        const studioPayload = {
-          name: pendingData.name || '',
-          slug: generateSlug(pendingData.username || pendingData.name || ''),
-          about: pendingData.bio || '',
-          location: pendingData.location || '',
-          location_lat_long: pendingData.locationLatLong || '',
-          owner_id: user.id,
-          email: pendingData.email || undefined,
-          phone: pendingData.phone || undefined,
-        };
-
-        // Check if this is claiming an existing studio or creating a new one
-        if (pendingData.existingStudioId) {
-          // Claim existing Google Places studio
-          console.log('Claiming existing studio:', pendingData.existingStudioId);
-          await studioService.claim(pendingData.existingStudioId, studioPayload);
-          console.log('Studio claimed successfully');
+        if (ownedStudio) {
+          // Studio already exists (created by AuthController during registration).
+          // Just link the uploaded image if we have one.
+          if (ownedStudio.id && pendingData.uploadedImageId) {
+            await studioService.uploadImage(ownedStudio.id, pendingData.uploadedImageId);
+            await refreshUser();
+          }
         } else {
-          // Create new studio
-          console.log('Creating new studio...');
-          await studioService.create(studioPayload);
-          console.log('Studio created successfully');
+          // Studio doesn't exist yet — create or claim it with image_id included
+          const generateSlug = (text: string) => {
+            return text.toLowerCase()
+              .replace(/[^a-z0-9]/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '');
+          };
+
+          const studioPayload: Record<string, unknown> = {
+            name: pendingData.name || '',
+            slug: generateSlug(pendingData.username || pendingData.name || ''),
+            about: pendingData.bio || '',
+            location: pendingData.location || '',
+            location_lat_long: pendingData.locationLatLong || '',
+            owner_id: user.id,
+            email: pendingData.email || undefined,
+            phone: pendingData.phone || undefined,
+          };
+
+          if (pendingData.uploadedImageId) {
+            studioPayload.image_id = pendingData.uploadedImageId;
+          }
+
+          if (pendingData.existingStudioId) {
+            await studioService.claim(pendingData.existingStudioId, studioPayload);
+          } else {
+            await studioService.create(studioPayload);
+          }
+
+          await refreshUser();
         }
-
-        // Clear pending data
-        localStorage.removeItem('pendingStudioData');
-
-        // Refresh user to get the owned_studio
-        await refreshUser();
       } catch (err) {
-        console.error('Failed to create/claim studio from pending data:', err);
-        // Don't remove pending data on error so it can be retried
+        console.error('Failed to process pending studio data:', err);
+        localStorage.setItem('pendingStudioData', pendingDataStr);
       }
     };
 
-    createPendingStudio();
+    processPendingStudioData();
   }, [isStudioAccount, ownedStudio, user?.id, refreshUser]);
 
   // Load studio data when tab switches to studio (or on mount for studio accounts)
@@ -228,13 +257,6 @@ export default function Dashboard() {
       loadStudioData();
     }
   }, [activeTab, hasStudio, ownedStudio?.id]);
-
-  // Load artist tattoos on mount (only for artists, not studio accounts)
-  useEffect(() => {
-    if (user?.id && !isStudioAccount) {
-      loadArtistTattoos();
-    }
-  }, [user?.id, isStudioAccount]);
 
   // Load leads for artists (not for studio accounts or clients)
   useEffect(() => {
@@ -253,60 +275,49 @@ export default function Dashboard() {
     loadLeads();
   }, [user?.id, isClient, isStudioAccount]);
 
-  // Load dashboard stats and schedule (only for artists, not studio accounts)
+  // Load artist dashboard data (stats, schedule, tattoos) - single API call with caching
   useEffect(() => {
-    const loadDashboardData = async () => {
-      if (!user?.id || isStudioAccount) return;
+    const loadArtistDashboard = async () => {
+      if (!user?.id || !isArtist) return;
 
       setIsLoadingStats(true);
+      setIsLoadingTattoos(true);
       try {
-        // Define types for dashboard API responses
-        interface DashboardStatsResponse {
-          upcoming_appointments?: number;
-          appointments_trend?: string;
-          profile_views?: number;
-          views_trend?: string;
-          saves_this_week?: number;
-          saves_trend?: string;
-        }
+        // Single API call for all artist dashboard data (tattoos are cached on backend)
+        const response = await artistService.getDashboard(user.id);
+        const data = response?.data || response;
 
-        // Fetch stats and schedule in parallel
-        const [statsRes, scheduleRes] = await Promise.all([
-          artistService.getDashboardStats(user.id).catch(() => null),
-          artistService.getUpcomingSchedule(user.id).catch(() => null)
-        ]);
-
-        if (statsRes) {
-          // API returns { data: { ... } }, so extract the data object
-          const stats = (statsRes as any).data || statsRes;
+        // Set stats
+        if (data.stats) {
           setDashboardStats({
-            upcomingAppointments: stats.upcoming_appointments || 0,
-            appointmentsTrend: stats.appointments_trend || '+0',
-            profileViews: stats.profile_views || 0,
-            viewsTrend: stats.views_trend || '+0%',
-            savesThisWeek: stats.saves_this_week || 0,
-            savesTrend: stats.saves_trend || '+0',
-            unreadMessages: stats.unread_messages || 0
+            upcomingAppointments: data.stats.upcoming_appointments || 0,
+            appointmentsTrend: data.stats.appointments_trend || '+0',
+            profileViews: data.stats.profile_views || 0,
+            viewsTrend: data.stats.views_trend || '+0%',
+            savesThisWeek: data.stats.saves_this_week || 0,
+            savesTrend: data.stats.saves_trend || '+0',
+            unreadMessages: data.stats.unread_messages || 0
           });
         }
 
-        if (scheduleRes) {
-          // API returns { data: [...] }, so extract the data array
-          const scheduleData = (scheduleRes as any).data || scheduleRes;
-          setSchedule(Array.isArray(scheduleData) ? scheduleData : []);
+        // Set tattoos (cached on backend for 5 minutes)
+        if (data.tattoos) {
+          setArtistTattoos(Array.isArray(data.tattoos) ? data.tattoos : []);
         }
       } catch (err) {
-        console.error('Failed to load dashboard data:', err);
+        console.error('Failed to load artist dashboard:', err);
       } finally {
         setIsLoadingStats(false);
+        setIsLoadingTattoos(false);
       }
     };
 
-    if (user?.id && !isStudioAccount) {
-      loadDashboardData();
+    if (user?.id && isArtist) {
+      loadArtistDashboard();
     }
-  }, [user?.id, isStudioAccount]);
+  }, [user?.id, isArtist]);
 
+  // Refresh tattoos after upload (bypasses cache temporarily)
   const loadArtistTattoos = async () => {
     if (!user?.slug) return;
     setIsLoadingTattoos(true);
@@ -323,17 +334,13 @@ export default function Dashboard() {
   const loadStudioData = async () => {
     if (!ownedStudio?.id) return;
     try {
-      const [studioRes, artistsRes, announcementsRes, statsRes, workingHoursRes] = await Promise.all([
-        studioService.getById(ownedStudio.id),
-        studioService.getArtists(ownedStudio.id),
-        studioService.getAnnouncements(ownedStudio.id),
-        studioService.getDashboardStats(ownedStudio.id).catch(() => null),
-        studioService.getHours(ownedStudio.id).catch(() => []),
-      ]);
-      const studio = (studioRes as any).studio || studioRes;
+      // Use combined dashboard endpoint - single API call instead of 5
+      const dashboardData = await studioService.getDashboard(ownedStudio.id);
+
+      const studio = (dashboardData.studio as any)?.data || dashboardData.studio;
       setStudioData(studio);
-      setStudioArtists(Array.isArray(artistsRes) ? artistsRes : []);
-      setAnnouncements(Array.isArray(announcementsRes) ? announcementsRes : []);
+      setStudioArtists(Array.isArray(dashboardData.artists) ? dashboardData.artists : []);
+      setAnnouncements(Array.isArray(dashboardData.announcements) ? dashboardData.announcements : []);
       setSeekingGuests(studio?.seeking_guest_artists || false);
       setGuestSpotDetails(studio?.guest_spot_details || '');
       // Initialize contact form with current studio data
@@ -345,11 +352,11 @@ export default function Dashboard() {
         postal_code: studio?.postal_code || '',
         phone: studio?.phone || '',
       });
-      if (statsRes) {
-        setStudioStats(statsRes);
+      if (dashboardData.stats) {
+        setStudioStats(dashboardData.stats);
       }
       // Set working hours from API response
-      const hours = Array.isArray(workingHoursRes) ? workingHoursRes : (workingHoursRes as any)?.data || [];
+      const hours = Array.isArray(dashboardData.working_hours) ? dashboardData.working_hours : [];
       setStudioWorkingHours(hours);
     } catch (err) {
       console.error('Failed to load studio data:', err);
@@ -503,22 +510,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingAvatar(true);
-    try {
-      const formData = new FormData();
-      formData.append('profile_photo', file);
-      await userService.uploadProfilePhoto(formData);
-      await refreshUser();
-    } catch (err) {
-      console.error('Failed to upload avatar:', err);
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  };
 
   const handleToggleFeatured = async (tattooId: number) => {
     // Optimistically update
@@ -536,8 +527,9 @@ export default function Dashboard() {
     }
   };
 
-  // Render client dashboard for clients (type_id = 1)
-  if (isClient) {
+  // Render client dashboard for clients without a studio (type_id = 1)
+  // Clients who own a studio should see the full dashboard with studio tab
+  if (isClient && !hasStudio) {
     return (
       <Layout>
         <Head>
@@ -584,9 +576,9 @@ export default function Dashboard() {
           <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap' }}>
             <Button
               component={Link}
-              href={isStudioAccount || (activeTab === 'studio' && (studioData?.slug || ownedStudio?.slug))
-                ? `/studios/${studioData?.slug || ownedStudio?.slug}`
-                : (user?.slug ? `/artists/${user.slug}` : '#')}
+              href={isStudioAccount || activeTab === 'studio'
+                ? `/studios/${studioData?.slug || ownedStudio?.slug || user?.slug}`
+                : `/artists/${user?.slug}`}
               sx={{
                 flex: { xs: 1, md: 'none' },
                 px: 2,
@@ -601,24 +593,10 @@ export default function Dashboard() {
               }}
               startIcon={<VisibilityIcon sx={{ fontSize: 18 }} />}
             >
-              {isStudioAccount ? 'View Studio Page' : 'View Public Profile'}
+              {(isStudioAccount || activeTab === 'studio') ? 'View Studio Page' : 'View Public Profile'}
             </Button>
-            {/* Settings button for studios */}
-            {isStudioAccount && (
-              <IconButton
-                onClick={() => setEditStudioOpen(true)}
-                sx={{
-                  color: colors.textPrimary,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: '6px',
-                  '&:hover': { borderColor: colors.accent, color: colors.accent }
-                }}
-              >
-                <SettingsIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            )}
-            {/* Upload button - only show for artists, not pure studio accounts */}
-            {!isStudioAccount && (
+            {/* Upload button - only show for artists */}
+            {isArtist && (
             <Button
               onClick={(e) => setUploadMenuAnchor(e.currentTarget)}
               sx={{
@@ -639,6 +617,33 @@ export default function Dashboard() {
               Upload
             </Button>
             )}
+            <Button
+              onClick={async () => {
+                try {
+                  const { conversation_id } = await messageService.sendSupportMessage();
+                  if (conversation_id) {
+                    router.push(`/inbox?conversation=${conversation_id}`);
+                    return;
+                  }
+                } catch {}
+                router.push('/contact');
+              }}
+              sx={{
+                flex: { xs: 1, md: 'none' },
+                px: 2,
+                py: 1,
+                color: colors.textPrimary,
+                border: `1px solid ${colors.border}`,
+                borderRadius: '6px',
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: '0.9rem',
+                '&:hover': { borderColor: colors.accent, color: colors.accent }
+              }}
+              startIcon={<HelpOutlineIcon sx={{ fontSize: 18 }} />}
+            >
+              Get Help
+            </Button>
             <Menu
               anchorEl={uploadMenuAnchor}
               open={Boolean(uploadMenuAnchor)}
@@ -700,8 +705,8 @@ export default function Dashboard() {
           </Box>
         </Box>
 
-        {/* Dashboard Tabs - only show if user has a studio AND is not a pure studio account */}
-        {hasStudio && !isStudioAccount && (
+        {/* Dashboard Tabs - for anyone with a studio or artists (for clients tab) */}
+        {(hasStudio && !isStudioAccount || isArtist) && (
           <Box sx={{
             display: 'flex',
             gap: 3,
@@ -710,32 +715,114 @@ export default function Dashboard() {
             pb: 0
           }}>
             <DashboardTab
-              label="My Artist Profile"
+              label={isArtist ? "My Artist Profile" : "My Dashboard"}
               initials={userInitials}
-              imageUrl={typeof user?.image === 'string' ? user.image : user?.image?.uri}
+              imageUrl={userAvatarUrl}
               isActive={activeTab === 'artist'}
               onClick={() => setActiveTab('artist')}
               accentAvatar
             />
-            <DashboardTab
-              label={ownedStudio?.name || 'My Studio'}
-              initials={studioInitials}
-              imageUrl={typeof (ownedStudio?.image || studioData?.image) === 'string' ? (ownedStudio?.image || studioData?.image) : (ownedStudio?.image?.uri || studioData?.image?.uri)}
-              isActive={activeTab === 'studio'}
-              onClick={() => setActiveTab('studio')}
-            />
+            {hasStudio && !isStudioAccount && (
+              <DashboardTab
+                label={ownedStudio?.name || 'My Studio'}
+                initials={studioInitials}
+                imageUrl={typeof (ownedStudio?.image || studioData?.image) === 'string' ? (ownedStudio?.image || studioData?.image) : (ownedStudio?.image?.uri || studioData?.image?.uri)}
+                isActive={activeTab === 'studio'}
+                onClick={() => setActiveTab('studio')}
+              />
+            )}
+            {isArtist && (
+              <Box
+                onClick={() => setActiveTab('clients')}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  pb: 1.5,
+                  px: 0.5,
+                  cursor: 'pointer',
+                  borderBottom: activeTab === 'clients' ? `2px solid ${colors.accent}` : '2px solid transparent',
+                  mb: '-1px',
+                  minHeight: 32,
+                  transition: 'border-color 0.2s',
+                  '&:hover': { borderColor: activeTab === 'clients' ? colors.accent : colors.borderLight },
+                }}
+              >
+                <Typography sx={{
+                  fontSize: '0.95rem',
+                  fontWeight: activeTab === 'clients' ? 600 : 500,
+                  color: activeTab === 'clients' ? colors.textPrimary : colors.textSecondary,
+                }}>
+                  My Clients
+                </Typography>
+              </Box>
+            )}
           </Box>
         )}
 
-        {/* Studio Invitations - Only for artists, not studio accounts */}
-        {!isStudioAccount && activeTab === 'artist' && (
+        {/* Studio Invitations - Only for artists viewing artist tab */}
+        {isArtist && activeTab === 'artist' && (
           <StudioInvitations onInvitationAccepted={refreshUser} />
         )}
 
-        {/* Stats Row */}
+        {/* Clients Tab - CRM for artists */}
+        {isArtist && activeTab === 'clients' && (
+          <ClientsTabContent />
+        )}
+
+        {/* Client Dashboard Content - for clients on their dashboard tab */}
+        {isClient && activeTab === 'artist' && (
+          <ClientDashboardContent userName={userName} userId={user?.id || 0} />
+        )}
+
+        {/* Pending approvals banner */}
+        {activeTab === 'artist' && pendingApprovalsCount > 0 && (
+          <Box
+            onClick={() => setPendingApprovalsOpen(true)}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              p: 2,
+              mb: 2,
+              bgcolor: `${colors.accent}15`,
+              border: `1px solid ${colors.accent}`,
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': { bgcolor: `${colors.accent}25` },
+            }}
+          >
+            <Box sx={{
+              width: 44,
+              height: 44,
+              bgcolor: colors.accent,
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <CheckCircleIcon sx={{ color: colors.background, fontSize: 24 }} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: colors.textPrimary }}>
+                {pendingApprovalsCount} tattoo{pendingApprovalsCount === 1 ? '' : 's'} waiting for your approval
+              </Typography>
+              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
+                A client tagged you as the artist. Review and claim your work.
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: colors.accent, flexShrink: 0 }}>
+              Review &rarr;
+            </Typography>
+          </Box>
+        )}
+
+        {/* Stats Row - for artists or studio tab (not clients tab) */}
+        {(isArtist || activeTab === 'studio') && activeTab !== 'clients' && (
         <Box sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: activeTab === 'artist' ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)' },
           gap: 2,
           mb: 3
         }}>
@@ -747,6 +834,7 @@ export default function Dashboard() {
                 label="Upcoming Appointments"
                 trend={dashboardStats.appointmentsTrend}
                 trendUp
+                href="/manage-calendar"
               />
               <StatCard
                 icon={<VisibilityIcon />}
@@ -767,6 +855,15 @@ export default function Dashboard() {
                 value={dashboardStats.unreadMessages}
                 label="Unread Messages"
                 trend="New"
+                href="/inbox"
+              />
+              <StatCard
+                icon={<CheckCircleIcon />}
+                value={pendingApprovalsCount}
+                label="Approve Tags"
+                trend={pendingApprovalsCount > 0 ? 'Action' : ''}
+                trendUp={pendingApprovalsCount > 0}
+                onClick={() => setPendingApprovalsOpen(true)}
               />
             </>
           ) : (
@@ -777,6 +874,7 @@ export default function Dashboard() {
                 label="Studio Bookings This Week"
                 trend={studioStats?.bookings?.trend_label || ''}
                 trendUp={(studioStats?.bookings?.trend ?? 0) >= 0}
+                href="/calendar"
               />
               <StatCard
                 icon={<VisibilityIcon />}
@@ -796,39 +894,22 @@ export default function Dashboard() {
                 value={studioStats?.inquiries?.count ?? 0}
                 label="Studio Inquiries"
                 trend={studioStats?.inquiries?.trend_label || ''}
+                href="/inbox"
               />
             </>
           )}
         </Box>
+        )}
 
-        {/* Main Grid */}
+        {/* Main Grid - for artists or studio tab (not clients tab) */}
+        {(isArtist || activeTab === 'studio') && activeTab !== 'clients' && (
         <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '1fr 340px', lg: '1fr 380px' },
           gap: 2
         }}>
           {/* Main Column */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Upcoming Schedule */}
-            <Card
-              title={activeTab === 'artist' ? 'Upcoming Schedule' : 'Studio Schedule'}
-              action={<CardLink href={activeTab === 'artist' ? '/calendar' : '/studio-calendar'}>View Calendar →</CardLink>}
-            >
-              <Box>
-                {schedule.length > 0 ? (
-                  schedule.map((item, index) => (
-                    <ScheduleItem key={item.id} item={item} isLast={index === schedule.length - 1} />
-                  ))
-                ) : (
-                  <Box sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
-                      No upcoming appointments scheduled
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Card>
-
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
             {/* Clients to Reach Out To */}
             {activeTab === 'artist' && (
               <Card
@@ -1061,11 +1142,11 @@ export default function Dashboard() {
               </Card>
             )}
 
-            {/* Your Saved Artists */}
+            {/* My Saved Items */}
             {activeTab === 'artist' && (
               <Card
-                title="Your Saved Artists"
-                action={<CardLink href="/artists">Browse More →</CardLink>}
+                title="My Saved Items"
+                action={<CardLink href="/wishlist">View All →</CardLink>}
                 icon={<BookmarkIcon />}
               >
                 {savedArtistsLoading ? (
@@ -1129,7 +1210,7 @@ export default function Dashboard() {
           </Box>
 
           {/* Side Column */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
             {activeTab === 'artist' ? (
               <>
                 {/* Your Profile Card */}
@@ -1142,10 +1223,10 @@ export default function Dashboard() {
                   }}>
                     <Box
                       sx={{ position: 'relative', cursor: 'pointer' }}
-                      onClick={() => avatarInputRef.current?.click()}
+                      onClick={takeProfilePhoto}
                     >
                       <Avatar
-                        src={typeof user?.image === 'string' ? user.image : user?.image?.uri}
+                        src={userAvatarUrl}
                         sx={{
                           width: 64,
                           height: 64,
@@ -1953,7 +2034,7 @@ export default function Dashboard() {
                       borderBottom: studioArtists.length > 0 ? `1px solid ${colors.border}` : 'none',
                     }}>
                       <Avatar
-                        src={typeof user?.image === 'string' ? user.image : user?.image?.uri}
+                        src={userAvatarUrl}
                         sx={{
                           width: 44,
                           height: 44,
@@ -2244,9 +2325,10 @@ export default function Dashboard() {
             )}
           </Box>
         </Box>
+        )}
 
         {/* Guest Spot Opportunities - Artist Tab Only */}
-        {activeTab === 'artist' && (
+        {isArtist && activeTab === 'artist' && (
         <Box sx={{ mt: 3 }}>
           <Card
             title="Guest Spot Opportunities"
@@ -2528,13 +2610,20 @@ export default function Dashboard() {
         )}
       </Dialog>
 
-      {/* Hidden file input for avatar upload */}
-      <input
-        ref={avatarInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleAvatarUpload}
-        style={{ display: 'none' }}
+      {/* Image cropper modal for avatar upload */}
+      {cropperImage && (
+        <ImageCropperModal
+          isOpen={isCropperOpen}
+          imageSrc={cropperImage}
+          onClose={handleCropCancel}
+          onCropComplete={handleCropComplete}
+        />
+      )}
+
+      {/* Pending Approvals Dialog - opened from Approve Tags stat card */}
+      <PendingApprovalsDialog
+        open={pendingApprovalsOpen}
+        onClose={() => setPendingApprovalsOpen(false)}
       />
     </Layout>
   );

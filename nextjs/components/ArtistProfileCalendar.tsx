@@ -1,26 +1,32 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { Box, Typography, IconButton, Modal, Button, CircularProgress, Switch, TextField, Tooltip } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
+import UpdateIcon from '@mui/icons-material/Update';
 import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { api } from '@/utils/api';
 import { artistService } from '@/services/artistService';
 import { appointmentService } from '@/services/appointmentService';
 import { leadService } from '@/services/leadService';
+import { messageService } from '@/services/messageService';
 import { useArtistAppointments, useWorkingHours, useMobile } from '@/hooks';
 import { colors } from '@/styles/colors';
 import WorkingHoursModal from './WorkingHoursModal';
 import { ResponsiveModal } from './ui/ResponsiveModal';
 import { LoginRequiredModal, BookingConfirmModal } from './calendar';
+import { CancelAppointmentModal } from './inbox/CancelAppointmentModal';
+import { RescheduleAppointmentModal } from './inbox/RescheduleAppointmentModal';
 import {
   ExternalCalendarEvent,
   WorkingHour,
@@ -35,10 +41,13 @@ interface ArtistProfileCalendarProps {
   onDateSelected?: (date: Date, workingHours: any, bookingType: 'consultation' | 'appointment') => void;
   showExternalEvents?: boolean;
   isOwnCalendar?: boolean;
+  onAppointmentChanged?: () => void;
+  onViewClientProfile?: (clientId: number) => void;
 }
 
 export interface ArtistProfileCalendarRef {
   refreshEvents: () => void;
+  selectDay: (dateStr: string) => void;
 }
 
 const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfileCalendarProps>(({
@@ -48,8 +57,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   onDateSelected,
   showExternalEvents = false,
   isOwnCalendar = false,
+  onAppointmentChanged,
+  onViewClientProfile,
 }, ref) => {
   const { user, isAuthenticated } = useAuth();
+  const router = useRouter();
   const { showConfirm } = useDialog();
   const isMobile = useMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -76,6 +88,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
 
   // Working hours modal state
   const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
+  const pendingBooksOpen = React.useRef(false);
 
   // Booking settings state for owner view
   const [bookingSettings, setBookingSettings] = useState({
@@ -84,6 +97,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     consultation_fee: '',
     minimum_session: ''
   });
+
+  // Booking preferences (what the artist accepts)
+  const [acceptsConsultations, setAcceptsConsultations] = useState(true);
+  const [acceptsAppointments, setAcceptsAppointments] = useState(true);
+  const [consultationDuration, setConsultationDuration] = useState(30);
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Artist day management modal state
@@ -94,6 +112,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   const [guestName, setGuestName] = useState('');
   const [inviteNote, setInviteNote] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
+
+  // Cancel/Reschedule modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [actionAppointment, setActionAppointment] = useState<{ id: number | string; conversationId: number; clientName?: string; date?: string; startTime?: string; endTime?: string } | null>(null);
 
   // Calendar event form state
   const [eventType, setEventType] = useState<'appointment' | 'consultation' | 'other'>('appointment');
@@ -133,10 +156,17 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     }
   }, [showExternalEvents, isOwnCalendar, currentDate]);
 
-  // Expose refresh method to parent
+  // Expose methods to parent
   useImperativeHandle(ref, () => ({
     refreshEvents: () => {
       fetchExternalEvents();
+    },
+    selectDay: (dateStr: string) => {
+      // Navigate the calendar to the month containing this date and open the day modal
+      const targetDate = new Date(dateStr + 'T00:00:00');
+      setCurrentDate(targetDate);
+      setSelectedDay(dateStr);
+      setArtistDayModalOpen(true);
     },
   }), [fetchExternalEvents]);
 
@@ -150,8 +180,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     appointments: fetchedAppointments,
     loading: appointmentsLoading,
     refresh: refreshAppointments,
-    deleteAppointment
-  } = useArtistAppointments(artistIdOrSlug);
+  } = useArtistAppointments(artistIdOrSlug, { enabled: isOwnCalendar });
 
   // Working hours hook for saving (only used when viewing own profile)
   const { saveWorkingHours } = useWorkingHours(resolvedArtistId);
@@ -230,18 +259,17 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
             consultation_fee: settings.consultation_fee && settings.consultation_fee > 0 ? settings.consultation_fee.toString() : '',
             minimum_session: settings.minimum_session && settings.minimum_session > 0 ? settings.minimum_session.toString() : ''
           });
+          setAcceptsConsultations(settings.accepts_consultations ?? false);
+          setAcceptsAppointments(settings.accepts_appointments ?? false);
+          setConsultationDuration(settings.consultation_duration || 30);
         }
 
-        if (booksAreOpen) {
-          const workingHoursResponse = await artistService.getWorkingHours(artist.slug);
-          // Handle both array and { data: [...] } response formats
-          const workingHoursData = Array.isArray(workingHoursResponse)
-            ? workingHoursResponse
-            : (workingHoursResponse?.data || []);
-          setWorkingHours(workingHoursData);
-        } else {
-          setWorkingHours([]);
-        }
+        // Always fetch working hours regardless of books status
+        const workingHoursResponse = await artistService.getWorkingHours(artist.slug);
+        const workingHoursData = Array.isArray(workingHoursResponse)
+          ? workingHoursResponse
+          : (workingHoursResponse?.data || []);
+        setWorkingHours(workingHoursData);
       } catch (error) {
         console.error('Error fetching artist data or working hours:', error);
         setWorkingHours([]);
@@ -257,6 +285,15 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
 
     fetchArtistAndWorkingHours();
   }, [artist?.id]);
+
+  // Auto-select a valid booking type if the current one is disabled
+  useEffect(() => {
+    if (bookingType === 'consultation' && !acceptsConsultations && acceptsAppointments) {
+      setBookingType('appointment');
+    } else if (bookingType === 'appointment' && !acceptsAppointments && acceptsConsultations) {
+      setBookingType('consultation');
+    }
+  }, [acceptsConsultations, acceptsAppointments]);
 
   // Check if artist is on user's wishlist (only when books are closed)
   useEffect(() => {
@@ -321,17 +358,24 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     const newValue = !booksOpen;
     const previousValue = booksOpen;
 
-    // Optimistic update - mark timestamp to prevent ES data from overwriting
+    // Optimistic update
     setBooksOpen(newValue);
     booksOpenLocalUpdate.current = Date.now();
     setIsTogglingBooks(true);
 
     try {
       await artistService.updateSettings(resolvedArtistId, { books_open: newValue });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update books status:', err);
+      // If API returns requires_availability, open the working hours modal
+      if (err?.status === 422 && err?.data?.requires_availability) {
+        pendingBooksOpen.current = true;
+        setWorkingHoursModalOpen(true);
+        return;
+      }
       // Revert on error
       setBooksOpen(previousValue);
+      booksOpenLocalUpdate.current = Date.now();
     } finally {
       setIsTogglingBooks(false);
     }
@@ -340,13 +384,57 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   // Handle saving working hours from modal
   const handleSaveWorkingHours = async (hours: any[]) => {
     try {
-      await saveWorkingHours(hours);
+      const result = await saveWorkingHours(hours);
       // Update local state with new hours
       setWorkingHours(hours);
       setWorkingHoursModalOpen(false);
+
+      // If we were waiting to open books, do it now
+      if (pendingBooksOpen.current && resolvedArtistId) {
+        pendingBooksOpen.current = false;
+        const hasAvailableHours = hours.some((h: any) => !h.is_day_off);
+        if (hasAvailableHours) {
+          setIsTogglingBooks(true);
+          try {
+            await artistService.updateSettings(resolvedArtistId, { books_open: true });
+            setBooksOpen(true);
+            booksOpenLocalUpdate.current = Date.now();
+          } catch (err) {
+            console.error('Failed to open books after setting hours:', err);
+            setBooksOpen(false);
+          } finally {
+            setIsTogglingBooks(false);
+          }
+        } else {
+          setBooksOpen(false);
+        }
+        return;
+      }
+
+      if (result.booksClosed) {
+        setBooksOpen(false);
+        booksOpenLocalUpdate.current = Date.now();
+      }
     } catch (err) {
       console.error('Failed to save working hours:', err);
+      if (pendingBooksOpen.current) {
+        pendingBooksOpen.current = false;
+        setBooksOpen(false);
+      }
     }
+  };
+
+  // Handle working hours modal close — if no valid working hours exist, books must stay closed
+  const handleWorkingHoursModalClose = () => {
+    pendingBooksOpen.current = false;
+    const hasAvailableHours = workingHours.some(h => !h.is_day_off);
+    if (!hasAvailableHours) {
+      setBooksOpen(false);
+      if (resolvedArtistId) {
+        artistService.updateSettings(resolvedArtistId, { books_open: false }).catch(() => {});
+      }
+    }
+    setWorkingHoursModalOpen(false);
   };
 
   // Handle booking settings change
@@ -524,11 +612,85 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     setEventDescription('');
   };
 
+  const openActionModal = async (apt: any, action: 'cancel' | 'reschedule') => {
+    try {
+      const response = await messageService.createConversation(
+        apt.clientId as number,
+        'booking',
+        undefined,
+        typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id
+      );
+      const conversationId = response.conversation?.id;
+      if (!conversationId) return;
+      setActionAppointment({
+        id: typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id,
+        conversationId,
+        clientName: apt.extendedProps?.clientName || apt.clientName || undefined,
+        date: apt.start ? (typeof apt.start === 'string' ? apt.start.substring(0, 10) : apt.start.toISOString().split('T')[0]) : undefined,
+        startTime: apt.extendedProps?.startTime || apt.start_time || undefined,
+        endTime: apt.extendedProps?.endTime || apt.end_time || undefined,
+      });
+      if (action === 'cancel') setCancelModalOpen(true);
+      else setRescheduleModalOpen(true);
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+    }
+  };
+
+  const handleCancelSubmit = async (reason?: string) => {
+    if (!actionAppointment) return;
+    await messageService.sendCancellation(actionAppointment.conversationId, actionAppointment.id as number, reason);
+    setCancelModalOpen(false);
+    setActionAppointment(null);
+    closeArtistDayModal();
+    refreshAppointments();
+    onAppointmentChanged?.();
+  };
+
+  const handleRescheduleSubmit = async (
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string
+  ) => {
+    if (!actionAppointment) return;
+    await messageService.sendReschedule(
+      actionAppointment.conversationId,
+      actionAppointment.id as number,
+      proposedDate,
+      proposedStartTime,
+      proposedEndTime,
+      reason
+    );
+    refreshAppointments();
+  };
+
+  const handleDeleteAppointment = async (apt: any) => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to permanently delete this appointment? This cannot be undone.',
+      'Delete Appointment',
+    );
+    if (!confirmed) return;
+    try {
+      const aptId = typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id;
+      await appointmentService.delete(aptId);
+      refreshAppointments();
+      closeArtistDayModal();
+      onAppointmentChanged?.();
+    } catch (err) {
+      console.error('Failed to delete appointment:', err);
+    }
+  };
+
   // Get appointments for a specific date
   const getAppointmentsForDate = (dateStr: string) => {
     return fetchedAppointments.filter(apt => {
-      const aptDate = new Date(apt.start).toISOString().split('T')[0];
-      return aptDate === dateStr;
+      if (apt.date) return apt.date === dateStr;
+      if (apt.start) {
+        const aptDate = new Date(apt.start).toISOString().split('T')[0];
+        return aptDate === dateStr;
+      }
+      return false;
     });
   };
 
@@ -632,8 +794,37 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   // Check if viewing own profile
   const isOwnProfile = isAuthenticated && user?.id === resolvedArtistId;
 
-  // Render books closed warning with notification signup
-  if (!workingHoursLoading && booksOpen === false) {
+  const baseConfig = BOOKING_CONFIG[bookingType];
+
+  // Override config with actual artist settings
+  const config = useMemo(() => {
+    if (bookingType === 'consultation') {
+      const fee = parseFloat(bookingSettings.consultation_fee);
+      return {
+        ...baseConfig,
+        duration: `${consultationDuration} minutes`,
+        cost: fee > 0 ? `$${fee}` : 'Free',
+        modalDuration: `${consultationDuration} min`,
+        modalCost: fee > 0 ? `$${fee}` : 'Free',
+      };
+    }
+    if (bookingType === 'appointment') {
+      const hourlyRate = parseFloat(bookingSettings.hourly_rate);
+      const minSession = parseFloat(bookingSettings.minimum_session);
+      const depositAmt = parseFloat(bookingSettings.deposit_amount);
+      return {
+        ...baseConfig,
+        duration: minSession > 0 ? `${minSession}+ hours` : baseConfig.duration,
+        cost: hourlyRate > 0 ? `$${hourlyRate}/hr` : baseConfig.cost,
+        modalDuration: minSession > 0 ? `${minSession}+ hrs` : baseConfig.modalDuration,
+        modalCost: depositAmt > 0 ? `$${depositAmt} deposit` : baseConfig.modalCost,
+      };
+    }
+    return baseConfig;
+  }, [bookingType, bookingSettings, consultationDuration, baseConfig]);
+
+  // Render books closed warning with notification signup (skip for own calendar page)
+  if (!workingHoursLoading && booksOpen === false && !isOwnCalendar) {
     return (
       <Box sx={{
         bgcolor: colors.surface,
@@ -811,8 +1002,6 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     );
   }
 
-  const config = BOOKING_CONFIG[bookingType];
-
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gap: { xs: 2, md: 3 } }}>
       {/* Calendar Container */}
@@ -834,8 +1023,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               {monthNames[month]} {year}
             </Typography>
             <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, color: colors.textSecondary }}>
-              <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{availableCount}</Box> days available
-              {!isMobile && <> · Next: <Box component="span" sx={{ color: colors.accent, fontWeight: 600 }}>{nextAvailable}</Box></>}
+              <Box component="span" sx={{ color: colors.available, fontWeight: 600 }}>{availableCount}</Box> days available
+              {!isMobile && <> · Next: <Box component="span" sx={{ color: colors.available, fontWeight: 600 }}>{nextAvailable}</Box></>}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -1013,13 +1202,13 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                       borderRadius: { xs: '5px', sm: '6px' }
                     }
                   } : isAvailable ? {
-                    bgcolor: `${colors.accent}1A`,
-                    borderColor: colors.accent,
+                    bgcolor: `${colors.available}15`,
+                    border: { xs: `1.5px solid ${colors.available}`, sm: `2px solid ${colors.available}` },
                     color: colors.textPrimary,
                     '&:hover': {
-                      bgcolor: `${colors.accent}33`,
+                      bgcolor: `${colors.available}33`,
                       transform: { xs: 'none', sm: 'scale(1.08)' },
-                      boxShadow: { xs: 'none', sm: `0 4px 20px ${colors.accent}33` },
+                      boxShadow: { xs: 'none', sm: `0 4px 20px ${colors.available}33` },
                       zIndex: 2
                     }
                   } : {
@@ -1116,7 +1305,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {isOwnProfile ? (
           <>
-            {/* Books Status Card - Owner View */}
+            {/* Books Status Card - Owner View (hidden on /calendar page, handled by page-level toggle) */}
+            {!isOwnCalendar && (
             <Box sx={{
               bgcolor: colors.surface,
               borderRadius: '12px',
@@ -1171,6 +1361,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 />
               </Box>
             </Box>
+            )}
 
             {/* Working Hours Card - Owner View */}
             <Box sx={{
@@ -1227,72 +1418,6 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               </Box>
             </Box>
 
-            {/* Legend Card - Owner View */}
-            <Box sx={{
-              bgcolor: colors.surface,
-              borderRadius: '12px',
-              p: 2,
-              border: `1px solid ${colors.border}`
-            }}>
-              <Typography sx={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontSize: '1.25rem',
-                fontWeight: 500,
-                mb: 1.5,
-                color: colors.textPrimary
-              }}>
-                Legend
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {[
-                  { type: 'available', label: 'Available', desc: 'Open for bookings' },
-                  { type: 'unavailable', label: 'Unavailable', desc: 'Already booked' },
-                  { type: 'closed', label: 'Closed', desc: 'Day off' },
-                  ...(showExternalEvents ? [{ type: 'google', label: 'Google Event', desc: 'From Google Calendar' }] : [])
-                ].map(item => (
-                  <Box key={item.type} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: '4px',
-                      flexShrink: 0,
-                      position: 'relative',
-                      ...(item.type === 'available' ? {
-                        bgcolor: `${colors.accent}1A`,
-                        border: `2px solid ${colors.accent}`
-                      } : item.type === 'unavailable' ? {
-                        bgcolor: colors.background,
-                        border: '2px solid transparent'
-                      } : item.type === 'google' ? {
-                        bgcolor: colors.background,
-                        border: '2px solid transparent'
-                      } : {
-                        background: `repeating-linear-gradient(45deg, ${colors.background}, ${colors.background} 3px, ${colors.surface} 3px, ${colors.surface} 6px)`,
-                        border: '2px solid transparent'
-                      })
-                    }}>
-                      {/* Google Calendar blue dot indicator */}
-                      {item.type === 'google' && (
-                        <Box sx={{
-                          position: 'absolute',
-                          top: '2px',
-                          right: '2px',
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          bgcolor: '#4285F4',
-                        }} />
-                      )}
-                    </Box>
-                    <Box>
-                      <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.8rem' }}>
-                        {item.label}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
           </>
         ) : (
           <>
@@ -1304,8 +1429,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
               border: `1px solid ${colors.border}`
             }}>
               <Box sx={{
-                bgcolor: `${colors.accent}1A`,
-                border: `1px solid ${colors.accent}4D`,
+                bgcolor: `${colors.available}15`,
+                border: `1px solid ${colors.available}4D`,
                 borderRadius: '8px',
                 p: 1.5,
                 display: 'flex',
@@ -1313,9 +1438,9 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 gap: 1,
                 mb: 1.5
               }}>
-                <Box sx={{ width: 10, height: 10, bgcolor: colors.accent, borderRadius: '50%' }} />
+                <Box sx={{ width: 10, height: 10, bgcolor: colors.available, borderRadius: '50%' }} />
                 <Typography sx={{ fontSize: '0.85rem', color: colors.textPrimary }}>
-                  Showing <Box component="strong" sx={{ color: colors.accent }}>{bookingType}</Box> availability
+                  Showing <Box component="strong" sx={{ color: colors.available }}>{bookingType}</Box> availability
                 </Typography>
               </Box>
 
@@ -1336,54 +1461,78 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 p: 0.5,
                 gap: 0.5
               }}>
-                <Button
-                  onClick={() => setBookingType('consultation')}
-                  sx={{
-                    flex: 1,
-                    py: 1,
-                    px: 1.5,
-                    borderRadius: '6px',
-                    textTransform: 'none',
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    flexDirection: 'column',
-                    ...(bookingType === 'consultation' ? {
-                      bgcolor: colors.accent,
-                      color: colors.background,
-                      '&:hover': { bgcolor: colors.accentHover }
-                    } : {
-                      color: colors.textSecondary,
-                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
-                    })
-                  }}
-                >
-                  Consultation
-                  <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}></Box>
-                </Button>
-                <Button
-                  onClick={() => setBookingType('appointment')}
-                  sx={{
-                    flex: 1,
-                    py: 1,
-                    px: 1.5,
-                    borderRadius: '6px',
-                    textTransform: 'none',
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    flexDirection: 'column',
-                    ...(bookingType === 'appointment' ? {
-                      bgcolor: colors.accent,
-                      color: colors.background,
-                      '&:hover': { bgcolor: colors.accentHover }
-                    } : {
-                      color: colors.textSecondary,
-                      '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
-                    })
-                  }}
-                >
-                  Appointment
-                  <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}>In-studio session</Box>
-                </Button>
+                <Tooltip title={!acceptsConsultations ? 'Consultations not accepted' : ''} arrow>
+                  <Box sx={{ flex: 1 }}>
+                    <Button
+                      onClick={() => setBookingType('consultation')}
+                      disabled={!acceptsConsultations}
+                      sx={{
+                        width: '100%',
+                        py: 1,
+                        px: 1.5,
+                        borderRadius: '6px',
+                        textTransform: 'none',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        flexDirection: 'column',
+                        ...(!acceptsConsultations ? {
+                          opacity: 0.4,
+                          color: colors.textSecondary,
+                          '&.Mui-disabled': { color: colors.textSecondary }
+                        } : bookingType === 'consultation' ? {
+                          bgcolor: colors.accent,
+                          color: colors.background,
+                          '&:hover': { bgcolor: colors.accentHover }
+                        } : {
+                          color: colors.textSecondary,
+                          '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                        })
+                      }}
+                    >
+                      Consultation
+                      {!acceptsConsultations && (
+                        <Box component="span" sx={{ fontSize: '0.6rem', opacity: 0.8, mt: 0.25 }}>Not accepted</Box>
+                      )}
+                    </Button>
+                  </Box>
+                </Tooltip>
+                <Tooltip title={!acceptsAppointments ? 'Appointments not accepted' : ''} arrow>
+                  <Box sx={{ flex: 1 }}>
+                    <Button
+                      onClick={() => setBookingType('appointment')}
+                      disabled={!acceptsAppointments}
+                      sx={{
+                        width: '100%',
+                        py: 1,
+                        px: 1.5,
+                        borderRadius: '6px',
+                        textTransform: 'none',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        flexDirection: 'column',
+                        ...(!acceptsAppointments ? {
+                          opacity: 0.4,
+                          color: colors.textSecondary,
+                          '&.Mui-disabled': { color: colors.textSecondary }
+                        } : bookingType === 'appointment' ? {
+                          bgcolor: colors.accent,
+                          color: colors.background,
+                          '&:hover': { bgcolor: colors.accentHover }
+                        } : {
+                          color: colors.textSecondary,
+                          '&:hover': { color: colors.textPrimary, bgcolor: 'transparent' }
+                        })
+                      }}
+                    >
+                      Appointment
+                      {!acceptsAppointments ? (
+                        <Box component="span" sx={{ fontSize: '0.6rem', opacity: 0.8, mt: 0.25 }}>Not accepted</Box>
+                      ) : (
+                        <Box component="span" sx={{ fontSize: '0.65rem', opacity: 0.7, mt: 0.25 }}>In-studio session</Box>
+                      )}
+                    </Button>
+                  </Box>
+                </Tooltip>
               </Box>
             </Box>
 
@@ -1416,8 +1565,8 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                       borderRadius: '6px',
                       flexShrink: 0,
                       ...(item.type === 'available' ? {
-                        bgcolor: `${colors.accent}1A`,
-                        border: `2px solid ${colors.accent}`
+                        bgcolor: `${colors.available}15`,
+                        border: `2px solid ${colors.available}`
                       } : item.type === 'unavailable' ? {
                         bgcolor: colors.background,
                         border: '2px solid transparent'
@@ -1499,6 +1648,67 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         )}
       </Box>
 
+      {/* Legend - Full Width (Owner View) */}
+      {isOwnProfile && (
+        <Box sx={{
+          gridColumn: '1 / -1',
+          display: 'flex',
+          alignItems: 'center',
+          gap: { xs: 2, sm: 4 },
+          flexWrap: 'wrap',
+          bgcolor: colors.surface,
+          borderRadius: '10px',
+          border: `1px solid ${colors.border}`,
+          px: 2,
+          py: 1.5,
+        }}>
+          {[
+            { type: 'available', label: 'Available' },
+            { type: 'unavailable', label: 'Unavailable' },
+            { type: 'closed', label: 'Closed' },
+            ...(showExternalEvents ? [{ type: 'google', label: 'Google Event' }] : [])
+          ].map(item => (
+            <Box key={item.type} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{
+                width: 20,
+                height: 20,
+                borderRadius: '4px',
+                flexShrink: 0,
+                position: 'relative',
+                ...(item.type === 'available' ? {
+                  bgcolor: `${colors.available}15`,
+                  border: `2px solid ${colors.available}`
+                } : item.type === 'unavailable' ? {
+                  bgcolor: colors.background,
+                  border: '2px solid transparent'
+                } : item.type === 'google' ? {
+                  bgcolor: colors.background,
+                  border: '2px solid transparent'
+                } : {
+                  background: `repeating-linear-gradient(45deg, ${colors.background}, ${colors.background} 3px, ${colors.surface} 3px, ${colors.surface} 6px)`,
+                  border: '2px solid transparent'
+                })
+              }}>
+                {item.type === 'google' && (
+                  <Box sx={{
+                    position: 'absolute',
+                    top: '1px',
+                    right: '1px',
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    bgcolor: '#4285F4',
+                  }} />
+                )}
+              </Box>
+              <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.8rem' }}>
+                {item.label}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
+
       {/* Booking Modal */}
       <BookingConfirmModal
         open={modalOpen}
@@ -1520,12 +1730,30 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       {isOwnProfile && (
         <WorkingHoursModal
           isOpen={workingHoursModalOpen}
-          onClose={() => setWorkingHoursModalOpen(false)}
+          onClose={handleWorkingHoursModalClose}
           onSave={handleSaveWorkingHours}
           artistId={resolvedArtistId || undefined}
           initialWorkingHours={workingHours}
+          infoText={pendingBooksOpen.current ? 'In order to set your books to open you must have working hours set.' : undefined}
         />
       )}
+
+      {/* Cancel / Reschedule Modals */}
+      <CancelAppointmentModal
+        open={cancelModalOpen}
+        onClose={() => { setCancelModalOpen(false); setActionAppointment(null); }}
+        onSubmit={handleCancelSubmit}
+        clientName={actionAppointment?.clientName}
+      />
+      <RescheduleAppointmentModal
+        open={rescheduleModalOpen}
+        onClose={() => { setRescheduleModalOpen(false); setActionAppointment(null); }}
+        onSubmit={handleRescheduleSubmit}
+        clientName={actionAppointment?.clientName}
+        currentDate={actionAppointment?.date}
+        currentStartTime={actionAppointment?.startTime}
+        currentEndTime={actionAppointment?.endTime}
+      />
 
       {/* Artist Day Management Modal */}
       <ResponsiveModal
@@ -1545,7 +1773,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                 letterSpacing: '0.03em',
                 mb: 1.5
               }}>
-                InkedIn Appointments
+                The Day's Appointments
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {getAppointmentsForDate(selectedDay).map((apt) => (
@@ -1553,37 +1781,55 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                     p: 1.5,
                     bgcolor: colors.background,
                     borderRadius: '8px',
-                    border: `1px solid ${colors.border}`,
+                    border: `1px solid ${(apt.extendedProps?.status || apt.status) === 'cancelled' ? 'rgba(239, 68, 68, 0.3)' : colors.border}`,
+                    opacity: (apt.extendedProps?.status || apt.status) === 'cancelled' ? 0.75 : 1,
                     position: 'relative'
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <Box sx={{ flex: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem' }}>
-                            {apt.title || 'Appointment'}
-                          </Typography>
-                          <Box sx={{
-                            px: 1,
-                            py: 0.25,
-                            bgcolor: apt.extendedProps?.status === 'booked' ? `${colors.success}22` : `${colors.accent}22`,
-                            color: apt.extendedProps?.status === 'booked' ? colors.success : colors.accent,
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase'
-                          }}>
-                            {apt.extendedProps?.status || apt.status || 'pending'}
-                          </Box>
-                        </Box>
-                        {apt.start && (
+                        <Typography sx={{ fontWeight: 500, color: colors.textPrimary, fontSize: '0.9rem' }}>
+                          {apt.title || 'Appointment'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{
+                        px: 1,
+                        py: 0.25,
+                        bgcolor: apt.extendedProps?.status === 'booked' ? `${colors.success}22` : apt.extendedProps?.status === 'cancelled' ? `${colors.error}22` : `${colors.accent}22`,
+                        color: apt.extendedProps?.status === 'booked' ? colors.success : apt.extendedProps?.status === 'cancelled' ? colors.error : colors.accent,
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        flexShrink: 0,
+                        ml: 1,
+                      }}>
+                        {apt.extendedProps?.status || apt.status || 'pending'}
+                      </Box>
+                    </Box>
+                    <Box>
+                        {(apt.time || apt.start) && (
                           <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.5 }}>
-                            {new Date(apt.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                            {apt.end && ` - ${new Date(apt.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                            {apt.time || (
+                              `${new Date(apt.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${apt.end ? ` - ${new Date(apt.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}`
+                            )}
                           </Typography>
                         )}
-                        {apt.extendedProps?.clientName && (
-                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mt: 0.25 }}>
-                            Client: {apt.extendedProps.clientName}
+                        {(apt.extendedProps?.clientName || apt.clientName) && (
+                          <Typography
+                            onClick={onViewClientProfile && apt.clientId ? (e) => { e.stopPropagation(); onViewClientProfile(Number(apt.clientId)); } : undefined}
+                            sx={{
+                              fontSize: '0.8rem',
+                              color: onViewClientProfile && apt.clientId ? colors.accent : colors.textSecondary,
+                              mt: 0.25,
+                              ...(onViewClientProfile && apt.clientId ? {
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                textDecorationColor: `${colors.accent}40`,
+                                '&:hover': { textDecorationColor: colors.accent },
+                              } : {}),
+                            }}
+                          >
+                            Client: {apt.extendedProps?.clientName || apt.clientName}
                           </Typography>
                         )}
                         {apt.extendedProps?.description && (
@@ -1591,29 +1837,115 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
                             {apt.extendedProps.description}
                           </Typography>
                         )}
-                      </Box>
-                      {/* Delete button */}
-                      <IconButton
-                        size="small"
-                        onClick={async () => {
-                          const confirmed = await showConfirm('Are you sure you want to delete this appointment?', 'Delete Appointment');
-                          if (confirmed) {
-                            try {
-                              await deleteAppointment(apt.id);
-                            } catch (err) {
-                              console.error('Failed to delete appointment:', err);
-                            }
-                          }
-                        }}
-                        sx={{
-                          color: colors.textSecondary,
-                          '&:hover': { color: colors.error, bgcolor: `${colors.error}15` },
-                          ml: 1
-                        }}
-                      >
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
                     </Box>
+                    {isOwnCalendar && (apt.extendedProps?.status || apt.status) !== 'cancelled' && (
+                      <Box sx={{ display: 'flex', gap: 0.75, mt: 1, pt: 1, borderTop: `1px solid ${colors.border}`, flexWrap: 'wrap' }}>
+                        {apt.clientId && (
+                          <>
+                            <Button
+                              size="small"
+                              startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 14 }} />}
+                              onClick={async () => {
+                                try {
+                                  const response = await messageService.createConversation(
+                                    apt.clientId as number,
+                                    'booking',
+                                    undefined,
+                                    typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id
+                                  );
+                                  const conversationId = response.conversation?.id;
+                                  if (conversationId) {
+                                    router.push(`/inbox?conversation=${conversationId}`);
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to open conversation:', err);
+                                }
+                              }}
+                              sx={{
+                                fontSize: '0.75rem',
+                                textTransform: 'none',
+                                color: colors.success,
+                                border: `1px solid ${colors.success}44`,
+                                borderRadius: '6px',
+                                px: 1.5,
+                                py: 0.5,
+                                '&:hover': { bgcolor: `${colors.success}15`, borderColor: colors.success },
+                              }}
+                            >
+                              Contact
+                            </Button>
+                            <Button
+                              size="small"
+                              startIcon={<UpdateIcon sx={{ fontSize: 14 }} />}
+                              onClick={async () => {
+                                try {
+                                  const response = await messageService.createConversation(
+                                    apt.clientId as number,
+                                    'booking',
+                                    undefined,
+                                    typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id
+                                  );
+                                  const conversationId = response.conversation?.id;
+                                  if (conversationId) {
+                                    router.push(`/inbox?conversation=${conversationId}&action=reschedule`);
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to open conversation:', err);
+                                }
+                              }}
+                              sx={{
+                                fontSize: '0.75rem',
+                                textTransform: 'none',
+                                color: colors.accent,
+                                border: `1px solid ${colors.accent}44`,
+                                borderRadius: '6px',
+                                px: 1.5,
+                                py: 0.5,
+                                '&:hover': { bgcolor: `${colors.accent}15`, borderColor: colors.accent },
+                              }}
+                            >
+                              Reschedule
+                            </Button>
+                            <Button
+                              size="small"
+                              startIcon={<EventBusyIcon sx={{ fontSize: 14 }} />}
+                              onClick={() => openActionModal(apt, 'cancel')}
+                              sx={{
+                                fontSize: '0.75rem',
+                                textTransform: 'none',
+                                color: colors.error,
+                                border: `1px solid ${colors.error}44`,
+                                borderRadius: '6px',
+                                px: 1.5,
+                                py: 0.5,
+                                '&:hover': { bgcolor: `${colors.error}15`, borderColor: colors.error },
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                        {!apt.clientId && (
+                          <Button
+                            size="small"
+                            startIcon={<DeleteOutlineIcon sx={{ fontSize: 14 }} />}
+                            onClick={() => handleDeleteAppointment(apt)}
+                            sx={{
+                              fontSize: '0.75rem',
+                              textTransform: 'none',
+                              color: colors.error,
+                              border: `1px solid ${colors.error}44`,
+                              borderRadius: '6px',
+                              px: 1.5,
+                              py: 0.5,
+                              '&:hover': { bgcolor: `${colors.error}15`, borderColor: colors.error },
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </Box>
+                    )}
                   </Box>
                 ))}
               </Box>
@@ -1676,63 +2008,75 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
           )}
 
           {/* Mode Toggle - Invite a Guest / Calendar Event */}
-          <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, mb: 3 }}>
-            <Button
-              onClick={() => setModalMode('invite')}
-              sx={{
-                flex: 1,
-                py: { xs: 1.5, sm: 2 },
-                minHeight: { xs: 72, sm: 'auto' },
-                borderRadius: '12px',
-                textTransform: 'none',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 0.5,
-                border: `2px solid ${modalMode === 'invite' ? colors.accent : colors.border}`,
-                bgcolor: modalMode === 'invite' ? `${colors.accent}15` : 'transparent',
-                '&:hover': {
-                  borderColor: colors.accent,
-                  bgcolor: `${colors.accent}10`
-                },
-                '&:active': {
-                  transform: 'scale(0.98)'
-                }
-              }}
-            >
-              <PersonAddAltIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }} />
-              <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.85rem' }, fontWeight: 600, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }}>
-                Invite a Guest
-              </Typography>
-            </Button>
-            <Button
-              onClick={() => setModalMode('event')}
-              sx={{
-                flex: 1,
-                py: { xs: 1.5, sm: 2 },
-                minHeight: { xs: 72, sm: 'auto' },
-                borderRadius: '12px',
-                textTransform: 'none',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 0.5,
-                border: `2px solid ${modalMode === 'event' ? colors.accent : colors.border}`,
-                bgcolor: modalMode === 'event' ? `${colors.accent}15` : 'transparent',
-                '&:hover': {
-                  borderColor: colors.accent,
-                  bgcolor: `${colors.accent}10`
-                },
-                '&:active': {
-                  transform: 'scale(0.98)'
-                }
-              }}
-            >
-              <CalendarMonthIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: modalMode === 'event' ? colors.accent : colors.textSecondary }} />
-              <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.85rem' }, fontWeight: 600, color: modalMode === 'event' ? colors.accent : colors.textSecondary }}>
-                Calendar Event
-              </Typography>
-            </Button>
+          <Box sx={{ mb: 3 }}>
+            <Typography sx={{
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: colors.textSecondary,
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+              mb: 1.5
+            }}>
+              Create New
+            </Typography>
+            <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 } }}>
+              <Button
+                onClick={() => setModalMode('invite')}
+                sx={{
+                  flex: 1,
+                  py: { xs: 1.5, sm: 2 },
+                  minHeight: { xs: 72, sm: 'auto' },
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  border: `2px solid ${modalMode === 'invite' ? colors.accent : colors.border}`,
+                  bgcolor: modalMode === 'invite' ? `${colors.accent}15` : 'transparent',
+                  '&:hover': {
+                    borderColor: colors.accent,
+                    bgcolor: `${colors.accent}10`
+                  },
+                  '&:active': {
+                    transform: 'scale(0.98)'
+                  }
+                }}
+              >
+                <PersonAddAltIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }} />
+                <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.85rem' }, fontWeight: 600, color: modalMode === 'invite' ? colors.accent : colors.textSecondary }}>
+                  Invite a Guest
+                </Typography>
+              </Button>
+              <Button
+                onClick={() => setModalMode('event')}
+                sx={{
+                  flex: 1,
+                  py: { xs: 1.5, sm: 2 },
+                  minHeight: { xs: 72, sm: 'auto' },
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  border: `2px solid ${modalMode === 'event' ? colors.accent : colors.border}`,
+                  bgcolor: modalMode === 'event' ? `${colors.accent}15` : 'transparent',
+                  '&:hover': {
+                    borderColor: colors.accent,
+                    bgcolor: `${colors.accent}10`
+                  },
+                  '&:active': {
+                    transform: 'scale(0.98)'
+                  }
+                }}
+              >
+                <CalendarMonthIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: modalMode === 'event' ? colors.accent : colors.textSecondary }} />
+                <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.85rem' }, fontWeight: 600, color: modalMode === 'event' ? colors.accent : colors.textSecondary }}>
+                  Calendar Event
+                </Typography>
+              </Button>
+            </Box>
           </Box>
 
           {/* INVITE A GUEST MODE */}

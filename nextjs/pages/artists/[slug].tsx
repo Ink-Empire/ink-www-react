@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,12 +14,13 @@ import CloseIcon from '@mui/icons-material/Close';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
 import ShareIcon from '@mui/icons-material/Share';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import EmailIcon from '@mui/icons-material/Email';
 import SmsIcon from '@mui/icons-material/Sms';
-import { useArtist } from '../../hooks';
+import { useArtist, useArtistPortfolio } from '../../hooks';
 import { useAuth } from '../../contexts/AuthContext';
 import TattooCreateWizard from '@/components/TattooCreateWizard';
 import TattooModal from '@/components/TattooModal';
@@ -28,12 +30,17 @@ import { colors } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
 import SocialMediaIcons from '@/components/SocialMediaIcons';
 
-export default function ArtistDetail() {
+interface ArtistDetailProps {
+    initialArtist?: any;
+}
+
+export default function ArtistDetail({ initialArtist }: ArtistDetailProps) {
     const router = useRouter();
     const { slug } = router.query;
     const slugString = typeof slug === 'string' ? slug : null;
-    const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString);
-    const { user, isAuthenticated } = useAuth();
+    const { artist, loading: artistLoading, error: artistError, refetch } = useArtist(slugString, initialArtist);
+    const { portfolio, loading: portfolioLoading, hasMore, loadMore, refetch: fetchPortfolio } = useArtistPortfolio(slugString, artist?.tattoos);
+    const { user, isAuthenticated, toggleFavorite } = useAuth();
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
     const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -47,52 +54,53 @@ export default function ArtistDetail() {
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
 
+    // Infinite scroll sentinel for portfolio grid
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        if (!hasMore) return;
+        const sentinel = loadMoreRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMore();
+                }
+            },
+            { rootMargin: '200px' }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMore, loadMore]);
+
     // Booking info edit state
     const [isEditingBookingInfo, setIsEditingBookingInfo] = useState(false);
     const [bookingInfoSaving, setBookingInfoSaving] = useState(false);
     const [bookingInfoError, setBookingInfoError] = useState('');
     const [bookingInfoForm, setBookingInfoForm] = useState({
         consultation_fee: '',
+        consultation_duration: '30',
         hourly_rate: '',
         minimum_session: '',
         deposit_amount: '',
         accepts_consultations: false,
     });
 
-    // Fetch fresh settings from database (not ES) when artist loads
+    // Populate booking info form from ES artist.settings data
     useEffect(() => {
         if (!artist?.id) return;
 
-        const fetchSettings = async () => {
-            try {
-                const response = await artistService.getSettings(artist.id);
-                const settings = response?.data;
-                if (settings) {
-                    setBookingInfoForm({
-                        consultation_fee: String(settings.consultation_fee || ''),
-                        hourly_rate: String(settings.hourly_rate || ''),
-                        minimum_session: String(settings.minimum_session || ''),
-                        deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
-                        accepts_consultations: settings.accepts_consultations || false,
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to fetch artist settings:', err);
-                // Fallback to ES data if available
-                const settings = artist?.settings || (artist as any)?.artist_settings;
-                if (settings) {
-                    setBookingInfoForm({
-                        consultation_fee: String(settings.consultation_fee || ''),
-                        hourly_rate: String(settings.hourly_rate || ''),
-                        minimum_session: String(settings.minimum_session || ''),
-                        deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
-                        accepts_consultations: settings.accepts_consultations || false,
-                    });
-                }
-            }
-        };
-
-        fetchSettings();
+        const settings = artist?.settings || (artist as any)?.artist_settings;
+        if (settings) {
+            setBookingInfoForm({
+                consultation_fee: String(settings.consultation_fee || ''),
+                consultation_duration: String(settings.consultation_duration || '30'),
+                hourly_rate: String(settings.hourly_rate || ''),
+                minimum_session: String(settings.minimum_session || ''),
+                deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
+                accepts_consultations: settings.accepts_consultations || false,
+            });
+        }
     }, [artist?.id]);
 
     // Redirect to artists page if artist not found (e.g., blocked user)
@@ -122,26 +130,20 @@ export default function ArtistDetail() {
         setIsEditingBookingInfo(true);
     };
 
-    const handleCancelEditBookingInfo = async () => {
+    const handleCancelEditBookingInfo = () => {
         setIsEditingBookingInfo(false);
         setBookingInfoError('');
-        // Re-fetch from DB to reset to saved values
-        if (artist?.id) {
-            try {
-                const response = await artistService.getSettings(artist.id);
-                const settings = response?.data;
-                if (settings) {
-                    setBookingInfoForm({
-                        consultation_fee: String(settings.consultation_fee || ''),
-                        hourly_rate: String(settings.hourly_rate || ''),
-                        minimum_session: String(settings.minimum_session || ''),
-                        deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
-                        accepts_consultations: settings.accepts_consultations || false,
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to reset settings:', err);
-            }
+        // Reset form to current artist.settings from ES
+        const settings = artist?.settings || (artist as any)?.artist_settings;
+        if (settings) {
+            setBookingInfoForm({
+                consultation_fee: String(settings.consultation_fee || ''),
+                consultation_duration: String(settings.consultation_duration || '30'),
+                hourly_rate: String(settings.hourly_rate || ''),
+                minimum_session: String(settings.minimum_session || ''),
+                deposit_amount: String(settings.deposit_amount || settings.deposit || ''),
+                accepts_consultations: settings.accepts_consultations || false,
+            });
         }
     };
 
@@ -184,7 +186,7 @@ export default function ArtistDetail() {
     };
 
     const isOwner = isAuthenticated && user && (user.slug === slug || user.id === artist?.id);
-    const portfolio = artist?.tattoos || [];
+    // portfolio comes from useArtistPortfolio hook (GET /artists/{slug}/portfolio)
 
     // Get unique styles from artist or their tattoos
     const artistStyles = useMemo(() => {
@@ -304,12 +306,19 @@ export default function ArtistDetail() {
         router.push(`/inbox?artistId=${artist?.id}`);
     };
 
-    const handleSaveArtist = () => {
+    const isArtistSaved = !!(artist?.id && user?.favorites?.artists?.includes(Number(artist.id)));
+
+    const handleSaveArtist = async () => {
         if (!isAuthenticated) {
             setLoginModalOpen(true);
             return;
         }
-        // TODO: Implement save artist functionality
+        if (!artist?.id) return;
+        try {
+            await toggleFavorite('artist', Number(artist.id));
+        } catch (err) {
+            console.error('Error saving artist:', err);
+        }
     };
 
     const handleShareProfile = async () => {
@@ -355,9 +364,12 @@ export default function ArtistDetail() {
         window.open(`sms:?body=${text}`);
     };
 
-    if (artistLoading) {
+    if (artistLoading && !artist) {
         return (
             <Layout>
+                <Head>
+                    <title>Artist | InkedIn</title>
+                </Head>
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                     <Typography sx={{ color: colors.textSecondary }}>Loading artist details...</Typography>
                 </Box>
@@ -390,7 +402,11 @@ export default function ArtistDetail() {
         <Layout>
             <Head>
                 <title>{artist.name} | InkedIn</title>
-                <meta name="description" content={`Learn more about ${artist.name} and their tattoo work`} />
+                <meta name="description" content={`View ${artist.name}'s tattoo portfolio on InkedIn${artist.location ? ` - based in ${artist.location}` : ''}`} />
+                <meta property="og:title" content={`${artist.name} | InkedIn`} />
+                <meta property="og:description" content={`View ${artist.name}'s tattoo portfolio on InkedIn${artist.location ? ` - based in ${artist.location}` : ''}`} />
+                {artist.image?.uri && <meta property="og:image" content={artist.image.uri} />}
+                <meta property="og:type" content="profile" />
                 <link rel="icon" href="/assets/img/logo.png" />
             </Head>
 
@@ -667,6 +683,7 @@ export default function ArtistDetail() {
 
                             {/* Portfolio Grid */}
                             {filteredPortfolio.length > 0 ? (
+                                <>
                                 <Box sx={{
                                     display: 'grid',
                                     gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
@@ -783,6 +800,12 @@ export default function ArtistDetail() {
                                         );
                                     })}
                                 </Box>
+                                {hasMore && (
+                                    <Box ref={loadMoreRef} sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                                        <CircularProgress size={24} sx={{ color: colors.accent }} />
+                                    </Box>
+                                )}
+                                </>
                             ) : (
                                 <Box sx={{ textAlign: 'center', py: 6 }}>
                                     <Typography sx={{ color: colors.textSecondary }}>No portfolio items found.</Typography>
@@ -948,6 +971,20 @@ export default function ArtistDetail() {
 
                                         <Box sx={{ mb: 1.5 }}>
                                             <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.5 }}>
+                                                Consultation Duration
+                                            </Typography>
+                                            <Typography sx={{ color: colors.textPrimary, fontSize: '0.9rem' }}>
+                                                {bookingInfoForm.consultation_duration || 30} min
+                                            </Typography>
+                                            <Link href="/profile#booking">
+                                                <Typography sx={{ color: colors.accent, fontSize: '0.75rem', mt: 0.25, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                                                    Change in Settings
+                                                </Typography>
+                                            </Link>
+                                        </Box>
+
+                                        <Box sx={{ mb: 1.5 }}>
+                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.5 }}>
                                                 Hourly Rate
                                             </Typography>
                                             <TextField
@@ -1083,11 +1120,17 @@ export default function ArtistDetail() {
                                     /* Display Mode */
                                     <>
                                         {[
-                                            ...(bookingInfoForm.accepts_consultations ? [{
-                                                label: 'Consultation',
-                                                value: Number(bookingInfoForm.consultation_fee) > 0 ? `$${bookingInfoForm.consultation_fee}` : 'Free',
-                                                accent: !bookingInfoForm.consultation_fee || Number(bookingInfoForm.consultation_fee) === 0
-                                            }] : []),
+                                            ...(bookingInfoForm.accepts_consultations ? [
+                                                {
+                                                    label: 'Consultation',
+                                                    value: Number(bookingInfoForm.consultation_fee) > 0 ? `$${bookingInfoForm.consultation_fee}` : 'Free',
+                                                    accent: !bookingInfoForm.consultation_fee || Number(bookingInfoForm.consultation_fee) === 0
+                                                },
+                                                {
+                                                    label: 'Consult Duration',
+                                                    value: `${bookingInfoForm.consultation_duration || 30} min`
+                                                },
+                                            ] : []),
                                             { label: 'Hourly Rate', value: Number(bookingInfoForm.hourly_rate) > 0 ? `$${bookingInfoForm.hourly_rate} USD` : 'Not set' },
                                             { label: 'Min. Session', value: Number(bookingInfoForm.minimum_session) > 0 ? `${bookingInfoForm.minimum_session} hours` : 'Not set' },
                                             { label: 'Deposit', value: Number(bookingInfoForm.deposit_amount) > 0 ? `$${bookingInfoForm.deposit_amount} USD` : 'Not set' }
@@ -1132,7 +1175,7 @@ export default function ArtistDetail() {
                                     {[
                                         { icon: <EventAvailableIcon sx={{ fontSize: '1.25rem' }} />, label: 'View Availability', onClick: () => handleTabChange(1) },
                                         { icon: <ChatBubbleOutlineIcon sx={{ fontSize: '1.25rem' }} />, label: 'Send Message', onClick: handleMessageArtist },
-                                        { icon: <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: 'Save Artist', onClick: handleSaveArtist },
+                                        { icon: isArtistSaved ? <BookmarkIcon sx={{ fontSize: '1.25rem', color: colors.accent }} /> : <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: isArtistSaved ? 'Saved' : 'Save Artist', onClick: handleSaveArtist },
                                         { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: 'Share Profile', onClick: handleShareProfile }
                                     ].map((action, idx) => (
                                         <Box
@@ -1385,3 +1428,48 @@ export default function ArtistDetail() {
         </Layout>
     );
 }
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+    const { slug } = context.params || {};
+    if (!slug || typeof slug !== 'string') {
+        return { notFound: true };
+    }
+
+    // Cache the SSR response for 60s, serve stale for up to 5 minutes while revalidating
+    context.res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
+    const appToken = process.env.NEXT_PUBLIC_API_APP_TOKEN || '';
+
+    try {
+        const response = await fetch(`${apiUrl}/api/artists`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                ...(appToken ? { 'X-App-Token': appToken } : {}),
+            },
+            body: JSON.stringify({ slug }),
+        });
+
+        if (!response.ok) {
+            return { notFound: true };
+        }
+
+        const data = await response.json();
+        const artist = data?.artist || null;
+
+        if (!artist) {
+            return { notFound: true };
+        }
+
+        return {
+            props: {
+                initialArtist: artist,
+            },
+        };
+    } catch {
+        // If server-side fetch fails, fall back to client-side rendering
+        return { props: {} };
+    }
+};

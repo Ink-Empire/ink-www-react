@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
-import { useInboxCount } from '../hooks';
+import { useUnreadConversationCount } from '../hooks';
 import {
   AppBar,
   Toolbar,
@@ -29,6 +29,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { colors } from '@/styles/colors';
 
@@ -41,7 +42,7 @@ const NAV_LINKS = [
 const Navbar: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const router = useRouter();
-  const { count: inboxCount } = useInboxCount(user?.id);
+  const { unreadCount: inboxCount } = useUnreadConversationCount();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -50,8 +51,14 @@ const Navbar: React.FC = () => {
   const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
-    // Support both object format (image.uri) and string format for backwards compatibility
-    const img = (user as any)?.image;
+    // For studio accounts, use the studio image; otherwise use user image
+    const isStudio = user?.type_id === 4 || user?.type_id === '4' || user?.type === 'studio';
+    const studioImg = (user as any)?.owned_studio?.image;
+    const userImg = (user as any)?.image;
+
+    // Pick the right image source
+    const img = isStudio && studioImg ? studioImg : userImg;
+
     if (typeof img === 'string') {
       setAvatarUrl(img);
     } else if (img?.uri) {
@@ -230,7 +237,8 @@ const Navbar: React.FC = () => {
                     }
                   }}
                 >
-                  {user?.slug && user?.type_id !== 1 && user?.type_id !== '1' && user?.type !== 'client' && user?.type !== 'user' && (
+                  {/* My Profile - for artists and studios */}
+                  {user?.type_id === 2 && user?.slug && (
                     <MenuItem
                       component={Link}
                       href={`/artists/${user.slug}`}
@@ -244,6 +252,54 @@ const Navbar: React.FC = () => {
                         <PersonIcon sx={{ color: colors.textSecondary }} />
                       </ListItemIcon>
                       <ListItemText primary="My Profile" />
+                    </MenuItem>
+                  )}
+                  {(user?.type_id === 3) && user?.owned_studio?.slug && (
+                    <MenuItem
+                      component={Link}
+                      href={`/studios/${user.owned_studio.slug}`}
+                      onClick={() => setProfileMenuAnchor(null)}
+                      sx={{
+                        color: colors.textPrimary,
+                        '&:hover': { bgcolor: `${colors.accent}1A` }
+                      }}
+                    >
+                      <ListItemIcon>
+                        <PersonIcon sx={{ color: colors.textSecondary }} />
+                      </ListItemIcon>
+                      <ListItemText primary="My Profile" />
+                    </MenuItem>
+                  )}
+                  {(user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user') && user?.slug && (
+                    <MenuItem
+                      component={Link}
+                      href={`/users/${user.slug}`}
+                      onClick={() => setProfileMenuAnchor(null)}
+                      sx={{
+                        color: colors.textPrimary,
+                        '&:hover': { bgcolor: `${colors.accent}1A` }
+                      }}
+                    >
+                      <ListItemIcon>
+                        <PersonIcon sx={{ color: colors.textSecondary }} />
+                      </ListItemIcon>
+                      <ListItemText primary="My Profile" />
+                    </MenuItem>
+                  )}
+                  {user?.type_id === 2 && user?.slug && (
+                    <MenuItem
+                      component={Link}
+                      href={"/calendar"}
+                      onClick={() => setProfileMenuAnchor(null)}
+                      sx={{
+                        color: colors.textPrimary,
+                        '&:hover': { bgcolor: `${colors.accent}1A` }
+                      }}
+                    >
+                      <ListItemIcon>
+                        <CalendarMonthIcon sx={{ color: colors.textSecondary }} />
+                      </ListItemIcon>
+                      <ListItemText primary="My Calendar" />
                     </MenuItem>
                   )}
                   <MenuItem
@@ -465,33 +521,99 @@ const Navbar: React.FC = () => {
 
             {isAuthenticated ? (
               <>
+                {/* My Profile - for artists */}
+                {user?.type_id === 2 && user?.slug && (
+                  <ListItem
+                    component={Link}
+                    href={`/artists/${user.slug}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 1,
+                      '&:hover': { backgroundColor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemText primary="My Profile" />
+                  </ListItem>
+                )}
+                {/* My Profile - for studios */}
+                {(user?.type_id === 3 || user?.type_id === 4) && user?.owned_studio?.slug && (
+                  <ListItem
+                    component={Link}
+                    href={`/studios/${user.owned_studio.slug}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 1,
+                      '&:hover': { backgroundColor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemText primary="My Profile" />
+                  </ListItem>
+                )}
+                {/* My Profile - for clients */}
+                {(user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user') && user?.slug && (
+                  <ListItem
+                    component={Link}
+                    href={`/users/${user.slug}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 1,
+                      backgroundColor: isActiveRoute(`/users/${user.slug}`) ? `${colors.accent}33` : 'transparent',
+                      '&:hover': { backgroundColor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemText primary="My Profile" />
+                  </ListItem>
+                )}
+                {/* My Calendar - artists only */}
+                {user?.type_id === 2 && user?.slug && (
+                  <ListItem
+                    component={Link}
+                    href={"/calendar"}
+                    onClick={() => setMobileMenuOpen(false)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 1,
+                      '&:hover': { backgroundColor: `${colors.accent}1A` }
+                    }}
+                  >
+                    <ListItemText primary="My Calendar" />
+                  </ListItem>
+                )}
+
+                {/* Dashboard */}
                 <ListItem
                   component={Link}
-                  href={user?.type_id === 1 || user?.type_id === '1' || user?.type === 'client' || user?.type === 'user' ? '/dashboard' : '/profile'}
+                  href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
                   sx={{
                     borderRadius: 1,
                     mb: 1,
+                    backgroundColor: isActiveRoute('/dashboard') ? `${colors.accent}33` : 'transparent',
                     '&:hover': { backgroundColor: `${colors.accent}1A` }
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={2}>
-                    <Avatar
-                      src={avatarUrl || undefined}
-                      alt={getDisplayName()}
-                      sx={{
-                        width: 24,
-                        height: 24,
-                        bgcolor: colors.accent,
-                        color: colors.background,
-                      }}
-                    >
-                      {getInitials()}
-                    </Avatar>
-                    <ListItemText primary={getDisplayName()} />
-                  </Stack>
+                  <ListItemText primary="Dashboard" />
                 </ListItem>
 
+                {/* Settings */}
+                <ListItem
+                  component={Link}
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  sx={{
+                    borderRadius: 1,
+                    mb: 1,
+                    backgroundColor: isActiveRoute('/profile') ? `${colors.accent}33` : 'transparent',
+                    '&:hover': { backgroundColor: `${colors.accent}1A` }
+                  }}
+                >
+                  <ListItemText primary="Settings" />
+                </ListItem>
+
+                {/* Log out */}
                 <ListItem
                   onClick={() => {
                     handleLogout();

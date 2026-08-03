@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { artistService } from '@/services/artistService';
+import { tattooService } from '@/services/tattooService';
 import { ArtistType } from '@/models/artist.interface';
 import { useDemoMode } from '@/contexts/DemoModeContext';
+import { clearCache } from '@/utils/apiCache';
 
 // Unclaimed studio type
 export interface UnclaimedStudio {
@@ -14,7 +16,7 @@ export interface UnclaimedStudio {
 }
 
 // Hook for fetching artists list with infinite scroll support
-export function useArtists(searchParams?: Record<string, any>) {
+export function useArtists(searchParams?: Record<string, any>, blockedUserIds?: number[]) {
   const [artists, setArtists] = useState<ArtistType[]>([]);
   const [unclaimedStudios, setUnclaimedStudios] = useState<UnclaimedStudio[]>([]);
   const [total, setTotal] = useState<number>(0);
@@ -29,15 +31,17 @@ export function useArtists(searchParams?: Record<string, any>) {
   const searchParamsKey = JSON.stringify({ ...(searchParams || {}), _demoMode: isDemoMode });
   const prevSearchParamsKey = useRef<string>(searchParamsKey);
 
-  // Reset pagination when search params change
-  useEffect(() => {
-    if (prevSearchParamsKey.current !== searchParamsKey) {
-      setPage(1);
-      setArtists([]);
-      setHasMore(true);
-      prevSearchParamsKey.current = searchParamsKey;
+  // Build request body from search params
+  const buildRequestBody = useCallback((pageNum: number) => {
+    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
+    if (requestBody.locationCoordsString) {
+      requestBody.locationCoords = requestBody.locationCoordsString;
+      delete requestBody.locationCoordsString;
+    } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
+      requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
     }
-  }, [searchParamsKey]);
+    return requestBody;
+  }, [searchParams]);
 
   // Fetch artists for a specific page
   const fetchArtists = useCallback(async (pageNum: number, append: boolean = false) => {
@@ -48,22 +52,11 @@ export function useArtists(searchParams?: Record<string, any>) {
     }
 
     try {
-      // Construct the request body from searchParams if provided
-      const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
-      if (requestBody.locationCoordsString) {
-        requestBody.locationCoords = requestBody.locationCoordsString;
-        delete requestBody.locationCoordsString;
-      } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
-        requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
-      }
-
-      console.log(`Fetching artists page ${pageNum}:`, requestBody);
+      const requestBody = buildRequestBody(pageNum);
 
       const response = await artistService.search(requestBody);
 
-      // Process the response
       let artistsData: ArtistType[] = [];
-      let unclaimedStudiosData: UnclaimedStudio[] = [];
       let totalCount = 0;
       let hasMorePages = false;
 
@@ -72,37 +65,60 @@ export function useArtists(searchParams?: Record<string, any>) {
           artistsData = response.response;
           totalCount = response.total ?? 0;
           hasMorePages = response.has_more ?? false;
-          if (response.unclaimed_studios && Array.isArray(response.unclaimed_studios)) {
-            unclaimedStudiosData = response.unclaimed_studios;
-          }
         } else if (Array.isArray(response)) {
           artistsData = response as unknown as ArtistType[];
           totalCount = artistsData.length;
         }
-        console.log(`Artists page ${pageNum} fetched:`, artistsData.length, 'of', totalCount, 'total, hasMore:', hasMorePages);
       }
 
       if (append) {
         setArtists(prev => [...prev, ...artistsData]);
       } else {
         setArtists(artistsData);
-        setUnclaimedStudios(unclaimedStudiosData);
       }
       setTotal(totalCount);
       setHasMore(hasMorePages);
       setError(null);
     } catch (err) {
-      console.error('Error fetching artists:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch artists'));
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchParams]);
+  }, [buildRequestBody]);
 
-  // Initial fetch when search params change
+  // Single effect: reset pagination, fetch page 1, and fetch unclaimed studios when search params change
   useEffect(() => {
+    // Reset pagination
+    setPage(1);
+    setArtists([]);
+    setHasMore(true);
+    prevSearchParamsKey.current = searchParamsKey;
+
+    // Fetch page 1
     fetchArtists(1, false);
+
+    // Fetch unclaimed studios in parallel
+    const requestBody = buildRequestBody(1);
+    const locationCoords = requestBody.locationCoords;
+    const useAnyLocation = requestBody.useAnyLocation;
+    const isDemoData = requestBody.include_demo;
+
+    if (!locationCoords || useAnyLocation || isDemoData) {
+      setUnclaimedStudios([]);
+    } else {
+      tattooService.fetchUnclaimedStudios(requestBody)
+        .then((res) => {
+          if (res?.unclaimed_studios && Array.isArray(res.unclaimed_studios)) {
+            setUnclaimedStudios(res.unclaimed_studios);
+          } else {
+            setUnclaimedStudios([]);
+          }
+        })
+        .catch(() => {
+          setUnclaimedStudios([]);
+        });
+    }
   }, [searchParamsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load more function for infinite scroll
@@ -114,8 +130,17 @@ export function useArtists(searchParams?: Record<string, any>) {
     }
   }, [loadingMore, hasMore, page, fetchArtists]);
 
+  // Client-side blocked user filtering
+  const filteredArtists = useMemo(() => {
+    if (!blockedUserIds || blockedUserIds.length === 0) return artists;
+    return artists.filter(artist => {
+      const artistId = artist.id;
+      return !artistId || !blockedUserIds.includes(artistId);
+    });
+  }, [artists, blockedUserIds]);
+
   return {
-    artists,
+    artists: filteredArtists,
     unclaimedStudios,
     total,
     loading,
@@ -127,11 +152,13 @@ export function useArtists(searchParams?: Record<string, any>) {
 }
 
 // Hook for fetching a single artist by ID or slug
-export function useArtist(idOrSlug: string | null) {
-  const [artist, setArtist] = useState<ArtistType | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+// Pass initialData from getServerSideProps to skip the first client-side fetch
+export function useArtist(idOrSlug: string | null, initialData?: ArtistType | null) {
+  const [artist, setArtist] = useState<ArtistType | null>(initialData || null);
+  const [loading, setLoading] = useState<boolean>(!initialData);
   const [error, setError] = useState<Error | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const initialDataUsedRef = useRef(!!initialData);
 
   const fetchArtist = useCallback(async () => {
     if (!idOrSlug) {
@@ -152,6 +179,11 @@ export function useArtist(idOrSlug: string | null) {
   }, [idOrSlug]);
 
   useEffect(() => {
+    // Skip the first fetch if initial data was provided via SSR
+    if (initialDataUsedRef.current) {
+      initialDataUsedRef.current = false;
+      return;
+    }
     fetchArtist();
   }, [fetchArtist, refreshCounter]);
 
@@ -162,35 +194,95 @@ export function useArtist(idOrSlug: string | null) {
   return { artist, loading, error, refetch };
 }
 
-// Hook for fetching artist portfolio (tattoos by artist)
-export function useArtistPortfolio(artistIdOrSlug: string | null) {
-  const [portfolio, setPortfolio] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+// Hook for fetching artist portfolio (tattoos by artist) with pagination
+// Pass initialData to skip the first fetch (e.g., when tattoos come from artist detail response)
+export function useArtistPortfolio(artistIdOrSlug: string | null, initialData?: any[]) {
+  const [portfolio, setPortfolio] = useState<any[]>(initialData || []);
+  const [loading, setLoading] = useState<boolean>(initialData ? false : !!artistIdOrSlug);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const mountedRef = useRef(true);
+  const initialDataUsedRef = useRef(!!initialData);
 
+  // Seed portfolio when initialData arrives (e.g., after artist detail loads)
   useEffect(() => {
-    if (!artistIdOrSlug) {
+    if (initialData && initialData.length > 0) {
+      setPortfolio(initialData);
       setLoading(false);
+      initialDataUsedRef.current = true;
+      setHasMore(initialData.length >= 50);
+    }
+  }, [initialData]);
+
+  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
+    if (!artistIdOrSlug) return;
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
+    try {
+      const response = await artistService.getPortfolio(artistIdOrSlug, pageNum);
+      if (mountedRef.current) {
+        const data = response?.response ?? response;
+        const items = Array.isArray(data) ? data : [];
+        setPortfolio(prev => append ? [...prev, ...items] : items);
+        setHasMore(response?.has_more ?? false);
+      }
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err : new Error(`Failed to fetch portfolio for artist ${artistIdOrSlug}`));
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }, [artistIdOrSlug]);
+
+  // Only fetch page 1 if no initialData was provided
+  useEffect(() => {
+    mountedRef.current = true;
+
+    if (initialDataUsedRef.current) {
       return;
     }
 
-    const fetchPortfolio = async () => {
-      try {
-        setLoading(true);
-        const data = await artistService.getPortfolio(artistIdOrSlug);
+    setPage(1);
+    setPortfolio([]);
 
-        console.log(data);
-        setPortfolio(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(`Failed to fetch portfolio for artist ${artistIdOrSlug}`));
-      } finally {
-        setLoading(false);
-      }
+    if (artistIdOrSlug) {
+      fetchPage(1, false);
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      mountedRef.current = false;
     };
+  }, [fetchPage]);
 
-    fetchPortfolio();
-  }, [artistIdOrSlug]);
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchPage(nextPage, true);
+    }
+  }, [loadingMore, hasMore, page, fetchPage]);
 
-  return { portfolio, loading, error };
+  const refetch = useCallback(() => {
+    clearCache('portfolio');
+    setPage(1);
+    setPortfolio([]);
+    initialDataUsedRef.current = false;
+    fetchPage(1, false);
+  }, [fetchPage]);
+
+  return { portfolio, loading, error, hasMore, loadMore, refetch };
 }

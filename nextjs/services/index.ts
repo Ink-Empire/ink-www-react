@@ -3,6 +3,7 @@
 
 export { artistService } from './artistService';
 export { appointmentService } from './appointmentService';
+export { imageService } from './imageService';
 export { authService } from './authService';
 export { bulkUploadService } from './bulkUploadService';
 export { calendarService } from './calendarService';
@@ -13,8 +14,11 @@ export { leadService } from './leadService';
 export { messageService } from './messageService';
 export { studioService } from './studioService';
 export { stylesService } from './stylesService';
+export { tagService } from './tagService';
 export { tattooService } from './tattooService';
 export { userService } from './userService';
+export { userProfileService } from './userProfileService';
+export { clientInsightsService } from './clientInsightsService';
 
 // Re-export types
 export type {
@@ -56,7 +60,12 @@ export type {
 
 export type {
   Style,
+  AiStyleSuggestion,
 } from './stylesService';
+
+export type {
+  AiTagSuggestion,
+} from './tagService';
 
 export type {
   UpdateProfileData,
@@ -75,3 +84,15 @@ export type {
   WishlistArtist,
   ClientDashboardResponse,
 } from './clientService';
+
+export type {
+  ImagePurpose,
+} from './imageService';
+
+export type {
+  UserProfile,
+} from './userProfileService';
+
+export type {
+  ClientListItem,
+} from './clientInsightsService';

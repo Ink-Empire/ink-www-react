@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -30,15 +31,21 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ImageIcon from '@mui/icons-material/Image';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SendIcon from '@mui/icons-material/Send';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import DescriptionIcon from '@mui/icons-material/Description';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
+import UpdateIcon from '@mui/icons-material/Update';
 import PersonIcon from '@mui/icons-material/Person';
 import BlockIcon from '@mui/icons-material/Block';
 import ReportIcon from '@mui/icons-material/Report';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CloseIcon from '@mui/icons-material/Close';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import CheckIcon from '@mui/icons-material/Check';
 import { colors } from '@/styles/colors';
+import ClientInsightsPanel from '@/components/clients/ClientInsightsPanel';
 import {
   useConversations,
   useConversation,
@@ -46,6 +53,7 @@ import {
 } from '../hooks/useConversations';
 import { userService } from '../services/userService';
 import { appointmentService } from '../services/appointmentService';
+import { messageService } from '../services/messageService';
 import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
 import {
   FilterType,
@@ -53,11 +61,13 @@ import {
   ConversationItem,
   MessageBubble,
   QuickAction,
+  CancelAppointmentModal,
+  RescheduleAppointmentModal,
 } from '../components/inbox';
 
 export default function InboxPage() {
   const router = useRouter();
-  const { artistId } = router.query;
+  const { artistId, contactId, conversation: conversationParam, action: actionParam } = router.query;
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [creatingConversation, setCreatingConversation] = useState(false);
@@ -67,15 +77,31 @@ export default function InboxPage() {
   const [mobileShowConversation, setMobileShowConversation] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [acceptingBooking, setAcceptingBooking] = useState(false);
+  const [respondedBookings, setRespondedBookings] = useState<Record<number, 'accepted' | 'declined'>>({});
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
     message: '',
     severity: 'success',
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const designInputRef = useRef<HTMLInputElement>(null);
+
+  // Sort state
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null);
+
+  // New message dialog state
+  const [newMessageOpen, setNewMessageOpen] = useState(false);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: number; name: string; username: string; slug?: string; image?: any }>>([]);
+  const [recipientError, setRecipientError] = useState('');
+  const [searchingRecipient, setSearchingRecipient] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Client insights panel
+  const [insightsPanelOpen, setInsightsPanelOpen] = useState(false);
 
   // Modal states
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -93,6 +119,10 @@ export default function InboxPage() {
   // Deposit form state
   const [depositAmount, setDepositAmount] = useState('');
 
+  // Cancel/Reschedule modal states
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+
   // Pending attachments state (files waiting to be sent)
   interface PendingAttachment {
     id: string; // Unique ID for React key
@@ -107,7 +137,7 @@ export default function InboxPage() {
   const isArtist = user?.type_id === 2 || user?.type === 'artist' || user?.type?.name === 'artist';
 
   // Fetch conversations
-  const { conversations, loading: conversationsLoading, fetchConversations } = useConversations();
+  const { conversations, loading: conversationsLoading, fetchConversations, markConversationRead } = useConversations();
 
   // Fetch selected conversation details
   const {
@@ -117,6 +147,9 @@ export default function InboxPage() {
     sendMessage,
     sendBookingCard,
     sendDepositRequest,
+    sendCancellation,
+    sendReschedule,
+    respondToMessage,
     markAsRead,
     updateAppointmentStatus,
   } = useConversation(selectedConversationId || undefined);
@@ -130,17 +163,52 @@ export default function InboxPage() {
         .slice(0, 2)
     : user?.username?.slice(0, 2).toUpperCase() || 'ME';
 
-  // Auto-scroll to bottom of messages
+  // Apply optimistic booking status to messages
+  const displayMessages = useMemo(() => {
+    return messages.map(msg => {
+      if (msg.type === 'booking_card' && msg.metadata?.appointment_id && respondedBookings[msg.metadata.appointment_id]) {
+        return { ...msg, metadata: { ...msg.metadata, status: respondedBookings[msg.metadata.appointment_id] } };
+      }
+      return msg;
+    });
+  }, [messages, respondedBookings]);
+
+  const handleViewCalendar = (date?: string) => {
+    if (isArtist) {
+      const url = date ? `/calendar?date=${date}` : '/calendar';
+      router.push(url);
+    } else {
+      router.push('/appointments');
+    }
+  };
+
+  // Auto-scroll to bottom of messages when a conversation is open
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (selectedConversationId && messages.length > 0 && messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages, selectedConversationId]);
 
   // Mark conversation as read when selected
   useEffect(() => {
-    if (selectedConversationId && selectedConversation?.unread_count && selectedConversation.unread_count > 0) {
+    if (selectedConversationId) {
+      markConversationRead(selectedConversationId);
       markAsRead();
     }
-  }, [selectedConversationId, selectedConversation?.unread_count, markAsRead]);
+  }, [selectedConversationId, markAsRead, markConversationRead]);
+
+  // Mark as read when window regains focus (e.g., switching tabs back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && selectedConversationId) {
+        markConversationRead(selectedConversationId);
+        markAsRead();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [selectedConversationId, markAsRead, markConversationRead]);
 
   // Refetch conversations when filter changes
   useEffect(() => {
@@ -156,10 +224,10 @@ export default function InboxPage() {
 
   // Select first conversation by default
   useEffect(() => {
-    if (conversations.length > 0 && !selectedConversationId && !artistId) {
+    if (conversations.length > 0 && !selectedConversationId && !artistId && !contactId) {
       setSelectedConversationId(conversations[0].id);
     }
-  }, [conversations, selectedConversationId, artistId]);
+  }, [conversations, selectedConversationId, artistId, contactId]);
 
   // Handle artistId query parameter - find or create conversation with artist
   useEffect(() => {
@@ -208,13 +276,81 @@ export default function InboxPage() {
     }
   }, [artistId, isAuthenticated, conversations, conversationsLoading, creatingConversation, router, fetchConversations]);
 
+  // Handle contactId query parameter - find or create conversation with any user
+  useEffect(() => {
+    if (!contactId || !isAuthenticated || conversationsLoading || creatingConversation) return;
+
+    const contactIdNum = parseInt(contactId as string, 10);
+    if (isNaN(contactIdNum)) return;
+
+    const existingConversation = conversations.find(
+      (conv) => conv.participant?.id === contactIdNum
+    );
+
+    if (existingConversation) {
+      setSelectedConversationId(existingConversation.id);
+      setMobileShowConversation(true);
+      router.replace('/inbox', undefined, { shallow: true });
+    } else {
+      setCreatingConversation(true);
+      createConversation(contactIdNum, 'consultation')
+        .then((newConversation) => {
+          if (newConversation) {
+            fetchConversations().then(() => {
+              setSelectedConversationId(newConversation.id);
+              setMobileShowConversation(true);
+            });
+          }
+          router.replace('/inbox', undefined, { shallow: true });
+        })
+        .catch((err) => {
+          console.error('Failed to create conversation:', err);
+          setSnackbar({
+            open: true,
+            message: 'Failed to start conversation. Please try again.',
+            severity: 'error',
+          });
+        })
+        .finally(() => {
+          setCreatingConversation(false);
+        });
+    }
+  }, [contactId, isAuthenticated, conversations, conversationsLoading, creatingConversation, router, fetchConversations]);
+
+  // Deep-link support: ?conversation=<id>&action=reschedule opens that conversation directly
+  useEffect(() => {
+    if (!conversationParam || !isAuthenticated || conversationsLoading) return;
+
+    const convId = parseInt(conversationParam as string, 10);
+    if (isNaN(convId)) return;
+
+    setSelectedConversationId(convId);
+    setMobileShowConversation(true);
+
+    if (actionParam === 'reschedule') {
+      setRescheduleModalOpen(true);
+    }
+
+    router.replace('/inbox', undefined, { shallow: true });
+  }, [conversationParam, actionParam, isAuthenticated, conversationsLoading, router]);
+
   const unreadCount = useMemo(() => conversations.filter((c) => c.unread_count > 0).length, [conversations]);
+
+  const sortedConversations = useMemo(() => {
+    const sorted = [...conversations].sort((a, b) => {
+      const dateA = new Date(a.last_message?.created_at || a.updated_at || a.created_at).getTime();
+      const dateB = new Date(b.last_message?.created_at || b.updated_at || b.created_at).getTime();
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+    return sorted;
+  }, [conversations, sortOrder]);
 
   const handleSelectConversation = (conv: ApiConversation) => {
     // Clear pending attachments when switching conversations
     if (conv.id !== selectedConversationId) {
       clearPendingAttachments();
       setMessageInput('');
+      setInsightsPanelOpen(false);
     }
     setSelectedConversationId(conv.id);
     setMobileShowConversation(true);
@@ -329,14 +465,83 @@ export default function InboxPage() {
     setSnackbar({ open: true, message: 'Deposit request sent!', severity: 'success' });
   };
 
+  const handleSendCancellation = async (reason?: string) => {
+    if (!selectedConversation?.appointment?.id) return;
+
+    const previousStatus = selectedConversation.appointment.status;
+    updateAppointmentStatus('cancelled');
+
+    try {
+      await sendCancellation(selectedConversation.appointment.id, reason);
+      setSnackbar({ open: true, message: 'Appointment cancelled. The client has been notified.', severity: 'success' });
+      fetchConversations();
+    } catch (error: any) {
+      updateAppointmentStatus(previousStatus);
+      setSnackbar({ open: true, message: error?.message || 'Failed to cancel appointment.', severity: 'error' });
+    }
+  };
+
+  const handleSendReschedule = async (
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string
+  ) => {
+    if (!selectedConversation?.appointment?.id) return;
+
+    try {
+      await sendReschedule(
+        selectedConversation.appointment.id,
+        proposedDate,
+        proposedStartTime,
+        proposedEndTime,
+        reason
+      );
+      setSnackbar({ open: true, message: 'Reschedule request sent!', severity: 'success' });
+    } catch (error: any) {
+      setSnackbar({ open: true, message: error?.message || 'Failed to send reschedule request.', severity: 'error' });
+    }
+  };
+
+  const handleRespondToReschedule = async (messageId: number, action: 'accept' | 'decline') => {
+    try {
+      await respondToMessage(messageId, action);
+      if (action === 'decline') {
+        setMessageInput("Hey, the proposed time doesn't work for me. Can we discuss some alternative options?");
+      }
+      setSnackbar({
+        open: true,
+        message: action === 'accept'
+          ? 'Reschedule accepted. The appointment has been updated.'
+          : 'Reschedule declined.',
+        severity: 'success',
+      });
+      fetchConversations();
+    } catch (error: any) {
+      setSnackbar({ open: true, message: error?.message || `Failed to ${action} reschedule.`, severity: 'error' });
+    }
+  };
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  const handleDeleteAppointment = async () => {
+    if (!selectedConversation?.appointment?.id) return;
+
+    try {
+      await appointmentService.delete(selectedConversation.appointment.id);
+      setDeleteConfirmOpen(false);
+      setSnackbar({ open: true, message: 'Appointment deleted.', severity: 'success' });
+      fetchConversations();
+    } catch (error: any) {
+      setSnackbar({ open: true, message: error?.message || 'Failed to delete appointment.', severity: 'error' });
+    }
+  };
+
   // File upload handlers
   const handleImageClick = () => {
     imageInputRef.current?.click();
   };
 
-  const handleFileClick = () => {
-    fileInputRef.current?.click();
-  };
 
   // Allowed image types for upload
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -409,29 +614,8 @@ export default function InboxPage() {
     setPendingAttachments([]);
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    // TODO: Implement actual file upload
-    setSnackbar({
-      open: true,
-      message: 'File attachment coming soon! This feature is under development.',
-      severity: 'info',
-    });
-
-    event.target.value = '';
-  };
 
   // Header action handlers
-  const handleCalendarClick = () => {
-    if (selectedConversation?.participant) {
-      // Navigate to the artist's profile calendar tab
-      const participantSlug = selectedConversation.participant.slug || selectedConversation.participant.username;
-      window.open(`/artists/${participantSlug}?tab=calendar`, '_blank');
-    }
-  };
-
   const handleMoreMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setMoreMenuAnchor(event.currentTarget);
   };
@@ -480,6 +664,62 @@ export default function InboxPage() {
     handleMoreMenuClose();
   };
 
+  // Typeahead user search with debounce
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    const query = recipientSearch.trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      setRecipientError('');
+      setSearchingRecipient(false);
+      return;
+    }
+
+    setSearchingRecipient(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await messageService.searchUsers(query);
+        setSearchResults(response.users || []);
+        setRecipientError(response.users?.length === 0 ? 'No users found' : '');
+      } catch {
+        setRecipientError('Search failed. Please try again.');
+        setSearchResults([]);
+      } finally {
+        setSearchingRecipient(false);
+      }
+    }, 300);
+
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [recipientSearch]);
+
+  const handleSelectRecipient = async (recipient: { id: number; name: string; username: string }) => {
+    setCreatingConversation(true);
+
+    try {
+      const newConversation = await createConversation(recipient.id);
+      if (newConversation) {
+        await fetchConversations();
+        setSelectedConversationId(newConversation.id);
+        setMobileShowConversation(true);
+      }
+      setNewMessageOpen(false);
+      setRecipientSearch('');
+      setSearchResults([]);
+      setRecipientError('');
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to start conversation. Please try again.',
+        severity: 'error',
+      });
+    } finally {
+      setCreatingConversation(false);
+    }
+  };
+
   const handleShareDesign = () => {
     // Open file picker for design images
     designInputRef.current?.click();
@@ -522,6 +762,32 @@ export default function InboxPage() {
   };
 
   const [decliningBooking, setDecliningBooking] = useState(false);
+  const [respondingToBookingId, setRespondingToBookingId] = useState<number | null>(null);
+
+  const handleRespondToBookingCard = async (appointmentId: number, action: 'accept' | 'decline') => {
+    setRespondingToBookingId(appointmentId);
+    try {
+      await appointmentService.respond(appointmentId, { action });
+      setRespondedBookings(prev => ({ ...prev, [appointmentId]: action === 'accept' ? 'accepted' : 'declined' }));
+      setSnackbar({
+        open: true,
+        message: action === 'accept'
+          ? 'Booking accepted! The client has been notified.'
+          : 'Booking declined. The client has been notified.',
+        severity: 'success',
+      });
+      fetchConversations();
+    } catch (error: any) {
+      console.error(`Failed to ${action} booking:`, error);
+      setSnackbar({
+        open: true,
+        message: error?.message || `Failed to ${action} booking. Please try again.`,
+        severity: 'error',
+      });
+    } finally {
+      setRespondingToBookingId(null);
+    }
+  };
 
   const handleRespondToBooking = async (action: 'accept' | 'decline', reason?: string) => {
     if (!selectedConversation?.appointment?.id) return;
@@ -577,7 +843,7 @@ export default function InboxPage() {
         <Head>
           <title>Messages | InkedIn</title>
         </Head>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 64px)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 80px)' } }}>
           <CircularProgress sx={{ color: colors.accent }} />
         </Box>
       </Layout>
@@ -596,7 +862,7 @@ export default function InboxPage() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            height: 'calc(100vh - 64px)',
+            height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 80px)' },
             p: 3,
           }}
         >
@@ -632,7 +898,7 @@ export default function InboxPage() {
         <meta name="description" content="Your messages and conversations" />
       </Head>
 
-      <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', height: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 80px)' }, overflow: 'hidden' }}>
         {/* Inbox Sidebar */}
         <Box
           sx={{
@@ -646,71 +912,100 @@ export default function InboxPage() {
         >
           {/* Header */}
           <Box sx={{ p: 2.5, borderBottom: `1px solid ${colors.borderSubtle}` }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TextField
+                fullWidth
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                size="small"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 16, color: colors.textMuted }} />
+                    </InputAdornment>
+                  ),
+                }}
                 sx={{
-                  fontFamily: '"Cormorant Garamond", serif',
-                  fontSize: '1.5rem',
-                  fontWeight: 600,
-                  color: colors.textPrimary,
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: colors.background,
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    '& fieldset': { borderColor: colors.borderSubtle },
+                    '&:hover fieldset': { borderColor: colors.borderLight },
+                    '&.Mui-focused fieldset': { borderColor: colors.accent },
+                  },
+                  '& .MuiInputBase-input': { color: colors.textPrimary },
+                  '& .MuiInputBase-input::placeholder': { color: colors.textMuted, opacity: 1 },
+                }}
+              />
+              <IconButton
+                onClick={(e) => setSortMenuAnchor(e.currentTarget)}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  flexShrink: 0,
+                  bgcolor: colors.background,
+                  border: `1px solid ${colors.borderSubtle}`,
+                  color: colors.textSecondary,
+                  '&:hover': { borderColor: colors.accent, color: colors.accent },
                 }}
               >
-                Messages
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <IconButton
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: colors.background,
-                    border: `1px solid ${colors.borderSubtle}`,
-                    color: colors.textSecondary,
-                    '&:hover': { borderColor: colors.accent, color: colors.accent },
-                  }}
-                >
-                  <TuneIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-                <IconButton
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: colors.background,
-                    border: `1px solid ${colors.borderSubtle}`,
-                    color: colors.textSecondary,
-                    '&:hover': { borderColor: colors.accent, color: colors.accent },
-                  }}
-                >
-                  <AddIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Box>
+                <TuneIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+              <IconButton
+                onClick={() => setNewMessageOpen(true)}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  flexShrink: 0,
+                  bgcolor: colors.background,
+                  border: `1px solid ${colors.borderSubtle}`,
+                  color: colors.textSecondary,
+                  '&:hover': { borderColor: colors.accent, color: colors.accent },
+                }}
+              >
+                <AddIcon sx={{ fontSize: 18 }} />
+              </IconButton>
             </Box>
 
-            <TextField
-              fullWidth
-              placeholder="Search messages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              size="small"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 16, color: colors.textMuted }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: colors.background,
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  '& fieldset': { borderColor: colors.borderSubtle },
-                  '&:hover fieldset': { borderColor: colors.borderLight },
-                  '&.Mui-focused fieldset': { borderColor: colors.accent },
+            {/* Sort Menu */}
+            <Menu
+              anchorEl={sortMenuAnchor}
+              open={Boolean(sortMenuAnchor)}
+              onClose={() => setSortMenuAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              PaperProps={{
+                sx: {
+                  bgcolor: colors.surface,
+                  border: `1px solid ${colors.borderSubtle}`,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                  minWidth: 180,
                 },
-                '& .MuiInputBase-input': { color: colors.textPrimary },
-                '& .MuiInputBase-input::placeholder': { color: colors.textMuted, opacity: 1 },
               }}
-            />
+            >
+              <MenuItem
+                onClick={() => { setSortOrder('newest'); setSortMenuAnchor(null); }}
+                sx={{ color: colors.textPrimary }}
+              >
+                <ListItemIcon>
+                  <ArrowDownwardIcon sx={{ color: sortOrder === 'newest' ? colors.accent : colors.textSecondary, fontSize: 18 }} />
+                </ListItemIcon>
+                <ListItemText>Newest first</ListItemText>
+                {sortOrder === 'newest' && <CheckIcon sx={{ color: colors.accent, fontSize: 18, ml: 1 }} />}
+              </MenuItem>
+              <MenuItem
+                onClick={() => { setSortOrder('oldest'); setSortMenuAnchor(null); }}
+                sx={{ color: colors.textPrimary }}
+              >
+                <ListItemIcon>
+                  <ArrowUpwardIcon sx={{ color: sortOrder === 'oldest' ? colors.accent : colors.textSecondary, fontSize: 18 }} />
+                </ListItemIcon>
+                <ListItemText>Oldest first</ListItemText>
+                {sortOrder === 'oldest' && <CheckIcon sx={{ color: colors.accent, fontSize: 18, ml: 1 }} />}
+              </MenuItem>
+            </Menu>
           </Box>
 
           {/* Filters */}
@@ -756,8 +1051,8 @@ export default function InboxPage() {
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress size={24} sx={{ color: colors.accent }} />
               </Box>
-            ) : conversations.length > 0 ? (
-              conversations.map((conv) => (
+            ) : sortedConversations.length > 0 ? (
+              sortedConversations.map((conv) => (
                 <ConversationItem
                   key={conv.id}
                   conversation={conv}
@@ -811,25 +1106,69 @@ export default function InboxPage() {
                   >
                     <ArrowBackIcon />
                   </IconButton>
-                  <Avatar
-                    src={selectedConversation.participant?.image?.uri}
-                    sx={{
-                      width: 44,
-                      height: 44,
-                      bgcolor: colors.surfaceElevated,
-                      color: colors.accent,
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {selectedConversation.participant?.initials || '??'}
-                  </Avatar>
+                  {selectedConversation.participant?.type === 2 && selectedConversation.participant?.slug ? (
+                    <Link href={`/artists/${selectedConversation.participant.slug}`} style={{ textDecoration: 'none', display: 'contents' }}>
+                      <Avatar
+                        src={selectedConversation.participant?.image?.uri}
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          bgcolor: colors.surfaceElevated,
+                          color: colors.accent,
+                          fontSize: '1rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {selectedConversation.participant?.initials || '??'}
+                      </Avatar>
+                    </Link>
+                  ) : (
+                    <Avatar
+                      src={selectedConversation.participant?.image?.uri}
+                      sx={{
+                        width: 44,
+                        height: 44,
+                        bgcolor: colors.surfaceElevated,
+                        color: colors.accent,
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {selectedConversation.participant?.initials || '??'}
+                    </Avatar>
+                  )}
                   <Box>
-                    <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: colors.textPrimary }}>
-                      {selectedConversation.participant?.name ||
-                        selectedConversation.participant?.username ||
-                        'Unknown User'}
-                    </Typography>
+                    {selectedConversation.participant?.type === 2 && selectedConversation.participant?.slug ? (
+                      <Link href={`/artists/${selectedConversation.participant.slug}`} style={{ textDecoration: 'none' }}>
+                        <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: colors.textPrimary, '&:hover': { color: colors.accent } }}>
+                          {selectedConversation.participant?.name ||
+                            selectedConversation.participant?.username ||
+                            'Unknown User'}
+                        </Typography>
+                      </Link>
+                    ) : isArtist && selectedConversation.participant?.id ? (
+                      <Typography
+                        onClick={() => setInsightsPanelOpen(true)}
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '1rem',
+                          color: colors.textPrimary,
+                          cursor: 'pointer',
+                          '&:hover': { color: colors.accent },
+                        }}
+                      >
+                        {selectedConversation.participant?.name ||
+                          selectedConversation.participant?.username ||
+                          'Unknown User'}
+                      </Typography>
+                    ) : (
+                      <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: colors.textPrimary }}>
+                        {selectedConversation.participant?.name ||
+                          selectedConversation.participant?.username ||
+                          'Unknown User'}
+                      </Typography>
+                    )}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, fontSize: '0.8rem', color: colors.textMuted }}>
                       <Box
                         sx={{
@@ -844,23 +1183,6 @@ export default function InboxPage() {
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Show calendar button when participant is an artist (booking/consultation conversations) */}
-                  {(selectedConversation?.type === 'booking' || selectedConversation?.type === 'consultation' || selectedConversation?.type === 'guest-spot') && (
-                    <IconButton
-                      onClick={handleCalendarClick}
-                      title="View calendar"
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        bgcolor: colors.background,
-                        border: `1px solid ${colors.borderSubtle}`,
-                        color: colors.textSecondary,
-                        '&:hover': { borderColor: colors.accent, color: colors.accent },
-                      }}
-                    >
-                      <CalendarMonthIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  )}
                   <IconButton
                     onClick={handleMoreMenuClick}
                     title="More options"
@@ -900,6 +1222,13 @@ export default function InboxPage() {
                       <ListItemText>View Profile</ListItemText>
                     </MenuItem>
                   )}
+                  {/* Show Client Insights for artists viewing non-artist participants */}
+                  {isArtist && selectedConversation?.participant?.id && selectedConversation?.participant?.type !== 2 && (
+                    <MenuItem onClick={() => { setInsightsPanelOpen(true); handleMoreMenuClose(); }} sx={{ color: colors.textPrimary }}>
+                      <ListItemIcon><PersonIcon sx={{ color: colors.textSecondary }} /></ListItemIcon>
+                      <ListItemText>Client Insights</ListItemText>
+                    </MenuItem>
+                  )}
                   <MenuItem onClick={handleBlockUser} sx={{ color: colors.textPrimary }}>
                     <ListItemIcon><BlockIcon sx={{ color: isParticipantBlocked ? colors.error : colors.textSecondary }} /></ListItemIcon>
                     <ListItemText>{isParticipantBlocked ? 'Unblock User' : 'Block User'}</ListItemText>
@@ -910,119 +1239,6 @@ export default function InboxPage() {
                   </MenuItem>
                 </Menu>
               </Box>
-
-              {/* Request Banner for pending appointments */}
-              {selectedConversation.appointment?.status === 'pending' && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 2,
-                    px: 3,
-                    py: 2,
-                    bgcolor: colors.successDim,
-                    borderBottom: `1px solid rgba(74, 155, 127, 0.2)`,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: '50%',
-                        bgcolor: colors.success,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                      }}
-                    >
-                      <CalendarMonthIcon sx={{ fontSize: 18 }} />
-                    </Box>
-                    <Box>
-                      <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: colors.textPrimary }}>
-                        Booking Request
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                        {(() => {
-                          // Combine date and time for proper formatting
-                          const dateStr = selectedConversation.appointment.date?.split('T')[0] || '';
-                          const timeStr = selectedConversation.appointment.start_time || '00:00:00';
-                          const tz = selectedConversation.appointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-                          // Create datetime string and format it
-                          const datetime = new Date(`${dateStr}T${timeStr}`);
-                          const formattedDate = datetime.toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            timeZone: tz
-                          });
-                          const formattedTime = datetime.toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true,
-                            timeZone: tz
-                          });
-
-                          return `${formattedDate} at ${formattedTime}`;
-                        })()}
-                        {selectedConversation.appointment.title && ` · ${selectedConversation.appointment.title}`}
-                        {selectedConversation.appointment.placement && ` · ${selectedConversation.appointment.placement}`}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      onClick={() => handleRespondToBooking('decline')}
-                      disabled={decliningBooking || acceptingBooking}
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        borderRadius: '6px',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                        textTransform: 'none',
-                        color: colors.textPrimary,
-                        border: `1px solid ${colors.borderLight}`,
-                        '&:hover': { borderColor: colors.error, color: colors.error },
-                        '&.Mui-disabled': { opacity: 0.7 },
-                      }}
-                    >
-                      {decliningBooking ? (
-                        <CircularProgress size={20} sx={{ color: colors.textPrimary }} />
-                      ) : (
-                        'Decline'
-                      )}
-                    </Button>
-                    <Button
-                      onClick={() => handleRespondToBooking('accept')}
-                      disabled={acceptingBooking || decliningBooking}
-                      sx={{
-                        px: 2,
-                        py: 1,
-                        borderRadius: '6px',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                        textTransform: 'none',
-                        bgcolor: colors.success,
-                        color: 'white',
-                        '&:hover': { bgcolor: '#3d8a6d' },
-                        '&.Mui-disabled': { bgcolor: colors.success, opacity: 0.7 },
-                      }}
-                    >
-                      {acceptingBooking ? (
-                        <CircularProgress size={20} sx={{ color: 'white' }} />
-                      ) : (
-                        selectedConversation.type === 'consultation' ? 'Accept' : 'Accept & Request Deposit'
-                      )}
-                    </Button>
-                  </Box>
-                </Box>
-              )}
 
               {/* Accepted Banner for booked appointments */}
               {selectedConversation.appointment?.status === 'booked' && (
@@ -1082,81 +1298,37 @@ export default function InboxPage() {
                 </Box>
               )}
 
-              {/* Declined Banner for cancelled appointments */}
-              {selectedConversation.appointment?.status === 'cancelled' && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    px: 3,
-                    py: 2,
-                    bgcolor: 'rgba(239, 68, 68, 0.1)',
-                    borderBottom: `1px solid rgba(239, 68, 68, 0.2)`,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      bgcolor: colors.error,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                    }}
-                  >
-                    <CalendarMonthIcon sx={{ fontSize: 18 }} />
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: colors.error }}>
-                      Declined
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                      {(() => {
-                        const dateStr = selectedConversation.appointment.date?.split('T')[0] || '';
-                        const timeStr = selectedConversation.appointment.start_time || '00:00:00';
-                        const tz = selectedConversation.appointment.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-                        const datetime = new Date(`${dateStr}T${timeStr}`);
-                        const formattedDate = datetime.toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          timeZone: tz
-                        });
-                        const formattedTime = datetime.toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true,
-                          timeZone: tz
-                        });
-                        return `${formattedDate} at ${formattedTime}`;
-                      })()}
-                      {selectedConversation.appointment.title && ` · ${selectedConversation.appointment.title}`}
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
 
               {/* Messages */}
-              <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+              <Box ref={messagesContainerRef} sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
                 {messagesLoading ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                     <CircularProgress size={24} sx={{ color: colors.accent }} />
                   </Box>
                 ) : messages.length > 0 ? (
                   <>
-                    {messages.map((msg) => (
-                      <MessageBubble
-                        key={msg.id}
-                        message={msg}
-                        isSent={msg.sender_id === user?.id}
-                        senderInitials={msg.sender_id === user?.id ? userInitials : msg.sender?.initials || '??'}
-                        senderImage={msg.sender_id === user?.id ? user?.image?.uri : msg.sender?.image?.uri}
-                      />
-                    ))}
+                    {displayMessages.map((msg, idx) => {
+                      const prevMsg = idx > 0 ? displayMessages[idx - 1] : null;
+                      const nextMsg = idx < displayMessages.length - 1 ? displayMessages[idx + 1] : null;
+                      const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
+                      const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
+
+                      return (
+                        <MessageBubble
+                          key={msg.id}
+                          message={msg}
+                          isSent={msg.sender_id === user?.id}
+                          senderInitials={msg.sender_id === user?.id ? userInitials : msg.sender?.initials || '??'}
+                          senderImage={msg.sender_id === user?.id ? user?.image?.uri : msg.sender?.image?.uri}
+                          showAvatar={isFirstInGroup}
+                          isLastInGroup={isLastInGroup}
+                          onRespondToBooking={isArtist ? handleRespondToBookingCard : undefined}
+                          respondingToBooking={respondingToBookingId}
+                          onRespondToReschedule={handleRespondToReschedule}
+                          onViewCalendar={handleViewCalendar}
+                        />
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </>
                 ) : (
@@ -1186,12 +1358,6 @@ export default function InboxPage() {
                   accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
                   multiple
                   onChange={handleImageUpload}
-                />
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  style={{ display: 'none' }}
-                  onChange={handleFileUpload}
                 />
                 <input
                   type="file"
@@ -1307,17 +1473,6 @@ export default function InboxPage() {
                     >
                       <ImageIcon sx={{ fontSize: 20 }} />
                     </IconButton>
-                    <IconButton
-                      onClick={handleFileClick}
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        color: colors.textMuted,
-                        '&:hover': { bgcolor: colors.surfaceElevated, color: colors.accent },
-                      }}
-                    >
-                      <AttachFileIcon sx={{ fontSize: 20 }} />
-                    </IconButton>
                   </Box>
 
                   <TextField
@@ -1384,6 +1539,27 @@ export default function InboxPage() {
                         label="Request Deposit"
                         onClick={handleOpenDepositModal}
                       />
+                      {selectedConversation?.appointment && selectedConversation.appointment.status !== 'cancelled' && selectedConversation.participant && (
+                        <>
+                          <QuickAction
+                            icon={<EventBusyIcon sx={{ fontSize: 14 }} />}
+                            label="Cancel Appointment"
+                            onClick={() => setCancelModalOpen(true)}
+                          />
+                          <QuickAction
+                            icon={<UpdateIcon sx={{ fontSize: 14 }} />}
+                            label="Reschedule"
+                            onClick={() => setRescheduleModalOpen(true)}
+                          />
+                        </>
+                      )}
+                      {selectedConversation?.appointment && !selectedConversation.participant && (
+                        <QuickAction
+                          icon={<DeleteOutlineIcon sx={{ fontSize: 14 }} />}
+                          label="Delete Appointment"
+                          onClick={() => setDeleteConfirmOpen(true)}
+                        />
+                      )}
                     </>
                   )}
                   <QuickAction
@@ -1419,7 +1595,139 @@ export default function InboxPage() {
             </Box>
           )}
         </Box>
+
+        {/* Client Insights Panel */}
+        {insightsPanelOpen && isArtist && selectedConversation?.participant?.id && (
+          <Box
+            sx={{
+              width: 340,
+              flexShrink: 0,
+              borderLeft: `1px solid ${colors.borderSubtle}`,
+              display: { xs: 'none', lg: 'flex' },
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <ClientInsightsPanel
+              clientId={selectedConversation.participant.id}
+              onClose={() => setInsightsPanelOpen(false)}
+            />
+          </Box>
+        )}
       </Box>
+
+      {/* New Message Dialog */}
+      <Dialog
+        open={newMessageOpen}
+        onClose={() => { setNewMessageOpen(false); setRecipientSearch(''); setSearchResults([]); setRecipientError(''); }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: colors.surface,
+            border: `1px solid ${colors.borderSubtle}`,
+            borderRadius: '12px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: colors.textPrimary }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AddIcon sx={{ color: colors.accent }} />
+            New Message
+          </Box>
+          <IconButton onClick={() => { setNewMessageOpen(false); setRecipientSearch(''); setSearchResults([]); setRecipientError(''); }} sx={{ color: colors.textMuted }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2, minHeight: 300 }}>
+          <TextField
+            fullWidth
+            placeholder="Search by name, username, or email..."
+            value={recipientSearch}
+            onChange={(e) => setRecipientSearch(e.target.value)}
+            size="small"
+            autoFocus
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 18, color: colors.textMuted }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchingRecipient ? (
+                <InputAdornment position="end">
+                  <CircularProgress size={18} sx={{ color: colors.accent }} />
+                </InputAdornment>
+              ) : null,
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: colors.background,
+                '& fieldset': { borderColor: colors.borderSubtle },
+                '&:hover fieldset': { borderColor: colors.borderLight },
+                '&.Mui-focused fieldset': { borderColor: colors.accent },
+              },
+              '& .MuiInputBase-input': { color: colors.textPrimary },
+              '& .MuiInputBase-input::placeholder': { color: colors.textMuted, opacity: 1 },
+            }}
+          />
+
+          {recipientError && !searchingRecipient && (
+            <Typography sx={{ color: colors.textMuted, fontSize: '0.85rem', mt: 2, textAlign: 'center' }}>
+              {recipientError}
+            </Typography>
+          )}
+
+          {creatingConversation && (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 2 }}>
+              <CircularProgress size={18} sx={{ color: colors.accent }} />
+              <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>Starting conversation...</Typography>
+            </Box>
+          )}
+
+          {searchResults.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              {searchResults.map((result) => (
+                <Box
+                  key={result.id}
+                  onClick={() => !creatingConversation && handleSelectRecipient(result)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: '8px',
+                    cursor: creatingConversation ? 'default' : 'pointer',
+                    opacity: creatingConversation ? 0.5 : 1,
+                    '&:hover': creatingConversation ? {} : { bgcolor: colors.background },
+                  }}
+                >
+                  <Avatar
+                    src={result.image?.uri}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: colors.surfaceElevated,
+                      color: colors.accent,
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {result.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || result.username?.slice(0, 2).toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: '0.9rem', color: colors.textPrimary }}>
+                      {result.name || result.username}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted }}>
+                      @{result.username}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Booking Modal */}
       <Dialog
@@ -1610,6 +1918,44 @@ export default function InboxPage() {
           >
             Send Request
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Cancel Appointment Modal */}
+      <CancelAppointmentModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onSubmit={handleSendCancellation}
+        clientName={selectedConversation?.participant?.name || undefined}
+      />
+
+      {/* Reschedule Appointment Modal */}
+      <RescheduleAppointmentModal
+        open={rescheduleModalOpen}
+        onClose={() => setRescheduleModalOpen(false)}
+        onSubmit={handleSendReschedule}
+        clientName={selectedConversation?.participant?.name || undefined}
+        recipientLabel={isArtist ? 'client' : 'artist'}
+        currentDate={selectedConversation?.appointment?.date}
+        currentStartTime={selectedConversation?.appointment?.start_time}
+        currentEndTime={selectedConversation?.appointment?.end_time}
+      />
+
+      {/* Delete Appointment Confirmation */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        PaperProps={{ sx: { bgcolor: colors.surface, color: colors.textPrimary, borderRadius: 3, maxWidth: 400 } }}
+      >
+        <DialogTitle sx={{ color: colors.textPrimary }}>Delete Appointment</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: colors.textSecondary }}>
+            Are you sure you want to permanently delete this appointment? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)} sx={{ color: colors.textMuted }}>Cancel</Button>
+          <Button onClick={handleDeleteAppointment} sx={{ color: colors.error }}>Delete</Button>
         </DialogActions>
       </Dialog>
 

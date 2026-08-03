@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { tattooModalUrl } from '@inkedin/shared/utils/imgix';
 
 interface ImageCacheContextType {
   // Check if an image is already loaded/cached
@@ -198,18 +199,22 @@ export const useTattooImagePreload = () => {
     const urls: string[] = [];
     const tattooId = tattoo.id;
 
-    // Primary image
+    // Primary image (with Imgix edit_params applied)
     const primaryUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+    const primaryEditParams = tattoo.primary_image?.edit_params || tattoo.image?.edit_params;
     if (primaryUri) {
-      urls.push(getCacheBustedUrl(primaryUri, 'tattoo', tattooId));
+      const imgixUri = tattooModalUrl(primaryUri, primaryEditParams);
+      urls.push(getCacheBustedUrl(imgixUri, 'tattoo', tattooId));
     }
 
     // All images array
     if (tattoo.images && Array.isArray(tattoo.images)) {
       tattoo.images.forEach((img: any) => {
         const uri = typeof img === 'string' ? img : img?.uri;
+        const ep = typeof img === 'object' ? img?.edit_params : undefined;
         if (uri) {
-          urls.push(getCacheBustedUrl(uri, 'tattoo', tattooId));
+          const imgixUri = tattooModalUrl(uri, ep);
+          urls.push(getCacheBustedUrl(imgixUri, 'tattoo', tattooId));
         }
       });
     }

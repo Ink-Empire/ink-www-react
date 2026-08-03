@@ -2,7 +2,28 @@
 // Services provide a cleaner interface for common API operations
 
 import type { ApiClient } from '../api';
-import type { Artist, Tattoo, Studio, Style, SearchFilters, User } from '../types';
+import type { Artist, Tattoo, Studio, Style, SearchFilters, User, UserProfile, PendingTattoo } from '../types';
+
+export interface UpcomingAppointment {
+  id: number;
+  date: string; // YYYY-MM-DD
+  day: number;
+  month: string;
+  time: string;
+  title: string;
+  clientName: string;
+  clientInitials: string;
+  type: 'consultation' | 'appointment' | string;
+  client_id?: number;
+  conversation_id?: number;
+  status?: string;
+  start_time?: string;
+  end_time?: string;
+  price?: string | number | null;
+  duration_minutes?: number | null;
+  notes?: string | null;
+  is_derived?: boolean;
+}
 
 // =============================================================================
 // Artist Service
@@ -15,17 +36,47 @@ export function createArtistService(api: ApiClient) {
         headers: { 'X-Account-Type': 'artist' },
       }),
 
-    getById: (idOrSlug: string | number) =>
-      api.get<{ artist: Artist }>(`/artists/${idOrSlug}`),
+    getById: (idOrSlug: string | number) => {
+      const param = typeof idOrSlug === 'number' ? { id: idOrSlug } : { slug: idOrSlug };
+      return api.post<{ artist: Artist }>('/artists', param);
+    },
 
     getPortfolio: (idOrSlug: string | number) =>
       api.get<Tattoo[]>(`/artists/${idOrSlug}/portfolio`),
 
+    getWorkingHours: (idOrSlug: string | number) =>
+      api.get(`/artists/${idOrSlug}/working-hours`),
+
+    getSettings: (artistId: number | string) =>
+      api.get(`/artists/${artistId}/settings`, { useCache: false }),
+
     update: (id: number, data: Partial<Artist>) =>
       api.put<{ artist: Artist }>(`/artists/${id}`, data, { requiresAuth: true }),
 
-    updateSettings: (artistId: number, settings: Partial<Artist['settings']>) =>
+    updateSettings: (artistId: number | string, settings: Record<string, any>) =>
       api.put(`/artists/${artistId}/settings`, settings, { requiresAuth: true }),
+
+    setWorkingHours: (artistId: number | string, workingHours: any[]) =>
+      api.post(`/artists/${artistId}/working-hours`, { availability: workingHours }, { requiresAuth: true }),
+
+    lookupByIdentifier: (identifier: string) =>
+      api.post<{ artist: { id: number; name: string; username: string; slug?: string; image?: any } }>(
+        '/artists/lookup',
+        { username: identifier },
+        { requiresAuth: true },
+      ),
+
+    getDashboardStats: (id: number) =>
+      api.get<{ data: { profile_views: number; saves_this_week: number; upcoming_appointments: number; unread_messages: number } }>(
+        `/artists/${id}/dashboard-stats`,
+        { requiresAuth: true },
+      ),
+
+    getUpcomingSchedule: (id: number) =>
+      api.get<{ data: UpcomingAppointment[] }>(
+        `/artists/${id}/upcoming-schedule`,
+        { requiresAuth: true },
+      ),
   };
 }
 
@@ -41,7 +92,7 @@ export function createTattooService(api: ApiClient) {
     getById: (id: string | number) =>
       api.get<{ tattoo: Tattoo }>(`/tattoos/${id}`),
 
-    create: (data: Partial<Tattoo>) =>
+    create: (data: Partial<Tattoo> & { tagged_artist_id?: number }) =>
       api.post<{ tattoo: Tattoo }>('/tattoos', data, { requiresAuth: true }),
 
     update: (id: number, data: Partial<Tattoo>) =>
@@ -49,6 +100,46 @@ export function createTattooService(api: ApiClient) {
 
     delete: (id: number) =>
       api.delete(`/tattoos/${id}`, { requiresAuth: true }),
+
+    bulkDelete: (ids: number[]) =>
+      api.post<{ success: boolean; deleted_count: number; failed_ids: number[] }>(
+        '/tattoos/bulk-delete',
+        { ids },
+        { requiresAuth: true },
+      ),
+
+    getPendingApprovals: () =>
+      api.get<{ tattoos: PendingTattoo[] }>('/tattoos/pending-approvals', { requiresAuth: true }),
+
+    respondToTag: (id: number, action: 'approve' | 'reject') =>
+      api.post<{ success: boolean; message: string }>(`/tattoos/${id}/approve`, { action }, { requiresAuth: true }),
+
+    clientUpload: (data: {
+      image_ids: number[];
+      title?: string;
+      description?: string;
+      tagged_artist_id?: number;
+      style_ids?: string;
+      tag_ids?: string;
+      studio_id?: number;
+      attributed_artist_name?: string;
+      attributed_studio_name?: string;
+      attributed_location?: string;
+      attributed_location_lat_long?: string;
+      artist_invite_email?: string;
+      artist_invite_phone?: string;
+    }) =>
+      api.post<{ tattoo: Tattoo; invitation_token?: string }>('/tattoos/create', data, { requiresAuth: true }),
+
+    getInvitation: (token: string) =>
+      api.get<{ invitation: any }>(`/invitations/${token}`),
+
+    claimInvitation: (token: string) =>
+      api.post<{ success: boolean; claimed_count: number; tattoo_ids: number[] }>(
+        `/invitations/${token}/claim`,
+        {},
+        { requiresAuth: true },
+      ),
   };
 }
 
@@ -72,6 +163,21 @@ export function createStudioService(api: ApiClient) {
 
     getArtists: (idOrSlug: string | number) =>
       api.get<Artist[]>(`/studios/${idOrSlug}/artists`),
+
+    getGallery: (idOrSlug: string | number) =>
+      api.get<Tattoo[]>(`/studios/${idOrSlug}/gallery`),
+
+    claim: (id: number, data: Record<string, any>) =>
+      api.post<{ studio: Studio }>(`/studios/${id}/claim`, data, { requiresAuth: true }),
+
+    lookupOrCreate: (data: Record<string, any>) =>
+      api.post<any>('/studios/lookup-or-create', data, { requiresAuth: true }),
+
+    uploadImage: (studioId: number, imageId: number) =>
+      api.post<any>(`/studios/${studioId}/image`, { image_id: imageId }, { requiresAuth: true }),
+
+    inviteStudioOwner: (studioId: number, email: string) =>
+      api.post<{ success: boolean; message: string }>(`/studios/${studioId}/invite`, { email }, { requiresAuth: true }),
   };
 }
 
@@ -79,9 +185,22 @@ export function createStudioService(api: ApiClient) {
 // Style Service
 // =============================================================================
 
+export interface AiStyleSuggestion {
+  id: number;
+  name: string;
+  is_ai_suggested?: boolean;
+}
+
 export function createStyleService(api: ApiClient) {
   return {
     getAll: () => api.get<Style[]>('/styles'),
+
+    suggestStyles: (imageUrls: string[]) =>
+      api.post<{ success: boolean; data: AiStyleSuggestion[] }>(
+        '/styles/suggest',
+        { image_urls: imageUrls },
+        { requiresAuth: true },
+      ),
   };
 }
 
@@ -102,8 +221,138 @@ export function createUserService(api: ApiClient) {
 
     toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number, action: 'add' | 'remove') =>
       api.post(`/users/favorites/${type}`, { ids: id, action }, { requiresAuth: true }),
+
+    uploadProfilePhoto: (imageId: number) =>
+      api.post('/users/profile-photo', { image_id: imageId }, { requiresAuth: true }),
+
+    deleteProfilePhoto: () =>
+      api.delete('/users/profile-photo', { requiresAuth: true }),
+
+    deleteAccount: () =>
+      api.post('/users/me/delete', {}, { requiresAuth: true }),
+
+    searchUsers: (params: { searchString: string }) =>
+      api.post<{ users: any[] }>('/users/search', params),
+
+    checkEmailAvailability: (email: string) =>
+      api.post<{ available: boolean }>('/check-availability', { email }),
   };
 }
+
+// =============================================================================
+// Message Service
+// =============================================================================
+
+export { createMessageService } from './messageService';
+export type { ConversationType, ConversationFilters } from './messageService';
+
+// =============================================================================
+// Appointment Service
+// =============================================================================
+
+export { createAppointmentService } from './appointmentService';
+export type {
+  CreateAppointmentData,
+  AvailableSlotsResponse,
+  AppointmentResponse as AppointmentResponseData,
+  CalendarEventData,
+  AppointmentInviteData,
+} from './appointmentService';
+
+// =============================================================================
+// Notification Service
+// =============================================================================
+
+export { createNotificationService } from './notificationService';
+export type { NotificationType, NotificationPreference, NotificationPreferencesResponse } from './notificationService';
+
+// =============================================================================
+// Tag Service
+// =============================================================================
+
+export { createTagService } from './tagService';
+export type { AiTagSuggestion } from './tagService';
+
+// =============================================================================
+// Google Places Service (REST API)
+// =============================================================================
+
+export { fetchPlacesApiKey, searchPlaces, getPlaceDetails } from './googlePlacesService';
+export type { PlacePrediction, PlaceDetails } from './googlePlacesService';
+
+// =============================================================================
+// User Profile Service
+// =============================================================================
+
+export function createUserProfileService(api: ApiClient) {
+  return {
+    getProfile: (slug: string) =>
+      api.get<{ user: UserProfile }>(`/users/${slug}/profile`),
+
+    getTattoos: (slug: string, params?: { page?: number; per_page?: number }) =>
+      api.get<{ tattoos: Tattoo[]; total: number; page: number; per_page: number; last_page: number }>(
+        `/users/${slug}/tattoos`,
+        { params },
+      ),
+  };
+}
+
+// =============================================================================
+// Client Service
+// =============================================================================
+
+export interface ClientDashboardAppointment {
+  id: number;
+  title: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  type: string;
+  description?: string;
+  conversation_id?: number;
+  artist?: {
+    id: number;
+    name: string;
+    slug?: string;
+    username?: string;
+    image?: any;
+  };
+  studio?: any;
+}
+
+export function createClientService(api: ApiClient) {
+  return {
+    getDashboard: () =>
+      api.get<{
+        appointments: ClientDashboardAppointment[];
+        conversations: any[];
+        favorites: any[];
+        wishlist_count: number;
+        suggested_artists: any[];
+      }>('/client/dashboard', { requiresAuth: true }),
+
+    getSavedStudios: () =>
+      api.get<{ studios: any[] }>('/client/saved-studios', { requiresAuth: true }),
+
+    getBookings: () =>
+      api.get<{ appointments: ClientDashboardAppointment[] }>('/client/bookings', { requiresAuth: true }),
+  };
+}
+
+// =============================================================================
+// Bulk Upload Service
+// =============================================================================
+
+export { createBulkUploadService } from './bulkUploadService';
+export type { BulkUpload, BulkUploadItem, BulkUploadItemsResponse } from './bulkUploadService';
+
+// =============================================================================
+// Client Insights Service
+// =============================================================================
+
+export { createClientInsightsService } from './clientInsightsService';
+export type { ClientInsightsService } from './clientInsightsService';
 
 // =============================================================================
 // Export types
@@ -114,3 +363,10 @@ export type TattooService = ReturnType<typeof createTattooService>;
 export type StudioService = ReturnType<typeof createStudioService>;
 export type StyleService = ReturnType<typeof createStyleService>;
 export type UserService = ReturnType<typeof createUserService>;
+export type MessageService = ReturnType<typeof createMessageService>;
+export type NotificationService = ReturnType<typeof createNotificationService>;
+export type AppointmentService = ReturnType<typeof createAppointmentService>;
+export type TagService = ReturnType<typeof createTagService>;
+export type ClientService = ReturnType<typeof createClientService>;
+export type UserProfileService = ReturnType<typeof createUserProfileService>;
+export type BulkUploadService = ReturnType<typeof createBulkUploadService>;

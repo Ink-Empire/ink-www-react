@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Box, Typography, Select, MenuItem, FormControl, Button, Modal, Paper, IconButton, CircularProgress } from '@mui/material';
+import { Box, Typography, Select, MenuItem, FormControl, Button, Modal, Paper, IconButton, CircularProgress, Switch, FormControlLabel } from '@mui/material';
 import { useTheme, useMediaQuery } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloseIcon from '@mui/icons-material/Close';
 import ArtistCard from '../../components/ArtistCard';
 import UnclaimedStudioCard from '../../components/UnclaimedStudioCard';
+import SearchStudioCard from '../../components/SearchStudioCard';
 import SearchFilters from '../../components/SearchFilters';
 import Layout from '../../components/Layout';
 import { useArtists, UnclaimedStudio } from '@/hooks';
@@ -18,6 +19,7 @@ import { distancePreferences } from '@/utils/distancePreferences';
 import { colors } from '@/styles/colors';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 import EmptyStateFoundingArtist from '@/components/EmptyStateFoundingArtist';
+import { userService } from '@/services';
 
 export default function ArtistList() {
     const user = useUserData();
@@ -62,9 +64,22 @@ export default function ArtistList() {
 
     const [searchParams, setSearchParams] = useState<Record<string, any>>(initialFilters);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
-    const [sortBy, setSortBy] = useState('relevant');
+    const [sortBy, setSortBy] = useState<string>('relevant');
+    const [showStudios, setShowStudios] = useState(true);
+    const [clientResults, setClientResults] = useState<any[]>([]);
+    const [clientsLoading, setClientsLoading] = useState(false);
+
+    // Map UI sort values to API sort values
+    const getSortParam = (uiSort: string) => {
+        switch (uiSort) {
+            case 'popular': return 'popular';
+            case 'recent': return 'recent';
+            case 'nearest': return 'nearest';
+            default: return undefined; // 'relevant' uses default sorting
+        }
+    };
     const [loginModalOpen, setLoginModalOpen] = useState(false);
-    const { artists, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useArtists(searchParams);
+    const { artists, unclaimedStudios, total, loading, loadingMore, error, hasMore, loadMore } = useArtists(searchParams, user?.blocked_user_ids);
 
     // Ref for infinite scroll sentinel
     const sentinelRef = useRef<HTMLDivElement>(null);
@@ -86,6 +101,26 @@ export default function ArtistList() {
         observer.observe(sentinel);
         return () => observer.disconnect();
     }, [hasMore, loadingMore, loading, loadMore]);
+
+    // Auto-fetch client results when artist search returns empty
+    const lastClientQueryRef = useRef('');
+    useEffect(() => {
+        const query = searchParams.searchString;
+        if (loading || (artists?.length || 0) > 0 || !query || query.length < 2) {
+            if (query !== lastClientQueryRef.current) {
+                setClientResults([]);
+                lastClientQueryRef.current = '';
+            }
+            return;
+        }
+        if (query === lastClientQueryRef.current) return;
+        lastClientQueryRef.current = query;
+        setClientsLoading(true);
+        userService.searchUsers({ searchString: query })
+            .then((response: any) => setClientResults(response?.users || []))
+            .catch(() => setClientResults([]))
+            .finally(() => setClientsLoading(false));
+    }, [loading, artists?.length, searchParams.searchString]);
 
     // Handle filter changes from SearchFilters component
     const handleFilterChange = (filters: {
@@ -164,8 +199,33 @@ export default function ArtistList() {
             delete newParams.artist_near_me;
         }
 
+        // Add sort parameter
+        const sortParam = getSortParam(sortBy);
+        if (sortParam) {
+            newParams.sort = sortParam;
+        }
+
         setSearchParams(newParams);
     };
+
+    // Update searchParams when sort changes (skip initial mount)
+    const sortMountRef = useRef(true);
+    useEffect(() => {
+        if (sortMountRef.current) {
+            sortMountRef.current = false;
+            return;
+        }
+        const sortParam = getSortParam(sortBy);
+        setSearchParams((prev) => {
+            const newParams = { ...prev };
+            if (sortParam) {
+                newParams.sort = sortParam;
+            } else {
+                delete newParams.sort;
+            }
+            return newParams;
+        });
+    }, [sortBy]);
 
     // Get active filters for display
     const getActiveFilters = () => {
@@ -257,18 +317,29 @@ export default function ArtistList() {
 
     const getInterleavedResults = () => {
         if (!artists || artists.length === 0) return [];
-        if (!unclaimedStudios || unclaimedStudios.length === 0) {
-            return artists.map(artist => ({ type: 'artist' as const, data: artist }));
+
+        // Map results, checking the type field from ES (artists have type='artist', studios have type='studio')
+        // Filter out studios if showStudios is false
+        const mappedResults = artists
+            .filter(item => showStudios || item.type !== 'studio')
+            .map(item => ({
+                type: item.type === 'studio' ? 'studio' as const : 'artist' as const,
+                data: item
+            }));
+
+        // If studios are hidden, don't include unclaimed studios either
+        if (!showStudios || !unclaimedStudios || unclaimedStudios.length === 0) {
+            return mappedResults;
         }
 
-        const results: Array<{ type: 'artist' | 'unclaimed'; data: any }> = [];
+        const results: Array<{ type: 'artist' | 'studio' | 'unclaimed'; data: any }> = [];
         let unclaimedIndex = 0;
-        const insertInterval = 4; // Insert unclaimed studio after every 4 artists
+        const insertInterval = 4; // Insert unclaimed studio after every 4 results
 
-        artists.forEach((artist, index) => {
-            results.push({ type: 'artist', data: artist });
+        mappedResults.forEach((item, index) => {
+            results.push(item);
 
-            // After every insertInterval artists, add an unclaimed studio if available
+            // After every insertInterval results, add an unclaimed studio if available
             if ((index + 1) % insertInterval === 0 && unclaimedIndex < unclaimedStudios.length) {
                 results.push({ type: 'unclaimed', data: unclaimedStudios[unclaimedIndex] });
                 unclaimedIndex++;
@@ -358,12 +429,6 @@ export default function ArtistList() {
                         }}>
                             Find Artists
                         </Typography>
-                        <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
-                            <Box component="strong" sx={{ color: colors.accent }}>
-                                {artistCount}
-                            </Box>
-                            {' '}artists available
-                        </Typography>
                     </Box>
 
                     <Box sx={{
@@ -390,6 +455,33 @@ export default function ArtistList() {
                             </Button>
                         )}
 
+                        {/* Studios Toggle */}
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={showStudios}
+                                    onChange={(e) => setShowStudios(e.target.checked)}
+                                    size="small"
+                                    sx={{
+                                        '& .MuiSwitch-switchBase.Mui-checked': {
+                                            color: colors.accent,
+                                        },
+                                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                            backgroundColor: colors.accent,
+                                        },
+                                    }}
+                                />
+                            }
+                            label="Include studios"
+                            sx={{
+                                mr: 0,
+                                '& .MuiFormControlLabel-label': {
+                                    fontSize: '0.875rem',
+                                    color: colors.textSecondary,
+                                },
+                            }}
+                        />
+
                         {/* Sort Dropdown */}
                         <FormControl size="small">
                             <Select
@@ -412,6 +504,8 @@ export default function ArtistList() {
                                 }}
                             >
                                 <MenuItem value="relevant">Most Relevant</MenuItem>
+                                <MenuItem value="recent">Most Recent</MenuItem>
+                                <MenuItem value="popular">Most Popular</MenuItem>
                                 <MenuItem value="nearest">Nearest</MenuItem>
                             </Select>
                         </FormControl>
@@ -471,7 +565,7 @@ export default function ArtistList() {
                     <Box sx={{ textAlign: 'center', py: 4 }}>
                         <Typography sx={{ color: colors.error }}>Error: {error.message}</Typography>
                     </Box>
-                ) : artistCount === 0 && !loading ? (
+                ) : artistCount === 0 && unclaimedStudios.length === 0 && !loading ? (
                     // Show "founding artists" CTA when live site is empty (no demo mode, no restrictive filters)
                     // Only count non-default filters as restrictive
                     !isDemoMode && activeFilters.filter(f => !(f as any).isDefault).length === 0 ? (
@@ -518,6 +612,89 @@ export default function ArtistList() {
                                     Clear all filters
                                 </Button>
                             )}
+                            {clientsLoading && (
+                                <Box sx={{ mt: 3, textAlign: 'center' }}>
+                                    <CircularProgress size={24} sx={{ color: colors.accent }} />
+                                </Box>
+                            )}
+                            {!clientsLoading && clientResults.length > 0 && (
+                                <Box sx={{ mt: 3 }}>
+                                    <Typography sx={{
+                                        color: colors.accent,
+                                        fontSize: '0.95rem',
+                                        fontWeight: 700,
+                                        mb: 2,
+                                        textAlign: 'center'
+                                    }}>
+                                        No artists match - showing user results
+                                    </Typography>
+                                    <Box sx={{
+                                        display: 'grid',
+                                        gridTemplateColumns: {
+                                            xs: '1fr',
+                                            sm: 'repeat(auto-fill, minmax(280px, 1fr))'
+                                        },
+                                        gap: '1.25rem'
+                                    }}>
+                                        {clientResults.map((user) => (
+                                            <Link key={user.id} href={`/users/${user.slug}`} style={{ textDecoration: 'none' }}>
+                                                <Box sx={{
+                                                    bgcolor: colors.surface,
+                                                    borderRadius: '12px',
+                                                    border: `1px solid ${colors.border}`,
+                                                    overflow: 'hidden',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    p: 2,
+                                                    gap: 2,
+                                                    cursor: 'pointer',
+                                                    '&:hover': { borderColor: colors.accent }
+                                                }}>
+                                                    {user.primary_image?.uri ? (
+                                                        <Box
+                                                            component="img"
+                                                            src={user.primary_image.uri}
+                                                            sx={{
+                                                                width: 48,
+                                                                height: 48,
+                                                                borderRadius: '50%',
+                                                                objectFit: 'cover',
+                                                                flexShrink: 0
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <Box sx={{
+                                                            width: 48,
+                                                            height: 48,
+                                                            borderRadius: '50%',
+                                                            bgcolor: colors.surfaceElevated,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0,
+                                                            color: colors.textMuted,
+                                                            fontWeight: 600,
+                                                            fontSize: '1rem'
+                                                        }}>
+                                                            {user.name?.substring(0, 2).toUpperCase() || '?'}
+                                                        </Box>
+                                                    )}
+                                                    <Box>
+                                                        <Typography sx={{ color: colors.textPrimary, fontWeight: 600 }}>
+                                                            {user.name}
+                                                        </Typography>
+                                                        {user.location && (
+                                                            <Typography sx={{ color: colors.textSecondary, fontSize: '0.85rem' }}>
+                                                                {user.location}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            </Link>
+                                        ))}
+                                    </Box>
+                                </Box>
+                            )}
                         </Box>
                     )
                 ) : (
@@ -529,20 +706,31 @@ export default function ArtistList() {
                         },
                         gap: '1.25rem'
                     }}>
-                        {interleavedResults.map((item, index) => (
-                            item.type === 'artist' ? (
-                                <ArtistCard
-                                    key={`artist-${item.data.id}`}
-                                    artist={item.data}
-                                    onSaveClick={handleArtistSaveClick}
-                                />
-                            ) : (
-                                <UnclaimedStudioCard
-                                    key={`unclaimed-${item.data.id}`}
-                                    studio={item.data}
-                                />
-                            )
-                        ))}
+                        {interleavedResults.map((item, index) => {
+                            if (item.type === 'artist') {
+                                return (
+                                    <ArtistCard
+                                        key={`artist-${item.data.id}`}
+                                        artist={item.data}
+                                        onSaveClick={handleArtistSaveClick}
+                                    />
+                                );
+                            } else if (item.type === 'studio') {
+                                return (
+                                    <SearchStudioCard
+                                        key={`studio-${item.data.id}`}
+                                        studio={item.data}
+                                    />
+                                );
+                            } else {
+                                return (
+                                    <UnclaimedStudioCard
+                                        key={`unclaimed-${item.data.id}`}
+                                        studio={item.data}
+                                    />
+                                );
+                            }
+                        })}
                     </Box>
                 )}
 
@@ -563,7 +751,7 @@ export default function ArtistList() {
                         )}
                         {!hasMore && artists.length > 25 && (
                             <Typography sx={{ color: colors.textMuted, fontSize: '0.875rem' }}>
-                                You've seen all {total} results
+                                You've seen all results
                             </Typography>
                         )}
                     </Box>

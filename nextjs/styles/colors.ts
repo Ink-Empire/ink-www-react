@@ -62,6 +62,22 @@ export const colors = {
   textOnLight: '#000000',
   backgroundLight: '#ffffff',
 
+  // Tag Category Colors
+  tagLikes: '#6B9E8A',
+  tagLikesBg: '#111a16',
+  tagAvoid: '#C4784A',
+  tagAvoidBg: '#1e1510',
+  tagPersonality: '#9B8FC4',
+  tagPersonalityBg: '#18162a',
+  tagNotes: '#5B8FB9',
+  tagNotesBg: '#111820',
+
+  // Post Type Colors
+  flash: '#C9A962',
+  flashDim: 'rgba(201, 169, 98, 0.15)',
+  seeking: '#4ABBA8',
+  seekingDim: 'rgba(74, 187, 168, 0.15)',
+
   // Aliases for common usage
   primary: '#C9A962',
   primaryLight: '#E4C675',
@@ -110,6 +126,22 @@ export const cssVars = {
   secondaryLight: 'var(--secondary-light)',
   secondaryDark: 'var(--secondary-dark)',
 } as const;
+
+// Reusable modal styles for consistent dialogs across the site
+export const modalStyles = {
+  // PaperProps.sx for MUI Dialog
+  paper: {
+    bgcolor: colors.surfaceElevated,
+    color: colors.textPrimary,
+    borderRadius: 2,
+    border: `1px solid ${colors.borderLight}`,
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+  },
+  // Backdrop styling for darker overlay
+  backdrop: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  },
+};
 
 // Reusable input styles for consistent form fields across the site
 export const inputStyles = {

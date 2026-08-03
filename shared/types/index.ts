@@ -4,6 +4,24 @@
 // Common Types
 // =============================================================================
 
+export interface ImageEditParams {
+  bri?: number;
+  con?: number;
+  sat?: number;
+  sharp?: number;
+  rot?: number;
+  mono?: boolean;
+  auto_enhance?: boolean;
+  sepia?: number;
+  hue_shift?: number;
+  crop?: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+}
+
 export interface Image {
   id: number;
   uri: string;
@@ -11,6 +29,7 @@ export interface Image {
   filename?: string;
   artistId?: number;
   tattooId?: number;
+  edit_params?: ImageEditParams | null;
 }
 
 export interface Style {
@@ -52,6 +71,7 @@ export interface User {
     slug: string;
   } | null;
   email_verified_at?: string;
+  is_email_verified?: boolean;
   last_login_at?: string;
   created_at?: string;
   updated_at?: string;
@@ -147,7 +167,50 @@ export interface Tattoo {
   // Status
   is_featured?: boolean;
 
+  // User upload fields
+  uploaded_by_user_id?: number;
+  uploader_name?: string;
+  uploader_slug?: string;
+  is_user_upload?: boolean;
+  approval_status?: 'approved' | 'pending' | 'user_only';
+  is_visible?: boolean;
+
+  // Post type
+  post_type?: 'portfolio' | 'flash' | 'seeking';
+  flash_price?: number;
+  flash_size?: string;
+
   type?: string;
+}
+
+export interface UserProfile {
+  id: number;
+  name: string;
+  slug: string;
+  username?: string;
+  about?: string;
+  location?: string;
+  image?: { id: number; uri: string } | null;
+  uploaded_tattoo_count: number;
+  social_media_links?: { platform: string; username: string; url: string }[];
+  created_at?: string;
+}
+
+export interface PendingTattoo {
+  id: number;
+  title?: string;
+  description?: string;
+  primary_image?: Image;
+  images?: Image[];
+  styles?: Style[];
+  approval_status: string;
+  uploader?: {
+    id: number;
+    name: string;
+    slug: string;
+    image?: { id: number; uri: string } | null;
+  };
+  created_at?: string;
 }
 
 // Alias for backward compatibility
@@ -294,6 +357,102 @@ export type IStudio = Studio;
 export type { WorkingHour as WorkingHours } from './calendar';
 
 // =============================================================================
+// Messaging Types
+// =============================================================================
+
+export interface ConversationParticipant {
+  id: number;
+  name: string | null;
+  username: string;
+  slug: string | null;
+  initials: string;
+  image: {
+    id: number;
+    uri: string;
+  } | null;
+  is_online: boolean;
+  last_seen_at: string | null;
+}
+
+export interface LastMessage {
+  id: number;
+  content: string;
+  type: string;
+  sender_id: number;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: number;
+  type: string;
+  participant: ConversationParticipant | null;
+  last_message: LastMessage | null;
+  unread_count: number;
+  appointment: {
+    id: number;
+    status: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+    title: string | null;
+    description: string | null;
+    placement: string | null;
+    timezone: string | null;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MessageSender {
+  id: number;
+  name: string | null;
+  username: string;
+  initials: string;
+  image: {
+    id: number;
+    uri: string;
+  } | null;
+}
+
+export interface MessageAttachment {
+  id: number;
+  image: {
+    id: number;
+    uri: string;
+  } | null;
+}
+
+export interface Message {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  sender: MessageSender;
+  content: string;
+  type: string;
+  metadata: Record<string, any> | null;
+  attachments: MessageAttachment[];
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
+// Notification Types
+// =============================================================================
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  message: string;
+  actor_name?: string;
+  actor_image?: string;
+  entity_type?: string;
+  entity_id?: number;
+  read_at: string | null;
+  created_at: string;
+}
+
+// =============================================================================
 // Search & Filter Types
 // =============================================================================
 
@@ -301,6 +460,7 @@ export interface SearchFilters {
   searchString?: string;
   styles?: number[];
   tags?: number[];
+  tagNames?: string[];
   distance?: number;
   distanceUnit?: 'mi' | 'km';
   locationCoords?: string;
@@ -308,6 +468,9 @@ export interface SearchFilters {
   useAnyLocation?: boolean;
   studio_id?: number;
   user_id?: number;
+  post_type?: 'portfolio' | 'flash' | 'seeking';
+  post_types?: Array<'portfolio' | 'flash' | 'seeking'>;
+  sort?: string;
 }
 
 export interface SearchResponse<T> {
@@ -357,3 +520,61 @@ export interface Country {
 // =============================================================================
 
 export * from './calendar';
+
+// =============================================================================
+// Client Insights Types
+// =============================================================================
+
+export interface UserTagCategory {
+  id: number;
+  name: string;
+  color: 'teal' | 'coral' | 'purple' | 'amber';
+  sort_order: number;
+}
+
+export interface UserTag {
+  id: number;
+  label: string;
+}
+
+export interface TagGroup {
+  category: UserTagCategory;
+  tags: UserTag[];
+}
+
+export interface ClientNote {
+  id: number | string;
+  body: string;
+  source?: 'note' | 'appointment';
+  appointment_title?: string;
+  created_at: string;
+}
+
+export interface ClientAppointmentHistory {
+  id: number;
+  type: string;
+  date: string;
+  duration_minutes: number | null;
+  notes?: string | null;
+  status: 'done' | 'upcoming' | 'booked' | 'cancelled';
+}
+
+export interface ClientProfileStats {
+  sessions: number;
+  total_spent: number;
+  hours_in_chair: number;
+  next_appointment: string | null;
+}
+
+export interface ClientProfile {
+  client: {
+    id: number;
+    name: string;
+    email: string;
+    created_at: string;
+  };
+  stats: ClientProfileStats;
+  tags: TagGroup[];
+  notes: ClientNote[];
+  history: ClientAppointmentHistory[];
+}

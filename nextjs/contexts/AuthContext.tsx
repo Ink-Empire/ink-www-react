@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useRouter } from 'next/router';
 import { api } from '../utils/api';
 import { setToken, removeToken } from '../utils/auth';
+import { disconnectEcho } from '../utils/echo';
+import { clearCache } from '../utils/apiCache';
 
 // User interface - complete user data
 interface User {
@@ -24,8 +26,7 @@ interface User {
     tattoos?: number[];
     studios?: number[];
   };
-  // Studio admin fields
-  is_studio_admin?: boolean;
+  // Studio fields
   studio_id?: number;
   // Primary studio (for backwards compatibility)
   studio?: {
@@ -47,6 +48,7 @@ interface User {
     name: string;
     slug: string;
   } | null;
+  force_password_reset?: boolean;
   [key: string]: any; // Allow additional properties from API
 }
 
@@ -214,6 +216,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     let mounted = true;
 
     const validateSession = async () => {
+      // Skip validation on verify-email page - it handles its own auth flow
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (pathname.startsWith('/verify-email')) {
+        if (mounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       const storedUser = getStoredUser();
       if (storedUser) {
         // Validate with server
@@ -289,7 +300,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         saveUser(userData);
         setError(null);
         console.log('Login successful:', userData.email);
-        onSuccess?.();
+        if (userData.force_password_reset) {
+          router.push('/change-password');
+        } else {
+          onSuccess?.();
+        }
       } else {
         throw new Error('Login succeeded but failed to get user data');
       }
@@ -334,6 +349,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       console.error('Logout API error:', err);
     }
+
+    // Disconnect WebSocket before clearing auth
+    disconnectEcho();
 
     // Remove the auth token
     removeToken();
@@ -411,6 +429,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         action: isAlreadyFavorite ? 'remove' : 'add'
       }, { requiresAuth: true });
 
+      clearCache('/client/saved-');
+      clearCache('/client/favorites');
+
       const updatedUser = { ...user, favorites: updatedFavorites };
       setUser(updatedUser);
       saveUser(updatedUser);
@@ -466,6 +487,7 @@ type UseUserReturn = {
   updateUser: (data: Partial<User>) => Promise<void>;
   updateStyles: (styles: number[]) => Promise<void>;
   toggleFavorite: (type: 'artist' | 'tattoo' | 'studio', id: number) => Promise<void>;
+  refreshUser: () => Promise<User | null>;
   logout: () => Promise<void>;
 };
 
@@ -479,6 +501,7 @@ export const useUser = (): UseUserReturn => {
     updateUser: auth.updateUser,
     updateStyles: auth.updateStyles,
     toggleFavorite: auth.toggleFavorite,
+    refreshUser: auth.refreshUser,
     logout: auth.logout,
   };
 };

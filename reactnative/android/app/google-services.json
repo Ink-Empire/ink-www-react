@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "583413222908",
+    "project_id": "inkedin-5035e",
+    "storage_bucket": "inkedin-5035e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:583413222908:android:11e93c7382fcef7acbf679",
+        "android_client_info": {
+          "package_name": "com.inkedin.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxdEChMPsbTYbEh9r5ojoYvqT9PyJC3Xs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

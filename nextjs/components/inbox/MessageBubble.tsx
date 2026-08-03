@@ -1,7 +1,11 @@
-import React from 'react';
-import { Box, Typography, Avatar } from '@mui/material';
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { Box, Typography, Avatar, Button, CircularProgress } from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import EventIcon from '@mui/icons-material/Event';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
+import UpdateIcon from '@mui/icons-material/Update';
 import { colors } from '@/styles/colors';
 import { ApiMessage } from '@/hooks/useConversations';
 import { formatMessageTime } from './utils';
@@ -11,6 +15,12 @@ interface MessageBubbleProps {
   isSent: boolean;
   senderInitials: string;
   senderImage?: string;
+  showAvatar?: boolean;
+  isLastInGroup?: boolean;
+  onRespondToBooking?: (appointmentId: number, action: 'accept' | 'decline') => Promise<any>;
+  respondingToBooking?: number | null;
+  onRespondToReschedule?: (messageId: number, action: 'accept' | 'decline') => Promise<any>;
+  onViewCalendar?: (date?: string) => void;
 }
 
 export function MessageBubble({
@@ -18,36 +28,134 @@ export function MessageBubble({
   isSent,
   senderInitials,
   senderImage,
+  showAvatar = true,
+  isLastInGroup = true,
+  onRespondToBooking,
+  respondingToBooking,
+  onRespondToReschedule,
+  onViewCalendar,
 }: MessageBubbleProps) {
   const hasBookingCard = message.type === 'booking_card' && message.metadata;
   const hasDepositRequest = message.type === 'deposit_request' && message.metadata;
+  const hasCancellation = message.type === 'cancellation' && message.metadata;
+  const hasReschedule = message.type === 'reschedule' && message.metadata;
+
+  const bookingStatus = message.metadata?.status;
+  const [respondingAction, setRespondingAction] = useState<'accept' | 'decline' | null>(null);
+
+  const handleBookingRespond = async (action: 'accept' | 'decline') => {
+    if (!onRespondToBooking || !message.metadata?.appointment_id) return;
+    try {
+      await onRespondToBooking(message.metadata.appointment_id, action);
+    } catch {
+      // error handled by parent
+    }
+  };
+
+  const handleRescheduleRespond = async (action: 'accept' | 'decline') => {
+    if (!onRespondToReschedule) return;
+    setRespondingAction(action);
+    try {
+      await onRespondToReschedule(message.id, action);
+    } finally {
+      setRespondingAction(null);
+    }
+  };
+
+  const formatProposedDate = (date?: string) => {
+    if (!date) return '';
+    try {
+      const [y, m, d] = date.substring(0, 10).split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      return dateObj.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return date;
+    }
+  };
+
+  const formatProposedTime = (startTime?: string, endTime?: string) => {
+    if (!startTime) return '';
+    try {
+      const fmtTime = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        const d = new Date();
+        d.setHours(h, m);
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      };
+      const start = fmtTime(startTime);
+      if (endTime) return `${start} - ${fmtTime(endTime)}`;
+      return start;
+    } catch {
+      return startTime || '';
+    }
+  };
+
+  const rescheduleStatus = message.metadata?.status;
+
+  // System messages render centered
+  if (message.type === 'system') {
+    const calendarLink = message.metadata?.calendar_link;
+    const isArtist = isSent;
+    const displayContent = isArtist && message.metadata?.artist_content
+      ? message.metadata.artist_content
+      : message.content;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, px: 2 }}>
+        <Typography component="span" sx={{
+          fontSize: '0.8rem',
+          color: colors.textSecondary,
+          fontStyle: 'italic',
+          textAlign: 'center',
+        }}>
+          {displayContent}
+          {isArtist && calendarLink && (
+            <>
+              {' '}
+              <Link href={calendarLink} style={{ color: colors.accent, textDecoration: 'none' }}>
+                View calendar
+              </Link>
+            </>
+          )}
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box
       sx={{
         display: 'flex',
         gap: 1.5,
-        mb: 2,
+        mb: isLastInGroup ? 2 : 0.5,
         maxWidth: '70%',
         flexDirection: isSent ? 'row-reverse' : 'row',
         ml: isSent ? 'auto' : 0,
       }}
     >
-      <Avatar
-        src={senderImage}
-        sx={{
-          width: 32,
-          height: 32,
-          bgcolor: isSent ? colors.accentDim : colors.surface,
-          color: colors.accent,
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          flexShrink: 0,
-          alignSelf: 'flex-end',
-        }}
-      >
-        {senderInitials}
-      </Avatar>
+      {showAvatar ? (
+        <Avatar
+          src={senderImage}
+          sx={{
+            width: 32,
+            height: 32,
+            bgcolor: isSent ? colors.accentDim : colors.surface,
+            color: colors.accent,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            flexShrink: 0,
+            alignSelf: 'flex-start',
+          }}
+        >
+          {senderInitials}
+        </Avatar>
+      ) : (
+        <Box sx={{ width: 32, flexShrink: 0 }} />
+      )}
 
       <Box
         sx={{
@@ -57,12 +165,12 @@ export function MessageBubble({
           alignItems: isSent ? 'flex-end' : 'flex-start',
         }}
       >
-        {message.content && (
+        {message.content && !hasCancellation && !hasReschedule && !hasBookingCard && (
           <Box
             sx={{
               px: 2,
               py: 1.5,
-              bgcolor: isSent ? colors.accent : colors.surface,
+              bgcolor: isSent ? colors.accent : colors.accentDim,
               color: isSent ? colors.background : colors.textPrimary,
               borderRadius: '12px',
               borderBottomLeftRadius: isSent ? '12px' : '4px',
@@ -105,7 +213,11 @@ export function MessageBubble({
           <Box
             sx={{
               bgcolor: isSent ? 'rgba(0,0,0,0.15)' : colors.surfaceElevated,
-              border: `1px solid ${isSent ? 'rgba(0,0,0,0.2)' : colors.borderLight}`,
+              border: `1px solid ${
+                bookingStatus === 'accepted' ? `rgba(74, 155, 127, 0.3)` :
+                bookingStatus === 'declined' || bookingStatus === 'cancelled' ? `rgba(239, 68, 68, 0.25)` :
+                isSent ? 'rgba(0,0,0,0.2)' : colors.borderLight
+              }`,
               borderRadius: '12px',
               p: 3,
               mt: 1.5,
@@ -113,9 +225,31 @@ export function MessageBubble({
               maxWidth: 320,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5, fontWeight: 600, fontSize: '0.95rem' }}>
-              <CalendarMonthIcon sx={{ fontSize: 20, color: isSent ? colors.textSecondary : colors.success }} />
-              Booking Details
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, fontWeight: 600, fontSize: '0.95rem' }}>
+                <CalendarMonthIcon sx={{ fontSize: 20, color: isSent ? colors.textSecondary : colors.success }} />
+                Booking Request
+              </Box>
+              {message.metadata.status === 'pending' && (
+                <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, bgcolor: `${colors.accent}18`, color: colors.accent, borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Pending
+                </Box>
+              )}
+              {message.metadata.status === 'accepted' && (
+                <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, bgcolor: `${colors.success}18`, color: colors.success, borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Confirmed
+                </Box>
+              )}
+              {message.metadata.status === 'declined' && (
+                <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, bgcolor: 'rgba(239, 68, 68, 0.12)', color: colors.error, borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Declined
+                </Box>
+              )}
+              {message.metadata.status === 'cancelled' && (
+                <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, bgcolor: 'rgba(239, 68, 68, 0.12)', color: colors.error, borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Cancelled
+                </Box>
+              )}
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.9rem' }}>
               {[
@@ -134,6 +268,85 @@ export function MessageBubble({
                 ) : null
               )}
             </Box>
+            {message.content && (
+              <Typography sx={{
+                fontSize: '0.85rem',
+                color: colors.textSecondary,
+                mt: 2,
+                pt: 2,
+                borderTop: `1px solid ${isSent ? 'rgba(255,255,255,0.1)' : colors.border}`,
+                fontStyle: 'italic',
+                lineHeight: 1.5,
+              }}>
+                {message.content}
+              </Typography>
+            )}
+            {/* Accept/Decline buttons for pending bookings */}
+            {bookingStatus === 'pending' && !isSent && onRespondToBooking && message.metadata.appointment_id && (
+              <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                <Button
+                  size="small"
+                  onClick={() => handleBookingRespond('decline')}
+                  disabled={respondingToBooking === message.metadata.appointment_id}
+                  sx={{
+                    fontSize: '0.8rem',
+                    textTransform: 'none',
+                    color: colors.textPrimary,
+                    border: `1px solid ${colors.borderLight}`,
+                    borderRadius: '6px',
+                    px: 2,
+                    '&:hover': { borderColor: colors.error, color: colors.error },
+                    '&.Mui-disabled': { opacity: 0.7 },
+                  }}
+                >
+                  {respondingToBooking === message.metadata.appointment_id ? (
+                    <CircularProgress size={16} sx={{ color: colors.textPrimary }} />
+                  ) : (
+                    'Decline'
+                  )}
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => handleBookingRespond('accept')}
+                  disabled={respondingToBooking === message.metadata.appointment_id}
+                  sx={{
+                    fontSize: '0.8rem',
+                    textTransform: 'none',
+                    bgcolor: colors.success,
+                    color: 'white',
+                    borderRadius: '6px',
+                    px: 2,
+                    '&:hover': { bgcolor: '#3d8a6d' },
+                    '&.Mui-disabled': { bgcolor: colors.success, opacity: 0.7 },
+                  }}
+                >
+                  {respondingToBooking === message.metadata.appointment_id ? (
+                    <CircularProgress size={16} sx={{ color: 'white' }} />
+                  ) : (
+                    'Accept'
+                  )}
+                </Button>
+              </Box>
+            )}
+            {/* View in Calendar link for accepted bookings */}
+            {bookingStatus === 'accepted' && onViewCalendar && (
+              <Box
+                onClick={() => onViewCalendar(extractDateFromBooking(message.metadata!.date))}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  mt: 2,
+                  cursor: 'pointer',
+                  '&:hover': { opacity: 0.8 },
+                }}
+              >
+                <EventIcon sx={{ fontSize: 16, color: colors.accent }} />
+                <Typography sx={{ fontSize: '0.85rem', color: colors.accent, fontWeight: 500 }}>
+                  View in Calendar
+                </Typography>
+              </Box>
+            )}
           </Box>
         )}
 
@@ -163,25 +376,281 @@ export function MessageBubble({
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 0.5 }}>
-          <Typography sx={{ fontSize: '0.7rem', color: colors.textMuted }}>
-            {formatMessageTime(message.created_at)}
-          </Typography>
-          {isSent && (
-            <Typography
-              sx={{
-                fontSize: '0.65rem',
-                color: message.read_at ? colors.accent : colors.textMuted,
-                fontWeight: message.read_at ? 500 : 400,
-              }}
-            >
-              {message.read_at ? '· Seen' : '· Sent'}
+        {/* Cancellation card */}
+        {hasCancellation && message.metadata && (
+          <Box
+            sx={{
+              bgcolor: 'rgba(239, 68, 68, 0.08)',
+              border: `1px solid rgba(239, 68, 68, 0.25)`,
+              borderRadius: '12px',
+              p: 3,
+              mt: 1.5,
+              minWidth: 280,
+              maxWidth: 320,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, fontWeight: 600, fontSize: '0.95rem', color: colors.error }}>
+                <EventBusyIcon sx={{ fontSize: 20 }} />
+                Appointment Cancelled
+              </Box>
+              <Box
+                sx={{
+                  display: 'inline-flex',
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: 'rgba(239, 68, 68, 0.12)',
+                  color: colors.error,
+                  borderRadius: '6px',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Cancelled
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, fontSize: '0.9rem' }}>
+              {message.metadata.date && (
+                <Box>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.25 }}>Date</Typography>
+                  <Typography sx={{ fontWeight: 500, fontSize: '0.9rem', color: colors.textPrimary }}>
+                    {formatProposedDate(message.metadata.date)}
+                  </Typography>
+                </Box>
+              )}
+              {(message.metadata.start_time || message.metadata.end_time) && (
+                <Box>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.25 }}>Time</Typography>
+                  <Typography sx={{ fontWeight: 500, fontSize: '0.9rem', color: colors.textPrimary }}>
+                    {formatProposedTime(message.metadata.start_time, message.metadata.end_time)}
+                  </Typography>
+                </Box>
+              )}
+              {message.metadata.title && (
+                <Box>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.25 }}>Type</Typography>
+                  <Typography sx={{ fontWeight: 500, fontSize: '0.9rem', color: colors.textPrimary }}>
+                    {message.metadata.title}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+            {message.metadata.reason && (
+              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, fontStyle: 'italic', mt: 1.5, pt: 1.5, borderTop: `1px solid rgba(239, 68, 68, 0.15)` }}>
+                {message.metadata.reason}
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* Reschedule card */}
+        {hasReschedule && message.metadata && (
+          <Box
+            sx={{
+              bgcolor: isSent ? 'rgba(0,0,0,0.15)' : colors.surfaceElevated,
+              border: `1px solid ${
+                rescheduleStatus === 'accepted' ? `rgba(74, 155, 127, 0.3)` :
+                rescheduleStatus === 'declined' ? `rgba(239, 68, 68, 0.25)` :
+                isSent ? 'rgba(0,0,0,0.2)' : colors.borderLight
+              }`,
+              borderRadius: '12px',
+              p: 3,
+              mt: 1.5,
+              minWidth: 280,
+              maxWidth: 320,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, fontWeight: 600, fontSize: '0.95rem' }}>
+              <UpdateIcon sx={{ fontSize: 20, color: colors.accent }} />
+              Reschedule Request
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, fontSize: '0.9rem' }}>
+              {message.metadata.proposed_date && (
+                <Box>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.25 }}>
+                    Proposed Date
+                  </Typography>
+                  <Typography sx={{ fontWeight: 500, fontSize: '0.9rem', color: colors.textPrimary }}>
+                    {formatProposedDate(message.metadata.proposed_date)}
+                  </Typography>
+                </Box>
+              )}
+              {(message.metadata.proposed_start_time || message.metadata.proposed_end_time) && (
+                <Box>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.8rem', mb: 0.25 }}>
+                    Proposed Time
+                  </Typography>
+                  <Typography sx={{ fontWeight: 500, fontSize: '0.9rem', color: colors.textPrimary }}>
+                    {formatProposedTime(message.metadata.proposed_start_time, message.metadata.proposed_end_time)}
+                  </Typography>
+                </Box>
+              )}
+              {message.metadata.reason && (
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, fontStyle: 'italic' }}>
+                  {message.metadata.reason}
+                </Typography>
+              )}
+            </Box>
+
+            {/* Status badge */}
+            <Box sx={{ mt: 2 }}>
+              {rescheduleStatus === 'accepted' && (
+                <>
+                  <Box
+                    sx={{
+                      display: 'inline-flex',
+                      px: 1.5,
+                      py: 0.5,
+                      bgcolor: `${colors.success}18`,
+                      color: colors.success,
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Accepted
+                  </Box>
+                  {onViewCalendar && (
+                    <Box
+                      onClick={() => onViewCalendar(message.metadata!.proposed_date)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        mt: 1,
+                        cursor: 'pointer',
+                        '&:hover': { opacity: 0.8 },
+                      }}
+                    >
+                      <EventIcon sx={{ fontSize: 16, color: colors.accent }} />
+                      <Typography sx={{ fontSize: '0.85rem', color: colors.accent, fontWeight: 500 }}>
+                        View in Calendar
+                      </Typography>
+                    </Box>
+                  )}
+                </>
+              )}
+              {rescheduleStatus === 'declined' && (
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: 'rgba(239, 68, 68, 0.12)',
+                    color: colors.error,
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Declined
+                </Box>
+              )}
+              {rescheduleStatus === 'pending' && !isSent && onRespondToReschedule && (
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    size="small"
+                    onClick={() => handleRescheduleRespond('decline')}
+                    disabled={respondingAction !== null}
+                    sx={{
+                      fontSize: '0.8rem',
+                      textTransform: 'none',
+                      color: colors.textPrimary,
+                      border: `1px solid ${colors.borderLight}`,
+                      borderRadius: '6px',
+                      px: 2,
+                      '&:hover': { borderColor: colors.error, color: colors.error },
+                      '&.Mui-disabled': { opacity: 0.7 },
+                    }}
+                  >
+                    {respondingAction === 'decline' ? (
+                      <CircularProgress size={16} sx={{ color: colors.textPrimary }} />
+                    ) : (
+                      'Decline & Chat'
+                    )}
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() => handleRescheduleRespond('accept')}
+                    disabled={respondingAction !== null}
+                    sx={{
+                      fontSize: '0.8rem',
+                      textTransform: 'none',
+                      bgcolor: colors.success,
+                      color: 'white',
+                      borderRadius: '6px',
+                      px: 2,
+                      '&:hover': { bgcolor: '#3d8a6d' },
+                      '&.Mui-disabled': { bgcolor: colors.success, opacity: 0.7 },
+                    }}
+                  >
+                    {respondingAction === 'accept' ? (
+                      <CircularProgress size={16} sx={{ color: 'white' }} />
+                    ) : (
+                      'Accept'
+                    )}
+                  </Button>
+                </Box>
+              )}
+              {rescheduleStatus === 'pending' && isSent && (
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: `${colors.accent}18`,
+                    color: colors.accent,
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Pending
+                </Box>
+              )}
+            </Box>
+          </Box>
+        )}
+
+        {isLastInGroup && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 0.5 }}>
+            <Typography sx={{ fontSize: '0.7rem', color: colors.textMuted }}>
+              {formatMessageTime(message.created_at)}
             </Typography>
-          )}
-        </Box>
+            {isSent && (
+              <Typography
+                sx={{
+                  fontSize: '0.65rem',
+                  color: message.read_at ? colors.accent : colors.textMuted,
+                  fontWeight: message.read_at ? 500 : 400,
+                }}
+              >
+                {message.read_at ? '· Seen' : '· Sent'}
+              </Typography>
+            )}
+          </Box>
+        )}
       </Box>
     </Box>
   );
+}
+
+function extractDateFromBooking(displayDate?: string): string | undefined {
+  if (!displayDate) return undefined;
+  try {
+    const d = new Date(displayDate);
+    if (isNaN(d.getTime())) return undefined;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  } catch {
+    return undefined;
+  }
 }
 
 export default MessageBubble;

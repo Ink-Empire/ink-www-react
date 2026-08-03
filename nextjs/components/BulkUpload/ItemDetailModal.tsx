@@ -131,6 +131,8 @@ export default function ItemDetailModal({
     await handleSave();
     if (hasNext) {
       onNext();
+    } else {
+      onClose();
     }
   };
 
@@ -531,13 +533,13 @@ export default function ItemDetailModal({
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {item.ai_suggested_tags.map((tag) => {
-                        const isApproved = approvedTagIds.includes(tag.id);
+                      {item.ai_suggested_tags.filter((tag) => tag.id != null).map((tag) => {
+                        const isApproved = approvedTagIds.includes(tag.id!);
                         return (
                           <Chip
                             key={tag.id}
                             label={tag.name}
-                            onClick={() => toggleTag(tag.id)}
+                            onClick={() => toggleTag(tag.id!)}
                             icon={isApproved ? <CheckIcon sx={{ fontSize: 16 }} /> : <AddIcon sx={{ fontSize: 16 }} />}
                             size="small"
                             sx={{
@@ -636,22 +638,40 @@ export default function ItemDetailModal({
               >
                 Cancel
               </Button>
-              <Button
-                variant="contained"
-                onClick={handleSave}
-                disabled={saving}
-                sx={{
-                  flex: 1,
-                  minWidth: 100,
-                  bgcolor: colors.accent,
-                  color: colors.background,
-                  '&:hover': { bgcolor: colors.accentHover },
-                  '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
-                }}
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-              {hasNext && (
+              {hasNext ? (
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={handleSave}
+                    disabled={saving}
+                    sx={{
+                      flex: 1,
+                      minWidth: 100,
+                      bgcolor: colors.accent,
+                      color: colors.background,
+                      '&:hover': { bgcolor: colors.accentHover },
+                      '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleSaveAndNext}
+                    disabled={saving}
+                    sx={{
+                      flex: 1,
+                      minWidth: 100,
+                      bgcolor: colors.success,
+                      color: '#fff',
+                      '&:hover': { bgcolor: '#3d8269' },
+                      '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save & Next'}
+                  </Button>
+                </>
+              ) : (
                 <Button
                   variant="contained"
                   onClick={handleSaveAndNext}
@@ -659,13 +679,13 @@ export default function ItemDetailModal({
                   sx={{
                     flex: 1,
                     minWidth: 100,
-                    bgcolor: colors.success,
-                    color: '#fff',
-                    '&:hover': { bgcolor: '#3d8269' },
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    '&:hover': { bgcolor: colors.accentHover },
                     '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
                   }}
                 >
-                  {saving ? 'Saving...' : 'Save & Next'}
+                  {saving ? 'Saving...' : 'Save'}
                 </Button>
               )}
             </Box>

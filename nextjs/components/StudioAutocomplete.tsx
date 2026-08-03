@@ -71,8 +71,11 @@ const StudioAutocomplete: React.FC<StudioAutocompleteProps> = ({
   }, [value]);
 
   // Debounced search
+  const selectingRef = useRef(false);
   const handleInputChange = useCallback((newInputValue: string) => {
     setInputValue(newInputValue);
+
+    if (selectingRef.current) return;
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -108,7 +111,9 @@ const StudioAutocomplete: React.FC<StudioAutocompleteProps> = ({
       return;
     }
 
+    selectingRef.current = true;
     setSelecting(true);
+    setInputValue(prediction.mainText);
 
     try {
       // Call our backend to lookup or create the studio
@@ -136,6 +141,7 @@ const StudioAutocomplete: React.FC<StudioAutocompleteProps> = ({
       }
     } finally {
       setSelecting(false);
+      selectingRef.current = false;
     }
   };
 

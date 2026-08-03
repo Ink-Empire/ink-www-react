@@ -42,6 +42,11 @@ export const userService = {
     return api.post('/users/profile-photo', data, { requiresAuth: true });
   },
 
+  // Delete profile photo (requires auth)
+  deleteProfilePhoto: async (): Promise<any> => {
+    return api.delete('/users/profile-photo', { requiresAuth: true });
+  },
+
   // Block a user (requires auth)
   block: async (userId: number): Promise<any> => {
     return api.post('/users/block', { user_id: userId }, { requiresAuth: true });
@@ -76,5 +81,25 @@ export const userService = {
   // Delete a social media link (requires auth)
   deleteSocialMediaLink: async (platform: string): Promise<any> => {
     return api.delete(`/users/me/social-links/${platform}`, { requiresAuth: true });
+  },
+
+  // Delete user account permanently (requires auth)
+  deleteAccount: async (): Promise<any> => {
+    return api.post('/users/me/delete', {}, { requiresAuth: true });
+  },
+
+  // Update email preferences (requires auth)
+  updateEmailPreferences: async (emailUnsubscribed: boolean): Promise<any> => {
+    return api.put('/users/me/email-preferences', { email_unsubscribed: emailUnsubscribed }, { requiresAuth: true });
+  },
+
+  // Search client users by name/username (lightweight DB fallback)
+  searchUsers: async (params: { searchString: string }): Promise<any> => {
+    return api.post('/users/search', params);
+  },
+
+  // Check if an email is already registered
+  checkEmailAvailability: async (email: string): Promise<{ available: boolean }> => {
+    return api.post('/check-availability', { email });
   },
 };

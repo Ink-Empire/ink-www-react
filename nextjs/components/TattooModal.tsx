@@ -3,25 +3,28 @@ import { Modal, Box, Typography, IconButton, Avatar, Skeleton } from '@mui/mater
 import CloseIcon from '@mui/icons-material/Close';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import ShareIcon from '@mui/icons-material/Share';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import SearchIcon from '@mui/icons-material/Search';
+import BrushIcon from '@mui/icons-material/Brush';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useTattoo } from '../hooks';
-import { useAuth } from '../contexts/AuthContext';
-import { useUserData } from '../contexts/AuthContext';
+import { useAuth, useUserData } from '../contexts/AuthContext';
+import { deleteTattoo } from '../hooks/useTattoos';
 import { useImageCache } from '../contexts/ImageCacheContext';
-import { colors } from '@/styles/colors';
+import { tattooModalUrl } from '@inkedin/shared/utils/imgix';
+import { colors, modalStyles } from '@/styles/colors';
 
 interface TattooModalProps {
   tattooId: string | null;
-  artistName: string | null;
+  artistName?: string | null;
   open: boolean;
   onClose: () => void;
   onPrevious?: () => void;
@@ -29,7 +32,7 @@ interface TattooModalProps {
   hasPrevious?: boolean;
   hasNext?: boolean;
   tattooFavorite?: boolean;
-  artistFavorite?: boolean;
+  onSuccess?: () => void;
 }
 
 const TattooModal: React.FC<TattooModalProps> = ({
@@ -42,7 +45,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
   hasPrevious = false,
   hasNext = false,
   tattooFavorite = false,
-  artistFavorite = false
+  onSuccess,
 }) => {
   const { tattoo, loading, error } = useTattoo(tattooId);
   const router = useRouter();
@@ -50,28 +53,30 @@ const TattooModal: React.FC<TattooModalProps> = ({
   const userData = useUserData();
   const { isImageCached, preloadImage } = useImageCache();
 
-  const [isTattooLiked, setIsTattooLiked] = useState(false);
   const [isTattooSaved, setIsTattooSaved] = useState(tattooFavorite);
-  const [isArtistFollowed, setIsArtistFollowed] = useState(artistFavorite);
-  const [likeCount, setLikeCount] = useState(0);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Sync state with props
   useEffect(() => {
     setIsTattooSaved(tattooFavorite);
-    setIsArtistFollowed(artistFavorite);
-  }, [tattooFavorite, artistFavorite]);
+  }, [tattooFavorite]);
 
-  // Initialize like count from tattoo data and reset selected image
+  // Reset to first image when tattoo changes
   useEffect(() => {
-    if (tattoo?.likes_count) {
-      setLikeCount(tattoo.likes_count);
-    }
-    // Reset to first image when tattoo changes
     setSelectedImageIndex(0);
     setImageLoaded(false);
   }, [tattoo]);
+
+  // Fallback: force show image after 2s if onLoad never fires (browser cache race condition)
+  useEffect(() => {
+    if (imageLoaded) return;
+    const timer = setTimeout(() => setImageLoaded(true), 2000);
+    return () => clearTimeout(timer);
+  }, [imageLoaded, selectedImageIndex]);
 
   // Check if current image is cached and set loaded state accordingly
   useEffect(() => {
@@ -115,15 +120,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, hasPrevious, hasNext, onPrevious, onNext, onClose]);
 
-  const handleLikeTattoo = async () => {
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-    setIsTattooLiked(!isTattooLiked);
-    setLikeCount(prev => isTattooLiked ? prev - 1 : prev + 1);
-  };
-
   const handleSaveTattoo = async () => {
     if (!tattooId) return;
     if (!isAuthenticated) {
@@ -138,20 +134,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
     }
   };
 
-  const handleFollowArtist = async () => {
-    if (!tattoo?.artist_id) return;
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-    try {
-      await userData?.toggleFavorite('artist', tattoo.artist_id);
-      setIsArtistFollowed(!isArtistFollowed);
-    } catch (error) {
-      console.error('Error following artist:', error);
-    }
-  };
-
   const handleTagClick = (tagName: string) => {
     onClose();
     router.push({ pathname: '/tattoos', query: { tag: tagName } });
@@ -162,8 +144,31 @@ const TattooModal: React.FC<TattooModalProps> = ({
     router.push({ pathname: '/tattoos', query: { style: styleName } });
   };
 
+  const handleDelete = async () => {
+    if (!tattooId) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteTattoo(tattooId);
+      setShowDeleteConfirm(false);
+      onClose();
+      onSuccess?.();
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to delete tattoo');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const isOwner = isAuthenticated && user && tattoo && (
+    user.id === tattoo.artist_id || user.id === tattoo.uploaded_by_user_id
+  );
+
   const getPrimaryImageUri = () => {
-    return tattoo?.primary_image?.uri || tattoo?.image?.uri || null;
+    const raw = tattoo?.primary_image?.uri || tattoo?.image?.uri || null;
+    if (!raw) return null;
+    const ep = tattoo?.primary_image?.edit_params || tattoo?.image?.edit_params;
+    return tattooModalUrl(raw, ep);
   };
 
   // Get all images for the tattoo (images array, falling back to primary_image)
@@ -174,8 +179,9 @@ const TattooModal: React.FC<TattooModalProps> = ({
     if (tattoo?.images && Array.isArray(tattoo.images)) {
       tattoo.images.forEach((img: any) => {
         const uri = typeof img === 'string' ? img : img?.uri;
+        const ep = typeof img === 'object' ? img?.edit_params : undefined;
         if (uri) {
-          images.push({ uri });
+          images.push({ uri: tattooModalUrl(uri, ep) });
         }
       });
     }
@@ -203,22 +209,18 @@ const TattooModal: React.FC<TattooModalProps> = ({
     return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const getUserInitials = () => {
-    if (user?.first_name && user?.last_name) {
-      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
-    }
-    if (user?.name) {
-      return user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-    }
-    return 'ME';
-  };
-
   const getArtistLocation = () => {
     const studio = tattoo?.studio?.name;
     const location = tattoo?.studio?.location;
     if (studio && location) return `${studio} · ${location}`;
     return studio || location || '';
   };
+
+  // Pre-compute studio data with fallbacks (matching RN pattern)
+  const studioData = tattoo?.studio || (tattoo as any)?.artist?.studio;
+  const studioName = studioData?.name || (tattoo as any)?.studio_name;
+  const studioSlug = studioData?.slug;
+  const studioLocation = studioData?.location || (tattoo as any)?.artist_location;
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -236,6 +238,7 @@ const TattooModal: React.FC<TattooModalProps> = ({
         justifyContent: 'center',
         p: '1rem',
       }}
+      slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
     >
       <Box sx={{ outline: 'none', width: '100%', maxWidth: '1100px' }}>
         {/* Close Button */}
@@ -314,15 +317,15 @@ const TattooModal: React.FC<TattooModalProps> = ({
         {/* Modal Content */}
         <Box
           sx={{
-            bgcolor: colors.surface,
+            bgcolor: colors.surfaceElevated,
             borderRadius: '12px',
-            border: `1px solid ${colors.borderSubtle}`,
+            border: `1px solid ${colors.borderLight}`,
             width: '100%',
             maxHeight: '90vh',
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
             overflow: 'hidden',
-            boxShadow: '0 24px 48px rgba(0, 0, 0, 0.4)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
           }}
         >
           {/* Image Section */}
@@ -380,7 +383,6 @@ const TattooModal: React.FC<TattooModalProps> = ({
                     }}
                     onLoad={() => {
                       setImageLoaded(true);
-                      // Also register in cache for future reference
                       preloadImage(currentImageUri);
                     }}
                   />
@@ -497,85 +499,192 @@ const TattooModal: React.FC<TattooModalProps> = ({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                {/* Artist Avatar */}
+                {/* Avatar */}
                 <Avatar
-                  src={getArtistAvatarUri() || undefined}
+                  src={tattoo?.post_type === 'seeking' ? (tattoo?.uploader_image_uri || undefined) : (getArtistAvatarUri() || undefined)}
                   sx={{
                     width: 40,
                     height: 40,
                     bgcolor: colors.surfaceElevated,
                     fontSize: '0.9rem',
                     fontWeight: 600,
-                    color: colors.accent,
+                    color: tattoo?.post_type === 'seeking' ? colors.seeking : colors.accent,
                   }}
                 >
-                  {!getArtistAvatarUri() && getArtistInitials()}
+                  {tattoo?.post_type === 'seeking'
+                    ? (tattoo?.uploader_name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                    : (!getArtistAvatarUri() && getArtistInitials())
+                  }
                 </Avatar>
 
-                {/* Artist Info */}
+                {/* Info */}
                 <Box sx={{ flex: 1 }}>
-                  <Typography
-                    component={Link}
-                    href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      color: colors.textPrimary,
-                      textDecoration: 'none',
-                      '&:hover': { color: colors.accent },
-                    }}
-                  >
-                    {artistName || tattoo?.artist_name || 'Unknown Artist'}
-                  </Typography>
-                  {tattoo?.studio?.name && (
-                    tattoo.studio.slug ? (
-                      <Link href={`/studios/${tattoo.studio.slug}`} style={{ textDecoration: 'none' }}>
+                  {tattoo?.post_type === 'seeking' && tattoo?.uploader_name ? (
+                    <>
+                      <Typography
+                        component={tattoo?.uploader_slug ? Link : 'span'}
+                        {...(tattoo?.uploader_slug ? { href: `/users/${tattoo.uploader_slug}` } : {})}
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '0.95rem',
+                          color: colors.textPrimary,
+                          textDecoration: 'none',
+                          '&:hover': tattoo?.uploader_slug ? { color: colors.accent } : {},
+                        }}
+                      >
+                        {tattoo.uploader_name}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', mt: '2px' }}>
+                        <SearchIcon sx={{ fontSize: 13, color: colors.seeking }} />
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: colors.seeking }}>
+                          Seeking Artist
+                        </Typography>
+                      </Box>
+                    </>
+                  ) : !tattoo?.artist_id && tattoo?.attributed_artist_name ? (
+                    <>
+                      <Typography sx={{
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
+                        color: colors.textPrimary,
+                      }}>
+                        {tattoo.attributed_artist_name}
+                      </Typography>
+                      {studioName ? (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {studioName}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {studioName}
+                          </Typography>
+                        )
+                      ) : tattoo.attributed_studio_name ? (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          at {tattoo.attributed_studio_name}
+                        </Typography>
+                      ) : null}
+                      {studioLocation ? (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {studioLocation}
+                        </Typography>
+                      ) : tattoo.attributed_location ? (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {tattoo.attributed_location}
+                        </Typography>
+                      ) : null}
+                      <Box sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        px: '0.5rem',
+                        py: '0.15rem',
+                        bgcolor: colors.infoDim,
+                        borderRadius: '4px',
+                        mt: '0.25rem',
+                      }}>
+                        <Typography sx={{ fontSize: '0.65rem', color: colors.info, fontWeight: 600 }}>
+                          Not yet on InkedIn
+                        </Typography>
+                      </Box>
+                    </>
+                  ) : tattoo?.artist_id ? (
+                    <>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Typography
+                          component={Link}
+                          href={`/artists/${tattoo?.artist_slug || tattoo?.artist_id}`}
                           sx={{
-                            fontSize: '0.8rem',
-                            color: colors.accent,
-                            '&:hover': { textDecoration: 'underline' }
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            color: colors.textPrimary,
+                            textDecoration: 'none',
+                            '&:hover': { color: colors.accent },
                           }}
                         >
-                          {tattoo.studio.name}
+                          {artistName || tattoo?.artist_name || 'Unknown Artist'}
                         </Typography>
-                      </Link>
-                    ) : (
-                      <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                        {tattoo.studio.name}
+                        {tattoo?.approval_status === 'pending' && (
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: '0.75rem',
+                              fontWeight: 500,
+                              color: colors.warning,
+                            }}
+                          >
+                            (pending)
+                          </Typography>
+                        )}
+                      </Box>
+                      {studioName && (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {studioName}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {studioName}
+                          </Typography>
+                        )
+                      )}
+                      {studioLocation && (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {studioLocation}
+                        </Typography>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Typography sx={{
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
+                        color: colors.textMuted,
+                      }}>
+                        Artist Unknown
                       </Typography>
-                    )
+                      {studioName && (
+                        studioSlug ? (
+                          <Link href={`/studios/${studioSlug}`} style={{ textDecoration: 'none' }}>
+                            <Typography
+                              sx={{
+                                fontSize: '0.8rem',
+                                color: colors.accent,
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                            >
+                              {studioName}
+                            </Typography>
+                          </Link>
+                        ) : (
+                          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                            {studioName}
+                          </Typography>
+                        )
+                      )}
+                      {studioLocation && (
+                        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+                          {studioLocation}
+                        </Typography>
+                      )}
+                    </>
                   )}
-                  {tattoo?.studio?.location && (
-                    <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-                      {tattoo.studio.location}
-                    </Typography>
-                  )}
-                </Box>
-
-                {/* Follow Button */}
-                <Box
-                  component="button"
-                  onClick={handleFollowArtist}
-                  sx={{
-                    px: '1rem',
-                    py: '0.4rem',
-                    bgcolor: isArtistFollowed ? colors.accentDim : 'transparent',
-                    border: `1px solid ${colors.accent}`,
-                    borderRadius: '100px',
-                    color: colors.accent,
-                    fontFamily: 'inherit',
-                    fontSize: '0.8rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: colors.accent,
-                      color: colors.background,
-                    },
-                  }}
-                >
-                  {isArtistFollowed ? 'Following' : 'Follow'}
                 </Box>
               </Box>
             </Box>
@@ -691,8 +800,8 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 </Typography>
               )}
 
-              {/* Description */}
-              {tattoo?.description && (
+              {/* Description - show inline for seeking posts and artist uploads, hidden for regular client uploads (shown in "Uploaded by" box instead) */}
+              {tattoo?.description && (tattoo?.post_type === 'seeking' || !(tattoo?.uploader_name && tattoo?.uploaded_by_user_id !== tattoo?.artist_id)) && (
                 <Typography
                   sx={{
                     color: colors.textSecondary,
@@ -717,42 +826,11 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   flexWrap: 'wrap',
                 }}
               >
-                {/* Like Button */}
-                <Box
-                  component="button"
-                  onClick={handleLikeTattoo}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    px: '0.875rem',
-                    py: '0.5rem',
-                    bgcolor: isTattooLiked ? colors.accentDim : colors.surfaceElevated,
-                    border: `1px solid ${isTattooLiked ? colors.accent : colors.borderLight}`,
-                    borderRadius: '6px',
-                    color: isTattooLiked ? colors.accent : colors.textSecondary,
-                    fontFamily: 'inherit',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      borderColor: colors.accent,
-                      color: colors.accent,
-                    },
-                  }}
-                >
-                  {isTattooLiked ? (
-                    <FavoriteIcon sx={{ fontSize: 18 }} />
-                  ) : (
-                    <FavoriteBorderIcon sx={{ fontSize: 18 }} />
-                  )}
-                  <span>{likeCount || ''}</span>
-                </Box>
-
                 {/* Save Button */}
                 <Box
                   component="button"
                   onClick={handleSaveTattoo}
+                  title={isTattooSaved ? 'Saved to your collection' : 'Save for inspiration'}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -816,32 +894,126 @@ const TattooModal: React.FC<TattooModalProps> = ({
                   <span>Share</span>
                 </Box>
 
-                <Box sx={{ flex: 1 }} />
+                {isOwner && (
+                  <>
+                    <Box
+                      component="button"
+                      onClick={() => router.push(`/tattoos/update?id=${tattooId}`)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        px: '0.875rem',
+                        py: '0.5rem',
+                        bgcolor: colors.surfaceElevated,
+                        border: `1px solid ${colors.borderLight}`,
+                        borderRadius: '6px',
+                        color: colors.textSecondary,
+                        fontFamily: 'inherit',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          borderColor: colors.accent,
+                          color: colors.accent,
+                        },
+                      }}
+                    >
+                      <EditIcon sx={{ fontSize: 18 }} />
+                      <span>Edit</span>
+                    </Box>
 
-                {/* More Button */}
-                <Box
-                  component="button"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    px: '0.5rem',
-                    py: '0.5rem',
-                    bgcolor: colors.surfaceElevated,
-                    border: `1px solid ${colors.borderLight}`,
-                    borderRadius: '6px',
-                    color: colors.textSecondary,
-                    fontFamily: 'inherit',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      borderColor: colors.accent,
-                      color: colors.accent,
-                    },
-                  }}
-                >
-                  <MoreHorizIcon sx={{ fontSize: 18 }} />
-                </Box>
+                    <Box
+                      component="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        px: '0.875rem',
+                        py: '0.5rem',
+                        bgcolor: colors.surfaceElevated,
+                        border: `1px solid ${colors.borderLight}`,
+                        borderRadius: '6px',
+                        color: colors.textSecondary,
+                        fontFamily: 'inherit',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          borderColor: colors.error,
+                          color: colors.error,
+                        },
+                      }}
+                    >
+                      <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                      <span>Delete</span>
+                    </Box>
+                  </>
+                )}
+
+                {/* Delete Confirmation */}
+                {showDeleteConfirm && (
+                  <Box sx={{
+                    width: '100%',
+                    mt: '0.5rem',
+                    p: '0.75rem',
+                    bgcolor: colors.background,
+                    border: `1px solid ${colors.error}`,
+                    borderRadius: '8px',
+                  }}>
+                    <Typography sx={{ fontSize: '0.85rem', color: colors.textPrimary, mb: '0.5rem' }}>
+                      Delete this tattoo?
+                    </Typography>
+                    {deleteError && (
+                      <Typography sx={{ fontSize: '0.8rem', color: colors.error, mb: '0.5rem' }}>
+                        {deleteError}
+                      </Typography>
+                    )}
+                    <Box sx={{ display: 'flex', gap: '0.5rem' }}>
+                      <Box
+                        component="button"
+                        onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}
+                        disabled={deleting}
+                        sx={{
+                          px: '0.75rem',
+                          py: '0.35rem',
+                          bgcolor: colors.surfaceElevated,
+                          border: `1px solid ${colors.borderLight}`,
+                          borderRadius: '6px',
+                          color: colors.textSecondary,
+                          fontFamily: 'inherit',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          '&:hover': { borderColor: colors.accent },
+                        }}
+                      >
+                        Cancel
+                      </Box>
+                      <Box
+                        component="button"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        sx={{
+                          px: '0.75rem',
+                          py: '0.35rem',
+                          bgcolor: colors.error,
+                          border: `1px solid ${colors.error}`,
+                          borderRadius: '6px',
+                          color: '#fff',
+                          fontFamily: 'inherit',
+                          fontSize: '0.8rem',
+                          cursor: deleting ? 'wait' : 'pointer',
+                          opacity: deleting ? 0.7 : 1,
+                          '&:hover': { opacity: 0.9 },
+                        }}
+                      >
+                        {deleting ? 'Deleting...' : 'Delete'}
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
               </Box>
 
               {/* Details Section */}
@@ -878,53 +1050,98 @@ const TattooModal: React.FC<TattooModalProps> = ({
                 </Box>
               )}
 
-              {/* Comments Section */}
-              <Box
-                sx={{
-                  borderTop: `1px solid ${colors.borderSubtle}`,
-                  pt: '1.25rem',
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '1rem' }}>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textPrimary }}>
-                    {tattoo?.comments_count || 0} Comments
+              {/* Uploaded by (client upload) - hidden for seeking posts */}
+              {tattoo?.uploader_name && tattoo?.uploaded_by_user_id !== tattoo?.artist_id && tattoo?.post_type !== 'seeking' && (
+                <Box sx={{ mb: '1.25rem' }}>
+                  <Typography sx={{ fontSize: '0.8rem', color: colors.textMuted, mb: 0.75 }}>
+                    Uploaded by
+                  </Typography>
+                  <Box sx={{
+                    bgcolor: colors.background,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: '10px',
+                    p: 1.5,
+                  }}>
+                    <Typography
+                      component={Link}
+                      href={`/users/${tattoo.uploader_slug}`}
+                      onClick={onClose}
+                      sx={{
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        color: colors.accent,
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      {tattoo.uploader_name}
+                    </Typography>
+                    {tattoo.description && (
+                      <Typography sx={{
+                        fontSize: '0.85rem',
+                        color: colors.textSecondary,
+                        lineHeight: 1.5,
+                        mt: 0.5,
+                        fontStyle: 'italic',
+                      }}>
+                        &ldquo;{tattoo.description}&rdquo;
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Seeking CTA */}
+              {tattoo?.post_type === 'seeking' && (
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  p: '1rem',
+                  bgcolor: colors.seekingDim,
+                  border: `1px solid ${colors.seeking}30`,
+                  borderRadius: '10px',
+                  mb: '1.25rem',
+                }}>
+                  <BrushIcon sx={{ fontSize: 20, color: colors.seeking, flexShrink: 0 }} />
+                  <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5 }}>
+                    Want to bid on this? Sign up as an artist to contact users for work!
                   </Typography>
                 </Box>
+              )}
 
-                {/* Comment Input */}
-                <Box sx={{ display: 'flex', gap: '0.75rem', mb: '1rem' }}>
-                  <Avatar
-                    src={typeof user?.image === 'string' ? user.image : user?.image?.uri || undefined}
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      bgcolor: colors.surfaceElevated,
-                      fontSize: '0.75rem',
-                      color: colors.accent,
-                    }}
-                  >
-                    {!(typeof user?.image === 'string' ? user.image : user?.image?.uri) && getUserInitials()}
-                  </Avatar>
-                  <Box
-                    component="input"
-                    placeholder="Add a comment..."
-                    sx={{
-                      flex: 1,
-                      px: '0.875rem',
-                      py: '0.6rem',
-                      bgcolor: colors.background,
-                      border: `1px solid ${colors.borderLight}`,
-                      borderRadius: '8px',
-                      color: colors.textPrimary,
-                      fontFamily: 'inherit',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      '&::placeholder': { color: colors.textSecondary },
-                      '&:focus': { borderColor: colors.accent },
-                    }}
-                  />
+              {/* Book with Artist */}
+              {tattoo?.artist_id && !isOwner && (
+                <Box
+                  component={Link}
+                  href={`/artists/${tattoo.artist_slug || tattoo.artist_id}?tab=calendar`}
+                  onClick={onClose}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    width: '100%',
+                    py: '0.75rem',
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                    mb: '1rem',
+                    '&:hover': {
+                      bgcolor: colors.accentHover,
+                    },
+                  }}
+                >
+                  <CalendarMonthIcon sx={{ fontSize: 20 }} />
+                  Book with {artistName || tattoo?.artist_name || 'Artist'}
                 </Box>
-              </Box>
+              )}
+
+
             </Box>
           </Box>
         </Box>

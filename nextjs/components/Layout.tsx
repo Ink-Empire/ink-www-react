@@ -5,6 +5,7 @@ import { Box, Container, Typography, Button, Stack } from '@mui/material';
 import Navbar from './Navbar';
 import IncompleteBulkUploadAlert from './IncompleteBulkUploadAlert';
 import PreviewBanner from './PreviewBanner';
+import WelcomeModal from './WelcomeModal';
 import { colors } from '@/styles/colors';
 
 interface LayoutProps {
@@ -15,7 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter();
 
   // Pages that handle their own layout (no container wrapper)
-  const fullWidthPages = ['/', '/login', '/register', '/how-it-works', '/for-artists'];
+  const fullWidthPages = ['/', '/login', '/register', '/how-it-works', '/for-artists', '/inbox'];
   const isFullWidthPage = fullWidthPages.some(page =>
     router.pathname === page || router.pathname.startsWith(`${page}/`)
   );
@@ -29,6 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Navbar />
       <PreviewBanner />
       <IncompleteBulkUploadAlert />
+      <WelcomeModal />
 
       <Box component="main" sx={{ flexGrow: 1, bgcolor: colors.background }}>
         {isFullWidthPage ? (
@@ -75,8 +77,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             alignItems={{ xs: 'center', md: 'flex-start' }}
             spacing={2}
           >
-            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-              &copy; {new Date().getFullYear()} <img src="/assets/images/inkedin-logo.png" alt="InkedIn" width="20" height="20" style={{ verticalAlign: 'middle' }} /> InkedIn. All rights reserved.
+            <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              &copy; {new Date().getFullYear()}{' '}
+              <a href="https://inkempire.net" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                Ink Empire Limited
+              </a>. All rights reserved.
             </Typography>
 
             <Stack direction="row" spacing={3}>

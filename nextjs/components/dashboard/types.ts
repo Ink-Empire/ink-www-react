@@ -101,7 +101,7 @@ export interface Lead {
   user: LeadUser;
 }
 
-export type DashboardTabType = 'artist' | 'studio';
+export type DashboardTabType = 'artist' | 'studio' | 'clients';
 
 // Default empty states
 export const defaultStats: DashboardStats = {

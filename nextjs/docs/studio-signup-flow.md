@@ -112,13 +112,11 @@ If owner selected "I'm a Tattoo Artist":
   name: string,
   email: string,
   type: 'artist' | 'user',            // Owner's personal type
-  is_studio_admin: boolean,            // True if owns a studio
-  studio_id: number,                   // ID of owned studio
-  studio: {                            // Studio details (for quick access)
+  owned_studio: {                      // Studio owned by this user (if any)
     id: number,
     name: string,
     slug: string,
-  }
+  } | null
 }
 ```
 
@@ -172,19 +170,19 @@ POST to `/api/studios/{id}/image` with FormData containing the image.
 | `/api/register` | POST | Working | Create user account |
 | `/api/studios` | POST | **Verify** | Create studio with `owner_id` |
 | `/api/studios/{id}/image` | POST | **Verify** | Upload studio image |
-| `/api/users/me` | GET | **Update** | Include `is_studio_admin`, `studio_id`, `studio` |
+| `/api/users/me` | GET | **Update** | Include `owned_studio` |
 
 ### Database Schema
 
 **studios table:**
 - `owner_id` (foreign key to users.id) - **Required for this flow**
 
-**users table (virtual/computed):**
-- `is_studio_admin` - True if user owns a studio (can be computed from studios.owner_id)
+**users table (relationship):**
+- `ownedStudio` - hasOne relationship to Studio where `owner_id = user.id`
 
 ## Dashboard Integration
 
-When a user has `is_studio_admin: true` and `studio` data, the dashboard shows:
+When a user has `owned_studio` data, the dashboard shows:
 - A "Studio Dashboard" button linking to `/studios/{slug}/dashboard`
 - Appears alongside "View Public Profile" and "Upload Tattoo" buttons
 
@@ -195,7 +193,7 @@ When a user has `is_studio_admin: true` and `studio` data, the dashboard shows:
 | StudioOwnerCheck component | **Complete** | Frontend flow implemented |
 | OnboardingWizard integration | **Complete** | Studio flow added |
 | Registration handling | **Complete** | Creates owner + studio |
-| Dashboard studio link | **Complete** | Shows when is_studio_admin |
+| Dashboard studio link | **Complete** | Shows when owned_studio exists |
 | `/users/check-email` endpoint | **TODO** | Backend needs to implement |
 | `/studios` POST with owner_id | **Verify** | Backend may need updates |
 | `/users/me` with studio data | **TODO** | Backend needs to return studio info |

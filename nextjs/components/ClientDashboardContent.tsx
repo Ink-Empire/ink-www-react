@@ -1,14 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Link from 'next/link';
-import { Box, Typography, Button, Avatar, Skeleton, Switch, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
+import { useRouter } from 'next/router';
+import dynamic from 'next/dynamic';
+import { Box, Typography, Button, Avatar, Skeleton, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme, Snackbar, Alert } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import CloseIcon from '@mui/icons-material/Close';
 import SettingsIcon from '@mui/icons-material/Settings';
 import StarIcon from '@mui/icons-material/Star';
 import AddIcon from '@mui/icons-material/Add';
-import ChangePasswordModal from './ChangePasswordModal';
-import StyleModal from './StyleModal';
-import TattooIntent, { TattooIntentData } from './Onboarding/TattooIntent';
+import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
+import EditIcon from '@mui/icons-material/Edit';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
+
+// Lazy load heavy modals - only loaded when needed
+const ChangePasswordModal = dynamic(() => import('./ChangePasswordModal'), { ssr: false });
+const StyleModal = dynamic(() => import('./StyleModal'), { ssr: false });
+const ClientUploadWizard = dynamic(() => import('./ClientUploadWizard'), { ssr: false });
+import { BeaconCard } from '@/components/dashboard/BeaconCard';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -17,45 +25,35 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SearchIcon from '@mui/icons-material/Search';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import UpdateIcon from '@mui/icons-material/Update';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { colors } from '@/styles/colors';
-import { useClientDashboard, useWishlist, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
+import { useClientDashboard, DashboardAppointment, SuggestedArtist, WishlistArtist } from '@/hooks/useClientDashboard';
+import { clientService } from '@/services/clientService';
 import { ApiConversation } from '@/hooks/useConversations';
-import { leadService } from '@/services/leadService';
-import { useDemoMode } from '@/contexts/DemoModeContext';
+import { messageService } from '@/services/messageService';
+import { appointmentService } from '@/services/appointmentService';
 import { useStyles } from '@/contexts/StyleContext';
 import { useUser } from '@/contexts/AuthContext';
 import InfoTooltip from './InfoTooltip';
+import { RescheduleAppointmentModal } from './inbox/RescheduleAppointmentModal';
+import { CancelAppointmentModal } from './inbox/CancelAppointmentModal';
+import { userProfileService } from '@/services/userProfileService';
+
+const TattooModal = dynamic(() => import('./TattooModal'), { ssr: false });
 
 interface ClientDashboardContentProps {
   userName: string;
   userId: number;
 }
 
-interface LeadData {
-  id: number;
-  timing: 'week' | 'month' | 'year' | null;
-  allow_artist_contact: boolean;
-  style_ids: number[];
-  tag_ids: number[];
-  custom_themes: string[];
-  description: string;
-  is_active: boolean;
-}
-
 export default function ClientDashboardContent({ userName, userId }: ClientDashboardContentProps) {
+  const router = useRouter();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [leadActive, setLeadActive] = useState(false);
-  const [leadData, setLeadData] = useState<LeadData | null>(null);
-  const [leadLoading, setLeadLoading] = useState(true);
-  const [leadToggling, setLeadToggling] = useState(false);
-  const [artistsNotified, setArtistsNotified] = useState(0);
-  const [intentDialogOpen, setIntentDialogOpen] = useState(false);
-  const [isEditingLead, setIsEditingLead] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
-  const [beaconSnackbarOpen, setBeaconSnackbarOpen] = useState(false);
-  const { isDemoMode } = useDemoMode();
+  const [uploadWizardOpen, setUploadWizardOpen] = useState(false);
   const { styles, getStyleName } = useStyles();
   const { userData, updateStyles } = useUser();
   const theme = useTheme();
@@ -87,110 +85,121 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
   const {
     appointments,
     conversations,
+    favorites,
     suggestedArtists,
     loading: dashboardLoading,
     refresh: refreshDashboard,
   } = useClientDashboard();
 
-  // Fetch lead status on mount
+  // My Uploads state
+  const [uploadedTattoos, setUploadedTattoos] = useState<any[]>([]);
+  const [uploadsLoading, setUploadsLoading] = useState(true);
+  const [selectedTattooId, setSelectedTattooId] = useState<string | null>(null);
+  const [tattooModalOpen, setTattooModalOpen] = useState(false);
+
   useEffect(() => {
-    const fetchLeadStatus = async () => {
+    const fetchUploads = async () => {
+      if (!userData?.slug) { setUploadsLoading(false); return; }
       try {
-        const response = await leadService.getStatus();
-        setLeadActive(response.is_active || false);
-        setArtistsNotified(response.artists_notified || 0);
-        if (response.lead) {
-          setLeadData(response.lead);
-        }
+        const response = await userProfileService.getTattoos(userData.slug, { per_page: 12 });
+        setUploadedTattoos(response.tattoos || []);
       } catch (err) {
-        console.error('Failed to fetch lead status:', err);
+        console.error('Failed to fetch uploads:', err);
       } finally {
-        setLeadLoading(false);
+        setUploadsLoading(false);
       }
     };
-    fetchLeadStatus();
+    fetchUploads();
+  }, [userData?.slug]);
+
+  const refreshUploads = async () => {
+    if (!userData?.slug) return;
+    try {
+      const response = await userProfileService.getTattoos(userData.slug, { per_page: 12 });
+      setUploadedTattoos(response.tattoos || []);
+    } catch (err) {
+      console.error('Failed to refresh uploads:', err);
+    }
+  };
+
+  // Appointment detail modal state
+  const [selectedAppointment, setSelectedAppointment] = useState<DashboardAppointment | null>(null);
+  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [appointmentSnackbar, setAppointmentSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+
+  const handleAppointmentClick = (apt: DashboardAppointment) => {
+    setSelectedAppointment(apt);
+    setAppointmentModalOpen(true);
+  };
+
+  const handleRescheduleSubmit = async (proposedDate: string, proposedStartTime: string, proposedEndTime: string, reason?: string) => {
+    if (!selectedAppointment) return;
+    if (selectedAppointment.conversation_id) {
+      await messageService.sendReschedule(selectedAppointment.conversation_id, selectedAppointment.id, proposedDate, proposedStartTime, proposedEndTime, reason);
+    } else {
+      await appointmentService.update(selectedAppointment.id, { date: proposedDate, start_time: proposedStartTime, end_time: proposedEndTime });
+    }
+    await refreshDashboard();
+    setAppointmentSnackbar({ open: true, message: 'Reschedule request sent to the artist.', severity: 'success' });
+  };
+
+  const handleCancelSubmit = async (reason?: string) => {
+    if (!selectedAppointment) return;
+    if (selectedAppointment.conversation_id) {
+      await messageService.sendCancellation(selectedAppointment.conversation_id, selectedAppointment.id, reason);
+    } else {
+      await appointmentService.cancel(selectedAppointment.id, reason);
+    }
+    await refreshDashboard();
+    setAppointmentModalOpen(false);
+    setAppointmentSnackbar({ open: true, message: 'The appointment has been cancelled.', severity: 'success' });
+  };
+
+  // Use favorites from main dashboard call (avoids separate API call)
+  const wishlist = favorites;
+  const wishlistLoading = dashboardLoading;
+
+  // Saved tattoos and studios for the My Saved Items card
+  const [savedTattoos, setSavedTattoos] = useState<any[]>([]);
+  const [savedStudios, setSavedStudios] = useState<any[]>([]);
+  const [savedExtrasLoading, setSavedExtrasLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSavedExtras = async () => {
+      try {
+        const [tattooRes, studioRes] = await Promise.all([
+          clientService.getSavedTattoos(),
+          clientService.getSavedStudios(),
+        ]);
+        setSavedTattoos(tattooRes.tattoos || []);
+        setSavedStudios(studioRes.studios || []);
+      } catch (err) {
+        console.error('Failed to fetch saved items:', err);
+      } finally {
+        setSavedExtrasLoading(false);
+      }
+    };
+    fetchSavedExtras();
   }, []);
 
-  const handleLeadToggle = async () => {
-    if (!leadActive) {
-      // Turning ON - show the intent dialog to collect preferences
-      setIntentDialogOpen(true);
-    } else {
-      // Turning OFF - set is_active to false
-      setLeadToggling(true);
-      try {
-        await leadService.deactivate();
-        setLeadActive(false);
-      } catch (err) {
-        console.error('Failed to deactivate lead:', err);
-      } finally {
-        setLeadToggling(false);
-      }
-    }
-  };
-
-  const handleIntentSubmit = async (intentData: TattooIntentData) => {
-    setLeadToggling(true);
-    try {
-      const payload = {
-        timing: intentData.timing,
-        allow_artist_contact: intentData.allowArtistContact,
-        tag_ids: intentData.selectedTags,
-        custom_themes: intentData.customThemes || [],
-        description: intentData.description || '',
-      };
-
-      if (isEditingLead && leadData) {
-        // Update existing lead
-        await leadService.update(payload);
-      } else {
-        // Create new lead
-        await leadService.create(payload);
-        setBeaconSnackbarOpen(true);
-      }
-
-      // Refresh lead data
-      const response = await leadService.getStatus();
-      setLeadActive(response.is_active || false);
-      setArtistsNotified(response.artists_notified || 0);
-      if (response.lead) {
-        setLeadData(response.lead);
-      }
-
-      setIntentDialogOpen(false);
-      setIsEditingLead(false);
-    } catch (err) {
-      console.error('Failed to save lead preferences:', err);
-    } finally {
-      setLeadToggling(false);
-    }
-  };
-
-  const handleEditLead = () => {
-    setIsEditingLead(true);
-    setIntentDialogOpen(true);
-  };
-
-  const handleIntentDialogClose = () => {
-    setIntentDialogOpen(false);
-    setIsEditingLead(false);
-  };
-
-  const {
-    wishlist,
-    loading: wishlistLoading,
-    addToWishlist,
-    removeFromWishlist,
-  } = useWishlist();
-
   const handleAddToWishlist = async (artistId: number) => {
-    await addToWishlist(artistId);
-    refreshDashboard();
+    try {
+      await clientService.addFavorite(artistId);
+      refreshDashboard();
+    } catch (err) {
+      console.error('Error adding to wishlist:', err);
+    }
   };
 
   const handleRemoveFromWishlist = async (artistId: number) => {
-    await removeFromWishlist(artistId);
-    refreshDashboard();
+    try {
+      await clientService.removeFavorite(artistId);
+      refreshDashboard();
+    } catch (err) {
+      console.error('Error removing from wishlist:', err);
+    }
   };
 
   return (
@@ -215,24 +224,72 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             Welcome back, {userName}!
           </Typography>
         </Box>
-        <Button
-          component={Link}
-          href="/inbox"
-          sx={{
-            px: 2.5,
-            py: 1,
-            bgcolor: colors.accent,
-            color: colors.background,
-            borderRadius: '8px',
-            textTransform: 'none',
-            fontWeight: 500,
-            fontSize: '0.9rem',
-            '&:hover': { bgcolor: colors.accentHover }
-          }}
-          startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />}
-        >
-          View Messages
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap' }}>
+          <Button
+            component={Link}
+            href="/inbox"
+            sx={{
+              flex: { xs: 1, md: 'none' },
+              px: 2.5,
+              py: 1,
+              bgcolor: colors.accent,
+              color: colors.background,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.9rem',
+              '&:hover': { bgcolor: colors.accentHover }
+            }}
+            startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />}
+          >
+            View Messages
+          </Button>
+          <Button
+            onClick={() => setUploadWizardOpen(true)}
+            sx={{
+              flex: { xs: 1, md: 'none' },
+              px: 2,
+              py: 1,
+              color: colors.accent,
+              border: `1px solid ${colors.accent}60`,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.9rem',
+              '&:hover': { bgcolor: colors.accent, color: colors.background }
+            }}
+            startIcon={<AddAPhotoIcon sx={{ fontSize: 18 }} />}
+          >
+            Upload Tattoo
+          </Button>
+          <Button
+            onClick={async () => {
+              try {
+                const { conversation_id } = await messageService.sendSupportMessage();
+                if (conversation_id) {
+                  router.push(`/inbox?conversation=${conversation_id}`);
+                  return;
+                }
+              } catch {}
+              router.push('/contact');
+            }}
+            sx={{
+              flex: { xs: 1, md: 'none' },
+              px: 2,
+              py: 1,
+              color: colors.textPrimary,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.9rem',
+              '&:hover': { borderColor: colors.accent, color: colors.accent }
+            }}
+            startIcon={<HelpOutlineIcon sx={{ fontSize: 18 }} />}
+          >
+            Get Help
+          </Button>
+        </Box>
       </Box>
 
       {/* Appointments Row with Open to New Work */}
@@ -247,7 +304,7 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
           title="Upcoming Appointments"
           icon={<CalendarMonthIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
-            <CardLink href="/calendar">
+            <CardLink href="/appointments">
               View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
             </CardLink>
           }
@@ -263,11 +320,11 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
             display: 'flex',
             gap: 2,
             p: 2,
-            overflowX: 'auto',
-            '&::-webkit-scrollbar': { display: 'none' },
           }}>
-            {appointments.map((apt) => (
-              <AppointmentCard key={apt.id} appointment={apt} />
+            {appointments.slice(0, 2).map((apt) => (
+              <Box key={apt.id} sx={{ flex: 1, minWidth: 0 }}>
+                <AppointmentCard appointment={apt} onClick={() => handleAppointmentClick(apt)} />
+              </Box>
             ))}
           </Box>
         ) : (
@@ -298,79 +355,8 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         )}
         </Card>
 
-        {/* Open to New Work Toggle */}
-        <Card
-          title="Let Artists Find You"
-          tooltip="With a few descriptive details, you can describe what work you're looking for, and artists in your area can contact you with quotes."
-          variant={leadActive ? 'highlight' : 'default'}
-          icon={<SearchIcon sx={{ color: leadActive ? colors.accent : colors.textMuted, fontSize: 20 }} />}
-          compact
-        >
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            p: 2,
-            textAlign: 'center',
-          }}>
-            <Typography sx={{ fontWeight: 500, color: leadActive ? colors.accent : colors.textPrimary, mb: 0.5 }}>
-              Looking for a Tattoo
-            </Typography>
-            <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, mb: 1.5, lineHeight: 1.4 }}>
-              {leadActive
-                ? artistsNotified > 0
-                  ? `${artistsNotified} artist${artistsNotified === 1 ? '' : 's'} in your area notified`
-                  : 'Artists in your area can reach out to you'
-                : 'Turn on to let artists know you\'re looking for work'}
-            </Typography>
-            {leadLoading ? (
-              <CircularProgress size={24} sx={{ color: colors.accent }} />
-            ) : (
-              <>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {leadToggling && <CircularProgress size={16} sx={{ color: colors.accent }} />}
-                  <Switch
-                    checked={leadActive}
-                    onChange={handleLeadToggle}
-                    disabled={leadToggling}
-                    sx={{
-                      '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: colors.accent,
-                      },
-                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: colors.accent,
-                      },
-                    }}
-                  />
-                </Box>
-                {leadActive && leadData && (
-                  <Button
-                    onClick={handleEditLead}
-                    size="small"
-                    sx={{
-                      mt: 1.5,
-                      px: 2,
-                      py: 0.5,
-                      color: colors.accent,
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      textTransform: 'none',
-                      border: `1px solid ${colors.accent}`,
-                      borderRadius: '6px',
-                      '&:hover': {
-                        bgcolor: colors.accent,
-                        color: colors.background,
-                      }
-                    }}
-                  >
-                    Edit My Idea
-                  </Button>
-                )}
-              </>
-            )}
-          </Box>
-        </Card>
+        {/* Beacon Card */}
+        <BeaconCard Card={Card} onRefresh={refreshDashboard} />
       </Box>
 
       {/* Artists You Might Like - always filter out demo artists on dashboard */}
@@ -421,45 +407,197 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         );
       })()}
 
+      {/* My Uploads */}
+      <Card
+        title={`My Uploads${uploadedTattoos.length > 0 ? ` (${uploadedTattoos.length})` : ''}`}
+        icon={<PhotoLibraryIcon sx={{ color: colors.accent, fontSize: 20 }} />}
+        action={
+          uploadedTattoos.length > 0 && userData?.slug ? (
+            <CardLink href={`/users/${userData.slug}`}>
+              View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
+            </CardLink>
+          ) : undefined
+        }
+        sx={{ mb: 3 }}
+      >
+        {uploadsLoading ? (
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+            gap: 1,
+            p: 2,
+          }}>
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} variant="rounded" sx={{ paddingBottom: '100%', bgcolor: colors.background }} />
+            ))}
+          </Box>
+        ) : uploadedTattoos.length > 0 ? (
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(4, 1fr)' },
+            gap: 1,
+            p: 2,
+          }}>
+            {uploadedTattoos.map((tattoo: any) => {
+              const imageUri = tattoo.primary_image?.uri || tattoo.images?.[0]?.uri;
+              return (
+                <Box
+                  key={tattoo.id}
+                  onClick={() => { setSelectedTattooId(String(tattoo.id)); setTattooModalOpen(true); }}
+                  sx={{
+                    position: 'relative',
+                    paddingBottom: '100%',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    bgcolor: colors.background,
+                    '&:hover .edit-overlay': { opacity: 1 },
+                    '&:hover': { opacity: 0.9 },
+                    transition: 'opacity 0.2s',
+                  }}
+                >
+                  {imageUri && (
+                    <Box
+                      component="img"
+                      src={imageUri}
+                      alt={tattoo.title || 'Tattoo'}
+                      sx={{
+                        position: 'absolute',
+                        top: 0, left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  )}
+                  <Box
+                    className="edit-overlay"
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      router.push(`/tattoos/update?id=${tattoo.id}`);
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      bgcolor: 'rgba(0, 0, 0, 0.6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: 0,
+                      transition: 'opacity 0.2s',
+                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.8)' },
+                    }}
+                  >
+                    <EditIcon sx={{ fontSize: 14, color: '#fff' }} />
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        ) : (
+          <EmptyState
+            icon={<PhotoLibraryIcon sx={{ fontSize: 32, color: colors.textMuted }} />}
+            message="You haven't uploaded any tattoos yet"
+            action={
+              <Button
+                onClick={() => setUploadWizardOpen(true)}
+                sx={{
+                  mt: 1,
+                  px: 2,
+                  py: 0.75,
+                  bgcolor: colors.accent,
+                  color: colors.background,
+                  borderRadius: '6px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.85rem',
+                  '&:hover': { bgcolor: colors.accentHover }
+                }}
+                startIcon={<AddAPhotoIcon sx={{ fontSize: 16 }} />}
+              >
+                Upload a Tattoo
+              </Button>
+            }
+          />
+        )}
+      </Card>
+
       {/* Two Column Layout */}
       <Box sx={{
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
         gap: 3,
       }}>
-        {/* Wishlist */}
+        {/* My Saved Items */}
         <Card
-          title={`My Wishlist (${wishlistLoading ? '...' : wishlist.length})`}
-          subtitle="Artists you want to book when they open"
+          title="My Saved Items"
+          subtitle="Artists, tattoos, and studios you've saved"
           icon={<BookmarkIcon sx={{ color: colors.accent, fontSize: 20 }} />}
           action={
             <CardLink href="/wishlist">
-              Manage <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
+              View All <ArrowForwardIcon sx={{ fontSize: 14, ml: 0.5 }} />
             </CardLink>
           }
         >
-          {wishlistLoading ? (
+          {(wishlistLoading || savedExtrasLoading) ? (
             <Box sx={{ p: 2 }}>
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} variant="rounded" height={60} sx={{ bgcolor: colors.background, mb: 1 }} />
               ))}
             </Box>
-          ) : wishlist.length > 0 ? (
+          ) : (wishlist.length > 0 || savedTattoos.length > 0 || savedStudios.length > 0) ? (
             <Box>
-              {wishlist.slice(0, 5).map((artist, index) => (
-                <WishlistRow
-                  key={artist.id}
-                  artist={artist}
-                  onRemove={handleRemoveFromWishlist}
-                  isLast={index === Math.min(wishlist.length, 5) - 1}
-                />
-              ))}
+              {(() => {
+                const items: { type: 'artist' | 'tattoo' | 'studio'; data: any }[] = [
+                  ...wishlist.map(a => ({ type: 'artist' as const, data: a })),
+                  ...savedTattoos.map(t => ({ type: 'tattoo' as const, data: t })),
+                  ...savedStudios.map(s => ({ type: 'studio' as const, data: s })),
+                ];
+                const displayed = items.slice(0, 5);
+                return displayed.map((item, index) => {
+                  const isLast = index === displayed.length - 1;
+                  if (item.type === 'artist') {
+                    return (
+                      <WishlistRow
+                        key={`artist-${item.data.id}`}
+                        artist={item.data}
+                        onRemove={handleRemoveFromWishlist}
+                        isLast={isLast}
+                      />
+                    );
+                  }
+                  if (item.type === 'tattoo') {
+                    const tattoo = item.data;
+                    const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+                    return (
+                      <SavedTattooRow
+                        key={`tattoo-${tattoo.id}`}
+                        tattoo={tattoo}
+                        imageUri={imageUri}
+                        isLast={isLast}
+                      />
+                    );
+                  }
+                  const studio = item.data;
+                  return (
+                    <SavedStudioRow
+                      key={`studio-${studio.id}`}
+                      studio={studio}
+                      isLast={isLast}
+                    />
+                  );
+                });
+              })()}
             </Box>
           ) : (
             <EmptyState
               icon={<BookmarkIcon sx={{ fontSize: 32, color: colors.textMuted }} />}
-              message="Your wishlist is empty"
-              subMessage="Add artists to get notified when their books open"
+              message="No saved items yet"
+              subMessage="Save artists, tattoos, and studios to see them here"
             />
           )}
         </Card>
@@ -629,82 +767,156 @@ export default function ClientDashboardContent({ userName, userId }: ClientDashb
         selectedStyles={selectedStyles}
       />
 
-      {/* Tattoo Intent Dialog - shown when toggling Open to New Work ON */}
+      {/* Appointment Detail Modal */}
       <Dialog
-        open={intentDialogOpen}
-        onClose={handleIntentDialogClose}
-        fullScreen={isMobile}
-        maxWidth="sm"
+        open={appointmentModalOpen}
+        onClose={() => setAppointmentModalOpen(false)}
+        maxWidth="xs"
         fullWidth
         PaperProps={{
           sx: {
             bgcolor: colors.surface,
             backgroundImage: 'none',
-            borderRadius: isMobile ? 0 : '16px',
-            maxHeight: isMobile ? '100%' : '90vh',
-            border: `1px solid ${colors.accent}50`,
-            boxShadow: `0 8px 32px rgba(0, 0, 0, 0.5), 0 0 80px ${colors.accent}30`,
+            borderRadius: '16px',
+            border: `1px solid ${colors.border}`,
           }
         }}
       >
-        <Box sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          p: 2,
-          borderBottom: `1px solid ${colors.border}`,
-        }}>
-          <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.textPrimary }}>
-            {isEditingLead ? 'Edit your tattoo idea' : 'Tell us about your tattoo plans'}
-          </Typography>
-          <IconButton
-            onClick={handleIntentDialogClose}
-            sx={{ color: colors.textMuted, '&:hover': { color: colors.textPrimary } }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Box>
-        <DialogContent sx={{ p: 0 }}>
-          <Box sx={{ p: { xs: 2, sm: 3 } }}>
-            <TattooIntent
-              key={isEditingLead ? 'edit' : 'create'}
-              onStepComplete={handleIntentSubmit}
-              onBack={handleIntentDialogClose}
-              selectedStyles={[]}
-              isModalMode
-              initialData={isEditingLead && leadData ? {
-                timing: leadData.timing,
-                tag_ids: leadData.tag_ids,
-                custom_themes: leadData.custom_themes,
-                description: leadData.description,
-                allow_artist_contact: leadData.allow_artist_contact,
-              } : undefined}
-            />
-          </Box>
-        </DialogContent>
+        {selectedAppointment && (() => {
+          const [y, m, d] = (selectedAppointment.date || '').split('T')[0].split('-').map(Number);
+          const dateObj = new Date(y, m - 1, d);
+          const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+          const artistName = selectedAppointment.artist?.name || selectedAppointment.artist?.username;
+          return (
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2.5, borderBottom: `1px solid ${colors.border}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <CalendarMonthIcon sx={{ color: colors.accent, fontSize: 22 }} />
+                  <Typography sx={{ fontSize: '1.1rem', fontWeight: 600, color: colors.textPrimary }}>
+                    Appointment Details
+                  </Typography>
+                </Box>
+                <IconButton onClick={() => setAppointmentModalOpen(false)} sx={{ color: colors.textMuted, '&:hover': { color: colors.textPrimary } }}>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>Date</Typography>
+                  <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.9rem' }}>{formattedDate}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>Time</Typography>
+                  <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.9rem' }}>{formatTime(selectedAppointment.start_time)}{selectedAppointment.end_time ? ` - ${formatTime(selectedAppointment.end_time)}` : ''}</Typography>
+                </Box>
+                {selectedAppointment.title && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>Type</Typography>
+                    <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.9rem' }}>{selectedAppointment.title}</Typography>
+                  </Box>
+                )}
+                {artistName && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>Artist</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar src={selectedAppointment.artist.image?.uri} sx={{ width: 24, height: 24, bgcolor: colors.accent, color: colors.background, fontSize: '0.6rem', fontWeight: 600 }}>
+                        {(selectedAppointment.artist.name || selectedAppointment.artist.username || '??').slice(0, 2).toUpperCase()}
+                      </Avatar>
+                      <Typography sx={{ color: colors.textPrimary, fontWeight: 500, fontSize: '0.9rem' }}>{artistName}</Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, p: 2.5, pt: 0 }}>
+                <Button
+                  onClick={() => {
+                    setAppointmentModalOpen(false);
+                    router.push(`/inbox?participant=${selectedAppointment.artist.id}`);
+                  }}
+                  sx={{
+                    flex: 1, py: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 500, fontSize: '0.85rem',
+                    color: colors.textPrimary, border: `1px solid ${colors.border}`,
+                    '&:hover': { borderColor: colors.accent, color: colors.accent },
+                  }}
+                  startIcon={<ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />}
+                >
+                  Message
+                </Button>
+                <Button
+                  onClick={() => { setAppointmentModalOpen(false); setRescheduleModalOpen(true); }}
+                  sx={{
+                    flex: 1, py: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 500, fontSize: '0.85rem',
+                    color: colors.accent, border: `1px solid ${colors.accent}40`,
+                    '&:hover': { bgcolor: `${colors.accent}15` },
+                  }}
+                  startIcon={<UpdateIcon sx={{ fontSize: 16 }} />}
+                >
+                  Reschedule
+                </Button>
+                <Button
+                  onClick={() => { setAppointmentModalOpen(false); setCancelModalOpen(true); }}
+                  sx={{
+                    flex: 1, py: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 500, fontSize: '0.85rem',
+                    color: colors.error, border: `1px solid ${colors.error}40`,
+                    '&:hover': { bgcolor: `${colors.error}15` },
+                  }}
+                  startIcon={<EventBusyIcon sx={{ fontSize: 16 }} />}
+                >
+                  Cancel
+                </Button>
+              </Box>
+            </>
+          );
+        })()}
       </Dialog>
 
-      {/* Beacon Success Snackbar */}
+      <RescheduleAppointmentModal
+        open={rescheduleModalOpen}
+        onClose={() => setRescheduleModalOpen(false)}
+        onSubmit={handleRescheduleSubmit}
+        clientName={selectedAppointment?.artist?.name || undefined}
+        recipientLabel="artist"
+        currentDate={selectedAppointment?.date}
+        currentStartTime={selectedAppointment?.start_time}
+        currentEndTime={selectedAppointment?.end_time}
+      />
+
+      <CancelAppointmentModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onSubmit={handleCancelSubmit}
+        clientName={selectedAppointment?.artist?.name || undefined}
+      />
+
       <Snackbar
-        open={beaconSnackbarOpen}
-        autoHideDuration={10000}
-        onClose={() => setBeaconSnackbarOpen(false)}
+        open={appointmentSnackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setAppointmentSnackbar(prev => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
-          onClose={() => setBeaconSnackbarOpen(false)}
-          icon={false}
-          sx={{
-            bgcolor: colors.accent,
-            color: colors.background,
-            fontWeight: 500,
-            '& .MuiAlert-action': { color: colors.background },
-            '& .MuiAlert-action .MuiIconButton-root:hover': { bgcolor: 'rgba(0,0,0,0.1)' },
-          }}
+          onClose={() => setAppointmentSnackbar(prev => ({ ...prev, open: false }))}
+          severity={appointmentSnackbar.severity}
+          sx={{ bgcolor: appointmentSnackbar.severity === 'success' ? colors.success : colors.error, color: 'white' }}
         >
-          <strong>Now what?</strong> Just sit back! Artists in your area will see your idea and can contact you via email with their availability and quotes.
+          {appointmentSnackbar.message}
         </Alert>
       </Snackbar>
+
+      <ClientUploadWizard
+        open={uploadWizardOpen}
+        onClose={() => setUploadWizardOpen(false)}
+        onSuccess={() => { refreshDashboard(); refreshUploads(); }}
+      />
+
+      {tattooModalOpen && selectedTattooId && (
+        <TattooModal
+          tattooId={selectedTattooId}
+          open={tattooModalOpen}
+          onClose={() => setTattooModalOpen(false)}
+          onSuccess={refreshUploads}
+        />
+      )}
     </Box>
   );
 }
@@ -844,20 +1056,28 @@ function EmptyState({ icon, message, subMessage, action }: {
 }
 
 // Appointment Card Component
-function AppointmentCard({ appointment }: { appointment: DashboardAppointment }) {
-  const date = new Date(appointment.date);
+function AppointmentCard({ appointment, onClick }: { appointment: DashboardAppointment; onClick: () => void }) {
+  const [year, mo, da] = (appointment.date || '').split('T')[0].split('-').map(Number);
+  const date = new Date(year, mo - 1, da);
   const day = date.getDate();
   const month = date.toLocaleDateString('en-US', { month: 'short' });
   const time = formatTime(appointment.start_time);
+  const typeLabel = appointment.type === 'consultation' ? 'Consultation' : 'Appointment';
+  const artistName = appointment.artist?.name || appointment.artist?.username;
+  const appointmentTitle = artistName
+    ? `Tattoo ${typeLabel} with ${artistName}`
+    : appointment.title || `Tattoo ${typeLabel}`;
 
   const artistInitials = appointment.artist.name
     ? appointment.artist.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : appointment.artist.username?.slice(0, 2).toUpperCase() || '??';
 
   return (
-    <Link href={`/appointments/${appointment.id}`} style={{ textDecoration: 'none' }}>
-      <Box sx={{
-        minWidth: 180,
+    <Box
+      component="article"
+      onClick={onClick}
+      aria-label={`${appointmentTitle} with ${appointment.artist.name || appointment.artist.username} on ${month} ${day} at ${time}`}
+      sx={{
         p: 2,
         bgcolor: colors.background,
         border: `1px solid ${colors.border}`,
@@ -868,57 +1088,55 @@ function AppointmentCard({ appointment }: { appointment: DashboardAppointment })
           borderColor: colors.accent,
           transform: 'translateY(-2px)',
         }
-      }}>
-        <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: colors.textPrimary, lineHeight: 1.2 }}>
-              {day}
-            </Typography>
-            <Typography sx={{
-              fontSize: '0.7rem',
-              color: colors.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}>
-              {month}
-            </Typography>
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '0.8rem', color: colors.accent, fontWeight: 500 }}>
-              {time}
-            </Typography>
-            <Typography sx={{
-              fontSize: '0.85rem',
-              fontWeight: 500,
-              color: colors.textPrimary,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}>
-              {appointment.title || (appointment.type === 'consultation' ? 'Consultation' : 'Tattoo Session')}
-            </Typography>
-          </Box>
+      }}
+    >
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
+        <Box sx={{ textAlign: 'center', flexShrink: 0 }} aria-hidden="true">
+          <Typography sx={{ fontSize: '1.25rem', fontWeight: 600, color: colors.textPrimary, lineHeight: 1.2 }}>
+            {day}
+          </Typography>
+          <Typography sx={{
+            fontSize: '0.7rem',
+            color: colors.textMuted,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em'
+          }}>
+            {month}
+          </Typography>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar
-            src={appointment.artist.image?.uri}
-            sx={{
-              width: 24,
-              height: 24,
-              bgcolor: colors.accent,
-              color: colors.background,
-              fontSize: '0.6rem',
-              fontWeight: 600,
-            }}
-          >
-            {artistInitials}
-          </Avatar>
-          <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
-            @{appointment.artist.username}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography component="time" sx={{ fontSize: '0.8rem', color: colors.accent, fontWeight: 500 }}>
+            {time}
+          </Typography>
+          <Typography sx={{
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            color: colors.textPrimary,
+          }}>
+            {appointmentTitle}
           </Typography>
         </Box>
       </Box>
-    </Link>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Avatar
+          src={appointment.artist.image?.uri}
+          alt={`${appointment.artist.name || appointment.artist.username}'s profile`}
+          sx={{
+            width: 24,
+            height: 24,
+            bgcolor: colors.accent,
+            color: colors.background,
+            fontSize: '0.6rem',
+            fontWeight: 600,
+          }}
+        >
+          {artistInitials}
+        </Avatar>
+        <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary }}>
+          @{appointment.artist.username}
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 
@@ -928,25 +1146,31 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
   onAddToWishlist: (id: number) => void;
   isOnWishlist: boolean;
 }) {
+  const artistName = artist.name || artist.username;
   const artistInitials = artist.name
     ? artist.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : artist.username?.slice(0, 2).toUpperCase() || '??';
 
   return (
-    <Box sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      p: 2,
-      bgcolor: colors.background,
-      border: `1px solid ${colors.border}`,
-      borderRadius: '10px',
-      transition: 'border-color 0.2s',
-      '&:hover': { borderColor: colors.borderLight }
-    }}>
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }}>
+    <Box
+      component="article"
+      aria-label={`Artist: ${artistName}`}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        p: 2,
+        bgcolor: colors.background,
+        border: `1px solid ${colors.border}`,
+        borderRadius: '10px',
+        transition: 'border-color 0.2s',
+        '&:hover': { borderColor: colors.borderLight }
+      }}
+    >
+      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none' }} aria-label={`View ${artistName}'s profile`}>
         <Avatar
           src={artist.image?.uri}
+          alt={`${artistName}'s profile picture`}
           sx={{
             width: 56,
             height: 56,
@@ -970,7 +1194,7 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
           cursor: 'pointer',
           '&:hover': { color: colors.accent }
         }}>
-          {artist.name || artist.username}
+          {artistName}
         </Typography>
       </Link>
       <Typography sx={{ fontSize: '0.75rem', color: colors.textMuted, flex: 1 }}>
@@ -980,11 +1204,12 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
         <Button
           component={Link}
           href={`/artists/${artist.username}`}
+          aria-label={`Book appointment with ${artistName}`}
           sx={{
             width: '100%',
             py: 0.5,
             bgcolor: colors.success,
-            color: colors.background,
+            color: '#fff',
             borderRadius: '6px',
             textTransform: 'none',
             fontWeight: 500,
@@ -998,6 +1223,7 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
         <Button
           onClick={() => !isOnWishlist && onAddToWishlist(artist.id)}
           disabled={isOnWishlist}
+          aria-label={isOnWishlist ? `${artistName} is on your wishlist` : `Get notified when ${artistName} opens bookings`}
           sx={{
             width: '100%',
             py: 0.5,
@@ -1011,7 +1237,7 @@ function SuggestedArtistCard({ artist, onAddToWishlist, isOnWishlist }: {
             '&:hover': isOnWishlist ? {} : { bgcolor: colors.accent, color: colors.background },
             '&:disabled': { opacity: 0.7 }
           }}
-          startIcon={isOnWishlist ? <NotificationsActiveIcon sx={{ fontSize: 14 }} /> : <NotificationsOffIcon sx={{ fontSize: 14 }} />}
+          startIcon={isOnWishlist ? <NotificationsActiveIcon sx={{ fontSize: 14 }} aria-hidden="true" /> : <NotificationsOffIcon sx={{ fontSize: 14 }} aria-hidden="true" />}
         >
           {isOnWishlist ? 'On Wishlist' : 'Notify Me'}
         </Button>
@@ -1026,23 +1252,29 @@ function WishlistRow({ artist, onRemove, isLast }: {
   onRemove: (id: number) => void;
   isLast: boolean;
 }) {
+  const artistName = artist.name || artist.username;
   const artistInitials = artist.name
     ? artist.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : artist.username?.slice(0, 2).toUpperCase() || '??';
 
   return (
-    <Box sx={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: { xs: 1, sm: 1.5 },
-      p: { xs: 1.5, sm: 2 },
-      borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
-      transition: 'background 0.15s',
-      '&:hover': { bgcolor: colors.background }
-    }}>
-      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+    <Box
+      component="article"
+      aria-label={`${artistName} - ${artist.books_open ? 'Now Booking' : 'Books Closed'}`}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: { xs: 1, sm: 1.5 },
+        p: { xs: 1.5, sm: 2 },
+        borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+        transition: 'background 0.15s',
+        '&:hover': { bgcolor: colors.background }
+      }}
+    >
+      <Link href={`/artists/${artist.username}`} style={{ textDecoration: 'none', flexShrink: 0 }} aria-label={`View ${artistName}'s profile`}>
         <Avatar
           src={artist.image?.uri}
+          alt={`${artistName}'s profile picture`}
           sx={{
             width: { xs: 36, sm: 40 },
             height: { xs: 36, sm: 40 },
@@ -1100,11 +1332,12 @@ function WishlistRow({ artist, onRemove, isLast }: {
         <Button
           component={Link}
           href={`/artists/${artist.username}`}
+          aria-label={`Book appointment with ${artistName}`}
           sx={{
             px: { xs: 1, sm: 1.5 },
             py: 0.5,
             bgcolor: colors.success,
-            color: colors.background,
+            color: '#fff',
             borderRadius: '6px',
             textTransform: 'none',
             fontWeight: 500,
@@ -1117,21 +1350,26 @@ function WishlistRow({ artist, onRemove, isLast }: {
           Now Booking!
         </Button>
       ) : (
-        <Typography sx={{
-          px: { xs: 1, sm: 1.5 },
-          py: 0.5,
-          bgcolor: colors.background,
-          borderRadius: '6px',
-          fontSize: { xs: '0.65rem', sm: '0.75rem' },
-          color: colors.textMuted,
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-        }}>
+        <Typography
+          component="span"
+          role="status"
+          sx={{
+            px: { xs: 1, sm: 1.5 },
+            py: 0.5,
+            bgcolor: colors.background,
+            borderRadius: '6px',
+            fontSize: { xs: '0.65rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
           Books Closed
         </Typography>
       )}
       <Button
         onClick={() => onRemove(artist.id)}
+        aria-label={`Remove ${artistName} from wishlist`}
         sx={{
           minWidth: 0,
           p: { xs: 0.5, sm: 0.75 },
@@ -1140,9 +1378,161 @@ function WishlistRow({ artist, onRemove, isLast }: {
           '&:hover': { color: colors.error, bgcolor: `${colors.error}15` }
         }}
       >
-        <DeleteIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
+        <DeleteIcon sx={{ fontSize: { xs: 16, sm: 18 } }} aria-hidden="true" />
       </Button>
     </Box>
+  );
+}
+
+// Saved Tattoo Row Component (compact, for dashboard)
+function SavedTattooRow({ tattoo, imageUri, isLast }: {
+  tattoo: any;
+  imageUri?: string;
+  isLast: boolean;
+}) {
+  return (
+    <Link href={`/wishlist`} style={{ textDecoration: 'none' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: { xs: 1, sm: 1.5 },
+          p: { xs: 1.5, sm: 2 },
+          borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+          transition: 'background 0.15s',
+          '&:hover': { bgcolor: colors.background },
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: 36, sm: 40 },
+            height: { xs: 36, sm: 40 },
+            borderRadius: '6px',
+            overflow: 'hidden',
+            bgcolor: colors.background,
+            flexShrink: 0,
+          }}
+        >
+          {imageUri ? (
+            <Box
+              component="img"
+              src={imageUri}
+              alt={tattoo.title || 'Tattoo'}
+              sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PhotoLibraryIcon sx={{ fontSize: 18, color: colors.textMuted }} />
+            </Box>
+          )}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <Typography sx={{
+            fontWeight: 500,
+            color: colors.textPrimary,
+            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {tattoo.artist_name || 'Unknown Artist'}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {tattoo.primary_style || 'Tattoo'}
+          </Typography>
+        </Box>
+        <Typography sx={{
+          px: { xs: 1, sm: 1.5 },
+          py: 0.5,
+          bgcolor: `${colors.accent}15`,
+          borderRadius: '6px',
+          fontSize: { xs: '0.65rem', sm: '0.75rem' },
+          color: colors.accent,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          fontWeight: 500,
+        }}>
+          Tattoo
+        </Typography>
+      </Box>
+    </Link>
+  );
+}
+
+// Saved Studio Row Component (compact, for dashboard)
+function SavedStudioRow({ studio, isLast }: {
+  studio: any;
+  isLast: boolean;
+}) {
+  return (
+    <Link href={`/studios/${studio.slug}`} style={{ textDecoration: 'none' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: { xs: 1, sm: 1.5 },
+          p: { xs: 1.5, sm: 2 },
+          borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+          transition: 'background 0.15s',
+          '&:hover': { bgcolor: colors.background },
+        }}
+      >
+        <Avatar
+          src={studio.image?.uri}
+          alt={studio.name}
+          sx={{
+            width: { xs: 36, sm: 40 },
+            height: { xs: 36, sm: 40 },
+            bgcolor: colors.accent,
+            color: colors.background,
+            fontSize: '0.85rem',
+            fontWeight: 600,
+          }}
+        >
+          {(studio.name || 'S').charAt(0).toUpperCase()}
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <Typography sx={{
+            fontWeight: 500,
+            color: colors.textPrimary,
+            fontSize: { xs: '0.8rem', sm: '0.9rem' },
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {studio.name}
+          </Typography>
+          <Typography sx={{
+            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+            color: colors.textMuted,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {studio.location || 'Studio'}
+          </Typography>
+        </Box>
+        <Typography sx={{
+          px: { xs: 1, sm: 1.5 },
+          py: 0.5,
+          bgcolor: `${colors.accent}15`,
+          borderRadius: '6px',
+          fontSize: { xs: '0.65rem', sm: '0.75rem' },
+          color: colors.accent,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          fontWeight: 500,
+        }}>
+          Studio
+        </Typography>
+      </Box>
+    </Link>
   );
 }
 
@@ -1155,6 +1545,7 @@ function MessageRow({ conversation, userId, isLast }: {
   const participant = conversation.participant;
   const lastMessage = conversation.last_message;
   const isUnread = conversation.unread_count > 0;
+  const participantName = participant?.name || `@${participant?.username}`;
 
   const initials = participant?.name
     ? participant.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -1169,21 +1560,29 @@ function MessageRow({ conversation, userId, isLast }: {
   const timeAgo = lastMessage?.created_at ? getTimeAgo(lastMessage.created_at) : '';
 
   return (
-    <Link href={`/inbox?conversation=${conversation.id}`} style={{ textDecoration: 'none' }}>
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        p: 2,
-        borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
-        transition: 'background 0.15s',
-        cursor: 'pointer',
-        bgcolor: isUnread ? `${colors.accent}08` : 'transparent',
-        '&:hover': { bgcolor: colors.background }
-      }}>
+    <Link
+      href={`/inbox?conversation=${conversation.id}`}
+      style={{ textDecoration: 'none' }}
+      aria-label={`${isUnread ? 'Unread message from' : 'Message from'} ${participantName}${timeAgo ? `, ${timeAgo}` : ''}`}
+    >
+      <Box
+        component="article"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 2,
+          borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+          transition: 'background 0.15s',
+          cursor: 'pointer',
+          bgcolor: isUnread ? `${colors.accent}08` : 'transparent',
+          '&:hover': { bgcolor: colors.background }
+        }}
+      >
         <Box sx={{ position: 'relative' }}>
           <Avatar
             src={participant?.image?.uri}
+            alt={`${participantName}'s profile picture`}
             sx={{
               width: 40,
               height: 40,
@@ -1196,16 +1595,19 @@ function MessageRow({ conversation, userId, isLast }: {
             {initials}
           </Avatar>
           {isUnread && (
-            <Box sx={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: 10,
-              height: 10,
-              bgcolor: colors.accent,
-              borderRadius: '50%',
-              border: `2px solid ${colors.surface}`,
-            }} />
+            <Box
+              aria-label="Unread"
+              sx={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: 10,
+                height: 10,
+                bgcolor: colors.accent,
+                borderRadius: '50%',
+                border: `2px solid ${colors.surface}`,
+              }}
+            />
           )}
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -1215,9 +1617,9 @@ function MessageRow({ conversation, userId, isLast }: {
               color: colors.textPrimary,
               fontSize: '0.9rem',
             }}>
-              {participant?.name || `@${participant?.username}`}
+              {participantName}
             </Typography>
-            <Typography sx={{ fontSize: '0.7rem', color: colors.textMuted }}>
+            <Typography component="time" sx={{ fontSize: '0.7rem', color: colors.textMuted }}>
               {timeAgo}
             </Typography>
           </Box>

@@ -1,0 +1,101 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: { userType?: 'client' | 'artist' | 'studio' } | undefined;
+  ForgotPassword: undefined;
+  VerifyEmail: { email: string };
+};
+
+export type RootStackParamList = {
+  Main: NavigatorScreenParams<MainTabParamList>;
+  InboxStack: NavigatorScreenParams<InboxStackParamList>;
+};
+
+export type MainTabParamList = {
+  HomeTab: NavigatorScreenParams<HomeStackParamList>;
+  SearchTab: NavigatorScreenParams<SearchStackParamList>;
+  ArtistsTab: NavigatorScreenParams<ArtistsStackParamList>;
+  UploadTab: NavigatorScreenParams<UploadStackParamList>;
+  FavoritesTab: NavigatorScreenParams<FavoritesStackParamList>;
+  ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
+};
+
+export type HomeStackParamList = {
+  Home: undefined;
+  ArtistDetail: { slug: string; name?: string };
+  TattooDetail: { id: number };
+  EditTattoo: { id: number };
+  StudioDetail: { slug: string; name?: string };
+  Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  ManageCalendar: { artistId: number; artistName?: string; artistSlug?: string };
+  EditAppointment: { appointmentId: number; appointment?: any };
+  ClientProfile: { clientId: number; name?: string };
+  UserProfile: { slug: string; name?: string };
+  ClaimInvitation: { token: string };
+};
+
+export type SearchStackParamList = {
+  Search: { tab?: 'tattoos' | 'artists' } | undefined;
+  ArtistList: { styleId?: number; searchQuery?: string } | undefined;
+  ArtistDetail: { slug: string; name?: string };
+  TattooDetail: { id: number };
+  EditTattoo: { id: number };
+  StudioDetail: { slug: string; name?: string };
+  UserProfile: { slug: string; name?: string };
+};
+
+export type FavoritesStackParamList = {
+  Favorites: undefined;
+  ArtistDetail: { slug: string; name?: string };
+  TattooDetail: { id: number };
+  EditTattoo: { id: number };
+  StudioDetail: { slug: string; name?: string };
+  UserProfile: { slug: string; name?: string };
+};
+
+export type ArtistsStackParamList = {
+  ArtistList: { styleId?: number; searchQuery?: string; filterStyles?: number[]; filterTags?: number[] } | undefined;
+  ArtistDetail: { slug: string; name?: string };
+  TattooDetail: { id: number };
+  EditTattoo: { id: number };
+  StudioDetail: { slug: string; name?: string };
+  Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  ManageCalendar: { artistId: number; artistName?: string; artistSlug?: string };
+  EditAppointment: { appointmentId: number; appointment?: any };
+  ClientProfile: { clientId: number; name?: string };
+  UserProfile: { slug: string; name?: string };
+};
+
+export type UploadStackParamList = {
+  Upload: undefined;
+  ClientUpload: undefined;
+  BulkUploadConfirm: { images: Array<{ uri: string; type: string; name: string }> };
+};
+
+export type InboxStackParamList = {
+  Inbox: undefined;
+  Conversation: { conversationId?: number; clientId?: number; participantId?: number; participantName?: string };
+  ClientProfile: { clientId: number; name?: string };
+};
+
+export type ProfileStackParamList = {
+  ProfileMain: undefined;
+  Profile: undefined;
+  EditProfile: undefined;
+  Drafts: undefined;
+  Notifications: undefined;
+  NotificationSettings: undefined;
+  BookingSettings: undefined;
+  MyBookings: undefined;
+  PendingApprovals: undefined;
+  ArtistDetail: { slug: string; name?: string };
+  TattooDetail: { id: number };
+  EditTattoo: { id: number };
+  StudioDetail: { slug: string; name?: string };
+  Calendar: { artistId: number; artistName?: string; artistSlug?: string };
+  ManageCalendar: { artistId: number; artistName?: string; artistSlug?: string };
+  EditAppointment: { appointmentId: number; appointment?: any };
+  ClientProfile: { clientId: number; name?: string };
+  UserProfile: { slug: string; name?: string };
+};

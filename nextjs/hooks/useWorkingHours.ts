@@ -56,18 +56,14 @@ export const useWorkingHours = (artistId?: number | string | null) => {
   };
 
   // Save working hours for an artist
-  const saveWorkingHours = async (hours: WorkingHour[]) => {
-    if (!artistId) return false;
-    
+  const saveWorkingHours = async (hours: WorkingHour[]): Promise<{ success: boolean; booksClosed: boolean }> => {
+    if (!artistId) return { success: false, booksClosed: false };
+
     setLoading(true);
     setError(null);
 
-    const body = {
-      availability: hours,
-    };
-    
     try {
-      await artistService.setWorkingHours(artistId, hours);
+      const response = await artistService.setWorkingHours(artistId, hours);
 
       console.log(`Saved working hours for artist ${artistId}:`, {
         hoursPayload: hours,
@@ -75,11 +71,11 @@ export const useWorkingHours = (artistId?: number | string | null) => {
       });
 
       setWorkingHours(hours);
-      return true;
+      return { success: true, booksClosed: response?.books_closed || false };
     } catch (err) {
       console.error('Error saving working hours:', err);
       setError('Failed to save working hours');
-      return false;
+      return { success: false, booksClosed: false };
     } finally {
       setLoading(false);
     }

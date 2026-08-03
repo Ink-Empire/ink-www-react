@@ -19,7 +19,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import LockIcon from '@mui/icons-material/Lock';
-import { colors } from '@/styles/colors';
+import { colors, modalStyles } from '@/styles/colors';
 import { userService } from '@/services/userService';
 
 const PASSWORD_REQUIREMENTS = {
@@ -134,13 +134,8 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen, onClo
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: {
-          bgcolor: colors.surface,
-          color: colors.textPrimary,
-          borderRadius: 2,
-        },
-      }}
+      PaperProps={{ sx: modalStyles.paper }}
+      slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
         <LockIcon sx={{ color: colors.accent }} />

@@ -16,6 +16,8 @@ export interface WorkingHour {
   day_name?: string;
   start_time: string; // HH:MM:SS format
   end_time: string;
+  consultation_start_time?: string | null;
+  consultation_end_time?: string | null;
   is_day_off: boolean | number; // API may return 0/1, normalize with isDayOff()
 }
 
@@ -49,6 +51,10 @@ export interface Appointment {
   client_id?: number | null;
   artist_id: number;
   google_event_id?: string | null;
+  price?: string | number | null;
+  duration_minutes?: number | null;
+  notes?: string | null;
+  is_derived?: boolean;
   created_at?: string;
   updated_at?: string;
 }

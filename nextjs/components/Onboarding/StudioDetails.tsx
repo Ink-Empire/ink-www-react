@@ -25,8 +25,11 @@ import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
 import LocationAutocomplete from '../LocationAutocomplete';
 import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
+import { getPlaceDetails } from '@/services/googlePlacesService';
+import { studioService } from '@/services/studioService';
 import { api } from '@/utils/api';
 import type { StudioCreationPayload } from './OnboardingWizard';
+import ImageCropperModal from '../ImageCropperModal';
 
 interface StudioDetailsData {
   name: string;
@@ -54,6 +57,8 @@ interface StudioDetailsProps {
   userLocationLatLong?: string;
   // Is the user already authenticated? If not, show account creation fields
   isAuthenticated?: boolean;
+  // Slug of an unclaimed studio to auto-fill from (claim flow)
+  claimStudioSlug?: string;
 }
 
 const StudioDetails: React.FC<StudioDetailsProps> = ({
@@ -63,6 +68,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   ownerId,
   userLocationLatLong,
   isAuthenticated = false,
+  claimStudioSlug,
 }) => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -74,10 +80,16 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   const [phone, setPhone] = useState('');
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  // Image cropper state
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [location, setLocation] = useState('');
   const [locationLatLong, setLocationLatLong] = useState('');
   const [useMyLocation, setUseMyLocation] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  // For triggering manual city entry when geolocation returns unknown city
+  const [triggerManualEntry, setTriggerManualEntry] = useState(false);
+  const [detectedState, setDetectedState] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Google Places autofill
@@ -114,8 +126,43 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocationLatLong]);
 
+  // Auto-fetch and pre-fill studio when claiming via slug
+  useEffect(() => {
+    if (!claimStudioSlug) return;
+
+    let cancelled = false;
+
+    const fetchStudio = async () => {
+      try {
+        const { studio } = await studioService.getById(claimStudioSlug);
+        if (cancelled || !studio || studio.is_claimed) return;
+
+        setName(studio.name || '');
+        if (studio.location) setLocation(studio.location);
+        if (studio.location_lat_long) setLocationLatLong(studio.location_lat_long);
+        if (studio.phone) setPhone(studio.phone);
+
+        setSelectedGoogleStudio({
+          id: studio.id,
+          name: studio.name,
+          location: studio.location,
+          slug: studio.slug,
+          is_claimed: false,
+          is_new: false,
+        });
+        setShowManualEntry(true);
+      } catch {
+        // Studio not found or error - let user fill in manually
+      }
+    };
+
+    fetchStudio();
+
+    return () => { cancelled = true; };
+  }, [claimStudioSlug]);
+
   // Handler for when user selects a studio from Google Places
-  const handleGoogleStudioSelect = (studio: StudioOption | null) => {
+  const handleGoogleStudioSelect = async (studio: StudioOption | null) => {
     setSelectedGoogleStudio(studio);
 
     if (studio) {
@@ -130,11 +177,24 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
       // Auto-fill the form with Google data
       setName(studio.name);
-      if (studio.location) {
+
+      // Get location details from Google Place - use city/state/country format
+      if (studio.google_place_id) {
+        const details = await getPlaceDetails(studio.google_place_id);
+        if (details) {
+          // Format as "City, State, Country" like everywhere else
+          const locationParts = [details.city, details.state, details.country].filter(Boolean);
+          setLocation(locationParts.join(', '));
+
+          if (details.lat && details.lng) {
+            setLocationLatLong(`${details.lat},${details.lng}`);
+          }
+        }
+      } else if (studio.location) {
+        // Fallback to studio.location if no place_id
         setLocation(studio.location);
-        // Extract lat/long if available from the studio
-        // (The backend sets this when creating from Google Places)
       }
+
       if (studio.phone) {
         setPhone(studio.phone);
       }
@@ -289,16 +349,37 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
         return;
       }
 
-      setProfileImage(file);
       setErrors(prev => ({ ...prev, profileImage: '' }));
 
-      // Create preview URL
+      // Open cropper with the selected image
       const reader = new FileReader();
       reader.onload = (e) => {
-        setProfileImagePreview(e.target?.result as string);
+        setImageToCrop(e.target?.result as string);
+        setCropperOpen(true);
       };
       reader.readAsDataURL(file);
     }
+    // Reset input so same file can be selected again
+    event.target.value = '';
+  };
+
+  const handleCropComplete = (croppedBlob: Blob) => {
+    // Convert blob to File for upload
+    const croppedFile = new File([croppedBlob], 'studio.jpg', { type: 'image/jpeg' });
+    setProfileImage(croppedFile);
+
+    // Create preview URL from the cropped blob
+    const previewUrl = URL.createObjectURL(croppedBlob);
+    setProfileImagePreview(previewUrl);
+
+    // Close cropper
+    setCropperOpen(false);
+    setImageToCrop(null);
+  };
+
+  const handleCropperClose = () => {
+    setCropperOpen(false);
+    setImageToCrop(null);
   };
 
   const handleImageClick = () => {
@@ -333,16 +414,25 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
       if (locationData.items && locationData.items.length > 0) {
         const address = locationData.items[0].address;
+        const city = address.city || '';
+        const state = address.state || '';
 
-        const locationStr = [
-          address.city,
-          address.state,
-          address.countryCode
-        ].filter(Boolean).join(', ');
+        // Check if city is unknown or missing - trigger manual entry
+        const isUnknownCity = !city || city.toLowerCase().includes('unknown');
 
-        setLocation(locationStr || 'Current Location');
+        if (isUnknownCity) {
+          console.log('Unknown city detected, triggering manual entry');
+          setDetectedState(state);
+          setTriggerManualEntry(true);
+          setUseMyLocation(false); // Switch back to manual mode to show the autocomplete with dialog
+        } else {
+          const locationStr = [city, state, address.countryCode].filter(Boolean).join(', ');
+          setLocation(locationStr);
+        }
       } else {
-        setLocation('Current Location');
+        console.log('No location items found, triggering manual entry');
+        setTriggerManualEntry(true);
+        setUseMyLocation(false);
       }
     } catch (err) {
       console.error('Failed to get current location:', err);
@@ -382,18 +472,19 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       newErrors.location = 'Location is required';
     }
 
-    // Email and password validation depends on authentication status
-    if (!isAuthenticated) {
-      // Email is required for new accounts
-      if (!email.trim()) {
-        newErrors.email = 'Email is required';
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        newErrors.email = 'Please enter a valid email address';
-      } else if (emailAvailable === false) {
-        newErrors.email = 'This email is already registered';
-      }
+    // Email is always required for studios
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
+    } else if (emailAvailable === false) {
+      newErrors.email = isAuthenticated
+        ? 'This email is already registered to another studio'
+        : 'This email is already registered';
+    }
 
-      // Password is required for new accounts
+    // Password validation for new accounts only
+    if (!isAuthenticated) {
       if (!password) {
         newErrors.password = 'Password is required';
       } else if (password.length < 8) {
@@ -402,15 +493,6 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
       if (password && password !== passwordConfirmation) {
         newErrors.passwordConfirmation = 'Passwords do not match';
-      }
-    } else {
-      // For authenticated users, email is optional (studio contact email)
-      if (email.trim()) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-          newErrors.email = 'Please enter a valid email address';
-        } else if (emailAvailable === false) {
-          newErrors.email = 'This email is already registered to another studio';
-        }
       }
     }
 
@@ -793,7 +875,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
           {/* Email Field - Required for new accounts, optional for authenticated users */}
           <TextField
-            label={isAuthenticated ? "Studio Email (Optional)" : "Studio Email"}
+            label="Studio Email"
             name="studio_email"
             value={email}
             onChange={(e) => setEmail(e.target.value.toLowerCase())}
@@ -802,11 +884,10 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             helperText={
               errors.email ||
               (emailAvailable === true ? 'Email available!' :
-               isAuthenticated ? 'A public contact email for your studio' :
-               'This will be your login email')
+               'You can reuse your artist or client email if needed.')
             }
             fullWidth
-            required={!isAuthenticated}
+            required
             type="email"
             autoComplete="email"
             InputProps={{
@@ -1026,13 +1107,19 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
                 value={location}
                 onChange={(newLocation, newLatLong) => {
                   setLocation(newLocation);
-                  setLocationLatLong(newLatLong);
+                  if (newLatLong || !locationLatLong) {
+                    setLocationLatLong(newLatLong);
+                  }
                 }}
                 label="Studio Location"
                 placeholder="Start typing a city name..."
                 error={!!errors.location}
                 helperText={errors.location}
                 required
+                triggerManualEntry={triggerManualEntry}
+                onManualEntryClose={() => setTriggerManualEntry(false)}
+                initialState={detectedState}
+                initialLatLong={locationLatLong}
               />
             )}
 
@@ -1119,6 +1206,16 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       >
         You can always update your studio information later in your dashboard.
       </Typography>
+
+      {/* Image Cropper Modal */}
+      {imageToCrop && (
+        <ImageCropperModal
+          isOpen={cropperOpen}
+          imageSrc={imageToCrop}
+          onClose={handleCropperClose}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </Box>
   );
 };

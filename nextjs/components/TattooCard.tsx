@@ -6,8 +6,11 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import SearchIcon from '@mui/icons-material/Search';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
 import { useUserData } from '@/contexts/AuthContext';
 import { useTattooImagePreload } from '@/contexts/ImageCacheContext';
+import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { colors } from '@/styles/colors';
 
 interface TattooCardProps {
@@ -20,7 +23,9 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
     const user = useUserData();
     const { preloadTattooImages } = useTattooImagePreload();
 
-    const imageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+    const rawImageUri = tattoo.primary_image?.uri || tattoo.image?.uri;
+    const editParams = tattoo.primary_image?.edit_params || tattoo.image?.edit_params;
+    const imageUri = rawImageUri ? tattooCardUrl(rawImageUri, editParams) : undefined;
     const artistImageUri = tattoo.artist_image_uri;
 
     // Preload all tattoo images on hover for instant modal display
@@ -70,9 +75,20 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
     const styleTags = getStyleTags();
     const subjectTags = getSubjectTags();
 
+    const isAttributedArtist = !tattoo.artist_id && tattoo.attributed_artist_name;
+    const isClientUpload = tattoo.is_user_upload && !tattoo.artist_id;
+    const isSeeking = tattoo.post_type === 'seeking';
+
     // Get artist initials for avatar fallback
     const getArtistInitials = () => {
-        const name = tattoo.artist_name;
+        if (isClientUpload) {
+            const name = tattoo.uploader_name;
+            if (!name) return 'U';
+            const parts = name.split(' ');
+            if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+            return name.substring(0, 2).toUpperCase();
+        }
+        const name = isAttributedArtist ? tattoo.attributed_artist_name : tattoo.artist_name;
         if (!name) return 'A';
         const parts = name.split(' ');
         if (parts.length >= 2) {
@@ -98,6 +114,9 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                 border: `1px solid ${colors.border}`,
                 transition: 'all 0.25s ease',
                 cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
                 '&:hover': {
                     borderColor: `${colors.accent}4D`,
                     transform: 'translateY(-4px)',
@@ -113,15 +132,14 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                 p: '1rem 1rem 0.75rem',
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: '0.75rem'
+                gap: '0.75rem',
+                minHeight: 96,
+                boxSizing: 'border-box',
+                flexShrink: 0,
             }}>
-                {/* Artist Avatar */}
-                <Link
-                    href={`/artists/${tattoo.artist_slug || tattoo.artist_id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ textDecoration: 'none' }}
-                >
-                    {artistImageUri ? (
+                {/* Avatar */}
+                {isClientUpload ? (
+                    tattoo.uploader_image_uri ? (
                         <Box sx={{
                             width: 44,
                             height: 44,
@@ -129,13 +147,12 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                             overflow: 'hidden',
                             flexShrink: 0,
                             position: 'relative',
-                            transition: 'transform 0.2s ease',
-                            '&:hover': { transform: 'scale(1.05)' }
                         }}>
                             <Image
-                                src={artistImageUri}
-                                alt={tattoo.artist_name || 'Artist'}
+                                src={tattoo.uploader_image_uri}
+                                alt={tattoo.uploader_name || 'User'}
                                 fill
+                                sizes="44px"
                                 style={{ objectFit: 'cover' }}
                             />
                         </Box>
@@ -143,89 +160,266 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         <Avatar sx={{
                             width: 44,
                             height: 44,
-                            bgcolor: colors.background,
-                            color: colors.accent,
+                            bgcolor: isSeeking ? colors.seekingDim : colors.background,
+                            color: isSeeking ? colors.seeking : colors.textSecondary,
                             fontSize: '1rem',
                             fontWeight: 600,
                             flexShrink: 0,
-                            transition: 'transform 0.2s ease',
-                            '&:hover': { transform: 'scale(1.05)' }
                         }}>
                             {getArtistInitials()}
                         </Avatar>
-                    )}
-                </Link>
-
-                {/* Info */}
-                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    )
+                ) : isAttributedArtist ? (
+                    <Avatar sx={{
+                        width: 44,
+                        height: 44,
+                        bgcolor: colors.background,
+                        color: colors.accent,
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        flexShrink: 0,
+                    }}>
+                        {getArtistInitials()}
+                    </Avatar>
+                ) : (
                     <Link
                         href={`/artists/${tattoo.artist_slug || tattoo.artist_id}`}
                         onClick={(e) => e.stopPropagation()}
                         style={{ textDecoration: 'none' }}
                     >
-                        <Typography sx={{
-                            fontSize: '1rem',
-                            fontWeight: 600,
-                            color: colors.textPrimary,
-                            mb: '0.1rem',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            transition: 'color 0.15s ease',
-                            '&:hover': { color: colors.accent }
-                        }}>
-                            {tattoo.artist_name || 'Unknown Artist'}
-                        </Typography>
+                        {artistImageUri ? (
+                            <Box sx={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                flexShrink: 0,
+                                position: 'relative',
+                                transition: 'transform 0.2s ease',
+                                '&:hover': { transform: 'scale(1.05)' }
+                            }}>
+                                <Image
+                                    src={artistImageUri}
+                                    alt={tattoo.artist_name || 'Artist'}
+                                    fill
+                                    sizes="44px"
+                                    style={{ objectFit: 'cover' }}
+                                />
+                            </Box>
+                        ) : (
+                            <Avatar sx={{
+                                width: 44,
+                                height: 44,
+                                bgcolor: colors.background,
+                                color: colors.accent,
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                flexShrink: 0,
+                                transition: 'transform 0.2s ease',
+                                '&:hover': { transform: 'scale(1.05)' }
+                            }}>
+                                {getArtistInitials()}
+                            </Avatar>
+                        )}
                     </Link>
-                    {tattoo.studio?.name && (
-                        tattoo.studio.slug ? (
-                            <Link
-                                href={`/studios/${tattoo.studio.slug}`}
-                                onClick={(e) => e.stopPropagation()}
-                                style={{ textDecoration: 'none' }}
-                            >
+                )}
+
+                {/* Info */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    {isClientUpload ? (
+                        <>
+                            {isSeeking ? (
+                                <Box sx={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    px: '0.5rem',
+                                    py: '0.15rem',
+                                    bgcolor: colors.seekingDim,
+                                    borderRadius: '4px',
+                                    mb: '0.2rem',
+                                }}>
+                                    <SearchIcon sx={{ fontSize: 12, color: colors.seeking }} />
+                                    <Typography sx={{ fontSize: '0.65rem', color: colors.seeking, fontWeight: 600 }}>
+                                        Seeking Artist
+                                    </Typography>
+                                </Box>
+                            ) : (
+                                <Typography sx={{
+                                    fontSize: '0.7rem',
+                                    color: colors.textMuted,
+                                    fontWeight: 500,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    mb: '0.1rem',
+                                }}>
+                                    Shared by
+                                </Typography>
+                            )}
+                            <Typography sx={{
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                color: colors.textPrimary,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}>
+                                {tattoo.uploader_name || 'Anonymous'}
+                            </Typography>
+                            {isAttributedArtist && !isSeeking && (
+                                <Typography sx={{
+                                    fontSize: '0.75rem',
+                                    color: colors.textSecondary,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}>
+                                    Artist: {tattoo.attributed_artist_name}
+                                </Typography>
+                            )}
+                        </>
+                    ) : isAttributedArtist ? (
+                        <>
+                            <Typography sx={{
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                color: colors.textPrimary,
+                                mb: '0.1rem',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                            }}>
+                                {tattoo.attributed_artist_name}
+                            </Typography>
+                            {tattoo.studio?.name ? (
+                                tattoo.studio.slug ? (
+                                    <Link
+                                        href={`/studios/${tattoo.studio.slug}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{ textDecoration: 'none' }}
+                                    >
+                                        <Typography sx={{
+                                            fontSize: '0.8rem',
+                                            color: colors.accent,
+                                            mb: '0.1rem',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            '&:hover': { textDecoration: 'underline' },
+                                        }}>
+                                            {tattoo.studio.name}
+                                        </Typography>
+                                    </Link>
+                                ) : (
+                                    <Typography sx={{
+                                        fontSize: '0.8rem',
+                                        color: colors.textSecondary,
+                                        mb: '0.1rem',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    }}>
+                                        {tattoo.studio.name}
+                                    </Typography>
+                                )
+                            ) : tattoo.attributed_studio_name ? (
                                 <Typography sx={{
                                     fontSize: '0.8rem',
-                                    color: colors.accent,
+                                    color: colors.textSecondary,
                                     mb: '0.1rem',
                                     whiteSpace: 'nowrap',
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
-                                    '&:hover': { textDecoration: 'underline' }
                                 }}>
-                                    {tattoo.studio.name}
+                                    at {tattoo.attributed_studio_name}
+                                </Typography>
+                            ) : null}
+                            <Box sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                px: '0.5rem',
+                                py: '0.15rem',
+                                bgcolor: colors.infoDim,
+                                borderRadius: '4px',
+                                mt: '0.15rem',
+                            }}>
+                                <Typography sx={{ fontSize: '0.65rem', color: colors.info, fontWeight: 600 }}>
+                                    Not yet on InkedIn
+                                </Typography>
+                            </Box>
+                        </>
+                    ) : (
+                        <>
+                            <Link
+                                href={`/artists/${tattoo.artist_slug || tattoo.artist_id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ textDecoration: 'none' }}
+                            >
+                                <Typography sx={{
+                                    fontSize: '1rem',
+                                    fontWeight: 600,
+                                    color: colors.textPrimary,
+                                    mb: '0.1rem',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    transition: 'color 0.15s ease',
+                                    '&:hover': { color: colors.accent }
+                                }}>
+                                    {tattoo.artist_name || tattoo.uploader_name || 'Unknown Artist'}
                                 </Typography>
                             </Link>
-                        ) : (
-                            <Typography sx={{
-                                fontSize: '0.8rem',
-                                color: colors.accent,
-                                mb: '0.1rem',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                            }}>
-                                {tattoo.studio.name}
-                            </Typography>
-                        )
-                    )}
-                    {tattoo.studio?.location && (
-                        <Typography sx={{
-                            fontSize: '0.8rem',
-                            color: colors.textSecondary,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem'
-                        }}>
-                            <LocationOnIcon sx={{ fontSize: 12, flexShrink: 0 }} />
-                            <Box component="span" sx={{
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                            }}>
-                                {tattoo.studio.location}
-                            </Box>
-                        </Typography>
+                            {tattoo.studio?.name && (
+                                tattoo.studio.slug ? (
+                                    <Link
+                                        href={`/studios/${tattoo.studio.slug}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{ textDecoration: 'none' }}
+                                    >
+                                        <Typography sx={{
+                                            fontSize: '0.8rem',
+                                            color: colors.accent,
+                                            mb: '0.1rem',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            '&:hover': { textDecoration: 'underline' }
+                                        }}>
+                                            {tattoo.studio.name}
+                                        </Typography>
+                                    </Link>
+                                ) : (
+                                    <Typography sx={{
+                                        fontSize: '0.8rem',
+                                        color: colors.accent,
+                                        mb: '0.1rem',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }}>
+                                        {tattoo.studio.name}
+                                    </Typography>
+                                )
+                            )}
+                            {tattoo.studio?.location && (
+                                <Typography sx={{
+                                    fontSize: '0.8rem',
+                                    color: colors.textSecondary,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                }}>
+                                    <LocationOnIcon sx={{ fontSize: 12, flexShrink: 0 }} />
+                                    <Box component="span" sx={{
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }}>
+                                        {tattoo.studio.location}
+                                    </Box>
+                                </Typography>
+                            )}
+                        </>
                     )}
                 </Box>
 
@@ -256,10 +450,13 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
             <Box
                 className="card-image"
                 sx={{
-                    aspectRatio: '4/5',
+                    height: { xs: 320, sm: 360, md: 380 },
+                    minHeight: { xs: 320, sm: 360, md: 380 },
+                    maxHeight: { xs: 320, sm: 360, md: 380 },
                     bgcolor: colors.background,
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    flexShrink: 0,
                 }}
             >
                 {imageUri ? (
@@ -267,6 +464,7 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         src={imageUri}
                         alt={tattoo.title || 'Tattoo'}
                         fill
+                        sizes="(max-width: 600px) 50vw, (max-width: 960px) 33vw, 25vw"
                         style={{
                             objectFit: 'cover',
                             transition: 'transform 0.3s ease'
@@ -343,26 +541,102 @@ const TattooCard: React.FC<TattooCardProps> = ({ tattoo, onTattooClick }) => {
                         ))}
                     </Box>
                 )}
+
+                {/* Post Type Strip */}
+                {tattoo.post_type === 'seeking' && (
+                    <Box sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 26,
+                        bgcolor: 'rgba(74, 187, 168, 0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                    }}>
+                        <SearchIcon sx={{ fontSize: 14, color: '#fff' }} />
+                        <Typography sx={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: '#fff',
+                            letterSpacing: '0.03em',
+                        }}>
+                            Seeking Artist
+                        </Typography>
+                    </Box>
+                )}
+                {tattoo.post_type === 'flash' && (
+                    <Box sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 26,
+                        bgcolor: 'rgba(201, 169, 98, 0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                    }}>
+                        <FlashOnIcon sx={{ fontSize: 14, color: colors.textOnLight }} />
+                        <Typography sx={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: colors.textOnLight,
+                            letterSpacing: '0.03em',
+                        }}>
+                            {tattoo.flash_price && tattoo.flash_size
+                                ? `$${tattoo.flash_price} · ${tattoo.flash_size}`
+                                : tattoo.flash_price
+                                    ? `$${tattoo.flash_price}`
+                                    : tattoo.flash_size || 'Flash'}
+                        </Typography>
+                    </Box>
+                )}
             </Box>
 
             {/* Card Footer */}
-            {tattoo.title && (
-                <Box sx={{
-                    p: '0.75rem 1rem',
-                    borderTop: `1px solid ${colors.border}`
-                }}>
+            <Box sx={{
+                p: '0.75rem 1rem',
+                display: 'flex',
+                gap: '0.5rem',
+                alignItems: 'center',
+                borderTop: `1px solid ${colors.border}`,
+                flexShrink: 0,
+                marginTop: 'auto',
+                ...(!tattoo.title && !isClientUpload ? { display: 'none' } : {}),
+            }}>
+                {isClientUpload && (
+                    <Box sx={{
+                        fontSize: '0.75rem',
+                        px: '0.6rem',
+                        py: '0.3rem',
+                        borderRadius: '100px',
+                        fontWeight: 500,
+                        bgcolor: isSeeking ? colors.seekingDim : colors.infoDim,
+                        color: isSeeking ? colors.seeking : colors.info,
+                        flexShrink: 0,
+                    }}>
+                        {isSeeking ? 'Seeking' : 'Enthusiast'}
+                    </Box>
+                )}
+                {tattoo.title && (
                     <Typography sx={{
                         fontSize: '0.85rem',
                         color: colors.textPrimary,
                         fontWeight: 500,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis'
+                        textOverflow: 'ellipsis',
+                        flex: 1,
+                        minWidth: 0,
                     }}>
                         {tattoo.title}
                     </Typography>
-                </Box>
-            )}
+                )}
+            </Box>
         </Box>
     );
 };

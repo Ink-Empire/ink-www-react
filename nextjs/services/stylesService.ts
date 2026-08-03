@@ -6,6 +6,12 @@ export interface Style {
   description?: string;
 }
 
+export interface AiStyleSuggestion {
+  id: number;
+  name: string;
+  is_ai_suggested?: boolean;
+}
+
 export const stylesService = {
   // Get all tattoo styles (public, cached)
   getAll: async (): Promise<{ styles: Style[] }> => {
@@ -18,5 +24,10 @@ export const stylesService = {
   // Get a single style by ID
   getById: async (id: number): Promise<Style> => {
     return api.get(`/styles/${id}`);
+  },
+
+  // Get AI style suggestions for images
+  suggestStyles: async (imageUrls: string[]): Promise<{ success: boolean; data: AiStyleSuggestion[] }> => {
+    return api.post('/styles/suggest', { image_urls: imageUrls }, { requiresAuth: true });
   },
 };

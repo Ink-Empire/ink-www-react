@@ -35,6 +35,14 @@ export interface LeadStatusResponse {
     description: string;
     is_active: boolean;
   };
+  tattoo?: {
+    id: number;
+    title?: string;
+    description?: string;
+    post_type?: string;
+    primary_image?: { uri: string };
+    images?: { id: number; uri: string }[];
+  } | null;
 }
 
 export const leadService = {

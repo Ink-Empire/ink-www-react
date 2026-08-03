@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
-import { api, getCsrfToken, fetchCsrfToken } from '../utils/api';
-import { getToken } from '../utils/auth';
+import { imageService } from '../services/imageService';
 
 interface ProfilePhoto {
   webviewPath?: string;
   filepath?: string;
+  imageId?: number;
 }
 
-export const useProfilePhoto = () => {
+interface UseProfilePhotoOptions {
+  onSuccess?: () => void;
+  updateUser?: (data: any) => Promise<void>;
+}
+
+export const useProfilePhoto = (options?: UseProfilePhotoOptions) => {
   const [profilePhoto, setProfilePhoto] = useState<ProfilePhoto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cropperImage, setCropperImage] = useState<string | null>(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
 
   // Load profile photo from local storage on mount
   useEffect(() => {
@@ -38,176 +45,143 @@ export const useProfilePhoto = () => {
   }, [profilePhoto]);
 
   const takeProfilePhoto = async () => {
-    setLoading(true);
     setError(null);
-    
+
     try {
-      // In a web environment, we'll use the file input instead of a camera
-      // This is just a placeholder for the actual implementation
+      // Create file input for selecting an image
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      
+
       // Create a promise that resolves when the file is selected
       const fileSelected = new Promise<File | null>((resolve) => {
         input.onchange = (event) => {
           const files = (event.target as HTMLInputElement).files;
           resolve(files ? files[0] : null);
         };
-        
+
         // Handle cancel
         input.oncancel = () => resolve(null);
       });
-      
+
       // Trigger the file picker
       input.click();
-      
+
       // Wait for file selection
       const file = await fileSelected;
       if (!file) {
-        setLoading(false);
         return;
       }
-      
-      // Create a URL for the selected image
-      const webviewPath = URL.createObjectURL(file);
-      
-      // Store locally first for immediate UI update
+
+      // Create a URL for the selected image and open the cropper
+      const imageUrl = URL.createObjectURL(file);
+      setCropperImage(imageUrl);
+      setIsCropperOpen(true);
+    } catch (err) {
+      console.error('Error selecting profile photo', err);
+      setError('Failed to select profile photo');
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setIsCropperOpen(false);
+    setLoading(true);
+    setError(null);
+
+    // Clean up the cropper image URL
+    if (cropperImage) {
+      URL.revokeObjectURL(cropperImage);
+      setCropperImage(null);
+    }
+
+    try {
+      // Create a file from the cropped blob
+      const croppedFile = new File([croppedBlob], 'profile.jpg', { type: 'image/jpeg' });
+
+      // Create preview URL
+      const webviewPath = URL.createObjectURL(croppedBlob);
       setProfilePhoto({
         webviewPath,
-        filepath: file.name,
+        filepath: croppedFile.name,
       });
-      
-      // Upload the file to the server
-      try {
-        // First, ensure we have a CSRF token
-        await fetchCsrfToken();
-        
-        const formData = new FormData();
-        formData.append('profile_photo', file);
-        
-        console.log('Uploading profile photo to server...');
-        
-        // Get auth token
-        const authToken = getToken('profile-photo-upload');
-        
-        // Get CSRF token
-        const csrfToken = getCsrfToken();
-        console.log('CSRF Token for profile photo upload:', csrfToken ? 'present' : 'missing');
-        
-        // Prepare headers
-        const headers: HeadersInit = {};
-        
-        // Add Authorization header if auth token exists
-        if (authToken) {
-          headers['Authorization'] = `Bearer ${authToken}`;
-        }
-        
-        // Add CSRF token if exists
-        if (csrfToken) {
-          headers['X-XSRF-TOKEN'] = csrfToken;
-        }
-        
-        // We can't use our regular api.post here as it expects JSON
-        // FormData needs different content-type header
-        const response = await fetch('/api/users/profile-photo', {
-          method: 'POST',
-          body: formData,
-          headers,
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          console.error('Failed to upload profile photo:', response.status, response.statusText);
-          const errorData = await response.json().catch(() => ({}));
-          console.error('Error details:', errorData);
-          throw new Error('Failed to upload profile photo to server');
-        }
-        
-        console.log('Profile photo uploaded successfully');
-        
-        // You might want to update with the server-returned URL if it transforms the image
-        const responseData = await response.json().catch(() => ({}));
-        if (responseData && responseData.photo_url) {
-          setProfilePhoto({
-            webviewPath: responseData.photo_url,
-            filepath: file.name,
-          });
-        }
-      } catch (uploadErr) {
-        console.error('Error uploading profile photo to server:', uploadErr);
-        // We don't set an error here since the local update succeeded
-        // The user still sees their photo even if server upload failed
+
+      // Upload and associate with user profile
+      const uploadedImage = await imageService.uploadProfilePhoto(croppedFile);
+
+      // Update local state with server URL
+      setProfilePhoto({
+        webviewPath: uploadedImage.uri,
+        filepath: uploadedImage.filename,
+        imageId: uploadedImage.id,
+      });
+
+      // Update localStorage with server URL
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('profile_photo', JSON.stringify({
+          webviewPath: uploadedImage.uri,
+          filepath: uploadedImage.filename,
+          imageId: uploadedImage.id,
+        }));
       }
-      
-    } catch (err) {
-      console.error('Error taking profile photo', err);
-      setError('Failed to take profile photo');
+
+      // Call onSuccess callback to refresh user data
+      if (options?.onSuccess) {
+        options.onSuccess();
+      }
+    } catch (uploadErr) {
+      console.error('Error uploading profile photo:', uploadErr);
+      setError('Failed to upload profile photo');
+      setProfilePhoto(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('profile_photo');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCropCancel = () => {
+    setIsCropperOpen(false);
+    if (cropperImage) {
+      URL.revokeObjectURL(cropperImage);
+      setCropperImage(null);
     }
   };
 
   const deleteProfilePhoto = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Clear local state immediately for UI responsiveness
+      const previousPhoto = profilePhoto;
       setProfilePhoto(null);
-      
+
       // Remove from local storage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('profile_photo');
       }
-      
-      // Delete the photo from the server
+
+      // Delete the photo from the server by setting image_id to null via user update
       try {
-        // First, ensure we have a CSRF token
-        await fetchCsrfToken();
-        
         console.log('Deleting profile photo from server...');
-        
-        // Get auth token
-        const authToken = getToken('profile-photo-delete');
-        
-        // Get CSRF token
-        const csrfToken = getCsrfToken();
-        console.log('CSRF Token for profile photo deletion:', csrfToken ? 'present' : 'missing');
-        
-        // Prepare headers
-        const headers: HeadersInit = {
-          'Content-Type': 'application/json'
-        };
-        
-        // Add Authorization header if auth token exists
-        if (authToken) {
-          headers['Authorization'] = `Bearer ${authToken}`;
+        if (options?.updateUser) {
+          await options.updateUser({ image_id: null });
         }
-        
-        // Add CSRF token if exists
-        if (csrfToken) {
-          headers['X-XSRF-TOKEN'] = csrfToken;
-        }
-        
-        const response = await fetch('/api/users/profile-photo', {
-          method: 'DELETE',
-          headers,
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          console.error('Failed to delete profile photo from server:', response.status, response.statusText);
-          const errorData = await response.json().catch(() => ({}));
-          console.error('Error details:', errorData);
-          throw new Error('Failed to delete profile photo from server');
-        }
-        
         console.log('Profile photo deleted successfully from server');
+
+        // Call onSuccess callback to refresh user data
+        if (options?.onSuccess) {
+          options.onSuccess();
+        }
       } catch (deleteErr) {
         console.error('Error deleting profile photo from server:', deleteErr);
-        // We don't set an error here since the local update succeeded
-        // The user experience isn't affected even if server delete failed
+        // Restore local state on error
+        setProfilePhoto(previousPhoto);
+        if (typeof window !== 'undefined' && previousPhoto) {
+          localStorage.setItem('profile_photo', JSON.stringify(previousPhoto));
+        }
+        setError('Failed to delete profile photo');
       }
     } catch (err) {
       console.error('Error deleting profile photo', err);
@@ -223,5 +197,10 @@ export const useProfilePhoto = () => {
     error,
     takeProfilePhoto,
     deleteProfilePhoto,
+    // Cropper state and handlers
+    cropperImage,
+    isCropperOpen,
+    handleCropComplete,
+    handleCropCancel,
   };
 };

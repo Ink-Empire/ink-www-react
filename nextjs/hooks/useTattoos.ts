@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { TattooType } from '@/models/tattoo.interface';
 import { tattooService } from '@/services/tattooService';
+import { clearCache } from '@/utils/apiCache';
 import { useDemoMode } from '@/contexts/DemoModeContext';
 
 // Unclaimed studio type (same as in useArtists)
@@ -17,11 +18,14 @@ export interface UnclaimedStudio {
 export async function deleteTattoo(id: number | string): Promise<{ success: boolean; message: string; images_deleted: number }> {
   const response = await tattooService.delete(id);
 
-  // Clear any cached data for this tattoo
+  // Clear all caches that might contain this tattoo
+  clearCache('portfolio');
+  clearCache('tattoo');
+  clearCache('artist');
+
   if (typeof window !== 'undefined') {
     try {
       localStorage.removeItem(`tattoo_cache:${id}`);
-      // Also clear artist tattoos cache entries that might contain this tattoo
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('artist_tattoos_cache:') || key.startsWith('tattoos_cache:')) {
           localStorage.removeItem(key);
@@ -36,7 +40,7 @@ export async function deleteTattoo(id: number | string): Promise<{ success: bool
 }
 
 // Hook for fetching tattoos list with infinite scroll support
-export function useTattoos(searchParams?: Record<string, any>) {
+export function useTattoos(searchParams?: Record<string, any>, blockedUserIds?: number[]) {
   const [tattoos, setTattoos] = useState<TattooType[]>([]);
   const [unclaimedStudios, setUnclaimedStudios] = useState<UnclaimedStudio[]>([]);
   const [total, setTotal] = useState<number>(0);
@@ -51,15 +55,17 @@ export function useTattoos(searchParams?: Record<string, any>) {
   const searchParamsKey = JSON.stringify({ ...(searchParams || {}), _demoMode: isDemoMode });
   const prevSearchParamsKey = useRef<string>(searchParamsKey);
 
-  // Reset pagination when search params change
-  useEffect(() => {
-    if (prevSearchParamsKey.current !== searchParamsKey) {
-      setPage(1);
-      setTattoos([]);
-      setHasMore(true);
-      prevSearchParamsKey.current = searchParamsKey;
+  // Build request body from search params
+  const buildRequestBody = useCallback((pageNum: number) => {
+    const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 50 };
+    if (requestBody.locationCoordsString) {
+      requestBody.locationCoords = requestBody.locationCoordsString;
+      delete requestBody.locationCoordsString;
+    } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
+      requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
     }
-  }, [searchParamsKey]);
+    return requestBody;
+  }, [searchParams]);
 
   // Fetch tattoos for a specific page
   const fetchTattoos = useCallback(async (pageNum: number, append: boolean = false) => {
@@ -70,22 +76,11 @@ export function useTattoos(searchParams?: Record<string, any>) {
     }
 
     try {
-      // Construct the request body from searchParams if provided
-      const requestBody: Record<string, any> = { ...searchParams, page: pageNum, per_page: 25 };
-      if (requestBody.locationCoordsString) {
-        requestBody.locationCoords = requestBody.locationCoordsString;
-        delete requestBody.locationCoordsString;
-      } else if (requestBody.locationCoords && typeof requestBody.locationCoords === 'object') {
-        requestBody.locationCoords = `${requestBody.locationCoords.lat},${requestBody.locationCoords.lng}`;
-      }
-
-      console.log(`Fetching tattoos page ${pageNum}:`, requestBody);
+      const requestBody = buildRequestBody(pageNum);
 
       const response = await tattooService.search(requestBody);
 
-      // Process the response
       let tattoosData: TattooType[] = [];
-      let unclaimedStudiosData: UnclaimedStudio[] = [];
       let totalCount = 0;
       let hasMorePages = false;
 
@@ -94,21 +89,16 @@ export function useTattoos(searchParams?: Record<string, any>) {
           tattoosData = response.response;
           totalCount = response.total ?? 0;
           hasMorePages = response.has_more ?? false;
-          if (response.unclaimed_studios && Array.isArray(response.unclaimed_studios)) {
-            unclaimedStudiosData = response.unclaimed_studios;
-          }
         } else if (Array.isArray(response)) {
           tattoosData = response as unknown as TattooType[];
           totalCount = tattoosData.length;
         }
-        console.log(`Tattoos page ${pageNum} fetched:`, tattoosData.length, 'of', totalCount, 'total, hasMore:', hasMorePages);
       }
 
       if (append) {
         setTattoos(prev => [...prev, ...tattoosData]);
       } else {
         setTattoos(tattoosData);
-        setUnclaimedStudios(unclaimedStudiosData);
       }
       setTotal(totalCount);
       setHasMore(hasMorePages);
@@ -120,11 +110,40 @@ export function useTattoos(searchParams?: Record<string, any>) {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchParams]);
+  }, [buildRequestBody]);
 
-  // Initial fetch when search params change
+  // Single effect: reset pagination, fetch page 1, and fetch unclaimed studios when search params change
   useEffect(() => {
+    // Reset pagination
+    setPage(1);
+    setTattoos([]);
+    setHasMore(true);
+    prevSearchParamsKey.current = searchParamsKey;
+
+    // Fetch page 1
     fetchTattoos(1, false);
+
+    // Fetch unclaimed studios in parallel
+    const requestBody = buildRequestBody(1);
+    const locationCoords = requestBody.locationCoords;
+    const useAnyLocation = requestBody.useAnyLocation;
+    const isDemoData = requestBody.include_demo;
+
+    if (!locationCoords || useAnyLocation || isDemoData) {
+      setUnclaimedStudios([]);
+    } else {
+      tattooService.fetchUnclaimedStudios(requestBody)
+        .then((res) => {
+          if (res?.unclaimed_studios && Array.isArray(res.unclaimed_studios)) {
+            setUnclaimedStudios(res.unclaimed_studios);
+          } else {
+            setUnclaimedStudios([]);
+          }
+        })
+        .catch(() => {
+          setUnclaimedStudios([]);
+        });
+    }
   }, [searchParamsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load more function for infinite scroll
@@ -136,8 +155,17 @@ export function useTattoos(searchParams?: Record<string, any>) {
     }
   }, [loadingMore, hasMore, page, fetchTattoos]);
 
+  // Client-side blocked user filtering
+  const filteredTattoos = useMemo(() => {
+    if (!blockedUserIds || blockedUserIds.length === 0) return tattoos;
+    return tattoos.filter(tattoo => {
+      const artistId = tattoo.artist_id ?? tattoo.artist?.id;
+      return !artistId || !blockedUserIds.includes(artistId);
+    });
+  }, [tattoos, blockedUserIds]);
+
   return {
-    tattoos,
+    tattoos: filteredTattoos,
     unclaimedStudios,
     total,
     loading,

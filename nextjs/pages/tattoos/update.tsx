@@ -26,8 +26,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import TuneIcon from '@mui/icons-material/Tune';
 import { colors } from '@/styles/colors';
 import TagsAutocomplete, { Tag } from '@/components/TagsAutocomplete';
+import ImageEditorModal from '@/components/ImageEditorModal';
+import type { ImageEditParams } from '@inkedin/shared/types';
+import { buildImgixUrl } from '@inkedin/shared/utils/imgix';
 
 // Styles that mirror the HTML design
 const styles = {
@@ -333,6 +337,7 @@ const styles = {
 interface ExistingImage {
   id: number;
   url: string;
+  edit_params?: ImageEditParams | null;
 }
 
 export default function UpdateTattoo() {
@@ -356,7 +361,9 @@ export default function UpdateTattoo() {
   const [error, setError] = useState<string | null>(null);
   const [selectedStyles, setSelectedStyles] = useState<number[]>([]);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [isPublic, setIsPublic] = useState(true);
   const [stylesOpen, setStylesOpen] = useState(false);
+  const [editorImage, setEditorImage] = useState<{ id: number; uri: string; edit_params?: ImageEditParams | null } | null>(null);
 
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { showConfirm } = useDialog();
@@ -365,7 +372,7 @@ export default function UpdateTattoo() {
 
   // Combine existing and new images for display
   const allImages = [
-    ...existingImages.map(img => ({ type: 'existing' as const, id: img.id, url: img.url })),
+    ...existingImages.map(img => ({ type: 'existing' as const, id: img.id, url: buildImgixUrl(img.url, img.edit_params) })),
     ...newImagePreviews.map((url, idx) => ({ type: 'new' as const, index: idx, url })),
   ];
 
@@ -409,6 +416,7 @@ export default function UpdateTattoo() {
 
       if (data.title) setTitle(data.title);
       if (data.description) setDescription(data.description);
+      setIsPublic(data.is_public !== undefined ? data.is_public : true);
 
       if (data.styles && Array.isArray(data.styles)) {
         setSelectedStyles(data.styles.map((s: any) => typeof s === 'object' ? s.id : s));
@@ -431,14 +439,14 @@ export default function UpdateTattoo() {
         data.images.forEach((img: any) => {
           const uri = img.uri || img.url || img.path;
           if (uri && img.id) {
-            images.push({ id: img.id, url: uri });
+            images.push({ id: img.id, url: uri, edit_params: img.edit_params || null });
           }
         });
       }
       if (images.length === 0 && data.primary_image) {
         const primaryUri = data.primary_image.uri || data.primary_image.url;
         if (primaryUri && data.primary_image.id) {
-          images.push({ id: data.primary_image.id, url: primaryUri });
+          images.push({ id: data.primary_image.id, url: primaryUri, edit_params: data.primary_image.edit_params || null });
         }
       }
       setExistingImages(images);
@@ -479,6 +487,9 @@ export default function UpdateTattoo() {
       if (selectedTags.length > 0) {
         formData.append('tag_ids', JSON.stringify(selectedTags.map(t => t.id)));
       }
+
+      // Add visibility
+      formData.append('is_public', isPublic ? '1' : '0');
 
       // Add deleted image IDs
       if (deletedImageIds.length > 0) {
@@ -529,8 +540,8 @@ export default function UpdateTattoo() {
 
     try {
       await deleteTattoo(tattooId as string);
-      // Navigate to artist's public profile after successful deletion
-      if (user?.slug) {
+      // Navigate back to the appropriate profile after deletion
+      if (user?.type === 'artist' && user?.slug) {
         router.push(`/artists/${user.slug}`);
       } else {
         router.push('/profile');
@@ -604,6 +615,36 @@ export default function UpdateTattoo() {
             )}
             {allImages.length > 0 && selectedImageIndex === 0 && (
               <Box sx={styles.heroBadge}>Primary Image</Box>
+            )}
+            {/* Edit button on hero image */}
+            {allImages.length > 0 && allImages[selectedImageIndex]?.type === 'existing' && (
+              <IconButton
+                className="hero-delete-btn"
+                sx={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 52,
+                  bgcolor: 'rgba(0, 0, 0, 0.7)',
+                  color: colors.accent,
+                  opacity: 0,
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    bgcolor: colors.accent,
+                    color: colors.background,
+                  },
+                }}
+                onClick={() => {
+                  const img = allImages[selectedImageIndex];
+                  if (img.type === 'existing') {
+                    const existing = existingImages.find(e => e.id === img.id);
+                    if (existing) {
+                      setEditorImage({ id: existing.id, uri: existing.url, edit_params: existing?.edit_params });
+                    }
+                  }
+                }}
+              >
+                <TuneIcon sx={{ fontSize: 20 }} />
+              </IconButton>
             )}
             {/* Delete button on hero image */}
             {allImages.length > 0 && (
@@ -811,6 +852,60 @@ export default function UpdateTattoo() {
             maxTags={10}
           />
         </Box>
+
+        {/* Visibility */}
+        <Box sx={styles.formSection}>
+          <Typography sx={styles.formLabel}>Visibility</Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: '14px 16px',
+              bgcolor: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '10px',
+            }}
+          >
+            <Box>
+              <Typography sx={{ color: colors.textPrimary, fontSize: '0.9375rem', fontWeight: 500 }}>
+                {isPublic ? 'Public' : 'Unlisted'}
+              </Typography>
+              <Typography sx={{ color: colors.textMuted, fontSize: '0.8125rem', mt: 0.25 }}>
+                {isPublic ? 'Visible to everyone' : 'Only visible via direct link'}
+              </Typography>
+            </Box>
+            <Box
+              component="button"
+              onClick={() => setIsPublic(!isPublic)}
+              sx={{
+                width: 48,
+                height: 28,
+                borderRadius: '14px',
+                border: 'none',
+                cursor: 'pointer',
+                position: 'relative',
+                bgcolor: isPublic ? colors.accent : colors.border,
+                transition: 'background-color 0.2s',
+                flexShrink: 0,
+                p: 0,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  bgcolor: '#fff',
+                  position: 'absolute',
+                  top: 3,
+                  left: isPublic ? 23 : 3,
+                  transition: 'left 0.2s',
+                }}
+              />
+            </Box>
+          </Box>
+        </Box>
       </Box>
 
       {/* Fixed Footer */}
@@ -841,6 +936,18 @@ export default function UpdateTattoo() {
           </Box>
         </Box>
       </Box>
+
+      {/* Image Editor Modal */}
+      <ImageEditorModal
+        isOpen={!!editorImage}
+        image={editorImage}
+        onClose={() => setEditorImage(null)}
+        onSave={(imageId, editParams) => {
+          setExistingImages(prev =>
+            prev.map(img => img.id === imageId ? { ...img, edit_params: editParams } : img)
+          );
+        }}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog

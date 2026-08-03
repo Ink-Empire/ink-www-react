@@ -4,6 +4,13 @@
 - **Frontend**: https://getinked.in (NOT inkedin.com)
 - **API**: https://api.getinked.in
 
+## Cross-Platform Parity (CRITICAL)
+- **Next.js and React Native must remain tightly coupled.** Any change to hooks, services, API calls, or data fetching on one platform MUST be mirrored on the other.
+- When updating a shared hook or service, verify both `nextjs/` and `reactnative/` (and `shared/`) are updated.
+- When adding a new API endpoint, ensure both platforms have corresponding service methods and hooks.
+- When fixing a bug on one platform, check if the same bug exists on the other.
+- When the same feature exists in multiple flows (e.g., artist upload vs client upload), it must use the same underlying components. Never reimplement a component's functionality inline.
+
 ## Code Completion Guidelines
 - Never use hardcoded data when fulfilling prompts. We will get data from the API and generate test data in the API.
 
@@ -168,6 +175,11 @@ When adding a new API endpoint:
 4. Use the service method in components
 5. Never call the API client directly
 
+## URL Routing Patterns
+- **Artist pages**: Always use `slug`, NOT `username` → `/artists/${artist.slug}`
+- **Studio pages**: Use `slug` → `/studios/${studio.slug}`
+- **Tattoo pages**: Use `id` → `/tattoos?id=${tattoo.id}` or open TattooModal directly
+
 ## Code Style Guidelines
 - **Framework**: NextJs, ReactNative
 - **Namespacing**: PSR-4 with App\\ namespace
@@ -185,7 +197,7 @@ When adding a new API endpoint:
 
 All code changes must pass CI tests and receive an approval before merging to develop.
 
-Never ever run NPM commands. I will rebuild my own project.
+Ask permission before running NPM commands.
 Always check the /ink-api/docs directory to understand the flow and update it when we make changes to a process.
 Always use the colors.ts for our styles.
 Always reuse components where possible.

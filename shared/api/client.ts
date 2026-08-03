@@ -2,6 +2,7 @@
 // Works with both Next.js (web) and React Native (mobile)
 
 import type { ApiResponse, AuthResponse, User } from '../types';
+import { getCacheItem, setCacheItem, clearCache, generateCacheKey } from './cache';
 
 // =============================================================================
 // Types
@@ -13,6 +14,8 @@ export interface ApiConfig {
   setToken: (token: string) => Promise<void>;
   removeToken: () => Promise<void>;
   onUnauthorized?: () => void;
+  defaultHeaders?: Record<string, string>;
+  enableCache?: boolean; // Enable in-memory caching for GET requests (default: true)
 }
 
 export interface RequestOptions {
@@ -20,6 +23,7 @@ export interface RequestOptions {
   body?: any;
   headers?: Record<string, string>;
   requiresAuth?: boolean;
+  useCache?: boolean; // Override per-request cache behavior
 }
 
 // =============================================================================
@@ -27,7 +31,7 @@ export interface RequestOptions {
 // =============================================================================
 
 export function createApiClient(config: ApiConfig) {
-  const { baseUrl, getToken, setToken, removeToken, onUnauthorized } = config;
+  const { baseUrl, getToken, setToken, removeToken, onUnauthorized, defaultHeaders = {}, enableCache = true } = config;
 
   async function request<T>(
     endpoint: string,
@@ -38,13 +42,26 @@ export function createApiClient(config: ApiConfig) {
       body,
       headers = {},
       requiresAuth = false,
+      useCache,
     } = options;
+
+    // Determine if caching applies: enabled globally, GET request, not explicitly disabled
+    const shouldCache = enableCache && method === 'GET' && useCache !== false;
+
+    if (shouldCache) {
+      const cacheKey = generateCacheKey(endpoint, method);
+      const cached = getCacheItem<T>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
+    }
 
     const url = `${baseUrl}${endpoint}`;
 
     const requestHeaders: Record<string, string> = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      ...defaultHeaders,
       ...headers,
     };
 
@@ -54,6 +71,14 @@ export function createApiClient(config: ApiConfig) {
       requestHeaders['Authorization'] = `Bearer ${token}`;
     } else if (requiresAuth) {
       console.warn(`Auth required for ${endpoint} but no token available`);
+    }
+
+    // Add socket ID for Pusher's toOthers() exclusion
+    if (typeof globalThis !== 'undefined' && (globalThis as any).__echoSocketId) {
+      const socketId = (globalThis as any).__echoSocketId();
+      if (socketId) {
+        requestHeaders['X-Socket-Id'] = socketId;
+      }
     }
 
     const requestOptions: RequestInit = {
@@ -82,11 +107,21 @@ export function createApiClient(config: ApiConfig) {
           onUnauthorized?.();
         }
 
+        let errorMessage = data?.message || `Request failed with status ${response.status}`;
+        if (errorMessage.includes('SQLSTATE') || errorMessage.includes('SQL:')) {
+          errorMessage = 'Something went wrong. Please try again.';
+        }
+
         throw new ApiError(
-          data?.message || `Request failed with status ${response.status}`,
+          errorMessage,
           response.status,
           data
         );
+      }
+
+      // Cache successful GET responses
+      if (shouldCache) {
+        setCacheItem(generateCacheKey(endpoint, method), data);
       }
 
       return data as T;
@@ -109,19 +144,40 @@ export function createApiClient(config: ApiConfig) {
     post: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) =>
       request<T>(endpoint, { ...options, method: 'POST', body }),
 
-    put: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) =>
-      request<T>(endpoint, { ...options, method: 'PUT', body }),
+    put: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) => {
+      if (enableCache) {
+        clearCache(`GET:${endpoint}`);
+        const parent = endpoint.split('/').slice(0, -1).join('/');
+        if (parent) clearCache(`GET:${parent}`);
+      }
+      return request<T>(endpoint, { ...options, method: 'PUT', body });
+    },
 
-    patch: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) =>
-      request<T>(endpoint, { ...options, method: 'PATCH', body }),
+    patch: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) => {
+      if (enableCache) {
+        clearCache(`GET:${endpoint}`);
+        const parent = endpoint.split('/').slice(0, -1).join('/');
+        if (parent) clearCache(`GET:${parent}`);
+      }
+      return request<T>(endpoint, { ...options, method: 'PATCH', body });
+    },
 
-    delete: <T>(endpoint: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
-      request<T>(endpoint, { ...options, method: 'DELETE' }),
+    delete: <T>(endpoint: string, options?: Omit<RequestOptions, 'method' | 'body'>) => {
+      if (enableCache) {
+        clearCache(`GET:${endpoint}`);
+        const parent = endpoint.split('/').slice(0, -1).join('/');
+        if (parent) clearCache(`GET:${parent}`);
+      }
+      return request<T>(endpoint, { ...options, method: 'DELETE' });
+    },
 
     // Auth-specific methods
     setToken,
     getToken,
     removeToken,
+
+    // Cache management
+    clearCache: (pattern?: string) => clearCache(pattern),
   };
 
   return api;
@@ -164,6 +220,16 @@ export interface RegisterData {
   location?: string;
   location_lat_long?: string;
   type?: string;
+  selected_styles?: number[];
+  preferred_styles?: number[];
+  experience_level?: string;
+  studio_id?: number;
+  studio_email?: string;
+  studio_phone?: string;
+  claim_studio_id?: number;
+  has_accepted_toc: boolean;
+  has_accepted_privacy_policy: boolean;
+  signup_platform?: 'web' | 'ios' | 'android';
 }
 
 export function createAuthApi(api: ReturnType<typeof createApiClient>) {

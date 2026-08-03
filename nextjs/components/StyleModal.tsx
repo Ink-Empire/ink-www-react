@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStyles } from '../contexts/StyleContext';
 import { Box, Typography, Button, Checkbox, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { colors } from '@/styles/colors';
+import { colors, modalStyles } from '@/styles/colors';
 
 interface StyleModalProps {
   isOpen: boolean;
@@ -65,7 +65,7 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onApply, selec
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'rgba(0, 0, 0, 0.7)',
+        ...modalStyles.backdrop,
       }}
       onClick={onClose}
     >
@@ -73,11 +73,8 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onApply, selec
         sx={{
           width: '100%',
           maxWidth: 420,
-          bgcolor: colors.surface,
-          borderRadius: '12px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
           overflow: 'hidden',
-          border: `1px solid ${colors.border}`,
+          ...modalStyles.paper,
           mx: 2,
         }}
         onClick={(e) => e.stopPropagation()}

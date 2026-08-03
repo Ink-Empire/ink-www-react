@@ -7,7 +7,7 @@ const nextConfig = {
     instrumentationHook: true, // Enable MSW instrumentation
   },
   // Transpile shared package from parent directory
-  transpilePackages: ['@inkedin/shared', 'react-markdown'],
+  transpilePackages: ['@inkedin/shared', 'react-markdown', '@mui/x-date-pickers'],
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
@@ -16,8 +16,28 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    domains: [],
-    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'inked-in.imgix.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'inked-in-images.s3.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'inked-in-images.s3.us-east-1.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'dd2gdmvaew6fu.cloudfront.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'inked-in.imgix.net',
+      },
+    ],
   },
   webpack(config) {
     // This config allows properly importing SVG files
@@ -33,6 +53,16 @@ const nextConfig = {
     };
 
     return config;
+  },
+  async headers() {
+    return [
+      {
+        source: '/.well-known/apple-app-site-association',
+        headers: [
+          { key: 'Content-Type', value: 'application/json' },
+        ],
+      },
+    ];
   },
   async rewrites() {
     // Disable rewrites when MSW mocking is enabled (for testing)

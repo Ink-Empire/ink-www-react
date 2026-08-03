@@ -130,10 +130,12 @@ export const messageService = {
   },
 
   // Get more messages for a conversation (requires auth)
-  getConversationMessages: async (conversationId: number, before?: number): Promise<MessagesResponse> => {
-    const endpoint = before
-      ? `/conversations/${conversationId}/messages?before=${before}`
-      : `/conversations/${conversationId}/messages`;
+  getConversationMessages: async (conversationId: number, before?: number, after?: number): Promise<MessagesResponse> => {
+    const params = new URLSearchParams();
+    if (before) params.set('before', String(before));
+    if (after) params.set('after', String(after));
+    const query = params.toString();
+    const endpoint = `/conversations/${conversationId}/messages${query ? `?${query}` : ''}`;
     return api.get(endpoint, { requiresAuth: true, useCache: false });
   },
 
@@ -203,6 +205,66 @@ export const messageService = {
       type,
       initial_message: initialMessage,
       appointment_id: appointmentId,
+    }, { requiresAuth: true });
+  },
+
+  // Search users for starting conversations (typeahead, requires auth)
+  searchUsers: async (query: string): Promise<{ users: Array<{ id: number; name: string; username: string; slug?: string; image?: any }> }> => {
+    return api.get(`/conversations/search-users?q=${encodeURIComponent(query)}`, {
+      requiresAuth: true,
+      useCache: false,
+      skipDemoMode: true,
+    });
+  },
+
+  // Send a cancellation message (requires auth)
+  sendCancellation: async (
+    conversationId: number,
+    appointmentId: number,
+    reason?: string
+  ): Promise<{ message: any }> => {
+    return api.post(`/conversations/${conversationId}/messages/cancellation`, {
+      appointment_id: appointmentId,
+      reason,
+    }, { requiresAuth: true });
+  },
+
+  // Send a reschedule request message (requires auth)
+  sendReschedule: async (
+    conversationId: number,
+    appointmentId: number,
+    proposedDate: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    reason?: string
+  ): Promise<{ message: any }> => {
+    return api.post(`/conversations/${conversationId}/messages/reschedule`, {
+      appointment_id: appointmentId,
+      proposed_date: proposedDate,
+      proposed_start_time: proposedStartTime,
+      proposed_end_time: proposedEndTime,
+      reason,
+    }, { requiresAuth: true });
+  },
+
+  // Get support contact user ID (requires auth)
+  getSupportContact: async (): Promise<{ user_id: number | null }> => {
+    return api.get('/support/contact', { requiresAuth: true, useCache: false });
+  },
+
+  // Send support message and fire Slack notification (requires auth)
+  sendSupportMessage: async (message?: string): Promise<{ notified: boolean; conversation_id: number | null }> => {
+    return api.post('/support/message', { message }, { requiresAuth: true });
+  },
+
+  // Respond to a reschedule request (requires auth)
+  respondToMessage: async (
+    conversationId: number,
+    messageId: number,
+    action: 'accept' | 'decline'
+  ): Promise<{ message: any }> => {
+    return api.put(`/conversations/${conversationId}/messages/${messageId}/respond`, {
+      action,
     }, { requiresAuth: true });
   },
 };

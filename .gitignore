@@ -27,6 +27,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+
+# Generated build info
+reactnative/app/buildInfo.ts
 nextjs/node_modules/
 
 # Playwright

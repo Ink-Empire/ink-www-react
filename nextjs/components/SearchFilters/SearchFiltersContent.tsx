@@ -200,17 +200,8 @@ export const SearchFiltersContent: React.FC<SearchFiltersUIProps> = ({
   return (
     <Box sx={{
       width: '100%',
-      height: '100%',
-      overflowY: 'auto',
       display: 'flex',
       flexDirection: 'column',
-      pr: '0.5rem',
-      '&::-webkit-scrollbar': { width: 6 },
-      '&::-webkit-scrollbar-track': { background: 'transparent', mr: '0.5rem' },
-      '&::-webkit-scrollbar-thumb': {
-        background: colors.borderLight,
-        borderRadius: 3
-      }
     }}>
       {/* Search Section */}
       <FilterSection title="Search" defaultExpanded={true}>

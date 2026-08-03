@@ -11,10 +11,12 @@ export interface DashboardAppointment {
   status: string;
   type: string;
   description: string | null;
+  conversation_id?: number;
   artist: {
     id: number;
     name: string | null;
     username: string;
+    slug?: string;
     image: { id: number; uri: string } | null;
   };
   studio: {
@@ -44,6 +46,7 @@ export interface WishlistArtist extends SuggestedArtist {
 interface ClientDashboardResponse {
   appointments: DashboardAppointment[];
   conversations: ApiConversation[];
+  favorites: WishlistArtist[];
   wishlist_count: number;
   suggested_artists: SuggestedArtist[];
 }
@@ -51,6 +54,7 @@ interface ClientDashboardResponse {
 interface UseClientDashboardReturn {
   appointments: DashboardAppointment[];
   conversations: ApiConversation[];
+  favorites: WishlistArtist[];
   wishlistCount: number;
   suggestedArtists: SuggestedArtist[];
   loading: boolean;
@@ -61,6 +65,7 @@ interface UseClientDashboardReturn {
 export function useClientDashboard(): UseClientDashboardReturn {
   const [appointments, setAppointments] = useState<DashboardAppointment[]>([]);
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
+  const [favorites, setFavorites] = useState<WishlistArtist[]>([]);
   const [wishlistCount, setWishlistCount] = useState<number>(0);
   const [suggestedArtists, setSuggestedArtists] = useState<SuggestedArtist[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -75,6 +80,7 @@ export function useClientDashboard(): UseClientDashboardReturn {
 
       setAppointments(response.appointments || []);
       setConversations(response.conversations || []);
+      setFavorites(response.favorites || []);
       setWishlistCount(response.wishlist_count || 0);
       setSuggestedArtists(response.suggested_artists || []);
     } catch (err) {
@@ -96,6 +102,7 @@ export function useClientDashboard(): UseClientDashboardReturn {
   return {
     appointments,
     conversations,
+    favorites,
     wishlistCount,
     suggestedArtists,
     loading,

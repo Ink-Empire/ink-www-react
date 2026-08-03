@@ -1,13 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Image from 'next/image';
 import Layout from '../components/Layout';
 import AccountModal from '../components/AccountModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 import StyleModal from '../components/StyleModal';
 import WorkingHoursModal from '../components/WorkingHoursModal';
+import ImageCropperModal from '../components/ImageCropperModal';
+import ImageEditorModal from '../components/ImageEditorModal';
 import WorkingHoursDisplay from '../components/WorkingHoursDisplay';
-import { Box, Typography, TextField, IconButton, Switch } from '@mui/material';
+import {
+  Box,
+  Typography,
+  TextField,
+  IconButton,
+  Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Alert,
+  CircularProgress,
+  Select,
+  MenuItem,
+} from '@mui/material';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StarIcon from '@mui/icons-material/Star';
@@ -22,6 +41,7 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import EditIcon from '@mui/icons-material/Edit';
+import TuneIcon from '@mui/icons-material/Tune';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -41,10 +61,12 @@ import { useWorkingHours } from '@/hooks';
 import { useStyles } from '@/contexts/StyleContext';
 import { useProfilePhoto } from '@/hooks';
 import { withAuth } from '@/components/WithAuth';
-import { colors } from '@/styles/colors';
+import { colors, modalStyles } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
+import { studioService } from '@/services/studioService';
 import { userService } from '@/services/userService';
-import { uploadImageToS3 } from '@/utils/s3Upload';
+import { imageService } from '@/services/imageService';
+import { messageService } from '@/services/messageService';
 import ComingSoonBadge from '@/components/ui/ComingSoonBadge';
 import {
   navItems,
@@ -56,13 +78,28 @@ import {
 
 const ProfilePage: React.FC = () => {
   const router = useRouter();
-  const { userData, updateUser, updateStyles, loading, error } = useUser();
+  const { userData, updateUser, updateStyles, refreshUser, loading, error } = useUser();
   const { user: authUser, logout: authLogout } = useAuth();
   const { styles, getStyleName } = useStyles();
-  const { profilePhoto, takeProfilePhoto, deleteProfilePhoto } = useProfilePhoto();
+  const {
+    profilePhoto,
+    loading: photoLoading,
+    takeProfilePhoto,
+    deleteProfilePhoto,
+    cropperImage,
+    isCropperOpen,
+    handleCropComplete,
+    handleCropCancel,
+  } = useProfilePhoto({
+    onSuccess: refreshUser,
+    updateUser
+  });
 
   // Only fetch working hours for artists
   const isArtist = userData?.type === 'artist';
+
+  // Image editor state
+  const [editorImage, setEditorImage] = useState<{ id: number; uri: string; edit_params?: any } | null>(null);
 
   // Sidebar navigation state
   const [activeSection, setActiveSection] = useState('photo');
@@ -97,9 +134,20 @@ const ProfilePage: React.FC = () => {
 
   // Modal states
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [styleModalOpen, setStyleModalOpen] = useState(false);
   const [workingHoursModalOpen, setWorkingHoursModalOpen] = useState(false);
+  const pendingBooksOpen = useRef(false);
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [fieldName, setFieldName] = useState('');
+
+  // Delete account state
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Email preferences state
+  const [emailUnsubscribed, setEmailUnsubscribed] = useState(false);
+  const [savingEmailPrefs, setSavingEmailPrefs] = useState(false);
 
   // Form states - basic profile info
   const [formData, setFormData] = useState({
@@ -126,6 +174,7 @@ const ProfilePage: React.FC = () => {
     minimum_session: '',
     deposit_amount: '',
     consultation_fee: '',
+    consultation_duration: '30',
     watermark_enabled: false,
     watermark_opacity: 50,
     watermark_position: 'bottom-right',
@@ -216,6 +265,8 @@ const ProfilePage: React.FC = () => {
       // Initialize location from userData
       setUserLocation((userData as any).location || '');
       setUserLocationLatLong((userData as any).location_lat_long || '');
+      // Initialize email preferences
+      setEmailUnsubscribed((userData as any).email_unsubscribed || false);
     }
   }, [userData]);
 
@@ -244,6 +295,7 @@ const ProfilePage: React.FC = () => {
           minimum_session: toDisplayValue(response.data.minimum_session),
           deposit_amount: toDisplayValue(response.data.deposit_amount),
           consultation_fee: toDisplayValue(response.data.consultation_fee),
+          consultation_duration: String(response.data.consultation_duration || '30'),
           watermark_enabled: response.data.watermark_enabled ?? false,
           watermark_opacity: response.data.watermark_opacity ?? 50,
           watermark_position: response.data.watermark_position ?? 'bottom-right',
@@ -268,16 +320,29 @@ const ProfilePage: React.FC = () => {
     const newValue = !artistSettings[key];
     const previousSettings = { ...artistSettings };
 
+    // When disabling books, also turn off appointments and consultations
+    const payload: Record<string, any> = { [key]: newValue };
+    if (key === 'books_open' && !newValue) {
+      payload.accepts_appointments = false;
+      payload.accepts_consultations = false;
+    }
+
     // Optimistic update
-    setArtistSettings(prev => ({ ...prev, [key]: newValue }));
+    setArtistSettings(prev => ({ ...prev, ...payload }));
 
     try {
       setSavingSettings(true);
-      await artistService.updateSettings(artistId, { [key]: newValue });
+      await artistService.updateSettings(artistId, payload);
 
       setToastMessage('Settings updated successfully');
       setShowToast(true);
-    } catch (err) {
+    } catch (err: any) {
+      // If API returns requires_availability, open the working hours modal
+      if (err?.status === 422 && err?.data?.requires_availability) {
+        pendingBooksOpen.current = true;
+        setWorkingHoursModalOpen(true);
+        return;
+      }
       // Revert on error
       setArtistSettings(previousSettings);
       setToastMessage('Failed to update setting');
@@ -288,7 +353,7 @@ const ProfilePage: React.FC = () => {
   };
 
   // Handle rate field changes (string settings)
-  const handleRateChange = (key: 'hourly_rate' | 'minimum_session' | 'deposit_amount' | 'consultation_fee', value: string) => {
+  const handleRateChange = (key: 'hourly_rate' | 'minimum_session' | 'deposit_amount' | 'consultation_fee' | 'consultation_duration', value: string) => {
     console.log('Rate changed:', key, value);
     setArtistSettings(prev => ({ ...prev, [key]: value }));
     setHasUnsavedSettings(true);
@@ -309,7 +374,8 @@ const ProfilePage: React.FC = () => {
       hourly_rate: artistSettings.hourly_rate ? parseFloat(artistSettings.hourly_rate) : 0,
       minimum_session: artistSettings.minimum_session ? parseFloat(artistSettings.minimum_session) : 0,
       deposit_amount: artistSettings.deposit_amount ? parseFloat(artistSettings.deposit_amount) : 0,
-      consultation_fee: artistSettings.consultation_fee ? parseFloat(artistSettings.consultation_fee) : 0
+      consultation_fee: artistSettings.consultation_fee ? parseFloat(artistSettings.consultation_fee) : 0,
+      consultation_duration: Number(artistSettings.consultation_duration) || 30,
     };
 
     console.log('Saving settings:', {
@@ -353,10 +419,28 @@ const ProfilePage: React.FC = () => {
   const handleSaveChanges = async () => {
     try {
       const name = `${formData.firstName} ${formData.lastName}`.trim();
+      const { studioName, address, city, state, country, postalCode, ...userFields } = formData;
+
+      // Save user fields
       await updateUser({
         name,
-        ...formData
+        ...userFields,
       });
+
+      // Save studio fields if user has a studio
+      const studioId = (userData as any)?.studio?.id;
+      if (studioId && (studioName || address || city || state || country || postalCode)) {
+        await studioService.update(studioId, {
+          name: studioName,
+          address,
+          city,
+          state,
+          country,
+          postal_code: postalCode,
+        } as any);
+        await refreshUser();
+      }
+
       setHasUnsavedChanges(false);
       setToastMessage('Changes saved successfully');
       setShowToast(true);
@@ -429,10 +513,8 @@ const ProfilePage: React.FC = () => {
 
     setUploadingWatermark(true);
     try {
-      const uploadedImage = await uploadImageToS3(file, 'profile');
-
-      // Update artist settings with new watermark
-      await artistService.updateSettings(artistId, { watermark_image_id: uploadedImage.id });
+      // Upload watermark and associate with artist settings
+      const uploadedImage = await imageService.uploadWatermark(file, artistId);
 
       setArtistSettings(prev => ({
         ...prev,
@@ -589,18 +671,106 @@ const ProfilePage: React.FC = () => {
   // Save working hours
   const handleSaveWorkingHours = async (hours: any[]) => {
     try {
-      await saveWorkingHours(hours);
+      const result = await saveWorkingHours(hours);
+      setWorkingHoursModalOpen(false);
+
+      // If we were waiting to open books, do it now
+      if (pendingBooksOpen.current && artistId) {
+        pendingBooksOpen.current = false;
+        const hasAvailableHours = hours.some((h: any) => !h.is_day_off);
+        if (hasAvailableHours) {
+          try {
+            await artistService.updateSettings(artistId, { books_open: true });
+            setArtistSettings(prev => ({ ...prev, books_open: true }));
+            setToastMessage('Working hours saved and books opened');
+            setShowToast(true);
+            return;
+          } catch (err) {
+            setArtistSettings(prev => ({ ...prev, books_open: false }));
+            setToastMessage('Hours saved but failed to open books');
+            setShowToast(true);
+            return;
+          }
+        } else {
+          // Saved hours but all are day-off, revert books_open
+          setArtistSettings(prev => ({ ...prev, books_open: false }));
+        }
+      }
+
+      if (result.booksClosed) {
+        setArtistSettings(prev => ({ ...prev, books_open: false }));
+        setToastMessage('Working hours updated. Books have been closed until available hours are set.');
+        setShowToast(true);
+        return;
+      }
+
       setToastMessage('Working hours updated successfully');
       setShowToast(true);
     } catch (err) {
+      if (pendingBooksOpen.current) {
+        pendingBooksOpen.current = false;
+        setArtistSettings(prev => ({ ...prev, books_open: false }));
+      }
       setToastMessage('Failed to update working hours');
       setShowToast(true);
     }
   };
 
+  // Handle working hours modal close — if no valid working hours exist, books must stay closed
+  const handleWorkingHoursModalClose = () => {
+    pendingBooksOpen.current = false;
+    const hasAvailableHours = workingHours.some(h => !h.is_day_off);
+    if (!hasAvailableHours) {
+      setArtistSettings(prev => ({ ...prev, books_open: false }));
+      if (artistId) {
+        artistService.updateSettings(artistId, { books_open: false }).catch(() => {});
+      }
+    }
+    setWorkingHoursModalOpen(false);
+  };
+
   // Logout
   const handleLogout = () => {
     authLogout();
+  };
+
+  // Delete account
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await userService.deleteAccount();
+      setDeleteAccountModalOpen(false);
+      authLogout();
+    } catch (err: any) {
+      setDeleteError('Failed to delete account. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Toggle email preferences
+  const handleToggleEmailPreferences = async () => {
+    const newValue = !emailUnsubscribed;
+    const previousValue = emailUnsubscribed;
+
+    // Optimistic update
+    setEmailUnsubscribed(newValue);
+    setSavingEmailPrefs(true);
+
+    try {
+      await userService.updateEmailPreferences(newValue);
+      setToastMessage(newValue ? 'Marketing emails disabled' : 'Marketing emails enabled');
+      setShowToast(true);
+    } catch (err) {
+      // Revert on error
+      setEmailUnsubscribed(previousValue);
+      setToastMessage('Failed to update email preferences');
+      setShowToast(true);
+    } finally {
+      setSavingEmailPrefs(false);
+    }
   };
 
   // Get public profile URL
@@ -657,10 +827,11 @@ const ProfilePage: React.FC = () => {
     }
   }, [showToast]);
 
-  // Support both object format (image.uri) and string format for backwards compatibility
-  const imageUri = typeof userData?.image === 'string'
-    ? userData.image
-    : (userData?.image?.uri || profilePhoto?.webviewPath);
+  // Use blob URLs from useProfilePhoto for optimistic updates (shows immediately after crop),
+  // otherwise use the API data as source of truth
+  const optimisticUri = profilePhoto?.webviewPath?.startsWith('blob:') ? profilePhoto.webviewPath : null;
+  const serverUri = typeof userData?.image === 'string' ? userData.image : userData?.image?.uri;
+  const imageUri = optimisticUri || serverUri;
 
   return (
     <Layout>
@@ -758,7 +929,7 @@ const ProfilePage: React.FC = () => {
           <Box sx={{
             maxWidth: '720px',
             width: '100%',
-            p: { xs: '1.5rem 1rem 6rem', md: '2rem 1.5rem 4rem' }
+            p: { xs: '1.5rem 1rem 10rem', md: '2rem 1.5rem 4rem' }
           }}>
           {/* Page Header */}
           <Box sx={{ mb: '2rem' }}>
@@ -849,6 +1020,19 @@ const ProfilePage: React.FC = () => {
               ) : (
                 getInitials()
               )}
+              {photoLoading && (
+                <Box sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'rgba(0, 0, 0, 0.5)',
+                  borderRadius: '50%'
+                }}>
+                  <CircularProgress size={32} sx={{ color: colors.accent }} />
+                </Box>
+              )}
             </Box>
             <IconButton
               onClick={takeProfilePhoto}
@@ -898,24 +1082,60 @@ const ProfilePage: React.FC = () => {
               Change Photo
             </Box>
             {imageUri && (
-              <Box
-                component="button"
-                onClick={deleteProfilePhoto}
-                sx={{
-                  px: '1rem',
-                  py: '0.5rem',
-                  background: 'none',
-                  border: 'none',
-                  color: colors.accent,
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  '&:hover': { textDecoration: 'underline' }
-                }}
-              >
-                Remove
-              </Box>
+              <>
+                <Box
+                  component="button"
+                  onClick={() => {
+                    const imgId = profilePhoto?.imageId || (typeof userData?.image === 'object' ? (userData.image as any)?.id : null);
+                    const imgUri = serverUri;
+                    if (imgId && imgUri) {
+                      const ep = typeof userData?.image === 'object' ? (userData.image as any)?.edit_params : null;
+                      setEditorImage({ id: imgId, uri: imgUri, edit_params: ep });
+                    }
+                  }}
+                  sx={{
+                    px: '1.25rem',
+                    py: '0.6rem',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: `1px solid ${colors.borderLight}`,
+                    bgcolor: 'transparent',
+                    color: colors.textPrimary,
+                    transition: 'all 0.2s ease',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    '&:hover': {
+                      borderColor: colors.accent,
+                      color: colors.accent
+                    }
+                  }}
+                >
+                  <TuneIcon sx={{ fontSize: 16 }} />
+                  Edit Photo
+                </Box>
+                <Box
+                  component="button"
+                  onClick={deleteProfilePhoto}
+                  sx={{
+                    px: '1rem',
+                    py: '0.5rem',
+                    background: 'none',
+                    border: 'none',
+                    color: colors.accent,
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    '&:hover': { textDecoration: 'underline' }
+                  }}
+                >
+                  Remove
+                </Box>
+              </>
             )}
           </Box>
 
@@ -1399,7 +1619,7 @@ const ProfilePage: React.FC = () => {
           {isArtist && (
             <SettingsSection id="hours" title="Your Hours" icon={<AccessTimeIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '1rem' }}>
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary }}>
+              <Typography variant="h3" sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, py: '0.5rem' }}>
                 Weekly Schedule
               </Typography>
               <Box
@@ -1433,7 +1653,7 @@ const ProfilePage: React.FC = () => {
           {isArtist && (
             <SettingsSection id="booking" title="Booking & Rates" icon={<EventIcon sx={{ fontSize: 20 }} />} defaultExpanded={false}>
             {/* Rates Section */}
-            <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, mb: '0.75rem' }}>
+            <Typography variant="h3" sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, py: '0.5rem', mb: '0.75rem' }}>
               Your Rates
             </Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem', mb: '1.5rem' }}>
@@ -1480,6 +1700,40 @@ const ProfilePage: React.FC = () => {
                 />
               </FormGroup>
             </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '1rem', mb: '1.5rem' }}>
+              <FormGroup label="Consultation Duration">
+                <Select
+                  fullWidth
+                  size="small"
+                  value={artistSettings.consultation_duration}
+                  onChange={(e) => handleRateChange('consultation_duration', e.target.value)}
+                  sx={inputStyles}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        bgcolor: colors.surface,
+                        border: `1px solid ${colors.border}`,
+                        '& .MuiMenuItem-root': {
+                          fontSize: '0.85rem',
+                          color: colors.textPrimary,
+                          '&:hover': { bgcolor: colors.background },
+                          '&.Mui-selected': {
+                            bgcolor: `${colors.accent}26`,
+                            '&:hover': { bgcolor: `${colors.accent}33` },
+                          },
+                        },
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="15">15 minutes</MenuItem>
+                  <MenuItem value="30">30 minutes</MenuItem>
+                  <MenuItem value="45">45 minutes</MenuItem>
+                  <MenuItem value="60">60 minutes</MenuItem>
+                </Select>
+              </FormGroup>
+              <Box />
+            </Box>
 
             {/* Save Rates Button */}
             {hasUnsavedSettings && (
@@ -1522,7 +1776,7 @@ const ProfilePage: React.FC = () => {
                     '&:hover': { bgcolor: colors.accentHover }
                   }}
                 >
-                  {savingSettings ? 'Saving...' : 'Save Rates'}
+                  {savingSettings ? 'Saving...' : 'Save'}
                 </Box>
               </Box>
             )}
@@ -1531,7 +1785,7 @@ const ProfilePage: React.FC = () => {
             <Box sx={{ height: '1px', bgcolor: colors.border, mb: '1.5rem' }} />
 
             {/* Booking Preferences */}
-            <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, mb: '0.5rem' }}>
+            <Typography variant="h3" sx={{ fontSize: '0.9rem', fontWeight: 500, color: colors.textSecondary, py: '0.5rem', mb: '0.5rem' }}>
               Booking Preferences
             </Typography>
             <Typography sx={{ fontSize: '0.8rem', color: colors.textSecondary, mb: '1rem', opacity: 0.7 }}>
@@ -1599,10 +1853,20 @@ const ProfilePage: React.FC = () => {
                   <line x1="12" y1="8" x2="12.01" y2="8"></line>
                 </svg>
               </Box>
-              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5 }}>
-                <Box component="span" sx={{ color: colors.accent, fontWeight: 500 }}>Note:</Box>{' '}
-                Turning off "Books Open" will hide your calendar from potential clients and prevent new bookings.
-              </Typography>
+              <Box>
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5, mb: '0.5rem' }}>
+                  <Box component="span" sx={{ color: colors.accent, fontWeight: 500 }}>Note:</Box>{' '}
+                  Turning off "Books Open" will hide your calendar from potential clients and prevent new bookings.
+                </Typography>
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, lineHeight: 1.5 }}>
+                  <Box component="span" sx={{ color: colors.accent, fontWeight: 500 }}>Consultation windows:</Box>{' '}
+                  Set dedicated consultation hours per day in{' '}
+                  <Box component="a" href="#hours" sx={{ color: colors.accent, textDecoration: 'underline', cursor: 'pointer' }}>
+                    Your Hours
+                  </Box>{' '}
+                  below. When enabled, consultations can only be booked within those hours, keeping the rest of your day free for tattoo sessions.
+                </Typography>
+              </Box>
             </Box>
           </SettingsSection>
           )}
@@ -1960,7 +2224,7 @@ const ProfilePage: React.FC = () => {
               <ExpandMoreIcon sx={{ fontSize: 20, color: colors.textSecondary, transform: 'rotate(-90deg)' }} />
             </Box>
             <Box
-              onClick={() => { setFieldName('password'); setAccountModalOpen(true); }}
+              onClick={() => setChangePasswordModalOpen(true)}
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -1978,15 +2242,23 @@ const ProfilePage: React.FC = () => {
               <ExpandMoreIcon sx={{ fontSize: 20, color: colors.textSecondary, transform: 'rotate(-90deg)' }} />
             </Box>
             <Box
-              component={Link}
-              href="/contact"
+              onClick={async () => {
+                try {
+                  const { conversation_id } = await messageService.sendSupportMessage();
+                  if (conversation_id) {
+                    router.push(`/inbox?conversation=${conversation_id}`);
+                    return;
+                  }
+                } catch {}
+                router.push('/contact');
+              }}
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 p: '0.75rem',
                 borderRadius: '6px',
-                textDecoration: 'none',
+                cursor: 'pointer',
                 transition: 'background 0.15s ease',
                 '&:hover': { bgcolor: colors.background }
               }}
@@ -1996,6 +2268,41 @@ const ProfilePage: React.FC = () => {
               </Typography>
               <ExpandMoreIcon sx={{ fontSize: 20, color: colors.textSecondary, transform: 'rotate(-90deg)' }} />
             </Box>
+
+            {/* Email Preferences */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: '0.75rem',
+                borderRadius: '6px',
+                mt: 2,
+                borderTop: `1px solid ${colors.border}`,
+                pt: 2,
+              }}
+            >
+              <Box>
+                <Typography sx={{ fontSize: '0.9rem', color: colors.textPrimary }}>
+                  Marketing Emails
+                </Typography>
+                <Typography sx={{ fontSize: '0.75rem', color: colors.textSecondary }}>
+                  Receive notifications about bookings, messages, and updates
+                </Typography>
+              </Box>
+              <Switch
+                checked={!emailUnsubscribed}
+                onChange={handleToggleEmailPreferences}
+                disabled={savingEmailPrefs}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: colors.accent,
+                    '& + .MuiSwitch-track': { bgcolor: colors.accent }
+                  }
+                }}
+              />
+            </Box>
+
             <Box
               onClick={handleLogout}
               sx={{
@@ -2012,6 +2319,27 @@ const ProfilePage: React.FC = () => {
               <Typography sx={{ fontSize: '0.9rem', color: colors.error }}>
                 Logout
               </Typography>
+            </Box>
+            <Box
+              onClick={() => setDeleteAccountModalOpen(true)}
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: '0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease',
+                '&:hover': { bgcolor: colors.background },
+                mt: 2,
+                borderTop: `1px solid ${colors.border}`,
+                pt: 2,
+              }}
+            >
+              <Typography sx={{ fontSize: '0.9rem', color: colors.error }}>
+                Delete Account
+              </Typography>
+              <ExpandMoreIcon sx={{ fontSize: 20, color: colors.textSecondary, transform: 'rotate(-90deg)' }} />
             </Box>
           </Box>
           </SettingsSection>
@@ -2076,12 +2404,13 @@ const ProfilePage: React.FC = () => {
       {/* Save Bar */}
       <Box sx={{
         position: 'fixed',
-        bottom: { xs: 60, md: 0 },
+        bottom: 0,
         left: 0,
         right: 0,
         bgcolor: colors.surface,
         borderTop: `1px solid ${colors.border}`,
         p: { xs: '1rem', md: '1rem 2rem' },
+        pb: { xs: 'calc(5rem + env(safe-area-inset-bottom, 0px))', md: '1rem' },
         transform: hasUnsavedChanges ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 0.3s ease',
         zIndex: 100
@@ -2161,6 +2490,12 @@ const ProfilePage: React.FC = () => {
         fieldName={fieldName}
       />
 
+      {/* Modal for changing password */}
+      <ChangePasswordModal
+        isOpen={changePasswordModalOpen}
+        onClose={() => setChangePasswordModalOpen(false)}
+      />
+
       {/* Modal for selecting styles */}
       <StyleModal
         isOpen={styleModalOpen}
@@ -2173,18 +2508,136 @@ const ProfilePage: React.FC = () => {
       {isArtist && artistId && (
         <WorkingHoursModal
           isOpen={workingHoursModalOpen}
-          onClose={() => setWorkingHoursModalOpen(false)}
+          onClose={handleWorkingHoursModalClose}
           onSave={handleSaveWorkingHours}
           artistId={artistId}
           initialWorkingHours={workingHours}
+          infoText={pendingBooksOpen.current ? 'In order to set your books to open you must have working hours set.' : undefined}
         />
       )}
+
+      {/* Modal for cropping profile photo */}
+      {cropperImage && (
+        <ImageCropperModal
+          isOpen={isCropperOpen}
+          imageSrc={cropperImage}
+          onClose={handleCropCancel}
+          onCropComplete={handleCropComplete}
+        />
+      )}
+
+      {/* Image Editor Modal */}
+      <ImageEditorModal
+        isOpen={!!editorImage}
+        image={editorImage}
+        onClose={() => setEditorImage(null)}
+        onSave={() => {
+          refreshUser();
+        }}
+      />
+
+      {/* Delete Account Confirmation Modal */}
+      <Dialog
+        open={deleteAccountModalOpen}
+        onClose={() => {
+          setDeleteAccountModalOpen(false);
+          setDeleteError(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: modalStyles.paper }}
+        slotProps={{ backdrop: { sx: modalStyles.backdrop } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
+          <WarningAmberIcon sx={{ color: colors.error }} />
+          <Typography variant="h6" component="span" sx={{ fontWeight: 600 }}>
+            Delete Account
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent>
+          <Alert
+            severity="warning"
+            sx={{
+              mb: 2,
+              bgcolor: `${colors.error}15`,
+              color: colors.textPrimary,
+              border: `1px solid ${colors.error}40`,
+              '& .MuiAlert-icon': {
+                color: colors.error,
+              },
+            }}
+          >
+            Are you sure? Once deleted, this account cannot be recovered.
+          </Alert>
+
+          <Typography sx={{ color: colors.textSecondary, fontSize: '0.9rem' }}>
+            This will permanently delete your account and all associated data including your profile, saved tattoos, and any studio affiliations.
+          </Typography>
+
+          {deleteError && (
+            <Alert
+              severity="error"
+              sx={{
+                mt: 2,
+                bgcolor: `${colors.error}1A`,
+                color: colors.error,
+                border: `1px solid ${colors.error}40`,
+                '& .MuiAlert-icon': {
+                  color: colors.error,
+                },
+              }}
+            >
+              {deleteError}
+            </Alert>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+          <Button
+            onClick={() => {
+              setDeleteAccountModalOpen(false);
+              setDeleteError(null);
+            }}
+            disabled={isDeleting}
+            sx={{
+              px: 3,
+              py: 1,
+              color: colors.textSecondary,
+              borderRadius: '6px',
+              textTransform: 'none',
+              fontWeight: 500,
+              '&:hover': { bgcolor: colors.background },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAccount}
+            disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={20} sx={{ color: colors.textMuted }} /> : null}
+            sx={{
+              px: 3,
+              py: 1,
+              bgcolor: colors.error,
+              color: '#fff',
+              borderRadius: '6px',
+              textTransform: 'none',
+              fontWeight: 500,
+              '&:hover': { bgcolor: colors.error, opacity: 0.9 },
+              '&:disabled': { bgcolor: colors.border, color: colors.textMuted },
+            }}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete Account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Toast notification */}
       {showToast && (
         <Box sx={{
           position: 'fixed',
-          bottom: { xs: hasUnsavedChanges ? 140 : 80, md: hasUnsavedChanges ? 80 : 16 },
+          bottom: { xs: hasUnsavedChanges ? 200 : 80, md: hasUnsavedChanges ? 80 : 16 },
           right: '1rem',
           px: '1rem',
           py: '0.75rem',

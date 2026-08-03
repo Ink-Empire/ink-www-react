@@ -1,8 +1,8 @@
 import { getToken } from './auth';
-import { 
-  generateCacheKey, 
-  getCacheItem, 
-  setCacheItem, 
+import {
+  generateCacheKey,
+  getCacheItem,
+  setCacheItem,
   clearCacheItem,
   clearCache
 } from './apiCache';
@@ -17,7 +17,7 @@ interface ApiOptions {
   cacheTTL?: number;         // Cache time-to-live in milliseconds
   invalidateCache?: boolean; // Force a fresh request even if cache exists
   // Demo mode - if not specified, uses global demo mode setting
-  skipDemoMode?: boolean;    // Set to true to skip adding is_demo parameter
+  skipDemoMode?: boolean;    // Set to true to skip adding include_demo parameter
 }
 
 // Check if demo mode is enabled (reads from localStorage)
@@ -136,24 +136,18 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
   // Use a mutable variable for the body so we can modify it
   let body = initialBody;
 
-  // Append is_demo parameter if demo mode is enabled
+  // Append include_demo parameter if demo mode is enabled (show all data including demo)
   let finalEndpoint = endpoint;
   const demoModeEnabled = !skipDemoMode && isDemoModeEnabled();
 
-  console.log(`[API] Demo mode enabled: ${demoModeEnabled}, localStorage value: ${typeof window !== 'undefined' ? localStorage.getItem('inkedin_demo_mode') : 'SSR'}`);
-
   if (demoModeEnabled) {
     if (method === 'GET') {
-      // For GET requests, add to URL
       const separator = endpoint.includes('?') ? '&' : '?';
-      finalEndpoint = `${endpoint}${separator}is_demo=1`;
+      finalEndpoint = `${endpoint}${separator}include_demo=1`;
     } else if (body && typeof body === 'object' && !(body instanceof FormData)) {
-      // For POST/PUT requests with JSON body, add is_demo to filter demo data
-      body = { ...body, is_demo: 1 };
-      console.log(`[API] Body after adding is_demo:`, body);
+      body = { ...body, include_demo: 1 };
     } else if (!body) {
-      // For POST/PUT without body, create one with is_demo
-      body = { is_demo: 1 };
+      body = { include_demo: 1 };
     }
   }
   
@@ -258,8 +252,19 @@ export async function fetchApi<T>(endpoint: string, options: ApiOptions = {}): P
     credentialsMode = 'omit';
     console.log(`Using Bearer token for ${method} ${endpoint} (not sending cookies)`);
   } else if (requiresAuth) {
-    // No token found but auth required - warn about this
-    console.warn(`No auth token found for ${method} ${endpoint} - falling back to session auth`);
+    // No token and auth required — reject immediately to avoid wasted network calls
+    const error = new Error('Authentication required') as any;
+    error.status = 401;
+    error.data = { message: 'Not authenticated' };
+    throw error;
+  }
+
+  try {
+    if (typeof window !== 'undefined' && window.Echo?.socketId?.()) {
+      requestHeaders['X-Socket-Id'] = window.Echo.socketId();
+    }
+  } catch {
+    // Echo not available yet
   }
 
   const requestOptions: RequestInit = {
@@ -338,28 +343,35 @@ export const api = {
   
   // PUT requests with cache invalidation
   put: <T>(endpoint: string, data: any, options: Omit<ApiOptions, 'method'> = {}) => {
-    // When we update a resource, invalidate related GET caches
-    const relatedGetEndpoint = endpoint.split('/').slice(0, -1).join('/');
-    clearCacheItem(generateCacheKey(relatedGetEndpoint, 'GET'));
-    
-    return fetchApi<T>(endpoint, { 
-      ...options, 
-      method: 'PUT', 
+    // Clear caches for the resource and its parent collection (including paginated variants)
+    // e.g. PUT /artists/123 clears GET:/artists/123, GET:/artists, GET:/artists?page=2, etc.
+    clearCache(`GET:${endpoint}`);
+    const parentEndpoint = endpoint.split('/').slice(0, -1).join('/');
+    if (parentEndpoint) {
+      clearCache(`GET:${parentEndpoint}`);
+    }
+
+    return fetchApi<T>(endpoint, {
+      ...options,
+      method: 'PUT',
       body: data,
-      useCache: false 
+      useCache: false
     });
   },
-  
+
   // DELETE requests with cache invalidation
   delete: <T>(endpoint: string, options: Omit<ApiOptions, 'method'> = {}) => {
-    // When we delete a resource, invalidate related GET caches
-    const relatedGetEndpoint = endpoint.split('/').slice(0, -1).join('/');
-    clearCacheItem(generateCacheKey(relatedGetEndpoint, 'GET'));
-    
-    return fetchApi<T>(endpoint, { 
-      ...options, 
+    // Clear caches for the resource and its parent collection (including paginated variants)
+    clearCache(`GET:${endpoint}`);
+    const parentEndpoint = endpoint.split('/').slice(0, -1).join('/');
+    if (parentEndpoint) {
+      clearCache(`GET:${parentEndpoint}`);
+    }
+
+    return fetchApi<T>(endpoint, {
+      ...options,
       method: 'DELETE',
-      useCache: false 
+      useCache: false
     });
   },
   

@@ -11,8 +11,8 @@ export const artistService = {
 
   // Get artist by ID or slug (public access, but sends auth if available for block filtering)
   getById: async (idOrSlug: number | string, options?: { useCache?: boolean }): Promise<IArtist> => {
-    const response = await api.get<{ artist: IArtist }>(`/artists/${idOrSlug}`, {
-      useCache: options?.useCache ?? true,
+    const param = typeof idOrSlug === 'number' ? { id: idOrSlug } : { slug: idOrSlug };
+    const response = await api.post<{ artist: IArtist }>('/artists', param, {
       requiresAuth: true, // Send token if available to filter blocked artists
     });
     return response.artist;
@@ -25,10 +25,9 @@ export const artistService = {
     });
   },
 
-  // Search artists with pagination (public access, but sends auth if available for block filtering)
+  // Search artists with pagination (public access)
   search: async (params: Record<string, any>): Promise<{
     response: IArtist[];
-    unclaimed_studios?: any[];
     total: number;
     page: number;
     per_page: number;
@@ -42,14 +41,14 @@ export const artistService = {
     });
   },
 
-  // Get artist's portfolio (public access)
-  getPortfolio: async (artistIdOrSlug: number | string): Promise<any[]> => {
-    return api.get<any[]>(`/artists/${artistIdOrSlug}/portfolio`);
+  // Get artist's portfolio with pagination (public access)
+  getPortfolio: async (artistIdOrSlug: number | string, page: number = 1, perPage: number = 50): Promise<any> => {
+    return api.get<any>(`/artists/${artistIdOrSlug}/portfolio?page=${page}&per_page=${perPage}`);
   },
   
   // Get artist's working hours/availability (public access)
   getWorkingHours: async (artistIdOrSlug: number | string): Promise<any[]> => {
-    return api.get<any[]>(`/artists/${artistIdOrSlug}/working-hours`);
+    return api.get<any[]>(`/artists/${artistIdOrSlug}/working-hours`, { useCache: false });
   },
 
   // Update artist profile (requires auth)
@@ -119,7 +118,19 @@ export const artistService = {
 
   // Get artist by slug with full data including tattoos (public)
   getBySlug: async (slug: string): Promise<{ artist: IArtist & { tattoos?: any[] } }> => {
-    return api.get(`/artists/${slug}`, { useCache: false });
+    return api.post('/artists', { slug }, { requiresAuth: true });
+  },
+
+  // Get full dashboard data for an artist (requires auth) - includes cached tattoos
+  getDashboard: async (artistId: number | string): Promise<{
+    data: {
+      artist: IArtist;
+      stats: any;
+      schedule: any[];
+      tattoos: any[];
+    };
+  }> => {
+    return api.get(`/artists/${artistId}/dashboard`, { requiresAuth: true });
   },
 
   // Get dashboard stats for an artist (requires auth)

@@ -2,10 +2,18 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+import FirebaseCore
+import FirebaseMessaging
 
 @main
-class AppDelegate: RCTAppDelegate {
+class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
   override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+    FirebaseApp.configure()
+
+    UNUserNotificationCenter.current().delegate = self
+    Messaging.messaging().delegate = self
+    application.registerForRemoteNotifications()
+
     self.moduleName = "InkedinApp"
     self.dependencyProvider = RCTAppDependencyProvider()
 
@@ -26,5 +34,48 @@ class AppDelegate: RCTAppDelegate {
 #else
     Bundle.main.url(forResource: "main", withExtension: "jsbundle")
 #endif
+  }
+
+  // Forward APNs token to Firebase
+  override func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+    print("[PUSH DEBUG] APNs token received: \(tokenString)")
+    Messaging.messaging().apnsToken = deviceToken
+  }
+
+  // APNs registration failed
+  override func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+    print("[PUSH DEBUG] APNs registration FAILED: \(error.localizedDescription)")
+  }
+
+  // Show push banners while app is in foreground
+  func userNotificationCenter(_ center: UNUserNotificationCenter,
+                              willPresent notification: UNNotification,
+                              withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+    completionHandler([.banner, .sound, .badge])
+  }
+
+  // Handle notification tap
+  func userNotificationCenter(_ center: UNUserNotificationCenter,
+                              didReceive response: UNNotificationResponse,
+                              withCompletionHandler completionHandler: @escaping () -> Void) {
+    completionHandler()
+  }
+
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    // Badge is managed by UnreadCountContext - not cleared on foreground
+  }
+
+  // Firebase messaging delegate
+  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    print("[PUSH DEBUG] FCM token received: \(fcmToken ?? "nil")")
+  }
+
+  override func application(_ application: UIApplication,
+                            continue userActivity: NSUserActivity,
+                            restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+    return RCTLinkingManager.application(application,
+                                         continue: userActivity,
+                                         restorationHandler: restorationHandler)
   }
 }

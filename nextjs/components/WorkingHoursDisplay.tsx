@@ -130,17 +130,24 @@ const WorkingHoursDisplay: React.FC<WorkingHoursDisplayProps> = ({
             </Box>
 
             {/* Hours or Day Off */}
-            <Typography sx={{
-              fontSize: '0.9rem',
-              color: colors.textSecondary,
-              fontStyle: isDayOff ? 'italic' : 'normal'
-            }}>
-              {isDayOff ? (
-                'Day Off'
-              ) : (
-                `${formatTime(day.start_time)} – ${formatTime(day.end_time)}`
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography sx={{
+                fontSize: '0.9rem',
+                color: colors.textSecondary,
+                fontStyle: isDayOff ? 'italic' : 'normal'
+              }}>
+                {isDayOff ? (
+                  'Day Off'
+                ) : (
+                  `${formatTime(day.start_time)} – ${formatTime(day.end_time)}`
+                )}
+              </Typography>
+              {!isDayOff && day.consultation_start_time && day.consultation_end_time && (
+                <Typography sx={{ fontSize: '0.75rem', color: colors.accent, mt: '0.125rem' }}>
+                  Consults: {formatTime(day.consultation_start_time)} – {formatTime(day.consultation_end_time)}
+                </Typography>
               )}
-            </Typography>
+            </Box>
           </Box>
         );
       })}

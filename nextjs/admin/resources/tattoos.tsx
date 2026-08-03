@@ -8,6 +8,7 @@ import {
     SimpleForm,
     TextInput,
     EditButton,
+    DeleteButton,
     FilterButton,
     TopToolbar,
     SearchInput,
@@ -155,6 +156,7 @@ export const TattooList = () => (
             <DateField source="created_at" label="Created"/>
             <RebuildTattooButton/>
             <EditButton/>
+            <DeleteButton mutationMode="pessimistic"/>
         </Datagrid>
     </List>
 );
@@ -242,8 +244,9 @@ const StylesInput = () => {
 
 const TattooEditToolbar = () => {
     return (
-        <Toolbar>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
             <SaveButton/>
+            <DeleteButton mutationMode="pessimistic"/>
         </Toolbar>
     );
 };
