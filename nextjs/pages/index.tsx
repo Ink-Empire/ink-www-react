@@ -148,11 +148,37 @@ export default function HowItWorksPage() {
   return (
     <Layout>
       <Head>
-        <title>InkedIn | Find Your Perfect Tattoo Artist</title>
+        <title>InkedIn | Tattoo Marketplace - Find Tattoo Artists Near You</title>
         <meta
           name="description"
-          content="Connect with world-class tattoo artists. Browse portfolios, book consultations, and collaborate on custom designs—all in one place."
+          content="InkedIn is a tattoo marketplace for finding tattoo artists and tattoo shops near you. Search by style and city, browse portfolios, and book tattoo appointments and consultations."
         />
+        <link rel="canonical" href="https://www.getinked.in/" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'Organization',
+              '@id': 'https://www.getinked.in/#organization',
+              name: 'InkedIn',
+              url: 'https://www.getinked.in',
+              logo: 'https://www.getinked.in/assets/img/logo.png',
+              description: 'InkedIn is a tattoo marketplace connecting tattoo artists, tattoo shops and clients. Find tattoo artists near you by style and city, browse portfolios and book tattoo appointments.',
+            },
+            {
+              '@type': 'WebSite',
+              '@id': 'https://www.getinked.in/#website',
+              name: 'InkedIn',
+              url: 'https://www.getinked.in',
+              publisher: { '@id': 'https://www.getinked.in/#organization' },
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: { '@type': 'EntryPoint', urlTemplate: 'https://www.getinked.in/tattoos?search={search_term_string}' },
+                'query-input': 'required name=search_term_string',
+              },
+            },
+          ],
+        }) }} />
       </Head>
 
       {/* Hero Section */}

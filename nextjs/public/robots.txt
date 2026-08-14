@@ -1,0 +1,37 @@
+# InkedIn — getinked.in
+# Public discovery pages are open to all crawlers, including AI answer engines.
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /inbox
+Disallow: /profile
+Disallow: /manage-calendar
+Disallow: /studio-calendar
+Disallow: /bulk-upload
+Disallow: /appointments
+Disallow: /favorites
+Disallow: /wishlist
+Disallow: /onboarding
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /change-password
+Disallow: /api/
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://www.getinked.in/sitemap.xml
