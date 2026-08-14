@@ -10,6 +10,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import TattooCard from "../components/TattooCard";
 import TattooModal from "../components/TattooModal";
 import SearchFilters from "../components/SearchFilters";
+import DemoModeToggle from "../components/DemoModeToggle";
 import Layout from "../components/Layout";
 import TattooCreateWizard from "../components/TattooCreateWizard";
 import UnclaimedStudioCard from "../components/UnclaimedStudioCard";
@@ -624,6 +625,9 @@ export default function TattoosPage() {
             <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
               Discover amazing tattoos and artists
             </Typography>
+            <Box sx={{ mt: 1 }}>
+              <DemoModeToggle />
+            </Box>
           </Box>
 
           <Box sx={{
