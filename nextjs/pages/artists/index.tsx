@@ -9,6 +9,7 @@ import ArtistCard from '../../components/ArtistCard';
 import UnclaimedStudioCard from '../../components/UnclaimedStudioCard';
 import SearchStudioCard from '../../components/SearchStudioCard';
 import SearchFilters from '../../components/SearchFilters';
+import DemoModeToggle from '../../components/DemoModeToggle';
 import Layout from '../../components/Layout';
 import { useArtists, UnclaimedStudio } from '@/hooks';
 import { useUserData } from '@/contexts/AuthContext';
@@ -429,6 +430,9 @@ export default function ArtistList() {
                         }}>
                             Find Artists
                         </Typography>
+                        <Box sx={{ mt: 0.75 }}>
+                            <DemoModeToggle />
+                        </Box>
                     </Box>
 
                     <Box sx={{

@@ -6,6 +6,7 @@ import { Box, Container, Typography, Button, Stack, TextField, InputAdornment, C
 import SearchIcon from '@mui/icons-material/Search';
 import Layout from '../components/Layout';
 import { useStyles } from '@/contexts/StyleContext';
+import DemoModeToggle from '@/components/DemoModeToggle';
 import { useTags } from '@/contexts/TagContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/colors';
@@ -345,6 +346,10 @@ export default function HowItWorksPage() {
               Find Artists
             </Button>
           </Stack>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+            <DemoModeToggle />
+          </Box>
         </Container>
       </Box>
 

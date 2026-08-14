@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function PreviewBanner() {
   const router = useRouter();
-  const { isDemoMode } = useDemoMode();
+  const { isDemoMode, isDemoAccount } = useDemoMode();
   const { isAuthenticated } = useAuth();
   const [dismissed, setDismissed] = useState(false);
 
@@ -22,8 +22,9 @@ export default function PreviewBanner() {
     return null;
   }
 
-  // Don't show banner for demo users (they already know they're in demo mode)
-  if (isDemoMode) {
+  // Demo accounts don't need the banner or the toggle; visitors who flipped
+  // demo mode on keep the banner so they can flip it back off.
+  if (isDemoAccount) {
     return null;
   }
 
@@ -33,6 +34,8 @@ export default function PreviewBanner() {
         bgcolor: colors.warningDim,
         borderBottom: `2px solid ${colors.warning}`,
         px: 3,
+        // Keep content clear of the fixed 320px filter sidebar on desktop
+        pl: { xs: 3, md: '344px' },
         py: 1.5,
         position: 'relative',
       }}
@@ -46,11 +49,15 @@ export default function PreviewBanner() {
           <InfoOutlinedIcon sx={{ color: colors.warning, fontSize: '1.25rem', cursor: 'help' }} />
         </Tooltip>
 
-        <Typography component="span" sx={{ color: colors.textPrimary, fontWeight: 600, fontSize: '0.95rem' }}>
-          We're growing!
-        </Typography>
+        {!isDemoMode && (
+          <Typography component="span" sx={{ color: colors.textPrimary, fontWeight: 600, fontSize: '0.95rem' }}>
+            We're growing!
+          </Typography>
+        )}
         <Typography component="span" sx={{ color: colors.textSecondary, fontSize: '0.95rem' }}>
-          New artists join every week. Check back for more.
+          {isDemoMode
+            ? 'Demo content is mixed into these results so you can see the full experience.'
+            : 'New artists join every week. Check back for more.'}
         </Typography>
         {!isAuthenticated && (
           <Button
