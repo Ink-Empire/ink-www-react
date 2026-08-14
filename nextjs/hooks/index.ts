@@ -1,6 +1,7 @@
 // Export all hooks
 export { useArtists, useArtist, useArtistPortfolio } from './useArtists';
-export { useTattoos, useTattoo, UnclaimedStudio } from './useTattoos';
+export { useTattoos, useTattoo } from './useTattoos';
+export type { UnclaimedStudio } from './useTattoos';
 export { useStudios, useStudio, useStudioArtists, useStudioGallery, useStudioReviews, useStudioOpportunities, useStudioHours } from './useStudios';
 export { useGeolocation, useBrowserGeolocation } from './useGeolocation';
 export { useProfilePhoto } from './useProfilePhoto';

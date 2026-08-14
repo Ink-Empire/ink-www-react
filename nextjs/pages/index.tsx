@@ -6,6 +6,7 @@ import { Box, Container, Typography, Button, Stack, TextField, InputAdornment, C
 import SearchIcon from '@mui/icons-material/Search';
 import Layout from '../components/Layout';
 import { useStyles } from '@/contexts/StyleContext';
+import DemoModeToggle from '@/components/DemoModeToggle';
 import { useTags } from '@/contexts/TagContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/colors';
@@ -147,10 +148,10 @@ export default function HowItWorksPage() {
   return (
     <Layout>
       <Head>
-        <title>InkedIn | Find Your Perfect Tattoo Artist</title>
+        <title>InkedIn | Tattoo Marketplace - Find Tattoo Artists Near You</title>
         <meta
           name="description"
-          content="Connect with world-class tattoo artists. Browse portfolios, book consultations, and collaborate on custom designs—all in one place."
+          content="InkedIn is a tattoo marketplace for finding tattoo artists and tattoo shops near you. Search by style and city, browse portfolios, and book tattoo appointments and consultations."
         />
         <link rel="canonical" href="https://www.getinked.in/" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
@@ -162,7 +163,7 @@ export default function HowItWorksPage() {
               name: 'InkedIn',
               url: 'https://www.getinked.in',
               logo: 'https://www.getinked.in/assets/img/logo.png',
-              description: 'InkedIn connects tattoo artists, studios, and clients - searchable portfolios, direct booking, and client tools, without the social media algorithm.',
+              description: 'InkedIn is a tattoo marketplace connecting tattoo artists, tattoo shops and clients. Find tattoo artists near you by style and city, browse portfolios and book tattoo appointments.',
             },
             {
               '@type': 'WebSite',
@@ -371,6 +372,10 @@ export default function HowItWorksPage() {
               Find Artists
             </Button>
           </Stack>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+            <DemoModeToggle />
+          </Box>
         </Container>
       </Box>
 

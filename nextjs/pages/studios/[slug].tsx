@@ -30,6 +30,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import TattooModal from '@/components/TattooModal';
 import { studioService } from '@/services/studioService';
 import { colors } from '@/styles/colors';
+import { studioSeoTitle, studioSeoDescription } from '@/utils/seo';
 
 interface StudioDetailProps {
     initialStudio?: any;
@@ -756,17 +757,17 @@ export default function StudioDetail({ initialStudio }: StudioDetailProps) {
   return (
     <Layout>
       <Head>
-        <title>{`${studio.name}${studio.city ? ` - ${studio.city}, ${studio.state}` : ''} | Tattoo Studio | InkedIn`}</title>
-        <meta name="description" content={studio.about?.substring(0, 160) || `${studio.name} is a tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}. View their portfolio, hours, and contact info on InkedIn.`} />
+        <title>{studioSeoTitle(studio)}</title>
+        <meta name="description" content={studioSeoDescription(studio)} />
         <link rel="canonical" href={`https://getinked.in/studios/${slug}`} />
         <meta property="og:type" content="business.business" />
-        <meta property="og:title" content={`${studio.name} | Tattoo Studio | InkedIn`} />
-        <meta property="og:description" content={studio.about?.substring(0, 160) || `${studio.name} tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}`} />
+        <meta property="og:title" content={studioSeoTitle(studio)} />
+        <meta property="og:description" content={studioSeoDescription(studio)} />
         <meta property="og:url" content={`https://getinked.in/studios/${slug}`} />
         {(studio.image?.uri || studio.primary_image?.uri) && <meta property="og:image" content={studio.image?.uri || studio.primary_image?.uri} />}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${studio.name} | Tattoo Studio | InkedIn`} />
-        <meta name="twitter:description" content={studio.about?.substring(0, 160) || `${studio.name} tattoo studio${studio.city ? ` in ${studio.city}, ${studio.state}` : ''}`} />
+        <meta name="twitter:title" content={studioSeoTitle(studio)} />
+        <meta name="twitter:description" content={studioSeoDescription(studio)} />
         {(studio.image?.uri || studio.primary_image?.uri) && <meta name="twitter:image" content={studio.image?.uri || studio.primary_image?.uri} />}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',

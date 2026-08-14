@@ -29,6 +29,7 @@ import BookingModal from '@/components/BookingModal';
 import { colors } from '@/styles/colors';
 import { artistService } from '@/services/artistService';
 import SocialMediaIcons from '@/components/SocialMediaIcons';
+import { artistSeoTitle, artistSeoDescription, artistJsonLd } from '@/utils/seo';
 
 interface ArtistDetailProps {
     initialArtist?: any;
@@ -401,26 +402,21 @@ export default function ArtistDetail({ initialArtist }: ArtistDetailProps) {
     return (
         <Layout>
             <Head>
-                <title>{artist.name} | InkedIn</title>
-                <meta name="description" content={`View ${artist.name}'s tattoo portfolio on InkedIn${artist.location ? ` - based in ${artist.location}` : ''}`} />
-                <meta property="og:title" content={`${artist.name} | InkedIn`} />
-                <meta property="og:description" content={`View ${artist.name}'s tattoo portfolio on InkedIn${artist.location ? ` - based in ${artist.location}` : ''}`} />
+                <title>{artistSeoTitle(artist)}</title>
+                <meta name="description" content={artistSeoDescription(artist)} />
+                <meta property="og:title" content={artistSeoTitle(artist)} />
+                <meta property="og:description" content={artistSeoDescription(artist)} />
                 {artist.image?.uri && <meta property="og:image" content={artist.image.uri} />}
                 <meta property="og:type" content="profile" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={artistSeoTitle(artist)} />
+                <meta name="twitter:description" content={artistSeoDescription(artist)} />
+                {artist.image?.uri && <meta name="twitter:image" content={artist.image.uri} />}
                 <link rel="canonical" href={`https://www.getinked.in/artists/${artist.slug || slugString}`} />
                 <link rel="icon" href="/assets/img/logo.png" />
-                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-                    '@context': 'https://schema.org',
-                    '@type': 'Person',
-                    name: artist.name,
-                    url: `https://www.getinked.in/artists/${artist.slug || slugString}`,
-                    jobTitle: 'Tattoo Artist',
-                    ...(artist.about && { description: artist.about }),
-                    ...(artist.image?.uri && { image: artist.image.uri }),
-                    ...(artist.location && { address: { '@type': 'PostalAddress', addressLocality: artist.location } }),
-                    ...(artist.styles?.length && { knowsAbout: artist.styles.map((s: any) => `${s.name} tattoo`) }),
-                    ...(artist.studio_name && { worksFor: { '@type': 'TattooParlor', name: artist.studio_name } }),
-                }) }} />
+                <script type="application/ld+json" dangerouslySetInnerHTML={{
+                    __html: JSON.stringify(artistJsonLd(artist, artist.slug || slugString || '')),
+                }} />
             </Head>
 
             <Box sx={{ maxWidth: 1200, mx: 'auto', py: 3 }}>

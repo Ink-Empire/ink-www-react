@@ -9,7 +9,13 @@ export { bulkUploadService } from './bulkUploadService';
 export { calendarService } from './calendarService';
 export { clientService } from './clientService';
 export { feedbackService } from './feedbackService';
-export { googlePlacesService } from './googlePlacesService';
+export {
+  searchPlaces,
+  getPlaceDetails,
+  preloadGoogleMaps,
+  searchEstablishments,
+  getEstablishmentDetails,
+} from './googlePlacesService';
 export { leadService } from './leadService';
 export { messageService } from './messageService';
 export { studioService } from './studioService';
