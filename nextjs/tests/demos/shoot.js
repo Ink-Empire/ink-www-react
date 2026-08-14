@@ -1,7 +1,11 @@
 /* Plain-Node screenshot capture for the deck — no test runner. */
 const { chromium } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 
-const OUT = '/private/tmp/claude-501/-Users-carolineennis-projects-orpical-unique-snacks/8ebae9a0-e76a-4406-b55c-483133ea8bd5/scratchpad/deck/shots';
+// Screenshots land next to this script; the folder is gitignored.
+const OUT = path.resolve(__dirname, 'screenshots');
+fs.mkdirSync(OUT, { recursive: true });
 const API = 'http://dev.inkedin.test:8083/api';
 const APP = 'http://dev.inkedin.test:4000';
 
