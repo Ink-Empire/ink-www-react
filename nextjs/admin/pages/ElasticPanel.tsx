@@ -33,6 +33,7 @@ export const ElasticPanel = () => {
     db_total: number;
     orphan_count: number;
     orphan_ids: number[];
+    warnings?: string[];
   } | null>(null);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
@@ -102,7 +103,7 @@ export const ElasticPanel = () => {
     setOrphanLoading(true);
     setOrphanResult(null);
     try {
-      const response = await api.post<{ es_total: number; db_total: number; orphan_count: number; orphan_ids: number[] }>('/admin/elastic/find-orphans', { model });
+      const response = await api.post<{ es_total: number; db_total: number; orphan_count: number; orphan_ids: number[]; warnings?: string[] }>('/admin/elastic/find-orphans', { model });
       setOrphanResult(response);
       if (response.orphan_count === 0) {
         showMessage('success', `No orphans found in ${model} index`);
@@ -118,13 +119,37 @@ export const ElasticPanel = () => {
     if (!orphanResult || orphanResult.orphan_ids.length === 0) return;
     if (!confirm(`Are you sure you want to delete ${orphanResult.orphan_count} orphaned documents from the ${model} index?`)) return;
 
-    setOrphanLoading(true);
-    try {
-      const response = await api.post<{ deleted: number; errors: number[] }>('/admin/elastic/delete-orphans', {
+    const sendDelete = (force: boolean) =>
+      api.post<{ deleted: number; skipped?: number[]; message?: string }>('/admin/elastic/delete-orphans', {
         model,
         ids: orphanResult.orphan_ids,
+        ...(force ? { force: true } : {}),
       });
-      showMessage('success', `Deleted ${response.deleted} orphaned documents`);
+
+    setOrphanLoading(true);
+    try {
+      let response;
+
+      try {
+        response = await sendDelete(false);
+      } catch (error: any) {
+        // The server refuses a sweep that would take out most of the index.
+        // Ask a second time with its reasoning rather than forcing it quietly.
+        if (error?.status !== 409 || !confirm(`${error.message}\n\nDelete them anyway?`)) {
+          throw error;
+        }
+        response = await sendDelete(true);
+      }
+
+      // The server rechecks every id and skips any that still have a record,
+      // so deleted can be lower than the count that was scanned.
+      const skipped = response.skipped?.length ?? 0;
+      const detail = skipped > 0 ? `, skipped ${skipped} that still exist` : '';
+
+      showMessage(
+        response.deleted === 0 ? 'error' : 'success',
+        response.message || `Deleted ${response.deleted} orphaned documents${detail}`
+      );
       setOrphanResult(null);
     } catch (error: any) {
       showMessage('error', error?.message || 'Failed to delete orphans');
@@ -292,6 +317,12 @@ export const ElasticPanel = () => {
               <Typography variant="body2">
                 ES documents: <strong>{orphanResult.es_total}</strong> | DB records: <strong>{orphanResult.db_total}</strong> | Orphans: <strong>{orphanResult.orphan_count}</strong>
               </Typography>
+
+              {orphanResult.warnings?.map((warning, index) => (
+                <Alert severity="warning" sx={{ mt: 1 }} key={index}>
+                  {warning}
+                </Alert>
+              ))}
 
               {orphanResult.orphan_ids.length > 0 && (
                 <>
