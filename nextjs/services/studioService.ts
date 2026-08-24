@@ -32,8 +32,24 @@ export const studioService = {
 
   // Get studio's gallery/tattoos (public access)
   getGallery: async (studioIdOrSlug: number | string): Promise<any[]> => {
-    const response = await api.get<{ gallery: any[]; meta: any }>(`/studios/${studioIdOrSlug}/gallery`);
-    return response.gallery || [];
+    // The page filters styles client side, so it needs the whole gallery
+    // rather than the first page. Walk the pages until the server says there
+    // are no more, with a ceiling so a large studio cannot stall the page.
+    const perPage = 100;
+    const maxPages = 5;
+    const gallery: any[] = [];
+
+    for (let page = 1; page <= maxPages; page++) {
+      const response = await api.get<{ gallery: any[]; meta?: { has_more?: boolean } }>(
+        `/studios/${studioIdOrSlug}/gallery?limit=${perPage}&page=${page}`
+      );
+
+      gallery.push(...(response.gallery || []));
+
+      if (!response.meta?.has_more) break;
+    }
+
+    return gallery;
   },
 
   // Get studio's reviews (public access)
