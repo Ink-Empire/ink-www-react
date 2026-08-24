@@ -35,6 +35,10 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'www.gravatar.com',
+      },
+      {
+        protocol: 'https',
         hostname: 'inked-in.imgix.net',
       },
     ],

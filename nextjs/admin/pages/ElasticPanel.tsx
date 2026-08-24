@@ -56,11 +56,21 @@ export const ElasticPanel = () => {
     setLoading(true);
     try {
       const endpoint = bypass ? '/admin/elastic/rebuild-bypass' : '/admin/elastic/rebuild';
-      await api.post(endpoint, {
+      const response = await api.post<{ message?: string; indexed?: number; missing_ids?: number[] }>(endpoint, {
         model,
         ids: idArray,
       });
-      showMessage('success', bypass ? 'Rebuild completed immediately' : 'Rebuild queued successfully');
+
+      if (bypass) {
+        // A bypass rebuild reports what it actually indexed. Nothing indexed
+        // means the ids do not belong to the selected model, which used to
+        // look identical to success.
+        const indexed = response?.indexed ?? 0;
+        showMessage(indexed === 0 ? 'error' : 'success', response?.message || 'Rebuild completed immediately');
+      } else {
+        showMessage('success', response?.message || 'Rebuild queued successfully');
+      }
+
       setIds('');
     } catch (error: any) {
       showMessage('error', error?.message || 'Failed to trigger rebuild');
