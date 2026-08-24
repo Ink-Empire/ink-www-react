@@ -29,6 +29,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import Layout from '@/components/Layout';
 import ContactForm from '@/components/ContactForm';
 import { colors } from '@/styles/colors';
+import { nodeToText } from '@/components/seo/JsonLd';
 
 interface FAQItem {
   question: string;
@@ -594,7 +595,17 @@ export default function FAQPage() {
       <Head>
         <title>FAQ | InkedIn</title>
         <meta name="description" content="Frequently asked questions about InkedIn - find answers about searching, styles, tags, and more." />
+        <link rel="canonical" href="https://www.getinked.in/faq" />
         <link rel="icon" href="/assets/img/logo.png" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: faqSections.flatMap((section) => section.items.map((item) => ({
+            '@type': 'Question',
+            name: item.question,
+            acceptedAnswer: { '@type': 'Answer', text: nodeToText(item.answer) },
+          }))),
+        }) }} />
       </Head>
 
       <Container maxWidth="md" sx={{ py: 4 }}>

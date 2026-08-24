@@ -1,0 +1,37 @@
+# InkedIn
+
+> InkedIn (getinked.in) is a tattoo marketplace for finding a tattoo artist and booking a tattoo appointment. People search tattoo artists and tattoo shops near them by style and city — for example "neo-traditional tattoo artists in Cleveland" or "Japanese sleeve artist near me" — browse portfolios, message the artist, and book a consultation or session. Artists and studios list their work, set availability, and take bookings directly, without competing for reach on a social feed.
+
+## Common questions InkedIn answers
+
+- Who are the best tattoo artists near me?
+- Which tattoo artists specialise in a given style (traditional, neo-traditional, realism, blackwork, fine line, Japanese, watercolour, geometric)?
+- Which tattoo shops are in a given city, and who works there?
+- How do I book a tattoo appointment or consultation with a specific artist?
+- Which artists currently have their books open?
+- How much does a tattoo cost with a given artist, and what deposit is required?
+
+## What InkedIn does
+
+- Artist portfolios: searchable by style (traditional, neo-traditional, realism, Japanese, and more), subject, and location
+- Studio profiles: rosters, hours, and location for tattoo studios
+- Booking: consultation and appointment requests with artist availability, synced to Google Calendar
+- Tattoo Beacon: clients post what tattoo they want; nearby artists are notified and can reach out
+- Business inbox: real-time messaging with structured price quotes, deposit requests, and scheduling actions
+- Portfolio import: artists can import their entire Instagram portfolio or email photos to set up a profile in minutes, with AI-assisted tagging
+
+## Key pages
+
+- Find artists: https://www.getinked.in/artists
+- Browse tattoos: https://www.getinked.in/tattoos
+- How it works: https://www.getinked.in/how-it-works
+- FAQ: https://www.getinked.in/faq
+- Artist and studio profiles: https://www.getinked.in/artists/[slug], https://www.getinked.in/studios/[slug]
+
+## For tattoo artists
+
+Artists join free, import an existing portfolio (Instagram export or email), set availability and booking preferences, and receive client requests directly — no algorithm deciding who sees their work.
+
+## Contact
+
+https://www.getinked.in/contact
