@@ -21,6 +21,7 @@ import {
   StudioHoursCard,
   StudioContactCard,
   StudioGuides,
+  StudioArtistsCard,
 } from '@/components/studio';
 import EditableSection from '@/components/studio/edit/EditableSection';
 import StudioDetailsEditor from '@/components/studio/edit/StudioDetailsEditor';
@@ -102,6 +103,8 @@ export default function StudioEdit({
     (initialGuides || []).map((g: any) => ({
       id: g.id,
       type: g.type,
+      slug: g.slug,
+      url: g.url,
       title: g.title,
       excerpt: g.excerpt || '',
       content: g.content,
@@ -301,6 +304,37 @@ export default function StudioEdit({
   const editing = !previewing;
   const noop = () => {};
 
+  const hoursSection = (
+    <EditableSection
+      label="Hours"
+      editing={editing}
+      isEmpty={!hours || hours.length === 0}
+      emptyHint="No opening hours set yet."
+      editor={
+        <HoursEditor
+          value={hours}
+          onChange={(next) => { setHours(next); setHoursTouched(true); }}
+        />
+      }
+    >
+      <StudioHoursCard studio={draftStudio} workingHours={hours} />
+    </EditableSection>
+  );
+
+  const contactSection = (
+    <EditableSection
+      label="Contact"
+      editing={editing}
+      editor={<ContactEditor value={contact} onChange={setContact} />}
+    >
+      <StudioContactCard
+        studio={draftStudio}
+        canContact={false}
+        handleContactStudio={noop}
+      />
+    </EditableSection>
+  );
+
   return (
     <Layout>
       <Head>
@@ -389,25 +423,28 @@ export default function StudioEdit({
           <StudioBanner studio={draftStudio} />
         </EditableSection>
 
-        <EditableSection
-          label="Layout"
-          editing={editing}
-          editor={<TemplatePicker value={template} onChange={setTemplate} />}
-        >
-          <Box sx={{
-            p: 2,
-            borderRadius: '10px',
-            bgcolor: colors.surface,
-            border: `1px solid ${colors.border}`,
-          }}>
-            <Typography sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: colors.accent }}>
-              Layout
-            </Typography>
-            <Typography sx={{ fontSize: '0.95rem', color: colors.textPrimary, textTransform: 'capitalize' }}>
-              {template}
-            </Typography>
-          </Box>
-        </EditableSection>
+        {/* A control rather than page content, so it is absent from preview. */}
+        {editing && (
+          <EditableSection
+            label="Layout"
+            editing={editing}
+            editor={<TemplatePicker value={template} onChange={setTemplate} />}
+          >
+            <Box sx={{
+              p: 2,
+              borderRadius: '10px',
+              bgcolor: colors.surface,
+              border: `1px solid ${colors.border}`,
+            }}>
+              <Typography sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: colors.accent }}>
+                Layout
+              </Typography>
+              <Typography sx={{ fontSize: '0.95rem', color: colors.textPrimary, textTransform: 'capitalize' }}>
+                {template}
+              </Typography>
+            </Box>
+          </EditableSection>
+        )}
 
         <EditableSection
           label="Announcements"
@@ -444,6 +481,29 @@ export default function StudioEdit({
           />
         </EditableSection>
 
+        {/* What each layout leads with, mirroring the public page so Preview
+            reflects the choice made above. */}
+        {template === 'team' && (
+          <Box sx={{ mb: 3 }}>
+            <StudioArtistsCard
+              artists={artists}
+              slug={slug}
+            />
+          </Box>
+        )}
+
+        {template === 'storefront' && (
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+            gap: 3,
+            mb: 3,
+          }}>
+            {hoursSection}
+            {contactSection}
+          </Box>
+        )}
+
         <EditableSection
           label="Spotlight"
           editing={editing}
@@ -479,32 +539,9 @@ export default function StudioEdit({
               <StudioLocationHours studio={draftStudio} />
             </EditableSection>
 
-            <EditableSection
-              label="Hours"
-              editing={editing}
-              isEmpty={!hours || hours.length === 0}
-              emptyHint="No opening hours set yet."
-              editor={
-                <HoursEditor
-                  value={hours}
-                  onChange={(next) => { setHours(next); setHoursTouched(true); }}
-                />
-              }
-            >
-              <StudioHoursCard studio={draftStudio} workingHours={hours} />
-            </EditableSection>
+            {template !== 'storefront' && hoursSection}
+            {template !== 'storefront' && contactSection}
 
-            <EditableSection
-              label="Contact"
-              editing={editing}
-              editor={<ContactEditor value={contact} onChange={setContact} />}
-            >
-              <StudioContactCard
-                studio={draftStudio}
-                canContact={false}
-                handleContactStudio={noop}
-              />
-            </EditableSection>
           </Box>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

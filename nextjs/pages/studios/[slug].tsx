@@ -883,10 +883,12 @@ export default function StudioDetail({
 
         {/* Team leads with the people. */}
         {template === 'team' && (
-          <StudioArtistsCard
-            artists={artists}
-            slug={slug}
-          />
+          <Box sx={{ mb: 3 }}>
+            <StudioArtistsCard
+              artists={artists}
+              slug={slug}
+            />
+          </Box>
         )}
 
         {/* Storefront leads with whether you are open and how to reach you. */}
@@ -1034,21 +1036,25 @@ export default function StudioDetail({
               studio={studio}
             />
 
-            <StudioHoursCard
-              studio={studio}
-              workingHours={workingHours}
-            />
+            {template !== 'storefront' && (
+              <StudioHoursCard
+                studio={studio}
+                workingHours={workingHours}
+              />
+            )}
 
             <StudioGuides
               guides={initialGuides}
               studioSlug={studio.slug}
             />
 
-            <StudioContactCard
-              canContact={canContact}
-              handleContactStudio={handleContactStudio}
-              studio={studio}
-            />
+            {template !== 'storefront' && (
+              <StudioContactCard
+                canContact={canContact}
+                handleContactStudio={handleContactStudio}
+                studio={studio}
+              />
+            )}
 
           </Box>
         )}

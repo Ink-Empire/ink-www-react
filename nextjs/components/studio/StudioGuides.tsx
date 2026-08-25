@@ -12,11 +12,21 @@ interface StudioGuidesProps {
 /**
  * Practical writing from the studio: aftercare and preparation. Absent
  * entirely when the studio has written none.
+ *
+ * A guide only links when it has somewhere to go. One written in the editor
+ * has no slug until it is published, so it renders as plain text rather than a
+ * link to /guides/undefined.
  */
 const StudioGuides: React.FC<StudioGuidesProps> = ({ guides = [], studioSlug }) => {
   if (guides.length === 0) {
     return null;
   }
+
+  const hrefFor = (guide: any): string | null => {
+    if (guide.url) return guide.url;
+    if (studioSlug && guide.slug) return `/studios/${studioSlug}/guides/${guide.slug}`;
+    return null;
+  };
 
   return (
     <Box sx={{ mb: 3 }}>
@@ -35,37 +45,51 @@ const StudioGuides: React.FC<StudioGuidesProps> = ({ guides = [], studioSlug }) 
       </Typography>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {guides.map((guide: any) => (
-          <Box
-            key={guide.id ?? guide.slug}
-            component={guide.url || studioSlug ? Link : 'div'}
-            {...(guide.url || studioSlug
-              ? { href: guide.url || `/studios/${studioSlug}/guides/${guide.slug}` }
-              : {})}
-            sx={{
-              display: 'block',
-              p: 1.5,
-              borderRadius: '10px',
-              bgcolor: colors.surface,
-              border: `1px solid ${colors.border}`,
-              textDecoration: 'none',
-              transition: 'border-color 0.15s',
-              '&:hover': { borderColor: colors.accent },
-            }}
-          >
-            <Typography sx={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: colors.accent }}>
-              {guide.type_label}
-            </Typography>
-            <Typography sx={{ fontSize: '0.95rem', fontWeight: 600, color: colors.textPrimary }}>
-              {guide.title}
-            </Typography>
-            {guide.excerpt && (
-              <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
-                {guide.excerpt}
+        {guides.map((guide: any) => {
+          const href = hrefFor(guide);
+
+          return (
+            <Box
+              key={guide.id ?? guide.slug ?? guide.title}
+              component={href ? Link : 'div'}
+              {...(href ? { href } : {})}
+              sx={{
+                display: 'block',
+                p: 1.5,
+                borderRadius: '10px',
+                bgcolor: colors.surface,
+                border: `1px solid ${colors.border}`,
+                textDecoration: 'none',
+                transition: 'border-color 0.15s',
+                ...(href ? { '&:hover': { borderColor: colors.accent } } : {}),
+              }}
+            >
+              <Typography sx={{
+                fontSize: '0.7rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: colors.accent,
+              }}>
+                {guide.type_label || (guide.type === 'prep' ? 'Preparation guide' : 'Aftercare guide')}
               </Typography>
-            )}
-          </Box>
-        ))}
+
+              <Typography sx={{ fontSize: '0.95rem', fontWeight: 600, color: colors.textPrimary }}>
+                {guide.title}
+                {!href && (
+                  <Box component="span" sx={{ ml: 1, fontSize: '0.75rem', color: colors.accent }}>
+                    not published yet
+                  </Box>
+                )}
+              </Typography>
+
+              {guide.excerpt && (
+                <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary }}>
+                  {guide.excerpt}
+                </Typography>
+              )}
+            </Box>
+          );
+        })}
       </Box>
     </Box>
   );

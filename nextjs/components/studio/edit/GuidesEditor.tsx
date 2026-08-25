@@ -8,6 +8,8 @@ import { fieldStyles } from './fieldStyles';
 export interface GuideDraft {
   id?: number;
   type?: string;
+  slug?: string;
+  url?: string;
   title: string;
   excerpt?: string;
   content: string;
