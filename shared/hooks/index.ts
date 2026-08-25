@@ -25,6 +25,7 @@ export {
   useStudio,
   useStudioGallery,
   useStudioArtists,
+  useStudioSpotlights,
 } from './useStudios';
 
 export { useStyles, useTags } from './useStyles';

@@ -141,8 +141,17 @@ export function createApiClient(config: ApiConfig) {
     get: <T>(endpoint: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
       request<T>(endpoint, { ...options, method: 'GET' }),
 
-    post: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) =>
-      request<T>(endpoint, { ...options, method: 'POST', body }),
+    post: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) => {
+      // Invalidate alongside PUT/PATCH/DELETE. Without this a POST write left
+      // readers serving their cached pre-write response for the full TTL, so
+      // the change looked lost.
+      if (enableCache) {
+        clearCache(`GET:${endpoint}`);
+        const parent = endpoint.split('/').slice(0, -1).join('/');
+        if (parent) clearCache(`GET:${parent}`);
+      }
+      return request<T>(endpoint, { ...options, method: 'POST', body });
+    },
 
     put: <T>(endpoint: string, body?: any, options?: Omit<RequestOptions, 'method'>) => {
       if (enableCache) {

@@ -219,13 +219,76 @@ export const studioService = {
 
   // Get studio dashboard stats (requires auth)
   getDashboardStats: async (studioId: number): Promise<any> => {
-    return api.get(`/studios/${studioId}/dashboard-stats`, { requiresAuth: true });
+    return api.get(`/studios/${studioId}/dashboard-stats`, { requiresAuth: true, useCache: false });
   },
 
   // Invite studio owner to claim an unclaimed studio (requires auth)
   inviteStudioOwner: async (studioId: number, email: string): Promise<{ success: boolean; message: string }> => {
     return api.post(`/studios/${studioId}/invite`, { email }, {
       requiresAuth: true,
+    });
+  },
+
+  // Get studio spotlights (public access)
+  getSpotlights: async (studioIdOrSlug: number | string): Promise<any[]> => {
+    const response = await api.get<any[] | { spotlights: any[] }>(`/studios/${studioIdOrSlug}/spotlights`);
+    return (response as any).spotlights || response || [];
+  },
+
+  // Pin an artist or tattoo to the studio page (requires auth)
+  addSpotlight: async (
+    studioId: number,
+    data: { type: 'artist' | 'tattoo'; item_id: number; display_order?: number },
+  ): Promise<any> => {
+    return api.post(`/studios/${studioId}/spotlights`, data, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Unpin a spotlight (requires auth)
+  removeSpotlight: async (studioId: number, spotlightId: number): Promise<void> => {
+    return api.delete(`/studios/${studioId}/spotlights/${spotlightId}`, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Guides a studio has published, such as aftercare (public access)
+  getGuides: async (studioIdOrSlug: number | string): Promise<any[]> => {
+    const response = await api.get<any[] | { guides: any[] }>(`/studios/${studioIdOrSlug}/guides`);
+    return (response as any).guides || response || [];
+  },
+
+  // Publish a whole studio page edit in one transactional request (requires auth)
+  publishPage: async (studioId: number, payload: Record<string, any>): Promise<any> => {
+    return api.put(`/studios/${studioId}/page`, payload, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Set the studio page banner from an already-uploaded image (requires auth)
+  uploadBanner: async (studioId: number, imageId: number): Promise<any> => {
+    return api.post(`/studios/${studioId}/banner`, { image_id: imageId }, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Set the studio page banner by uploading a file (requires auth)
+  uploadBannerFile: async (studioId: number, formData: FormData): Promise<any> => {
+    return api.post(`/studios/${studioId}/banner`, formData, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
+    });
+  },
+
+  // Remove the studio page banner (requires auth)
+  removeBanner: async (studioId: number): Promise<any> => {
+    return api.delete(`/studios/${studioId}/banner`, {
+      requiresAuth: true,
+      headers: { 'X-Account-Type': 'studio' }
     });
   },
 
@@ -238,6 +301,6 @@ export const studioService = {
     stats: any;
     working_hours: any[];
   }> => {
-    return api.get(`/studios/${studioId}/dashboard`, { requiresAuth: true });
+    return api.get(`/studios/${studioId}/dashboard`, { requiresAuth: true, useCache: false });
   },
 };

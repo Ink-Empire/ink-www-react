@@ -149,3 +149,57 @@ export function useStudioArtists(
 
   return { artists, loading, error };
 }
+
+/**
+ * Artists and tattoos a studio has pinned to the top of its page.
+ *
+ * Returns an empty list when nothing is pinned, so callers render no section
+ * at all rather than an empty one.
+ */
+export function useStudioSpotlights(
+  api: ApiClient,
+  studioIdOrSlug: string | number | null
+): { spotlights: any[]; loading: boolean; error: Error | null } {
+  const [spotlights, setSpotlights] = useState<any[]>([]);
+  const [loading, setLoading] = useState(!!studioIdOrSlug);
+  const [error, setError] = useState<Error | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    if (!studioIdOrSlug) {
+      setLoading(false);
+      return;
+    }
+
+    mountedRef.current = true;
+
+    const fetchSpotlights = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await api.get<any>(`/studios/${studioIdOrSlug}/spotlights`);
+        if (mountedRef.current) {
+          const data = response?.spotlights ?? response?.data ?? response;
+          setSpotlights(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (mountedRef.current) {
+          setError(err instanceof Error ? err : new Error(`Failed to fetch spotlights for studio ${studioIdOrSlug}`));
+        }
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchSpotlights();
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [api, studioIdOrSlug]);
+
+  return { spotlights, loading, error };
+}

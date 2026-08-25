@@ -13,6 +13,10 @@ export interface StudioType {
   logo?: string;
   cover_image?: string;
   primary_image?: StudioImage;
+  // Wide header image on the public studio page, distinct from the studio mark
+  banner?: StudioImage | null;
+  // Which hand-built page layout the studio uses
+  template?: 'portfolio' | 'team' | 'storefront';
   about?: string;
   phone?: string;
   email?: string;

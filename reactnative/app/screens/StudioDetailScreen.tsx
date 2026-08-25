@@ -15,7 +15,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { colors } from '../../lib/colors';
 import { tattooCardUrl } from '@inkedin/shared/utils/imgix';
 import { api } from '../../lib/api';
-import { useStudio, useStudioGallery, useStudioArtists } from '@inkedin/shared/hooks';
+import { useStudio, useStudioGallery, useStudioArtists, useStudioSpotlights } from '@inkedin/shared/hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import LoadingScreen from '../components/common/LoadingScreen';
@@ -96,10 +96,12 @@ export default function StudioDetailScreen({ navigation, route }: any) {
   const { studio, loading, error } = useStudio(api, slug);
   const { gallery, loading: galleryLoading } = useStudioGallery(api, slug);
   const { artists, loading: artistsLoading } = useStudioArtists(api, slug);
+  const { spotlights } = useStudioSpotlights(api, slug);
   const { user, toggleFavorite } = useAuth();
   const { showSnackbar } = useSnackbar();
 
   const [activeStyleFilter, setActiveStyleFilter] = useState<number | null>(null);
+  const [announcementsExpanded, setAnnouncementsExpanded] = useState(false);
 
   const s = studio as any;
 
@@ -147,6 +149,55 @@ export default function StudioDetailScreen({ navigation, route }: any) {
 
   const renderHeader = () => (
     <View>
+      {/* Banner - only when the studio has set one, so a studio that never
+          touches this keeps the original header */}
+      {s.banner?.uri && (
+        <Image source={{ uri: s.banner.uri }} style={styles.banner} resizeMode="cover" />
+      )}
+
+      {/* Announcements - newest filled, the rest quiet, anything past the
+          first two collapsed. Absent entirely when there are none. */}
+      {(s.announcements || []).length > 0 && (
+        <View style={styles.announcements}>
+          {(announcementsExpanded ? s.announcements : s.announcements.slice(0, 2)).map(
+            (announcement: any, index: number) => {
+              const isLead = index === 0;
+
+              return (
+                <View
+                  key={announcement.id ?? announcement.title}
+                  style={[styles.announcement, isLead ? styles.announcementLead : styles.announcementQuiet]}
+                >
+                  <MaterialIcons
+                    name="campaign"
+                    size={20}
+                    color={isLead ? colors.background : colors.accent}
+                  />
+                  <View style={styles.announcementBody}>
+                    <Text style={[styles.announcementTitle, isLead && styles.announcementTitleLead]}>
+                      {announcement.title}
+                    </Text>
+                    <Text style={[styles.announcementText, isLead && styles.announcementTextLead]}>
+                      {announcement.content}
+                    </Text>
+                  </View>
+                </View>
+              );
+            },
+          )}
+
+          {s.announcements.length > 2 && (
+            <TouchableOpacity onPress={() => setAnnouncementsExpanded((open: boolean) => !open)}>
+              <Text style={styles.announcementToggle}>
+                {announcementsExpanded
+                  ? 'Show less'
+                  : `${s.announcements.length - 2} more ${s.announcements.length - 2 === 1 ? 'announcement' : 'announcements'}`}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {/* Hero Header */}
       <View style={styles.header}>
         <View style={styles.avatarBorder}>
@@ -165,6 +216,49 @@ export default function StudioDetailScreen({ navigation, route }: any) {
           </Text>
         )}
       </View>
+
+      {/* Spotlight - absent entirely when nothing is pinned */}
+      {spotlights.length > 0 && (
+        <View style={styles.spotlightSection}>
+          <Text style={styles.spotlightHeading}>Spotlight</Text>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={spotlights}
+            keyExtractor={(item: any) => String(item.id)}
+            contentContainerStyle={styles.spotlightRow}
+            renderItem={({ item }: any) => {
+              const pinned = item.item;
+              if (!pinned) return null;
+              const isArtist = item.type === 'artist';
+              const uri = isArtist ? pinned.image?.uri : pinned.primary_image?.uri;
+              const label = isArtist ? pinned.name : (pinned.title || 'Untitled');
+              const caption = isArtist ? 'Artist' : (pinned.primary_style || 'Tattoo');
+
+              return (
+                <TouchableOpacity
+                  style={styles.spotlightCard}
+                  onPress={() => isArtist
+                    ? navigation.push('ArtistDetail', { slug: pinned.slug })
+                    : navigation.push('TattooDetail', { id: pinned.id })}
+                >
+                  {uri ? (
+                    <Image source={{ uri }} style={styles.spotlightImage} />
+                  ) : (
+                    <View style={[styles.spotlightImage, styles.spotlightPlaceholder]}>
+                      <Text style={styles.spotlightInitials}>
+                        {String(label).substring(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.spotlightLabel} numberOfLines={1}>{label}</Text>
+                  <Text style={styles.spotlightCaption} numberOfLines={1}>{caption}</Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      )}
 
       {/* Actions */}
       <View style={styles.actions}>
@@ -444,6 +538,103 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 20,
+  },
+
+  banner: {
+    width: '100%',
+    aspectRatio: 4,
+    backgroundColor: colors.surface,
+  },
+
+  // Announcements
+  announcements: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 8,
+  },
+  announcement: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  announcementLead: {
+    backgroundColor: colors.accent,
+  },
+  announcementQuiet: {
+    backgroundColor: 'rgba(201, 169, 98, 0.08)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+  },
+  announcementBody: {
+    flex: 1,
+  },
+  announcementTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  announcementTitleLead: {
+    color: colors.background,
+    fontWeight: '700',
+  },
+  announcementText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  announcementTextLead: {
+    color: 'rgba(15, 15, 15, 0.78)',
+  },
+  announcementToggle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    paddingVertical: 4,
+  },
+
+  // Spotlight
+  spotlightSection: {
+    paddingTop: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  spotlightHeading: {
+    fontSize: 18,
+    color: colors.textPrimary,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  spotlightRow: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  spotlightCard: {
+    width: 110,
+  },
+  spotlightImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+  },
+  spotlightPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spotlightInitials: {
+    fontSize: 24,
+    color: colors.accent,
+  },
+  spotlightLabel: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    marginTop: 6,
+  },
+  spotlightCaption: {
+    fontSize: 11,
+    color: colors.textSecondary,
   },
 
   // Header

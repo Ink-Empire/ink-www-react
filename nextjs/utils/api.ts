@@ -333,6 +333,16 @@ export const api = {
     // we can optionally enable caching
     const useCache = options.useCache === true;
     
+    // Clear caches for the resource and its parent collection, exactly as PUT
+    // and DELETE do. Without this a POST write (saving hours, posting an
+    // announcement, pinning a spotlight) left the reader serving its cached
+    // pre-write response for the full TTL, so the change looked lost.
+    clearCache(`GET:${endpoint}`);
+    const parentEndpoint = endpoint.split('/').slice(0, -1).join('/');
+    if (parentEndpoint) {
+      clearCache(`GET:${parentEndpoint}`);
+    }
+
     return fetchApi<T>(endpoint, { 
       ...options, 
       method: 'POST', 

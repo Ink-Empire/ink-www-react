@@ -47,6 +47,7 @@ interface User {
     id: number;
     name: string;
     slug: string;
+    image?: { id: number; uri: string } | null;
   } | null;
   force_password_reset?: boolean;
   [key: string]: any; // Allow additional properties from API
