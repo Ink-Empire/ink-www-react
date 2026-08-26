@@ -9,6 +9,7 @@ import CalendarScreen from '../screens/CalendarScreen';
 import ManageCalendarScreen from '../screens/ManageCalendarScreen';
 import EditAppointmentScreen from '../screens/EditAppointmentScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import StudioPostScreen from '../screens/StudioPostScreen';
 import ClientProfileScreen from '../screens/ClientProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import InboxHeaderButton from '../components/inbox/InboxHeaderButton';
@@ -37,6 +38,11 @@ export default function ArtistsStack() {
         name="StudioDetail"
         component={StudioDetailScreen}
         options={({ route }) => ({ title: route.params?.name || 'Studio' })}
+      />
+      <Stack.Screen
+        name="StudioPost"
+        component={StudioPostScreen}
+        options={({ route }) => ({ title: route.params?.title || 'Studio' })}
       />
       <Stack.Screen
         name="Calendar"

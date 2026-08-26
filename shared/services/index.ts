@@ -178,6 +178,33 @@ export function createStudioService(api: ApiClient) {
 
     inviteStudioOwner: (studioId: number, email: string) =>
       api.post<{ success: boolean; message: string }>(`/studios/${studioId}/invite`, { email }, { requiresAuth: true }),
+
+    getWorkingHours: (idOrSlug: string | number) =>
+      api.get<any[]>(`/studios/${idOrSlug}/working-hours`),
+
+    getAnnouncements: (idOrSlug: string | number) =>
+      api.get<{ announcements: any[] }>(`/studios/${idOrSlug}/announcements`),
+
+    // Artists and tattoos the studio has pinned to the top of its page
+    getSpotlights: (idOrSlug: string | number) =>
+      api.get<{ spotlights: any[] }>(`/studios/${idOrSlug}/spotlights`),
+
+    addSpotlight: (studioId: number, data: { type: 'artist' | 'tattoo'; item_id: number; display_order?: number }) =>
+      api.post<any>(`/studios/${studioId}/spotlights`, data, { requiresAuth: true }),
+
+    removeSpotlight: (studioId: number, spotlightId: number) =>
+      api.delete<void>(`/studios/${studioId}/spotlights/${spotlightId}`, { requiresAuth: true }),
+
+    // Publish a whole studio page edit in one transactional request
+    publishPage: (studioId: number, payload: Record<string, any>) =>
+      api.put<{ studio: Studio }>(`/studios/${studioId}/page`, payload, { requiresAuth: true }),
+
+    // Wide header image on the studio page, separate from the studio mark
+    uploadBanner: (studioId: number, imageId: number) =>
+      api.post<any>(`/studios/${studioId}/banner`, { image_id: imageId }, { requiresAuth: true }),
+
+    removeBanner: (studioId: number) =>
+      api.delete<any>(`/studios/${studioId}/banner`, { requiresAuth: true }),
   };
 }
 

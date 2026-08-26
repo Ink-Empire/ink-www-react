@@ -149,3 +149,171 @@ export function useStudioArtists(
 
   return { artists, loading, error };
 }
+
+/**
+ * Artists and tattoos a studio has pinned to the top of its page.
+ *
+ * Returns an empty list when nothing is pinned, so callers render no section
+ * at all rather than an empty one.
+ */
+export function useStudioSpotlights(
+  api: ApiClient,
+  studioIdOrSlug: string | number | null
+): { spotlights: any[]; loading: boolean; error: Error | null } {
+  const [spotlights, setSpotlights] = useState<any[]>([]);
+  const [loading, setLoading] = useState(!!studioIdOrSlug);
+  const [error, setError] = useState<Error | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    if (!studioIdOrSlug) {
+      setLoading(false);
+      return;
+    }
+
+    mountedRef.current = true;
+
+    const fetchSpotlights = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await api.get<any>(`/studios/${studioIdOrSlug}/spotlights`);
+        if (mountedRef.current) {
+          const data = response?.spotlights ?? response?.data ?? response;
+          setSpotlights(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (mountedRef.current) {
+          setError(err instanceof Error ? err : new Error(`Failed to fetch spotlights for studio ${studioIdOrSlug}`));
+        }
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchSpotlights();
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [api, studioIdOrSlug]);
+
+  return { spotlights, loading, error };
+}
+
+/**
+ * The guides a studio has published: aftercare, preparation, or anything else
+ * it wrote once and kept.
+ *
+ * Returns an empty list when a studio has written none, so callers render no
+ * section at all rather than an empty one. Each guide carries its own `url`
+ * when it has a page - a draft has no slug yet and so has none.
+ */
+export function useStudioGuides(
+  api: ApiClient,
+  studioIdOrSlug: string | number | null
+): { guides: any[]; loading: boolean; error: Error | null } {
+  const [guides, setGuides] = useState<any[]>([]);
+  const [loading, setLoading] = useState(!!studioIdOrSlug);
+  const [error, setError] = useState<Error | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    if (!studioIdOrSlug) {
+      setLoading(false);
+      return;
+    }
+
+    mountedRef.current = true;
+
+    const fetchGuides = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await api.get<any>(`/studios/${studioIdOrSlug}/guides`);
+        if (mountedRef.current) {
+          const data = response?.guides ?? response?.data ?? response;
+          setGuides(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (mountedRef.current) {
+          setError(err instanceof Error ? err : new Error(`Failed to fetch guides for studio ${studioIdOrSlug}`));
+        }
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchGuides();
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [api, studioIdOrSlug]);
+
+  return { guides, loading, error };
+}
+
+/**
+ * A single guide or announcement at its own address.
+ *
+ * `kind` picks the route the way the post's own `url` does: guides live under
+ * `/guides`, announcements under `/news`. Only types that carry a public page
+ * resolve at all - an ephemeral notice deliberately has none - so a null post
+ * with no error simply means there is nothing to show.
+ */
+export function useStudioPost(
+  api: ApiClient,
+  studioIdOrSlug: string | number | null,
+  kind: 'guides' | 'news',
+  postSlug: string | null
+): { post: any | null; loading: boolean; error: Error | null } {
+  const [post, setPost] = useState<any | null>(null);
+  const [loading, setLoading] = useState(!!(studioIdOrSlug && postSlug));
+  const [error, setError] = useState<Error | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    if (!studioIdOrSlug || !postSlug) {
+      setLoading(false);
+      return;
+    }
+
+    mountedRef.current = true;
+
+    const fetchPost = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await api.get<any>(`/studios/${studioIdOrSlug}/${kind}/${postSlug}`);
+        if (mountedRef.current) {
+          // The API names it for what it is: a guide, or a post.
+          setPost(response?.guide ?? response?.post ?? response?.data ?? null);
+        }
+      } catch (err) {
+        if (mountedRef.current) {
+          setError(err instanceof Error ? err : new Error(`Failed to fetch ${postSlug}`));
+        }
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchPost();
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [api, studioIdOrSlug, kind, postSlug]);
+
+  return { post, loading, error };
+}

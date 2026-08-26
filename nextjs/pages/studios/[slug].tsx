@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
-import { Box, Button, Avatar, Typography, IconButton, Tooltip } from '@mui/material';
+import { Box, Button, Avatar, Typography, IconButton, Tooltip, Snackbar, Alert } from '@mui/material';
 import ImageIcon from '@mui/icons-material/Image';
 import InfoIcon from '@mui/icons-material/Info';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -31,12 +31,43 @@ import TattooModal from '@/components/TattooModal';
 import { studioService } from '@/services/studioService';
 import { colors } from '@/styles/colors';
 import { studioSeoTitle, studioSeoDescription } from '@/utils/seo';
+import { RECENTLY_EDITED_COOKIE } from '@/utils/studioEditing';
+import {
+  StudioBanner,
+  StudioHeader,
+  StudioSpotlight,
+  StudioPortfolioGrid,
+  StudioFilterCard,
+  StudioArtistsCard,
+  StudioAnnouncements,
+  StudioInfoCard,
+  StudioQuickActions,
+  StudioLocationHours,
+  StudioHoursCard,
+  StudioContactCard,
+  StudioGuides,
+} from '@/components/studio';
+import SectionBand from '@/components/studio/SectionBand';
+import StudioTabBar from '@/components/studio/StudioTabBar';
+import {
+  Lane,
+  SectionKey,
+  bandOf,
+  laneMembers,
+  resolveArrangement,
+} from '@inkedin/shared/utils/studioSections';
 
 interface StudioDetailProps {
     initialStudio?: any;
+    initialSpotlights?: any[];
+    initialGuides?: any[];
 }
 
-export default function StudioDetail({ initialStudio }: StudioDetailProps) {
+export default function StudioDetail({
+    initialStudio,
+    initialSpotlights = [],
+    initialGuides = [],
+}: StudioDetailProps) {
   const router = useRouter();
   const { slug } = router.query;
   const { studio, loading: studioLoading, error: studioError } = useStudio(slug as string, initialStudio);
@@ -45,6 +76,25 @@ export default function StudioDetail({ initialStudio }: StudioDetailProps) {
   const { gallery } = useStudioGallery(slug as string);
   const { hours: workingHours } = useStudioHours(slug as string);
   const { user, isAuthenticated } = useAuth();
+
+  // Spotlights come from getServerSideProps so they render in the initial HTML.
+  const spotlights = initialSpotlights;
+
+  // Which of the hand-built layouts this studio chose. Everything below the
+  // tabs is shared; the templates differ in what the page leads with.
+  const template = studio?.template || 'portfolio';
+
+  // The editor sends the owner here with ?published=1 after a successful
+  // publish, so they land on the real page with confirmation. Derived from the
+  // query rather than mirrored into state, so it cannot miss the first render.
+  const [publishedDismissed, setPublishedDismissed] = useState(false);
+  const showPublished = !publishedDismissed && router.query.published === '1';
+
+  const dismissPublished = () => {
+    setPublishedDismissed(true);
+    const { published, ...rest } = router.query;
+    router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+  };
 
   const [activeTab, setActiveTab] = useState(0);
   const [selectedStyleFilter, setSelectedStyleFilter] = useState<string>('all');
@@ -178,6 +228,8 @@ export default function StudioDetail({ initialStudio }: StudioDetailProps) {
     const today = days[new Date().getDay()];
     return studio.hours.find((h: any) => h.day === today);
   };
+
+  const todayHours = getTodayHours();
 
   if (studioLoading && !studio) {
     return (
@@ -753,6 +805,85 @@ export default function StudioDetail({ initialStudio }: StudioDetailProps) {
     );
   }
 
+  // Every movable section, built once so the two bands below can place them in
+  // whatever order the studio saved. Which band a section belongs to is still
+  // the layout's decision; the order within a band is the studio's.
+  const arrangement = resolveArrangement(studio);
+
+  // Everything can be lifted out of the Info tab, and when it has been there
+  // is nothing behind the tab to click through to.
+  const hasInfoBand = laneMembers('info', template, arrangement.bands).length > 0;
+
+  const sectionNodes: Record<SectionKey, React.ReactNode> = {
+    artists: (
+      <StudioArtistsCard
+        artists={artists}
+        slug={slug}
+      />
+    ),
+    location: (
+      <StudioLocationHours
+        studio={studio}
+      />
+    ),
+    hours: (
+      <StudioHoursCard
+        studio={studio}
+        workingHours={workingHours}
+      />
+    ),
+    guides: (
+      <StudioGuides
+        guides={initialGuides}
+        studioSlug={studio.slug}
+      />
+    ),
+    contact: (
+      <StudioContactCard
+        studio={studio}
+        canContact={canContact}
+        handleContactStudio={handleContactStudio}
+      />
+    ),
+    spotlight: (
+      <StudioSpotlight
+        artists={artists}
+        handleTattooClick={handleTattooClick}
+        slug={slug}
+        spotlights={spotlights}
+        studio={studio}
+        router={router}
+      />
+    ),
+  };
+
+  /**
+   * Whether a section will actually put something on the page.
+   *
+   * A cell is allocated per section, so a section that renders nothing still
+   * took up a cell and pushed everything after it sideways - a studio with no
+   * guides ended up with Contact in the right column and a hole beside it.
+   * Mirrors each component's own guard; Location and Hours have none, so they
+   * always draw a card.
+   */
+  const sectionPresent: Record<SectionKey, boolean> = {
+    spotlight: spotlights.length > 0,
+    artists: Boolean(artists && artists.length > 0),
+    location: true,
+    hours: true,
+    guides: initialGuides.length > 0,
+    contact: Boolean(canContact || studio.phone || studio.website),
+  };
+
+  const renderLane = (lane: Lane) => (
+    <SectionBand
+      lane={lane}
+      arrangement={arrangement}
+      nodes={sectionNodes}
+      present={(key) => sectionPresent[key]}
+    />
+  );
+
   // Verified Studio View
   return (
     <Layout>
@@ -803,254 +934,50 @@ export default function StudioDetail({ initialStudio }: StudioDetailProps) {
         }) }} />
       </Head>
 
+      <Snackbar
+        open={showPublished}
+        autoHideDuration={5000}
+        onClose={dismissPublished}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={dismissPublished}
+          severity="success"
+          variant="filled"
+          sx={{ bgcolor: colors.accent, color: colors.background }}
+        >
+          Your page is live. This is what visitors see.
+        </Alert>
+      </Snackbar>
+
       <Box sx={{ maxWidth: 1200, mx: 'auto', py: 3 }}>
-        {/* Studio Header */}
-        <Box sx={{
-          display: 'flex',
-          gap: 3,
-          mb: 4,
-          pb: 3,
-          borderBottom: `1px solid ${colors.border}`,
-          flexWrap: { xs: 'wrap', md: 'nowrap' }
-        }}>
-          {/* Avatar */}
-          {(studio.image?.uri || studio.primary_image?.uri) ? (
-            <Box sx={{
-              width: 120,
-              height: 120,
-              position: 'relative',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              flexShrink: 0,
-              border: `2px solid ${colors.accent}4D`
-            }}>
-              <Image
-                src={studio.image?.uri || studio.primary_image?.uri}
-                alt={studio.name || 'Studio'}
-                fill
-                style={{ objectFit: 'cover' }}
-              />
-            </Box>
-          ) : (
-            <Box sx={{
-              width: 120,
-              height: 120,
-              bgcolor: colors.surface,
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: '"Cormorant Garamond", Georgia, serif',
-              fontSize: '2.5rem',
-              fontWeight: 600,
-              color: colors.accent,
-              border: `2px solid ${colors.accent}4D`,
-              flexShrink: 0
-            }}>
-              {studio.name?.substring(0, 2).toUpperCase() || 'ST'}
-            </Box>
-          )}
+        <StudioBanner
+          studio={studio}
+        />
 
-          {/* Studio Details */}
-          <Box sx={{ flex: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
-              <Typography sx={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontSize: '2.5rem',
-                fontWeight: 500,
-                color: colors.textPrimary,
-                lineHeight: 1.2
-              }}>
-                {studio.name}
-              </Typography>
-              <VerifiedIcon sx={{ fontSize: 24, color: '#6495ED' }} />
-            </Box>
+        <StudioAnnouncements
+          studio={studio}
+        />
 
-            {studio.location && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: colors.textSecondary, mb: 0.75 }}>
-                <LocationOnIcon sx={{ fontSize: 18, color: colors.accent }} />
-                {studio.location}
-              </Box>
-            )}
+        <StudioHeader
+          artists={artists}
+          canContact={canContact}
+          handleContactStudio={handleContactStudio}
+          handleSaveStudio={handleSaveStudio}
+          isSaved={isSaved}
+          studio={studio}
+          studioStyles={studioStyles}
+        />
 
-            {/* Artists count */}
-            {artists && artists.length > 0 && (
-              <Typography sx={{ color: colors.textSecondary, mb: 1 }}>
-                {artists.length} {artists.length === 1 ? 'Artist' : 'Artists'}
-              </Typography>
-            )}
-
-            {/* About */}
-            {studio.about && (
-              <Typography sx={{
-                color: colors.textSecondary,
-                fontSize: '0.95rem',
-                lineHeight: 1.7,
-                maxWidth: 500,
-                mb: 1
-              }}>
-                {studio.about}
-              </Typography>
-            )}
-
-            {/* Style Tags */}
-            {studioStyles.length > 0 && (
-              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: studio.seeking_guest_artists ? 1 : 0 }}>
-                {studioStyles.slice(0, 5).map((styleName: string, index: number) => (
-                  <Box key={index} sx={{
-                    px: 1.25,
-                    py: 0.5,
-                    bgcolor: `${colors.accent}1A`,
-                    borderRadius: '100px',
-                    fontSize: '0.8rem',
-                    color: colors.accent,
-                    fontWeight: 500
-                  }}>
-                    {styleName}
-                  </Box>
-                ))}
-              </Box>
-            )}
-
-            {/* Seeking Guest Artists Badge */}
-            {studio.seeking_guest_artists && (
-              <Box>
-                <Box sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  px: 1.5,
-                  py: 0.5,
-                  bgcolor: `${colors.success}1A`,
-                  border: `1px solid ${colors.success}4D`,
-                  borderRadius: '100px',
-                  fontSize: '0.85rem',
-                  color: colors.success,
-                  fontWeight: 500
-                }}>
-                  <FlightTakeoffIcon sx={{ fontSize: 16 }} />
-                  Seeking Guest Artists
-                </Box>
-                {studio.guest_spot_details && (
-                  <Typography sx={{
-                    fontSize: '0.85rem',
-                    color: colors.textSecondary,
-                    mt: 0.75,
-                    fontStyle: 'italic'
-                  }}>
-                    {studio.guest_spot_details}
-                  </Typography>
-                )}
-              </Box>
-            )}
-          </Box>
-
-          {/* Studio Actions */}
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1,
-            alignItems: { xs: 'stretch', md: 'flex-end' },
-            justifyContent: 'center',
-            width: { xs: '100%', md: 'auto' }
-          }}>
-            <Tooltip
-              title={canContact ? '' : 'This studio hasn\'t been claimed yet'}
-              arrow
-            >
-              <span>
-                <Button
-                  onClick={handleContactStudio}
-                  disabled={!canContact}
-                  sx={{
-                    minWidth: 180,
-                    py: 1,
-                    bgcolor: canContact ? colors.accent : colors.backgroundLight,
-                    color: canContact ? colors.background : colors.textMuted,
-                    textTransform: 'none',
-                    fontWeight: 500,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.75,
-                    '&:hover': { bgcolor: canContact ? colors.accentHover : colors.backgroundLight },
-                    '&.Mui-disabled': {
-                      bgcolor: colors.backgroundLight,
-                      color: colors.textMuted,
-                    }
-                  }}
-                >
-                  <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
-                  Contact Studio
-                </Button>
-              </span>
-            </Tooltip>
-            <Button
-              onClick={handleSaveStudio}
-              sx={{
-                minWidth: 180,
-                py: 1,
-                color: isSaved ? colors.accent : colors.textPrimary,
-                border: `1px solid ${isSaved ? colors.accent : colors.border}`,
-                textTransform: 'none',
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-                '&:hover': { borderColor: colors.accent, color: colors.accent }
-              }}
-            >
-              <BookmarkBorderIcon sx={{ fontSize: 18 }} />
-              {isSaved ? 'Saved' : 'Save'}
-            </Button>
-          </Box>
-        </Box>
+        {/* The layout decides what leads: team the people, storefront whether
+            you are open. The studio decides the order among them. */}
+        {renderLane('feature')}
 
         {/* Page Tabs */}
-        <Box sx={{
-          display: 'flex',
-          gap: 0,
-          mb: 3,
-          borderBottom: `1px solid ${colors.border}`
-        }}>
-          {[
-            { icon: <ImageIcon sx={{ fontSize: 18, opacity: 0.7 }} />, label: 'Portfolio' },
-            { icon: <InfoIcon sx={{ fontSize: 18, opacity: 0.7 }} />, label: 'Info' }
-          ].map((tab, index) => (
-            <Box
-              key={index}
-              onClick={() => handleTabChange(index)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-                px: 2,
-                py: 1.5,
-                cursor: 'pointer',
-                color: activeTab === index ? colors.accent : colors.textSecondary,
-                fontWeight: 500,
-                fontSize: '0.95rem',
-                position: 'relative',
-                transition: 'color 0.2s',
-                '&:hover': { color: colors.textPrimary },
-                '&::after': activeTab === index ? {
-                  content: '""',
-                  position: 'absolute',
-                  bottom: -1,
-                  left: 0,
-                  right: 0,
-                  height: 2,
-                  bgcolor: colors.accent
-                } : {}
-              }}
-            >
-              {tab.icon}
-              {tab.label}
-            </Box>
-          ))}
-        </Box>
+        {hasInfoBand && <StudioTabBar activeTab={activeTab} onChange={handleTabChange} />}
 
         {/* Tab Content */}
-        {activeTab === 0 ? (
+        {(activeTab === 0 || !hasInfoBand) ? (
           /* Portfolio Tab */
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gap: 3 }}>
             {/* Main Content */}
@@ -1077,717 +1004,46 @@ export default function StudioDetail({ initialStudio }: StudioDetailProps) {
                 </Box>
               </Box>
 
-              {/* Portfolio Grid */}
-              {filteredPortfolio.length > 0 ? (
-                <Box sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
-                  gap: 1.5
-                }}>
-                  {filteredPortfolio.map((tattoo: any, index: number) => {
-                    const isFeatured = index === 0;
-                    const tattooStyle = tattoo.styles?.[0];
-                    const styleName = typeof tattooStyle === 'string' ? tattooStyle : tattooStyle?.name;
-
-                    return (
-                      <Box
-                        key={tattoo.id}
-                        onClick={() => handleTattooClick(tattoo.id.toString())}
-                        sx={{
-                          aspectRatio: '1',
-                          bgcolor: colors.background,
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                          cursor: 'pointer',
-                          position: 'relative',
-                          transition: 'all 0.3s ease',
-                          ...(isFeatured && {
-                            gridColumn: { xs: 'span 2', sm: 'span 2' },
-                            gridRow: { xs: 'span 1', sm: 'span 2' }
-                          }),
-                          '&:hover': {
-                            transform: 'scale(1.02)',
-                            zIndex: 2,
-                            '& img': { transform: 'scale(1.05)' },
-                            '& .overlay': { opacity: 1 }
-                          }
-                        }}
-                      >
-                        {tattoo.primary_image?.uri ? (
-                          <Image
-                            src={tattoo.primary_image.uri}
-                            alt={tattoo.title || 'Tattoo work'}
-                            fill
-                            style={{ objectFit: 'cover', transition: 'transform 0.3s ease' }}
-                          />
-                        ) : (
-                          <Box sx={{
-                            width: '100%',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: colors.textSecondary,
-                            fontSize: '0.8rem',
-                            background: `linear-gradient(135deg, ${colors.background} 0%, ${colors.surface} 100%)`
-                          }}>
-                            No Image
-                          </Box>
-                        )}
-
-                        {/* Overlay */}
-                        <Box
-                          className="overlay"
-                          sx={{
-                            position: 'absolute',
-                            inset: 0,
-                            background: 'linear-gradient(to top, rgba(15, 15, 15, 0.9) 0%, transparent 50%)',
-                            opacity: 0,
-                            transition: 'opacity 0.3s ease',
-                            display: 'flex',
-                            alignItems: 'flex-end',
-                            p: 1.5
-                          }}
-                        >
-                          <Box>
-                            {styleName && (
-                              <Typography sx={{
-                                fontSize: '0.7rem',
-                                color: colors.accent,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                mb: 0.25
-                              }}>
-                                {styleName}
-                              </Typography>
-                            )}
-                            <Typography sx={{
-                              fontSize: '0.9rem',
-                              fontWeight: 500,
-                              color: colors.textPrimary
-                            }}>
-                              {tattoo.title || 'Untitled'}
-                            </Typography>
-                            {tattoo.artist_name && (
-                              <Typography sx={{
-                                fontSize: '0.8rem',
-                                color: colors.textSecondary
-                              }}>
-                                by {tattoo.artist_name}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <Typography sx={{ color: colors.textSecondary }}>No portfolio items found.</Typography>
-                </Box>
-              )}
+              <StudioPortfolioGrid
+                filteredPortfolio={filteredPortfolio}
+                handleTattooClick={handleTattooClick}
+              />
             </Box>
 
             {/* Sidebar */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {/* Filter Card */}
-              <Box sx={{
-                bgcolor: colors.surface,
-                borderRadius: '12px',
-                p: 2,
-                border: `1px solid ${colors.border}`
-              }}>
-                <Box sx={{
-                  bgcolor: `${colors.accent}1A`,
-                  border: `1px solid ${colors.accent}4D`,
-                  borderRadius: '8px',
-                  p: 1.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  mb: 1.5
-                }}>
-                  <Box sx={{ width: 10, height: 10, bgcolor: colors.accent, borderRadius: '50%' }} />
-                  <Typography sx={{ fontSize: '0.85rem', color: colors.textPrimary }}>
-                    Showing <Box component="strong" sx={{ color: colors.accent }}>{selectedStyleFilter === 'all' ? 'all' : selectedStyleFilter}</Box> work
-                  </Typography>
-                </Box>
+              <StudioFilterCard
+                selectedStyleFilter={selectedStyleFilter}
+                setSelectedStyleFilter={setSelectedStyleFilter}
+                studioStyles={studioStyles}
+              />
 
-                <Typography sx={{
-                  fontSize: '0.8rem',
-                  color: colors.textSecondary,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  mb: 1
-                }}>
-                  Filter by style
-                </Typography>
-
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                  <Box
-                    onClick={() => setSelectedStyleFilter('all')}
-                    sx={{
-                      px: 1.5,
-                      py: 0.75,
-                      borderRadius: '100px',
-                      fontSize: '0.8rem',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      ...(selectedStyleFilter === 'all' ? {
-                        bgcolor: colors.accent,
-                        color: colors.background,
-                        border: `1px solid ${colors.accent}`
-                      } : {
-                        bgcolor: colors.background,
-                        color: colors.textSecondary,
-                        border: `1px solid ${colors.border}`,
-                        '&:hover': { borderColor: colors.textSecondary, color: colors.textPrimary }
-                      })
-                    }}
-                  >
-                    All
-                  </Box>
-                  {studioStyles.map((style: string, index: number) => (
-                    <Box
-                      key={index}
-                      onClick={() => setSelectedStyleFilter(style)}
-                      sx={{
-                        px: 1.5,
-                        py: 0.75,
-                        borderRadius: '100px',
-                        fontSize: '0.8rem',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        ...(selectedStyleFilter === style ? {
-                          bgcolor: colors.accent,
-                          color: colors.background,
-                          border: `1px solid ${colors.accent}`
-                        } : {
-                          bgcolor: colors.background,
-                          color: colors.textSecondary,
-                          border: `1px solid ${colors.border}`,
-                          '&:hover': { borderColor: colors.textSecondary, color: colors.textPrimary }
-                        })
-                      }}
-                    >
-                      {style}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-
-              {/* Artists Card */}
-              {artists && artists.length > 0 && (
-                <Box sx={{
-                  bgcolor: colors.surface,
-                  borderRadius: '12px',
-                  p: 2,
-                  border: `1px solid ${colors.border}`
-                }}>
-                  <Typography sx={{
-                    fontFamily: '"Cormorant Garamond", Georgia, serif',
-                    fontSize: '1.25rem',
-                    fontWeight: 500,
-                    mb: 1.5,
-                    color: colors.textPrimary
-                  }}>
-                    Artists ({artists.length})
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {artists.slice(0, 5).map((artist: any) => (
-                      <Link
-                        key={artist.id}
-                        href={`/artists/${artist.slug || artist.id}`}
-                        style={{ textDecoration: 'none' }}
-                      >
-                        <Box sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1.5,
-                          p: 1,
-                          borderRadius: '8px',
-                          transition: 'all 0.2s',
-                          '&:hover': { bgcolor: colors.background }
-                        }}>
-                          {(artist.image?.uri || artist.primary_image?.uri) ? (
-                            <Box sx={{
-                              width: 40,
-                              height: 40,
-                              position: 'relative',
-                              borderRadius: '50%',
-                              overflow: 'hidden'
-                            }}>
-                              <Image
-                                src={artist.image?.uri || artist.primary_image?.uri}
-                                alt={artist.name}
-                                fill
-                                style={{ objectFit: 'cover' }}
-                              />
-                            </Box>
-                          ) : (
-                            <Avatar sx={{
-                              width: 40,
-                              height: 40,
-                              bgcolor: colors.background,
-                              color: colors.accent,
-                              fontSize: '0.9rem',
-                              fontWeight: 600
-                            }}>
-                              {artist.name?.charAt(0) || 'A'}
-                            </Avatar>
-                          )}
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{
-                              fontWeight: 500,
-                              fontSize: '0.9rem',
-                              color: colors.textPrimary,
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}>
-                              {artist.name}
-                            </Typography>
-                            {artist.specialty && (
-                              <Typography sx={{
-                                fontSize: '0.75rem',
-                                color: colors.textMuted,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                              }}>
-                                {artist.specialty}
-                              </Typography>
-                            )}
-                          </Box>
-                          {artist.books_open && (
-                            <Box sx={{
-                              px: 1,
-                              py: 0.25,
-                              borderRadius: '100px',
-                              fontSize: '0.7rem',
-                              fontWeight: 500,
-                              bgcolor: `${colors.success}26`,
-                              color: colors.success
-                            }}>
-                              Books Open
-                            </Box>
-                          )}
-                        </Box>
-                      </Link>
-                    ))}
-                    {artists.length > 5 && (
-                      <Link href={`/studios/${slug}/artists`} style={{ textDecoration: 'none' }}>
-                        <Typography sx={{
-                          fontSize: '0.85rem',
-                          color: colors.accent,
-                          fontWeight: 500,
-                          textAlign: 'center',
-                          py: 1,
-                          '&:hover': { textDecoration: 'underline' }
-                        }}>
-                          View all {artists.length} artists →
-                        </Typography>
-                      </Link>
-                    )}
-                  </Box>
-                </Box>
+              {bandOf('artists', template, arrangement.bands) === null && (
+                <StudioArtistsCard
+                  artists={artists}
+                  slug={slug}
+                />
               )}
 
-              {/* Announcements Card */}
-              {studio.announcements && studio.announcements.length > 0 && (
-                <Box sx={{
-                  bgcolor: colors.surface,
-                  borderRadius: '12px',
-                  p: 2,
-                  border: `1px solid ${colors.border}`
-                }}>
-                  <Typography sx={{
-                    fontFamily: '"Cormorant Garamond", Georgia, serif',
-                    fontSize: '1.25rem',
-                    fontWeight: 500,
-                    mb: 1.5,
-                    color: colors.textPrimary,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <CampaignIcon sx={{ color: colors.accent }} />
-                    Announcements
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    {studio.announcements.map((announcement: any) => (
-                      <Box key={announcement.id} sx={{
-                        p: 1.5,
-                        bgcolor: colors.background,
-                        borderRadius: '8px',
-                        borderLeft: `3px solid ${colors.accent}`
-                      }}>
-                        <Typography sx={{
-                          fontWeight: 600,
-                          fontSize: '0.9rem',
-                          color: colors.textPrimary,
-                          mb: 0.5
-                        }}>
-                          {announcement.title}
-                        </Typography>
-                        <Typography sx={{
-                          fontSize: '0.85rem',
-                          color: colors.textSecondary,
-                          lineHeight: 1.5
-                        }}>
-                          {announcement.content}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              )}
+              <StudioInfoCard
+                studio={studio}
+                todayHours={todayHours}
+              />
 
-              {/* Studio Info Card */}
-              <Box sx={{
-                bgcolor: colors.surface,
-                borderRadius: '12px',
-                p: 2,
-                border: `1px solid ${colors.border}`
-              }}>
-                <Typography sx={{
-                  fontFamily: '"Cormorant Garamond", Georgia, serif',
-                  fontSize: '1.25rem',
-                  fontWeight: 500,
-                  mb: 1.5,
-                  color: colors.textPrimary
-                }}>
-                  Studio Info
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {studio.phone && (
-                    <Box
-                      component="a"
-                      href={`tel:${studio.phone}`}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        color: colors.textSecondary,
-                        textDecoration: 'none',
-                        fontSize: '0.9rem',
-                        transition: 'color 0.15s ease',
-                        '&:hover': { color: colors.accent }
-                      }}
-                    >
-                      <PhoneIcon sx={{ fontSize: 18, color: colors.textMuted }} />
-                      {studio.phone}
-                    </Box>
-                  )}
-                  {studio.email && (
-                    <Box
-                      component="a"
-                      href={`mailto:${studio.email}`}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        color: colors.textSecondary,
-                        textDecoration: 'none',
-                        fontSize: '0.9rem',
-                        transition: 'color 0.15s ease',
-                        '&:hover': { color: colors.accent }
-                      }}
-                    >
-                      <EmailIcon sx={{ fontSize: 18, color: colors.textMuted }} />
-                      {studio.email}
-                    </Box>
-                  )}
-                  {studio.website && (
-                    <Box
-                      component="a"
-                      href={studio.website.startsWith('http') ? studio.website : `https://${studio.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        color: colors.textSecondary,
-                        textDecoration: 'none',
-                        fontSize: '0.9rem',
-                        transition: 'color 0.15s ease',
-                        '&:hover': { color: colors.accent }
-                      }}
-                    >
-                      <LanguageIcon sx={{ fontSize: 18, color: colors.textMuted }} />
-                      {studio.website.replace(/^https?:\/\//, '')}
-                    </Box>
-                  )}
-                  {studio.instagram && (
-                    <Box
-                      component="a"
-                      href={`https://instagram.com/${studio.instagram}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        color: colors.textSecondary,
-                        textDecoration: 'none',
-                        fontSize: '0.9rem',
-                        transition: 'color 0.15s ease',
-                        '&:hover': { color: colors.accent }
-                      }}
-                    >
-                      <InstagramIcon sx={{ fontSize: 18, color: colors.textMuted }} />
-                      @{studio.instagram}
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-
-              {/* Quick Actions */}
-              <Box sx={{
-                bgcolor: colors.surface,
-                borderRadius: '12px',
-                p: 2,
-                border: `1px solid ${colors.border}`
-              }}>
-                <Typography sx={{
-                  fontFamily: '"Cormorant Garamond", Georgia, serif',
-                  fontSize: '1.25rem',
-                  fontWeight: 500,
-                  mb: 1.5,
-                  color: colors.textPrimary
-                }}>
-                  Quick Actions
-                </Typography>
-                {[
-                  { icon: <ChatBubbleOutlineIcon sx={{ fontSize: '1.25rem' }} />, label: 'Contact Studio', onClick: handleContactStudio, disabled: !canContact, tooltip: canContact ? '' : 'This studio hasn\'t been claimed yet' },
-                  { icon: <BookmarkBorderIcon sx={{ fontSize: '1.25rem' }} />, label: isSaved ? 'Saved' : 'Save Studio', onClick: handleSaveStudio, disabled: false, tooltip: '' },
-                  { icon: <ShareIcon sx={{ fontSize: '1.25rem' }} />, label: copied ? 'Copied!' : 'Share Profile', onClick: handleShare, disabled: false, tooltip: '' }
-                ].map((action, idx) => (
-                  <Tooltip key={idx} title={action.tooltip} arrow>
-                    <Box
-                      onClick={action.disabled ? undefined : action.onClick}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        p: 1.25,
-                        bgcolor: colors.background,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: '8px',
-                        color: action.disabled ? colors.textMuted : colors.textPrimary,
-                        fontSize: '0.9rem',
-                        fontWeight: 500,
-                        cursor: action.disabled ? 'not-allowed' : 'pointer',
-                        mb: idx < 2 ? 1 : 0,
-                        transition: 'all 0.2s',
-                        opacity: action.disabled ? 0.6 : 1,
-                        '&:hover': action.disabled ? {} : { borderColor: colors.accent, color: colors.accent }
-                      }}
-                    >
-                      <Box sx={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{action.icon}</Box>
-                      {action.label}
-                    </Box>
-                  </Tooltip>
-                ))}
-              </Box>
+              <StudioQuickActions
+                canContact={canContact}
+                copied={copied}
+                handleContactStudio={handleContactStudio}
+                handleSaveStudio={handleSaveStudio}
+                handleShare={handleShare}
+                isSaved={isSaved}
+                studio={studio}
+              />
             </Box>
           </Box>
         ) : (
           /* Info Tab */
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-            {/* Location & Hours */}
-            <Box sx={{
-              bgcolor: colors.surface,
-              borderRadius: '12px',
-              p: 3,
-              border: `1px solid ${colors.border}`
-            }}>
-              <Typography sx={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontSize: '1.5rem',
-                fontWeight: 500,
-                mb: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <LocationOnIcon sx={{ color: colors.accent }} />
-                Location
-              </Typography>
-              <Typography sx={{ color: colors.textSecondary, mb: 2, lineHeight: 1.6 }}>
-                {studio.address && <>{studio.address}<br /></>}
-                {studio.city && studio.state && `${studio.city}, ${studio.state}`} {studio.postal_code}
-              </Typography>
-              {studio.address && (
-                <Box
-                  component="a"
-                  href={`https://maps.google.com/?q=${encodeURIComponent(`${studio.address}, ${studio.city}, ${studio.state}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    color: colors.accent,
-                    textDecoration: 'none',
-                    fontSize: '0.9rem',
-                    fontWeight: 500,
-                    '&:hover': { textDecoration: 'underline' }
-                  }}
-                >
-                  <NavigationIcon sx={{ fontSize: 16 }} />
-                  Get Directions
-                </Box>
-              )}
-            </Box>
-
-            {/* Hours */}
-            <Box sx={{
-              bgcolor: colors.surface,
-              borderRadius: '12px',
-              p: 3,
-              border: `1px solid ${colors.border}`
-            }}>
-              <Typography sx={{
-                fontFamily: '"Cormorant Garamond", Georgia, serif',
-                fontSize: '1.5rem',
-                fontWeight: 500,
-                mb: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <AccessTimeIcon sx={{ color: colors.accent }} />
-                Hours
-              </Typography>
-              {workingHours && workingHours.length > 0 ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, dayIndex) => {
-                    const dayHours = workingHours.find((h: any) => h.day_of_week === dayIndex);
-                    const isClosed = !dayHours || dayHours.is_day_off;
-                    const isToday = new Date().getDay() === dayIndex;
-                    const formatTime = (time: string) => {
-                      const [hours, minutes] = time.split(':');
-                      const h = parseInt(hours);
-                      const ampm = h >= 12 ? 'PM' : 'AM';
-                      const displayHour = h % 12 || 12;
-                      return `${displayHour}:${minutes} ${ampm}`;
-                    };
-                    const hoursDisplay = isClosed ? 'Closed' : `${formatTime(dayHours.start_time)} - ${formatTime(dayHours.end_time)}`;
-                    return (
-                      <Box key={dayName} sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                        <Typography sx={{
-                          color: isToday ? colors.accent : colors.textSecondary,
-                          fontWeight: isToday ? 500 : 400
-                        }}>
-                          {dayName}
-                        </Typography>
-                        <Typography sx={{
-                          color: isToday ? colors.accent : (isClosed ? colors.textMuted : colors.textPrimary),
-                          fontWeight: isToday ? 500 : 400
-                        }}>
-                          {hoursDisplay}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              ) : (
-                <Typography sx={{ color: colors.textMuted, fontSize: '0.9rem' }}>
-                  Hours not available. Contact the studio for availability.
-                </Typography>
-              )}
-            </Box>
-
-            {/* Contact */}
-            {(canContact || studio.phone || studio.website) && (
-              <Box sx={{
-                bgcolor: colors.surface,
-                borderRadius: '12px',
-                p: 3,
-                border: `1px solid ${colors.border}`,
-                gridColumn: { xs: '1', md: '1 / -1' }
-              }}>
-                <Typography sx={{
-                  fontFamily: '"Cormorant Garamond", Georgia, serif',
-                  fontSize: '1.5rem',
-                  fontWeight: 500,
-                  mb: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
-                }}>
-                  <ChatBubbleOutlineIcon sx={{ color: colors.accent }} />
-                  Contact
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {canContact && (
-                    <Box
-                      component="button"
-                      onClick={handleContactStudio}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        color: colors.accent,
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        fontSize: 'inherit',
-                        '&:hover': { textDecoration: 'underline' }
-                      }}
-                    >
-                      <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
-                      Send Message
-                    </Box>
-                  )}
-                  {studio.phone && (
-                    <Box
-                      component="a"
-                      href={`tel:${studio.phone}`}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        color: colors.textSecondary,
-                        textDecoration: 'none',
-                        '&:hover': { color: colors.accent }
-                      }}
-                    >
-                      <PhoneIcon sx={{ fontSize: 18 }} />
-                      {studio.phone}
-                    </Box>
-                  )}
-                  {studio.website && (
-                    <Box
-                      component="a"
-                      href={studio.website.startsWith('http') ? studio.website : `https://${studio.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        color: colors.textSecondary,
-                        textDecoration: 'none',
-                        '&:hover': { color: colors.accent }
-                      }}
-                    >
-                      <LanguageIcon sx={{ fontSize: 18 }} />
-                      {studio.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-            )}
-
-          </Box>
+          renderLane('info')
         )}
       </Box>
 
@@ -1812,8 +1068,19 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         return { notFound: true };
     }
 
-    // Cache the SSR response for 60s, serve stale for up to 5 minutes while revalidating
-    context.res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    // An owner who has just published gets an uncached render, so they never
+    // see their own page as it was before the edit. The cookie is set by the
+    // editor on publish and expires on its own.
+    const recentlyEdited = context.req.cookies?.[RECENTLY_EDITED_COOKIE];
+
+    if (recentlyEdited === slug) {
+        context.res.setHeader('Cache-Control', 'private, no-store');
+    } else {
+        // Everyone else gets a short shared cache. The previous policy also
+        // carried stale-while-revalidate=300, which meant a visitor could be
+        // served a page up to six minutes old rather than the intended one.
+        context.res.setHeader('Cache-Control', 'public, s-maxage=30');
+    }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost';
     const appToken = process.env.NEXT_PUBLIC_API_APP_TOKEN || '';
@@ -1838,9 +1105,49 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
             return { notFound: true };
         }
 
+        // Spotlights render above the fold, so they are fetched server-side
+        // rather than after hydration. A failure here leaves the strip hidden
+        // rather than failing the page.
+        let initialGuides: any[] = [];
+        try {
+            const res = await fetch(`${apiUrl}/api/studios/${slug}/guides`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    ...(appToken ? { 'X-App-Token': appToken } : {}),
+                },
+            });
+
+            if (res.ok) {
+                initialGuides = (await res.json())?.guides || [];
+            }
+        } catch {
+            // Leave the list empty
+        }
+
+        let initialSpotlights: any[] = [];
+        try {
+            const spotlightResponse = await fetch(`${apiUrl}/api/studios/${slug}/spotlights`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    ...(appToken ? { 'X-App-Token': appToken } : {}),
+                },
+            });
+
+            if (spotlightResponse.ok) {
+                const spotlightData = await spotlightResponse.json();
+                initialSpotlights = spotlightData?.spotlights || [];
+            }
+        } catch {
+            // Leave the strip empty
+        }
+
         return {
             props: {
                 initialStudio: studio,
+                initialSpotlights,
+                initialGuides,
             },
         };
     } catch {

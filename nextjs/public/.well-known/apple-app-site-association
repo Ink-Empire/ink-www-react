@@ -6,6 +6,7 @@
         "appID": "72G6X23Y24.com.getinkedin.app",
         "paths": [
           "/artists/*",
+          "/studios/*",
           "/tattoos",
           "/tattoos/*",
           "/inbox",

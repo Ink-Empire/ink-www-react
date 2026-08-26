@@ -68,6 +68,30 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    // Two studio slugs predate centralized slug generation and were
+    // normalized so every studio follows one convention before nested studio
+    // URLs shipped. These keep every link already in the world working -
+    // without them the only real shops on the platform 404 on their own URL.
+    const renamed = {
+      tattoocolosseum: 'tattoo-colosseum',
+      reidstudios: 'reid-studios',
+    };
+
+    return Object.entries(renamed).flatMap(([from, to]) => [
+      {
+        source: `/studios/${from}`,
+        destination: `/studios/${to}`,
+        permanent: true,
+      },
+      {
+        // Guides and news live beneath the studio, so they move with it.
+        source: `/studios/${from}/:path*`,
+        destination: `/studios/${to}/:path*`,
+        permanent: true,
+      },
+    ]);
+  },
   async rewrites() {
     // Disable rewrites when MSW mocking is enabled (for testing)
     if (process.env.NEXT_PUBLIC_MSW_ENABLED === 'true') {

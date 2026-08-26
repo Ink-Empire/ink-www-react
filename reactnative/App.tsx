@@ -40,6 +40,10 @@ const linking = {
             screens: {
               ArtistDetail: 'artists/:slug',
               TattooDetail: 'tattoos/:id',
+              StudioDetail: 'studios/:slug',
+              // One pattern for both routes: :kind absorbs guides and news,
+              // which is exactly the param StudioPostScreen already takes.
+              StudioPost: 'studios/:studioSlug/:kind/:postSlug',
               ClaimInvitation: 'claim/:token',
             },
           },
