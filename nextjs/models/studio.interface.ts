@@ -17,6 +17,13 @@ export interface StudioType {
   banner?: StudioImage | null;
   // Which hand-built page layout the studio uses
   template?: 'portfolio' | 'team' | 'storefront';
+  // The order the studio dragged its movable sections into. The API resolves
+  // this against the current section list, so it is always complete.
+  section_order?: string[];
+  // Per-section width overrides. The API sends a complete map.
+  section_widths?: Record<string, string>;
+  // Explicit column placements. Sparse: unplaced sections alternate.
+  section_columns?: Record<string, string>;
   about?: string;
   phone?: string;
   email?: string;

@@ -11,6 +11,7 @@ import CalendarScreen from '../screens/CalendarScreen';
 import ManageCalendarScreen from '../screens/ManageCalendarScreen';
 import EditAppointmentScreen from '../screens/EditAppointmentScreen';
 import StudioDetailScreen from '../screens/StudioDetailScreen';
+import StudioPostScreen from '../screens/StudioPostScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import BookingSettingsScreen from '../screens/BookingSettingsScreen';
@@ -58,6 +59,11 @@ export default function ProfileStack() {
         name="StudioDetail"
         component={StudioDetailScreen}
         options={({ route }) => ({ title: route.params?.name || 'Studio' })}
+      />
+      <Stack.Screen
+        name="StudioPost"
+        component={StudioPostScreen}
+        options={({ route }) => ({ title: route.params?.title || 'Studio' })}
       />
       <Stack.Screen
         name="Calendar"

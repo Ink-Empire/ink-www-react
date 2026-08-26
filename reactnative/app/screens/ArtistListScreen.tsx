@@ -92,19 +92,26 @@ export default function ArtistListScreen({ navigation, route }: any) {
     (filters.styles?.length || 0) +
     (filters.tags?.length || 0);
 
-  const renderItem = useCallback(({ item }: any) => (
-    <ArtistCard
-      artist={item}
-      onPress={() => navigation.push('ArtistDetail', {
-        slug: item.slug,
-        name: item.name,
-      })}
-      onStudioPress={item.studio?.slug ? () => navigation.push('StudioDetail', {
-        slug: item.studio.slug,
-        name: item.studio.name,
-      }) : undefined}
-    />
-  ), [navigation]);
+  const renderItem = useCallback(({ item }: any) => {
+    // A studio result is still an owner's document from the artists index, so
+    // its own slug is the owner's and the studio it stands for is nested.
+    // Without this the row opened the owner's artist profile instead.
+    const studioSlug = item.type === 'studio' ? item.studio?.slug : null;
+
+    return (
+      <ArtistCard
+        artist={item}
+        onPress={() => (studioSlug
+          ? navigation.push('StudioDetail', { slug: studioSlug, name: item.studio.name })
+          : navigation.push('ArtistDetail', { slug: item.slug, name: item.name }))}
+        // Already the row's destination, so a second target would be noise.
+        onStudioPress={!studioSlug && item.studio?.slug ? () => navigation.push('StudioDetail', {
+          slug: item.studio.slug,
+          name: item.studio.name,
+        }) : undefined}
+      />
+    );
+  }, [navigation]);
 
   const renderClientItem = useCallback(({ item }: any) => (
     <ArtistCard

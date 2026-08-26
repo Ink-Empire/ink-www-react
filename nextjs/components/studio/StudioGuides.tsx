@@ -10,8 +10,18 @@ interface StudioGuidesProps {
 }
 
 /**
- * Practical writing from the studio: aftercare and preparation. Absent
- * entirely when the studio has written none.
+ * Used only for a guide written in the editor but not yet published, which has
+ * no type_label from the API yet. Published guides carry their own.
+ */
+const FALLBACK_LABELS: Record<string, string> = {
+  aftercare: 'Aftercare guide',
+  prep: 'Preparation guide',
+  article: 'Guide',
+};
+
+/**
+ * Practical writing from the studio: aftercare, preparation, or anything else
+ * it wanted to write once. Absent entirely when the studio has written none.
  *
  * A guide only links when it has somewhere to go. One written in the editor
  * has no slug until it is published, so it renders as plain text rather than a
@@ -70,7 +80,7 @@ const StudioGuides: React.FC<StudioGuidesProps> = ({ guides = [], studioSlug }) 
                 letterSpacing: '0.06em',
                 color: colors.accent,
               }}>
-                {guide.type_label || (guide.type === 'prep' ? 'Preparation guide' : 'Aftercare guide')}
+                {guide.type_label || FALLBACK_LABELS[guide.type] || 'Guide'}
               </Typography>
 
               <Typography sx={{ fontSize: '0.95rem', fontWeight: 600, color: colors.textPrimary }}>

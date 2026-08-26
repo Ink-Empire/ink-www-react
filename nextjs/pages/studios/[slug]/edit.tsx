@@ -22,7 +22,9 @@ import {
   StudioContactCard,
   StudioGuides,
   StudioArtistsCard,
+  StudioPortfolioGrid,
 } from '@/components/studio';
+import StudioTabBar from '@/components/studio/StudioTabBar';
 import EditableSection from '@/components/studio/edit/EditableSection';
 import StudioDetailsEditor from '@/components/studio/edit/StudioDetailsEditor';
 import BannerEditor from '@/components/studio/edit/BannerEditor';
@@ -34,6 +36,25 @@ import AnnouncementsEditor, { AnnouncementDraft } from '@/components/studio/edit
 import GuidesEditor, { GuideDraft } from '@/components/studio/edit/GuidesEditor';
 import TemplatePicker, { StudioTemplateValue } from '@/components/studio/edit/TemplatePicker';
 import SpotlightEditor, { SpotlightDraft } from '@/components/studio/edit/SpotlightEditor';
+import SectionLane from '@/components/studio/edit/SectionLane';
+import SectionArranger from '@/components/studio/edit/SectionArranger';
+import BandDivider from '@/components/studio/edit/BandDivider';
+import {
+  Cell,
+  Lane,
+  SectionColumn,
+  SectionKey,
+  SectionWidth,
+  bandOf,
+  laneMembers,
+  resolveSectionBands,
+  resolveSectionColumns,
+  resolveSectionOrder,
+  resolveSectionRows,
+  resolveSectionWidths,
+  sparseBands,
+  sparseWidths,
+} from '@inkedin/shared/utils/studioSections';
 
 interface StudioEditProps {
   initialStudio?: any;
@@ -48,13 +69,16 @@ export default function StudioEdit({
 }: StudioEditProps) {
   const router = useRouter();
   const { slug } = router.query;
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { hours: savedHours } = useStudioHours(slug as string);
   const { artists } = useStudioArtists(slug as string);
   const { gallery, loading: galleryLoading } = useStudioGallery(slug as string);
 
   const [studio, setStudio] = useState<any>(initialStudio);
   const [previewing, setPreviewing] = useState(false);
+  // Starts on Portfolio, as a visitor's does. Landing on Info would show more
+  // editable sections but would misrepresent the page the owner is editing.
+  const [activeTab, setActiveTab] = useState(0);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +140,53 @@ export default function StudioEdit({
     initialSpotlights.map((s: any) => ({ id: s.id, type: s.type, item_id: s.item_id, item: s.item })),
   );
 
+  const [sectionOrder, setSectionOrder] = useState<SectionKey[]>(
+    resolveSectionOrder(initialStudio?.section_order),
+  );
+
+  const [sectionWidths, setSectionWidths] = useState<Record<SectionKey, SectionWidth>>(
+    resolveSectionWidths(initialStudio?.section_widths),
+  );
+
+  const resizeSection = (key: SectionKey, width: SectionWidth) =>
+    setSectionWidths((current) => ({ ...current, [key]: width }));
+
+  // Kept sparse to match the API: only a section the owner has actually put in
+  // a column appears, and the rest fall back to alternating down the band.
+  const [sectionColumns, setSectionColumns] = useState<Record<string, SectionColumn>>(
+    resolveSectionColumns(initialStudio?.section_columns),
+  );
+
+  const [sectionRows, setSectionRows] = useState<Record<string, number>>(
+    resolveSectionRows(initialStudio?.section_rows),
+  );
+
+  const [sectionBands, setSectionBands] = useState<Record<string, Lane>>(
+    resolveSectionBands(initialStudio?.section_bands),
+  );
+
+  const moveSectionToBand = (key: SectionKey, band: Lane) =>
+    setSectionBands((current) => ({ ...current, [key]: band }));
+
+  /** Everything a drag can change, applied together so one drop is one update. */
+  const applyArrangement = (change: { cells: Record<string, Cell>; band?: [SectionKey, Lane] }) => {
+    setSectionRows((current) => {
+      const next = { ...current };
+      Object.entries(change.cells).forEach(([key, cell]) => { next[key] = cell.row; });
+
+      return next;
+    });
+
+    setSectionColumns((current) => {
+      const next = { ...current };
+      Object.entries(change.cells).forEach(([key, cell]) => { next[key] = cell.column; });
+
+      return next;
+    });
+
+    if (change.band) moveSectionToBand(...change.band);
+  };
+
   // Saved hours arrive from their own endpoint, so seed the draft once.
   useEffect(() => {
     if (!hoursTouched && savedHours && savedHours.length > 0) {
@@ -147,6 +218,11 @@ export default function StudioEdit({
     .sort()
     .join('~');
 
+  const widthFingerprint = (widths: Record<string, string | number>) => Object.keys(widths)
+    .sort()
+    .map((key) => `${key}:${widths[key]}`)
+    .join(',');
+
   const isDirty =
     name !== (studio?.name || '') ||
     about !== (studio?.about || '') ||
@@ -166,7 +242,12 @@ export default function StudioEdit({
     announcements.some((a) => !a.id) ||
     savedAnnouncementIds !== draftAnnouncementIds ||
     savedSpotlightKeys !== draftSpotlightKeys ||
-    guideFingerprint(initialGuides) !== guideFingerprint(guides);
+    guideFingerprint(initialGuides) !== guideFingerprint(guides) ||
+    sectionOrder.join(',') !== resolveSectionOrder(studio?.section_order).join(',') ||
+    widthFingerprint(sectionWidths) !== widthFingerprint(resolveSectionWidths(studio?.section_widths)) ||
+    widthFingerprint(sectionColumns) !== widthFingerprint(resolveSectionColumns(studio?.section_columns)) ||
+    widthFingerprint(sectionBands) !== widthFingerprint(resolveSectionBands(studio?.section_bands)) ||
+    widthFingerprint(sectionRows) !== widthFingerprint(resolveSectionRows(studio?.section_rows));
 
   // Anything not yet published would be lost on a reload.
   useEffect(() => {
@@ -182,12 +263,19 @@ export default function StudioEdit({
   }, [isDirty, published]);
 
   // Only the owner edits their own page.
+  //
+  // isAuthenticated is Boolean(user), so it reads false while the session is
+  // still being restored. Deciding before that finished bounced the owner to
+  // their public page on any direct load or refresh of this URL - it only
+  // appeared to work when arriving from the dashboard, where auth was already
+  // in memory.
   useEffect(() => {
-    if (!studio) return;
-    if (isAuthenticated === false || (user && !isOwner)) {
+    if (!studio || authLoading) return;
+
+    if (!isAuthenticated || !isOwner) {
       router.replace(`/studios/${studio.slug}`);
     }
-  }, [isAuthenticated, user, isOwner, studio, router]);
+  }, [authLoading, isAuthenticated, isOwner, studio, router]);
 
   // What the sections render: the saved studio with the pending edits on top.
   const draftStudio = useMemo(
@@ -251,6 +339,13 @@ export default function StudioEdit({
         name,
         about,
         template,
+        section_order: sectionOrder,
+        // Only what the owner actually changed, so a section they never
+        // touched keeps following its layout.
+        section_widths: sparseWidths(sectionWidths),
+        section_columns: sectionColumns,
+        section_bands: sparseBands(sectionBands, template),
+        section_rows: sectionRows,
         ...location,
         ...contact,
         ...(hoursTouched && hours.length > 0 ? { working_hours: hours } : {}),
@@ -304,6 +399,56 @@ export default function StudioEdit({
   const editing = !previewing;
   const noop = () => {};
 
+  const arrangement = {
+    order: sectionOrder,
+    widths: sectionWidths,
+    columns: sectionColumns,
+    rows: sectionRows,
+    bands: sectionBands,
+    template,
+  };
+
+  // Once everything has been lifted out of the Info tab there is nothing left
+  // behind it to click through to.
+  const hasInfoBand = laneMembers('info', template, sectionBands).length > 0;
+
+  const portfolioPanel = (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gap: 3 }}>
+      <Box sx={{
+        bgcolor: colors.surface,
+        borderRadius: '12px',
+        p: 3,
+        border: `1px solid ${colors.border}`,
+      }}>
+        <Typography sx={{
+          fontFamily: '"Cormorant Garamond", Georgia, serif',
+          fontSize: '1.75rem',
+          fontWeight: 500,
+          color: colors.textPrimary,
+          mb: 2,
+        }}>
+          Portfolio
+        </Typography>
+
+        {galleryLoading
+          ? <Typography sx={{ color: colors.textSecondary }}>Loading your work...</Typography>
+          : <StudioPortfolioGrid filteredPortfolio={gallery || []} handleTattooClick={noop} />}
+      </Box>
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {bandOf('artists', template, sectionBands) === null && (
+          <StudioArtistsCard artists={artists} slug={slug} />
+        )}
+
+        {/* No editor of its own: this card is a summary of Contact and Hours,
+            and it is pinned to this sidebar on the public page. */}
+        <EditableSection label="Studio info" editing={editing}>
+          <StudioInfoCard studio={draftStudio} todayHours={null} />
+        </EditableSection>
+      </Box>
+    </Box>
+  );
+
   const hoursSection = (
     <EditableSection
       label="Hours"
@@ -334,6 +479,65 @@ export default function StudioEdit({
       />
     </EditableSection>
   );
+
+  // Every movable section, built once. Which band each lands in is the
+  // layout's decision; the order within a band is the studio's, and the two
+  // bands mirror the public page so a drag here matches what visitors get.
+  const sectionNodes: Partial<Record<SectionKey, React.ReactNode>> = {
+    artists: (
+      <EditableSection label="Artists" editing={editing}>
+        <StudioArtistsCard artists={artists} slug={slug} />
+      </EditableSection>
+    ),
+    location: (
+      <EditableSection
+        label="Location"
+        editing={editing}
+        editor={<LocationEditor value={location} onChange={setLocation} />}
+      >
+        <StudioLocationHours studio={draftStudio} />
+      </EditableSection>
+    ),
+    hours: hoursSection,
+    contact: contactSection,
+    guides: (
+      <EditableSection
+        label="Guides"
+        editing={editing}
+        isEmpty={guides.length === 0}
+        emptyHint="No guides yet. Write your aftercare once and send it to clients from your messages, or write anything else worth keeping on your page."
+        editor={<GuidesEditor value={guides} onChange={setGuides} />}
+      >
+        <StudioGuides guides={guides} studioSlug={studio.slug} />
+      </EditableSection>
+    ),
+    spotlight: (
+      <EditableSection
+        label="Spotlight"
+        editing={editing}
+        isEmpty={spotlights.length === 0}
+        emptyHint="Nothing in your Spotlight yet. Pick a few artists or tattoos to feature here."
+        editor={
+          <SpotlightEditor
+            value={spotlights}
+            artists={artists}
+            gallery={gallery}
+            galleryLoading={galleryLoading}
+            onChange={setSpotlights}
+          />
+        }
+      >
+        <StudioSpotlight
+          spotlights={spotlights}
+          studio={draftStudio}
+          artists={[]}
+          slug={slug}
+          router={router}
+          handleTattooClick={noop}
+        />
+      </EditableSection>
+    ),
+  };
 
   return (
     <Layout>
@@ -481,86 +685,72 @@ export default function StudioEdit({
           />
         </EditableSection>
 
-        {/* What each layout leads with, mirroring the public page so Preview
-            reflects the choice made above. */}
-        {template === 'team' && (
-          <Box sx={{ mb: 3 }}>
-            <StudioArtistsCard
-              artists={artists}
-              slug={slug}
+        {editing && (
+          <>
+            <Typography sx={{ fontSize: '0.85rem', color: colors.textSecondary, mb: 1.5 }}>
+              Drag a Move handle to rearrange these. You can move a section
+              between the two columns, and across the dividers below - anything
+              above the first divider is on screen the moment a visitor arrives,
+              anything below one is a click away for them. Drag a section's
+              right edge to make it half or full width.
+            </Typography>
+
+            <BandDivider
+              title="Always visible"
+              hint="The first thing a visitor sees."
             />
-          </Box>
+          </>
         )}
 
-        {template === 'storefront' && (
-          <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            gap: 3,
-            mb: 3,
-          }}>
-            {hoursSection}
-            {contactSection}
-          </Box>
-        )}
-
-        <EditableSection
-          label="Spotlight"
-          editing={editing}
-          isEmpty={spotlights.length === 0}
-          emptyHint="Nothing in your Spotlight yet. Pick a few artists or tattoos to feature here."
-          editor={
-            <SpotlightEditor
-              value={spotlights}
-              artists={artists}
-              gallery={gallery}
-              galleryLoading={galleryLoading}
-              onChange={setSpotlights}
-            />
-          }
+        <SectionArranger
+          arrangement={arrangement}
+          present={(key) => sectionNodes[key] !== undefined}
+          nodes={sectionNodes}
+          onChange={applyArrangement}
+          onResize={resizeSection}
         >
-          <StudioSpotlight
-            spotlights={spotlights}
-            studio={draftStudio}
-            artists={[]}
-            slug={slug}
-            router={router}
-            handleTattooClick={noop}
-          />
-        </EditableSection>
+        <SectionLane
+          lane="feature"
+          arrangement={arrangement}
+          nodes={sectionNodes}
+          editing={editing}
+        />
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gap: 3 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <EditableSection
-              label="Location"
+        {/* A visitor's page folds here into two tabs. The editor shows both
+            sides at once and marks where the fold is: hunting behind a tab for
+            a section you are trying to edit is worse than the fold being
+            spelled out. Preview swaps these back for the real tabs.
+
+            The Info band renders even when empty, so a section lifted out of
+            it still has somewhere to be dropped back into. */}
+        {editing ? (
+          <>
+            <BandDivider title="Portfolio tab" hint="Where visitors land." />
+            {portfolioPanel}
+
+            <BandDivider title="Info tab" hint="A visitor clicks Info to see this." />
+            <SectionLane
+              lane="info"
+              arrangement={arrangement}
+              nodes={sectionNodes}
               editing={editing}
-              editor={<LocationEditor value={location} onChange={setLocation} />}
-            >
-              <StudioLocationHours studio={draftStudio} />
-            </EditableSection>
+            />
+          </>
+        ) : (
+          <>
+            {hasInfoBand && <StudioTabBar activeTab={activeTab} onChange={setActiveTab} />}
 
-            {template !== 'storefront' && hoursSection}
-            {template !== 'storefront' && contactSection}
-
-          </Box>
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* No editor of its own: this card is a summary of Contact and Hours. */}
-            <EditableSection
-              label="Guides"
-              editing={editing}
-              isEmpty={guides.length === 0}
-              emptyHint="No guides yet. Write your aftercare once and send it to clients from your messages."
-              editor={<GuidesEditor value={guides} onChange={setGuides} />}
-            >
-              <StudioGuides guides={guides} studioSlug={studio.slug} />
-            </EditableSection>
-
-            <EditableSection label="Studio info" editing={editing}>
-              <StudioInfoCard studio={draftStudio} todayHours={null} />
-            </EditableSection>
-          </Box>
-        </Box>
+            {(activeTab === 0 || !hasInfoBand) ? portfolioPanel : (
+              <SectionLane
+                lane="info"
+                arrangement={arrangement}
+                nodes={sectionNodes}
+                editing={editing}
+              />
+            )}
+          </>
+        )}
+        </SectionArranger>
       </Box>
     </Layout>
   );

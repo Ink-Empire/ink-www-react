@@ -27,6 +27,7 @@ export type HomeStackParamList = {
   TattooDetail: { id: number };
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
+  StudioPost: { studioSlug: string; postSlug: string; kind: 'guides' | 'news'; title?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
   ManageCalendar: { artistId: number; artistName?: string; artistSlug?: string };
   EditAppointment: { appointmentId: number; appointment?: any };
@@ -42,6 +43,7 @@ export type SearchStackParamList = {
   TattooDetail: { id: number };
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
+  StudioPost: { studioSlug: string; postSlug: string; kind: 'guides' | 'news'; title?: string };
   UserProfile: { slug: string; name?: string };
 };
 
@@ -51,6 +53,7 @@ export type FavoritesStackParamList = {
   TattooDetail: { id: number };
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
+  StudioPost: { studioSlug: string; postSlug: string; kind: 'guides' | 'news'; title?: string };
   UserProfile: { slug: string; name?: string };
 };
 
@@ -60,6 +63,7 @@ export type ArtistsStackParamList = {
   TattooDetail: { id: number };
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
+  StudioPost: { studioSlug: string; postSlug: string; kind: 'guides' | 'news'; title?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
   ManageCalendar: { artistId: number; artistName?: string; artistSlug?: string };
   EditAppointment: { appointmentId: number; appointment?: any };
@@ -93,6 +97,7 @@ export type ProfileStackParamList = {
   TattooDetail: { id: number };
   EditTattoo: { id: number };
   StudioDetail: { slug: string; name?: string };
+  StudioPost: { studioSlug: string; postSlug: string; kind: 'guides' | 'news'; title?: string };
   Calendar: { artistId: number; artistName?: string; artistSlug?: string };
   ManageCalendar: { artistId: number; artistName?: string; artistSlug?: string };
   EditAppointment: { appointmentId: number; appointment?: any };

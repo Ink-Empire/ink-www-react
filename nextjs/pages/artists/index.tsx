@@ -325,7 +325,14 @@ export default function ArtistList() {
             .filter(item => showStudios || item.type !== 'studio')
             .map(item => ({
                 type: item.type === 'studio' ? 'studio' as const : 'artist' as const,
-                data: item
+                // A studio result is still an owner's document from the artists
+                // index, so its top-level slug is the owner's rather than the
+                // studio's. Those coincided until studio slugs were normalised;
+                // now linking with it 404s for every studio whose slug is not
+                // identical to its owner's.
+                data: item.type === 'studio'
+                    ? { ...item, slug: item.studio?.slug || item.slug }
+                    : item
             }));
 
         // If studios are hidden, don't include unclaimed studios either

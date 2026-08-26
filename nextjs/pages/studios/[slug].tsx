@@ -47,6 +47,15 @@ import {
   StudioContactCard,
   StudioGuides,
 } from '@/components/studio';
+import SectionBand from '@/components/studio/SectionBand';
+import StudioTabBar from '@/components/studio/StudioTabBar';
+import {
+  Lane,
+  SectionKey,
+  bandOf,
+  laneMembers,
+  resolveArrangement,
+} from '@inkedin/shared/utils/studioSections';
 
 interface StudioDetailProps {
     initialStudio?: any;
@@ -796,6 +805,85 @@ export default function StudioDetail({
     );
   }
 
+  // Every movable section, built once so the two bands below can place them in
+  // whatever order the studio saved. Which band a section belongs to is still
+  // the layout's decision; the order within a band is the studio's.
+  const arrangement = resolveArrangement(studio);
+
+  // Everything can be lifted out of the Info tab, and when it has been there
+  // is nothing behind the tab to click through to.
+  const hasInfoBand = laneMembers('info', template, arrangement.bands).length > 0;
+
+  const sectionNodes: Record<SectionKey, React.ReactNode> = {
+    artists: (
+      <StudioArtistsCard
+        artists={artists}
+        slug={slug}
+      />
+    ),
+    location: (
+      <StudioLocationHours
+        studio={studio}
+      />
+    ),
+    hours: (
+      <StudioHoursCard
+        studio={studio}
+        workingHours={workingHours}
+      />
+    ),
+    guides: (
+      <StudioGuides
+        guides={initialGuides}
+        studioSlug={studio.slug}
+      />
+    ),
+    contact: (
+      <StudioContactCard
+        studio={studio}
+        canContact={canContact}
+        handleContactStudio={handleContactStudio}
+      />
+    ),
+    spotlight: (
+      <StudioSpotlight
+        artists={artists}
+        handleTattooClick={handleTattooClick}
+        slug={slug}
+        spotlights={spotlights}
+        studio={studio}
+        router={router}
+      />
+    ),
+  };
+
+  /**
+   * Whether a section will actually put something on the page.
+   *
+   * A cell is allocated per section, so a section that renders nothing still
+   * took up a cell and pushed everything after it sideways - a studio with no
+   * guides ended up with Contact in the right column and a hole beside it.
+   * Mirrors each component's own guard; Location and Hours have none, so they
+   * always draw a card.
+   */
+  const sectionPresent: Record<SectionKey, boolean> = {
+    spotlight: spotlights.length > 0,
+    artists: Boolean(artists && artists.length > 0),
+    location: true,
+    hours: true,
+    guides: initialGuides.length > 0,
+    contact: Boolean(canContact || studio.phone || studio.website),
+  };
+
+  const renderLane = (lane: Lane) => (
+    <SectionBand
+      lane={lane}
+      arrangement={arrangement}
+      nodes={sectionNodes}
+      present={(key) => sectionPresent[key]}
+    />
+  );
+
   // Verified Studio View
   return (
     <Layout>
@@ -881,91 +969,15 @@ export default function StudioDetail({
           studioStyles={studioStyles}
         />
 
-        {/* Team leads with the people. */}
-        {template === 'team' && (
-          <Box sx={{ mb: 3 }}>
-            <StudioArtistsCard
-              artists={artists}
-              slug={slug}
-            />
-          </Box>
-        )}
-
-        {/* Storefront leads with whether you are open and how to reach you. */}
-        {template === 'storefront' && (
-          <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            gap: 3,
-            mb: 3,
-          }}>
-            <StudioHoursCard
-              studio={studio}
-              workingHours={workingHours}
-            />
-            <StudioContactCard
-              studio={studio}
-              canContact={canContact}
-              handleContactStudio={handleContactStudio}
-            />
-          </Box>
-        )}
-
-        <StudioSpotlight
-          artists={artists}
-          handleTattooClick={handleTattooClick}
-          slug={slug}
-          spotlights={spotlights}
-          studio={studio}
-          router={router}
-        />
+        {/* The layout decides what leads: team the people, storefront whether
+            you are open. The studio decides the order among them. */}
+        {renderLane('feature')}
 
         {/* Page Tabs */}
-        <Box sx={{
-          display: 'flex',
-          gap: 0,
-          mb: 3,
-          borderBottom: `1px solid ${colors.border}`
-        }}>
-          {[
-            { icon: <ImageIcon sx={{ fontSize: 18, opacity: 0.7 }} />, label: 'Portfolio' },
-            { icon: <InfoIcon sx={{ fontSize: 18, opacity: 0.7 }} />, label: 'Info' }
-          ].map((tab, index) => (
-            <Box
-              key={index}
-              onClick={() => handleTabChange(index)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-                px: 2,
-                py: 1.5,
-                cursor: 'pointer',
-                color: activeTab === index ? colors.accent : colors.textSecondary,
-                fontWeight: 500,
-                fontSize: '0.95rem',
-                position: 'relative',
-                transition: 'color 0.2s',
-                '&:hover': { color: colors.textPrimary },
-                '&::after': activeTab === index ? {
-                  content: '""',
-                  position: 'absolute',
-                  bottom: -1,
-                  left: 0,
-                  right: 0,
-                  height: 2,
-                  bgcolor: colors.accent
-                } : {}
-              }}
-            >
-              {tab.icon}
-              {tab.label}
-            </Box>
-          ))}
-        </Box>
+        {hasInfoBand && <StudioTabBar activeTab={activeTab} onChange={handleTabChange} />}
 
         {/* Tab Content */}
-        {activeTab === 0 ? (
+        {(activeTab === 0 || !hasInfoBand) ? (
           /* Portfolio Tab */
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 320px' }, gap: 3 }}>
             {/* Main Content */}
@@ -1006,7 +1018,7 @@ export default function StudioDetail({
                 studioStyles={studioStyles}
               />
 
-              {template !== 'team' && (
+              {bandOf('artists', template, arrangement.bands) === null && (
                 <StudioArtistsCard
                   artists={artists}
                   slug={slug}
@@ -1031,32 +1043,7 @@ export default function StudioDetail({
           </Box>
         ) : (
           /* Info Tab */
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-            <StudioLocationHours
-              studio={studio}
-            />
-
-            {template !== 'storefront' && (
-              <StudioHoursCard
-                studio={studio}
-                workingHours={workingHours}
-              />
-            )}
-
-            <StudioGuides
-              guides={initialGuides}
-              studioSlug={studio.slug}
-            />
-
-            {template !== 'storefront' && (
-              <StudioContactCard
-                canContact={canContact}
-                handleContactStudio={handleContactStudio}
-                studio={studio}
-              />
-            )}
-
-          </Box>
+          renderLane('info')
         )}
       </Box>
 

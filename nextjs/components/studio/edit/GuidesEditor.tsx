@@ -24,7 +24,11 @@ interface GuidesEditorProps {
 const TYPES = [
   { value: 'aftercare', label: 'Aftercare', hint: 'Looking after a healing tattoo' },
   { value: 'prep', label: 'Preparation', hint: 'How to get ready for an appointment' },
+  { value: 'article', label: 'General', hint: 'Anything else you want to write' },
 ];
+
+/** Only an aftercare guide can be the one sent after an appointment. */
+const canBeDefault = (type?: string) => type === 'aftercare';
 
 const emptyDraft: GuideDraft = {
   type: 'aftercare',
@@ -35,7 +39,10 @@ const emptyDraft: GuideDraft = {
 };
 
 /**
- * Practical writing a studio only has to do once: aftercare and preparation.
+ * Practical writing a studio only has to do once. Aftercare and preparation
+ * are named because they are what most studios write, but General covers
+ * anything else and renders identically.
+ *
  * An aftercare guide can be marked as the one sent to clients after their
  * appointment, so nobody retypes healing instructions into a chat.
  */
@@ -43,7 +50,13 @@ const GuidesEditor: React.FC<GuidesEditorProps> = ({ value, onChange }) => {
   const [draft, setDraft] = useState<GuideDraft>(emptyDraft);
 
   const set = (field: keyof GuideDraft) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setDraft((current) => ({ ...current, [field]: e.target.value }));
+    setDraft((current) => {
+      const next = { ...current, [field]: e.target.value };
+
+      return field === 'type' && !canBeDefault(next.type)
+        ? { ...next, is_default: false }
+        : next;
+    });
 
   const canSave = draft.title.trim() !== '' && draft.content.trim() !== '';
 
@@ -72,7 +85,7 @@ const GuidesEditor: React.FC<GuidesEditorProps> = ({ value, onChange }) => {
   const setDefault = (index: number) =>
     onChange(value.map((guide, i) => ({ ...guide, is_default: i === index })));
 
-  const labelFor = (type?: string) => TYPES.find((t) => t.value === type)?.label || 'Aftercare';
+  const labelFor = (type?: string) => TYPES.find((t) => t.value === type)?.label || 'General';
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -98,20 +111,22 @@ const GuidesEditor: React.FC<GuidesEditorProps> = ({ value, onChange }) => {
       <TextField label="The guide" placeholder="Write it the way you would explain it in the chair."
         value={draft.content} onChange={set('content')} fullWidth multiline rows={8} sx={fieldStyles} />
 
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={Boolean(draft.is_default)}
-            onChange={(e) => setDraft((current) => ({ ...current, is_default: e.target.checked }))}
-            sx={{ color: colors.border, '&.Mui-checked': { color: colors.accent } }}
-          />
-        }
-        label={
-          <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
-            Send this one to clients after their appointment
-          </Typography>
-        }
-      />
+      {canBeDefault(draft.type) && (
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={Boolean(draft.is_default)}
+              onChange={(e) => setDraft((current) => ({ ...current, is_default: e.target.checked }))}
+              sx={{ color: colors.border, '&.Mui-checked': { color: colors.accent } }}
+            />
+          }
+          label={
+            <Typography sx={{ fontSize: '0.9rem', color: colors.textSecondary }}>
+              Send this one to clients after their appointment
+            </Typography>
+          }
+        />
+      )}
 
       <Button
         onClick={save}
@@ -162,7 +177,7 @@ const GuidesEditor: React.FC<GuidesEditorProps> = ({ value, onChange }) => {
                   {item.excerpt || item.content}
                 </Typography>
 
-                {item.type === 'aftercare' && !item.is_default && (
+                {canBeDefault(item.type) && !item.is_default && (
                   <Button
                     onClick={() => setDefault(index)}
                     size="small"
