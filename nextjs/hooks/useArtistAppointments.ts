@@ -95,11 +95,42 @@ export function useArtistAppointments(
     }
   }, [fetchAppointments]);
 
+  // Shows a just-created appointment straight away instead of waiting on the
+  // refetch. The refresh that follows reconciles it with the server.
+  const addAppointment = useCallback((apt: any) => {
+    if (!apt?.id) return;
+
+    setAppointments(prev => {
+      if (prev.some(existing => String(existing.id) === String(apt.id))) return prev;
+
+      return [
+        ...prev,
+        {
+          id: apt.id,
+          title: apt.title || 'Appointment',
+          start: apt.date ? `${apt.date}T00:00:00` : '',
+          end: apt.date ? `${apt.date}T00:00:00` : '',
+          date: apt.date,
+          time: apt.time,
+          allDay: false,
+          status: apt.status || 'booked',
+          clientName: apt.clientName ?? null,
+          clientId: apt.client_id ?? null,
+          extendedProps: {
+            status: apt.status || 'booked',
+            clientName: apt.clientName ?? null,
+          },
+        },
+      ];
+    });
+  }, []);
+
   return {
     appointments,
     loading,
     error,
     refresh: fetchAppointments,
-    deleteAppointment
+    deleteAppointment,
+    addAppointment
   };
 }
