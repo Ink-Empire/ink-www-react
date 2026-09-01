@@ -16,6 +16,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { api } from '@/utils/api';
+import { clearCache } from '@/utils/apiCache';
 import { artistService } from '@/services/artistService';
 import { appointmentService } from '@/services/appointmentService';
 import { leadService } from '@/services/leadService';
@@ -676,6 +677,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
     try {
       const aptId = typeof apt.id === 'string' ? parseInt(apt.id, 10) : apt.id;
       await appointmentService.delete(aptId);
+      clearCache('upcoming-schedule');
       refreshAppointments();
       closeArtistDayModal();
       onAppointmentChanged?.();
@@ -768,6 +770,11 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       // reconcile with the server.
       addAppointment(response?.appointment);
 
+      // The schedule is a cached GET, and the client only invalidates the
+      // endpoint written to and its parent. Neither matches upcoming-schedule,
+      // so without this the refresh returns the pre-write list and wipes the
+      // event that was just added.
+      clearCache('upcoming-schedule');
       refreshAppointments();
       fetchExternalEvents();
       closeArtistDayModal();
