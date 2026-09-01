@@ -140,7 +140,7 @@ export default function TermsOfServicePage() {
             color: textLight,
             letterSpacing: '0.02em',
           }}>
-            Effective Date: February 21, 2026
+            Effective Date: September 1, 2026
           </Typography>
         </Box>
 
@@ -491,7 +491,16 @@ export default function TermsOfServicePage() {
           </Section>
 
           {/* Section 20 */}
-          <Section number="20" title="Contact Information">
+          <Section number="20" title="Connected Accounts">
+            <p>You may choose to connect a third-party account, such as a Google Calendar, to your InkedIn account. Connecting is optional and you can disconnect at any time.</p>
+            <p>You are responsible for the third-party account you connect, including keeping access to it and complying with that provider&apos;s own terms. Your use of the connected service remains governed by that provider&apos;s terms and privacy policy.</p>
+            <p>When you connect a calendar, you authorise InkedIn to read your existing commitments so we can avoid offering times you are unavailable, and to add, update, and remove InkedIn bookings on that calendar. We describe exactly what we read and store in our Privacy Policy.</p>
+            <p>Calendar synchronisation depends on a service we do not control. It may be delayed, interrupted, or stop working if the provider changes their service or if your authorisation expires or is revoked. We will tell you by email if your connection stops working and needs reconnecting. You remain responsible for confirming your own availability, and we are not liable for a booking conflict arising from a synchronisation delay or failure.</p>
+            <p>Disconnecting removes the stored calendar data held for that connection. It does not cancel bookings already made, and it does not remove events already written to your calendar.</p>
+          </Section>
+
+          {/* Section 21 */}
+          <Section number="21" title="Contact Information">
             <p>If you have any questions, concerns, or complaints regarding these Terms or the Platform, please contact us:</p>
             <Box sx={{
               border: `1px solid ${border}`,

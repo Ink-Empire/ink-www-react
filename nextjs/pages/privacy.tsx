@@ -106,7 +106,7 @@ export default function PrivacyPage() {
             color: textLight,
             letterSpacing: '0.02em',
           }}>
-            Effective Date: February 17, 2026
+            Effective Date: September 1, 2026
           </Typography>
         </Box>
 
@@ -178,6 +178,7 @@ export default function PrivacyPage() {
                 <tr><td>Portfolio &amp; Images</td><td>Photos, tattoo designs, and portfolio images you upload to the Platform.</td></tr>
                 <tr><td>Messages</td><td>Content of messages exchanged between users through the Platform&apos;s messaging feature.</td></tr>
                 <tr><td>Usage Data</td><td>Search queries, pages visited, features used, device information, and interaction patterns.</td></tr>
+                <tr><td>Calendar Data</td><td>If you connect a Google Calendar, the start time, end time, all-day flag, status, and title of events on that calendar, plus the email address of the connected Google account. Connecting a calendar is optional.</td></tr>
               </tbody>
             </Box>
           </Section>
@@ -186,6 +187,7 @@ export default function PrivacyPage() {
           <Section number="02" title="How We Use Your Information">
             <p>We use the information we collect to operate and improve the Platform, connect tattoo enthusiasts with artists, personalise your experience, and communicate with you about your account and our services.</p>
             <p>Specifically, we use your information to facilitate artist discovery and search, enable messaging and collaboration between users, send transactional notifications such as booking confirmations and messages, analyse usage patterns to improve Platform features and performance, and ensure the security and integrity of the Platform.</p>
+            <p>We use automated analysis to suggest descriptive tags for uploaded images, so that work can be found in search. These suggestions are shown to you and do not make decisions about you.</p>
             <p>We do not sell your personal information to third parties. We do not use your data for automated decision-making or profiling that produces legal effects.</p>
           </Section>
 
@@ -194,15 +196,20 @@ export default function PrivacyPage() {
             <p>We use a limited number of trusted third-party services to operate the Platform. These providers only process data as necessary to deliver their specific function.</p>
             <Box sx={{ my: '16px' }}>
               {[
-                { name: 'Firebase', purpose: "Push notifications and analytics. Firebase may collect device identifiers and app usage data. Governed by Google's privacy policy." },
+                { name: 'Firebase', purpose: "Push notifications. Processes device identifiers so we can deliver notifications to your device. Governed by Google's privacy policy." },
                 { name: 'Elastic Cloud', purpose: 'Powers search functionality. Processes artist profiles, portfolio metadata, and search queries to deliver relevant results.' },
                 { name: 'Resend', purpose: 'Transactional email delivery. Processes email addresses to send account-related communications such as verification and notifications.' },
-              ].map((service, i) => (
+                { name: 'Amazon Web Services', purpose: 'Stores uploaded images and files. Data is held in the United States.' },
+                { name: 'imgix', purpose: 'Image delivery. Uploaded images are served and resized through imgix’s content delivery network.' },
+                { name: 'OpenAI', purpose: 'Suggests descriptive tags for uploaded tattoo images. We send a link to the image, which OpenAI retrieves and analyses. Under OpenAI’s API terms, content sent through the API is not used to train their models.' },
+                { name: 'Google', purpose: 'Calendar synchronisation when you connect a calendar, sign-in and profile information for that connection, and address lookup when a studio location is added.' },
+                { name: 'Sentry', purpose: 'Error monitoring. Receives technical diagnostics when something fails so we can fix it. Configured not to send personal information.' },
+              ].map((service, i, arr) => (
                 <Box key={i} sx={{
                   display: 'flex',
                   gap: '12px',
                   py: '12px',
-                  borderBottom: i < 2 ? `1px solid ${borderFaint}` : 'none',
+                  borderBottom: i < arr.length - 1 ? `1px solid ${borderFaint}` : 'none',
                 }}>
                   <Typography sx={{ color: textHeading, fontWeight: 400, minWidth: '140px', fontSize: '16px' }}>
                     {service.name}
@@ -216,19 +223,29 @@ export default function PrivacyPage() {
           </Section>
 
           {/* Section 4 */}
-          <Section number="04" title="Data Storage & Security">
+          <Section number="04" title="Google Calendar Data">
+            <p>Connecting a Google Calendar is optional. InkedIn works without it. You can disconnect at any time from your calendar page, and you can revoke access directly from your Google Account permissions page.</p>
+            <p><strong>What we access.</strong> We read the times you are already busy, so the Platform does not offer a booking slot when you are unavailable. We create and update events on your calendar for appointments booked through InkedIn. We read your email address and basic profile so you can see which Google account is connected.</p>
+            <p><strong>What we store.</strong> The times, all-day flag, and status of your events, so we can block the matching slots. The title of those events, shown only to you in your own InkedIn calendar and never to clients or other artists. Access and refresh tokens, encrypted at rest. The email address of the connected account. We do not store the descriptions, locations, or attendees of your calendar events.</p>
+            <p><strong>What we do not do.</strong> We do not show your personal event details to clients or other artists. Clients see only that a time is unavailable. We do not sell or transfer your Google data, use it for advertising, or use it to train machine learning or artificial intelligence models. We do not allow humans to read it, except where you have given explicit permission for a support issue, where it is necessary for security purposes such as investigating abuse, or where we are required to by law.</p>
+            <p><strong>Removing it.</strong> Disconnecting from your calendar page immediately deletes the stored events and tokens for that connection. Deleting your InkedIn account removes them along with it.</p>
+            <p>InkedIn&apos;s use and transfer of information received from Google APIs to any other app adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+          </Section>
+
+          {/* Section 5 */}
+          <Section number="05" title="Data Storage & Security">
             <p>Your data is stored on secure servers hosted in the United States. We implement industry-standard security measures including encrypted connections (TLS/SSL), encrypted password storage, and access controls to protect your information.</p>
             <p>While we take reasonable steps to protect your data, no method of electronic storage or transmission is 100% secure. We encourage you to use a strong, unique password for your InkedIn account.</p>
           </Section>
 
-          {/* Section 5 */}
-          <Section number="05" title="Data Retention">
+          {/* Section 6 */}
+          <Section number="06" title="Data Retention">
             <p>We retain your personal information for as long as your account is active or as needed to provide you with our services. If you delete your account, we will remove your personal data within 30 days, except where we are required to retain it by law or for legitimate business purposes such as resolving disputes or enforcing our agreements.</p>
             <p>Portfolio images and messages associated with deleted accounts will be removed or anonymised.</p>
           </Section>
 
-          {/* Section 6 */}
-          <Section number="06" title="Your Rights">
+          {/* Section 7 */}
+          <Section number="07" title="Your Rights">
             <p>Under the New Zealand Privacy Act 2020, you have the following rights regarding your personal information:</p>
             <Box sx={{
               display: 'grid',
@@ -255,28 +272,36 @@ export default function PrivacyPage() {
             <p>To exercise any of these rights, contact us using the details below. We will respond to your request within 20 working days, as required by law.</p>
           </Section>
 
-          {/* Section 7 */}
-          <Section number="07" title="Cookies & Tracking">
-            <p>The Platform uses essential cookies to maintain your session and keep you logged in. We use analytics through Firebase to understand how users interact with the Platform. You can disable analytics collection in your device settings. We do not use cookies for advertising or cross-site tracking.</p>
-          </Section>
-
           {/* Section 8 */}
-          <Section number="08" title="Children's Privacy">
-            <p>InkedIn is not intended for individuals under the age of 18. We do not knowingly collect personal information from children. If we become aware that we have collected data from a person under 18, we will take steps to delete that information promptly.</p>
+          <Section number="08" title="If You Are in the United States">
+            <p>Depending on where you live, you may have additional rights under your state&apos;s privacy law. Where those rights apply, you can ask us to tell you what personal information we hold about you and how we use it, ask us to correct it, ask us to delete it, and receive a copy of it. You will not be treated differently for exercising any of these rights.</p>
+            <p>We do not sell your personal information, and we do not share it for cross-context behavioural advertising.</p>
+            <p>To make a request, contact us using the details below. We may need to verify your identity before we act on it, so that nobody else can make a request about you. You may also authorise someone to make a request on your behalf.</p>
+            <p><strong>California residents.</strong> The California Consumer Privacy Act gives you the rights described above, along with the right to limit our use of sensitive personal information. If you believe we have not handled your request properly, you can contact the California Attorney General.</p>
           </Section>
 
           {/* Section 9 */}
-          <Section number="09" title="International Data Transfers">
-            <p>As our servers and some third-party services are located outside New Zealand, your data may be transferred to and processed in other countries, primarily the United States. We ensure that any such transfers are conducted in compliance with the New Zealand Privacy Act 2020 and that your data receives an adequate level of protection.</p>
+          <Section number="09" title="Cookies & Tracking">
+            <p>The Platform uses essential cookies to maintain your session and keep you logged in. We do not use cookies for advertising or cross-site tracking, and we do not use third-party analytics to profile you.</p>
           </Section>
 
           {/* Section 10 */}
-          <Section number="10" title="Changes to This Policy">
-            <p>We may update this privacy policy from time to time. If we make material changes, we will notify you through the Platform or by email. The &ldquo;Effective Date&rdquo; at the top of this page indicates when this policy was last updated. Your continued use of the Platform after changes are posted constitutes your acceptance of the revised policy.</p>
+          <Section number="10" title="Children's Privacy">
+            <p>InkedIn is not intended for individuals under the age of 18. We do not knowingly collect personal information from children. If we become aware that we have collected data from a person under 18, we will take steps to delete that information promptly.</p>
           </Section>
 
           {/* Section 11 */}
-          <Section number="11" title="Contact Us">
+          <Section number="11" title="International Data Transfers">
+            <p>As our servers and some third-party services are located outside New Zealand, your data may be transferred to and processed in other countries, primarily the United States. We ensure that any such transfers are conducted in compliance with the New Zealand Privacy Act 2020 and that your data receives an adequate level of protection.</p>
+          </Section>
+
+          {/* Section 12 */}
+          <Section number="12" title="Changes to This Policy">
+            <p>We may update this privacy policy from time to time. If we make material changes, we will notify you through the Platform or by email. The &ldquo;Effective Date&rdquo; at the top of this page indicates when this policy was last updated. Your continued use of the Platform after changes are posted constitutes your acceptance of the revised policy.</p>
+          </Section>
+
+          {/* Section 13 */}
+          <Section number="13" title="Contact Us">
             <p>If you have any questions about this privacy policy or how we handle your data, please contact us:</p>
             <Box sx={{
               border: `1px solid ${border}`,
