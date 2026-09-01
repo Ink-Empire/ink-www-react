@@ -161,6 +161,7 @@ export default function HowItWorksPage() {
               '@type': 'Organization',
               '@id': 'https://www.getinked.in/#organization',
               name: 'InkedIn',
+              alternateName: 'InkedIn Tattoo Marketplace',
               url: 'https://www.getinked.in',
               logo: 'https://www.getinked.in/assets/img/logo.png',
               description: 'InkedIn is a tattoo marketplace connecting tattoo artists, tattoo shops and clients. Find tattoo artists near you by style and city, browse portfolios and book tattoo appointments.',
