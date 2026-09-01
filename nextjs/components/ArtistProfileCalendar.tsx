@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Box, Typography, IconButton, Modal, Button, CircularProgress, Switch, TextField, Tooltip } from '@mui/material';
+import { Box, Typography, IconButton, Modal, Button, CircularProgress, Switch, TextField, Tooltip, Snackbar, Alert } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
@@ -125,6 +125,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   const [eventEndTime, setEventEndTime] = useState('10:00');
   const [eventDescription, setEventDescription] = useState('');
   const [creatingEvent, setCreatingEvent] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // External calendar events state
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
@@ -178,6 +179,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
   // Fetch appointments
   const {
     appointments: fetchedAppointments,
+    addAppointment,
     loading: appointmentsLoading,
     refresh: refreshAppointments,
   } = useArtistAppointments(artistIdOrSlug, { enabled: isOwnCalendar });
@@ -677,8 +679,10 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       refreshAppointments();
       closeArtistDayModal();
       onAppointmentChanged?.();
+      setNotification({ type: 'success', message: 'Appointment deleted' });
     } catch (err) {
       console.error('Failed to delete appointment:', err);
+      setNotification({ type: 'error', message: 'Could not delete that appointment. Please try again.' });
     }
   };
 
@@ -729,8 +733,10 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       });
 
       closeArtistDayModal();
+      setNotification({ type: 'success', message: `Invite sent to ${guestEmail}` });
     } catch (err) {
       console.error('Failed to send invite:', err);
+      setNotification({ type: 'error', message: 'Could not send that invite. Please try again.' });
     } finally {
       setSendingInvite(false);
     }
@@ -749,7 +755,7 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
       const startDateTime = `${selectedDay}T${eventStartTime}:00`;
       const endDateTime = `${selectedDay}T${eventEndTime}:00`;
 
-      await appointmentService.createEvent({
+      const response: any = await appointmentService.createEvent({
         artist_id: resolvedArtistId,
         title,
         start: startDateTime,
@@ -758,12 +764,17 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
         type: eventType,
       });
 
-      // Refresh appointments and external events to show the new event
+      // Show it immediately rather than waiting on the refetch, then refresh to
+      // reconcile with the server.
+      addAppointment(response?.appointment);
+
       refreshAppointments();
       fetchExternalEvents();
       closeArtistDayModal();
+      setNotification({ type: 'success', message: `${title} added to your calendar` });
     } catch (err) {
       console.error('Failed to create event:', err);
+      setNotification({ type: 'error', message: 'Could not create that event. Please try again.' });
     } finally {
       setCreatingEvent(false);
     }
@@ -2478,6 +2489,21 @@ const ArtistProfileCalendar = forwardRef<ArtistProfileCalendarRef, ArtistProfile
             </>
           )}
       </ResponsiveModal>
+
+      <Snackbar
+        open={!!notification}
+        autoHideDuration={5000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setNotification(null)}
+          severity={notification?.type || 'info'}
+          sx={{ width: '100%' }}
+        >
+          {notification?.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 });
