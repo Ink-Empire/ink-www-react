@@ -54,7 +54,7 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
     // is the last moment we can say so in our own words.
     const proceed = await showDialog({
       title: 'Connect Google Calendar',
-      message: 'Google will ask which permissions to grant. Leave the calendar permission ticked, or InkedIn cannot read your busy times or add bookings to your calendar.',
+      message: 'Google will ask which permissions to grant. Click the calendar permission, or sync will not work.',
       confirmText: 'Continue',
       cancelText: 'Cancel',
       showCancel: true,

@@ -79,11 +79,21 @@ const Dialog: React.FC<DialogProps> = ({
       onClose={onClose}
       fullWidth
       maxWidth="xs"
+      slotProps={{
+        // The surface sits close to the page background, so on a dense screen
+        // the dialog read as part of the page. A heavier scrim and a gold edge
+        // separate it without changing the palette.
+        backdrop: {
+          sx: { bgcolor: 'rgba(0, 0, 0, 0.75)' },
+        },
+      }}
       PaperProps={{
         sx: {
           bgcolor: colors.surface,
           m: { xs: 2, sm: 3 },
           width: { xs: 'calc(100% - 32px)', sm: 'auto' },
+          border: `1px solid ${colors.accent}59`,
+          boxShadow: `0 0 0 1px ${colors.accent}1f, 0 18px 50px rgba(0, 0, 0, 0.65)`,
         },
       }}
     >
