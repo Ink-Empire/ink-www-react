@@ -21,6 +21,7 @@ import {
 } from '@mui/icons-material';
 import { colors } from '@/styles/colors';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { useDialog } from '@/contexts/DialogContext';
 
 interface GoogleCalendarButtonProps {
   onSyncComplete?: () => void;
@@ -38,13 +39,28 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
     sync,
   } = useGoogleCalendar();
 
+  const { showDialog } = useDialog();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const menuOpen = Boolean(anchorEl);
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     if (status?.connected) {
       setAnchorEl(event.currentTarget);
-    } else {
+      return;
+    }
+
+    // Google lets people untick individual permissions, and a declined calendar
+    // box produces a connection that looks fine and silently never syncs. This
+    // is the last moment we can say so in our own words.
+    const proceed = await showDialog({
+      title: 'Connect Google Calendar',
+      message: 'Google will ask which permissions to grant. Click the calendar permission, or sync will not work.',
+      confirmText: 'Continue',
+      cancelText: 'Cancel',
+      showCancel: true,
+    });
+
+    if (proceed) {
       connect();
     }
   };
@@ -99,7 +115,6 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
   // Not connected state
   if (!status?.connected) {
     return (
-      <Box sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
       <Tooltip
         title="Sync your Google Calendar to see all appointments in one place and avoid double-bookings"
         arrow
@@ -125,13 +140,6 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
           Connect Google Calendar
         </Button>
       </Tooltip>
-      {/* Google lets people untick individual permissions, and a declined
-          calendar box produces a connection that silently never syncs. */}
-      <Typography sx={{ color: colors.textSecondary, fontSize: '0.75rem', maxWidth: '260px', lineHeight: 1.4 }}>
-        Google will ask for calendar access. Leave the calendar permission
-        ticked, or the sync will not work.
-      </Typography>
-      </Box>
     );
   }
 
