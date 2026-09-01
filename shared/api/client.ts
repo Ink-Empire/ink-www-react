@@ -239,6 +239,22 @@ export interface RegisterData {
   has_accepted_toc: boolean;
   has_accepted_privacy_policy: boolean;
   signup_platform?: 'web' | 'ios' | 'android';
+  timezone?: string;
+}
+
+/**
+ * The IANA zone the person is actually looking at, e.g. America/New_York.
+ *
+ * Appointment times are stored as the artist typed them, so without a timezone
+ * on the user their bookings sync to Google in UTC and land hours out. Reading
+ * it here means both platforms send it without either having to remember.
+ */
+function resolveTimezone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function createAuthApi(api: ReturnType<typeof createApiClient>) {
@@ -252,7 +268,10 @@ export function createAuthApi(api: ReturnType<typeof createApiClient>) {
     },
 
     register: async (data: RegisterData): Promise<AuthResponse> => {
-      const response = await api.post<AuthResponse>('/register', data);
+      const response = await api.post<AuthResponse>('/register', {
+        ...data,
+        timezone: data.timezone ?? resolveTimezone(),
+      });
       if (response.token) {
         await api.setToken(response.token);
       }

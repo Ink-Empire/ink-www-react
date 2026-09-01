@@ -99,6 +99,7 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
   // Not connected state
   if (!status?.connected) {
     return (
+      <Box sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
       <Tooltip
         title="Sync your Google Calendar to see all appointments in one place and avoid double-bookings"
         arrow
@@ -124,6 +125,13 @@ export const GoogleCalendarButton: React.FC<GoogleCalendarButtonProps> = ({
           Connect Google Calendar
         </Button>
       </Tooltip>
+      {/* Google lets people untick individual permissions, and a declined
+          calendar box produces a connection that silently never syncs. */}
+      <Typography sx={{ color: colors.textSecondary, fontSize: '0.75rem', maxWidth: '260px', lineHeight: 1.4 }}>
+        Google will ask for calendar access. Leave the calendar permission
+        ticked, or the sync will not work.
+      </Typography>
+      </Box>
     );
   }
 
