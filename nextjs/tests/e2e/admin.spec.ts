@@ -20,6 +20,7 @@ const ADMIN_ROUTES = [
   { path: 'tags', name: 'Tags' },
   { path: 'placements', name: 'Placements' },
   { path: 'blocked-terms', name: 'Blocked terms' },
+  { path: 'notification-logs', name: 'Sent notifications' },
   { path: 'elastic', name: 'Elasticsearch' },
   { path: 'email-test', name: 'Email testing' },
   { path: 'docs', name: 'Documentation' },

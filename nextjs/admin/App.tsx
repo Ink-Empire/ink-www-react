@@ -6,6 +6,7 @@ import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import StorageIcon from '@mui/icons-material/Storage';
 import PlaceIcon from '@mui/icons-material/Place';
 import BlockIcon from '@mui/icons-material/Block';
+import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import BrushIcon from '@mui/icons-material/Brush';
 import EmailIcon from '@mui/icons-material/Email';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -21,6 +22,7 @@ import { StudioList, StudioEdit, StudioCreate } from './resources/studios';
 import { TagList, TagEdit, TagCreate } from './resources/tags';
 import { PlacementList, PlacementEdit, PlacementCreate } from './resources/placements';
 import { BlockedTermList, BlockedTermEdit, BlockedTermCreate } from './resources/blockedTerms';
+import { NotificationLogList } from './resources/notificationLogs';
 import { TattooList, TattooEdit } from './resources/tattoos';
 import { TattooLeadList, TattooLeadShow } from './resources/tattooLeads';
 import ElasticPanel from './pages/ElasticPanel';
@@ -39,6 +41,7 @@ const CustomMenu = () => (
         <Menu.ResourceItem name="tags" />
         <Menu.ResourceItem name="placements" />
         <Menu.ResourceItem name="blocked-terms" />
+        <Menu.ResourceItem name="notification-logs" />
         <Menu.Item to="/elastic" primaryText="Elasticsearch" leftIcon={<StorageIcon />} />
         <Menu.Item to="/email-test" primaryText="Email Testing" leftIcon={<EmailIcon />} />
         <Menu.Item to="/docs" primaryText="Documentation" leftIcon={<DescriptionIcon />} />
@@ -141,6 +144,12 @@ const AdminApp = () => (
             edit={BlockedTermEdit}
             create={BlockedTermCreate}
             icon={BlockIcon}
+        />
+        <Resource
+            name="notification-logs"
+            options={{ label: 'Sent Notifications' }}
+            list={NotificationLogList}
+            icon={MarkEmailReadIcon}
         />
     </Admin>
 );
