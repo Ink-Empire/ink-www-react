@@ -6,10 +6,12 @@ import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import StorageIcon from '@mui/icons-material/Storage';
 import PlaceIcon from '@mui/icons-material/Place';
 import BlockIcon from '@mui/icons-material/Block';
+import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import BrushIcon from '@mui/icons-material/Brush';
 import EmailIcon from '@mui/icons-material/Email';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TerminalIcon from '@mui/icons-material/Terminal';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CellTowerIcon from '@mui/icons-material/CellTower';
 
 import authProvider from './authProvider';
@@ -20,12 +22,14 @@ import { StudioList, StudioEdit, StudioCreate } from './resources/studios';
 import { TagList, TagEdit, TagCreate } from './resources/tags';
 import { PlacementList, PlacementEdit, PlacementCreate } from './resources/placements';
 import { BlockedTermList, BlockedTermEdit, BlockedTermCreate } from './resources/blockedTerms';
+import { NotificationLogList } from './resources/notificationLogs';
 import { TattooList, TattooEdit } from './resources/tattoos';
 import { TattooLeadList, TattooLeadShow } from './resources/tattooLeads';
 import ElasticPanel from './pages/ElasticPanel';
 import EmailTestPanel from './pages/EmailTestPanel';
 import DocsPanel from './pages/DocsPanel';
 import CommandRunnerPanel from './pages/CommandRunnerPanel';
+import OnboardArtistPanel from './pages/OnboardArtistPanel';
 
 const CustomMenu = () => (
     <Menu>
@@ -37,9 +41,11 @@ const CustomMenu = () => (
         <Menu.ResourceItem name="tags" />
         <Menu.ResourceItem name="placements" />
         <Menu.ResourceItem name="blocked-terms" />
+        <Menu.ResourceItem name="notification-logs" />
         <Menu.Item to="/elastic" primaryText="Elasticsearch" leftIcon={<StorageIcon />} />
         <Menu.Item to="/email-test" primaryText="Email Testing" leftIcon={<EmailIcon />} />
         <Menu.Item to="/docs" primaryText="Documentation" leftIcon={<DescriptionIcon />} />
+        <Menu.Item to="/onboard-artist" primaryText="Onboard Artist" leftIcon={<PersonAddIcon />} />
         <Menu.Item to="/commands" primaryText="Commands" leftIcon={<TerminalIcon />} />
     </Menu>
 );
@@ -68,6 +74,7 @@ const Dashboard = () => (
                     <li><a href="#/tags?filter=%7B%22is_pending%22%3Atrue%7D">Review Pending Tags</a></li>
                     <li><a href="#/elastic">Elasticsearch Management</a></li>
                     <li><a href="#/email-test">Email Testing</a></li>
+                    <li><a href="#/onboard-artist">Onboard an Artist</a></li>
                     <li><a href="#/commands">Commands</a></li>
                 </ul>
             </div>
@@ -88,6 +95,7 @@ const AdminApp = () => (
             <Route path="/email-test" element={<EmailTestPanel />} />
             <Route path="/docs" element={<DocsPanel />} />
             <Route path="/commands" element={<CommandRunnerPanel />} />
+            <Route path="/onboard-artist" element={<OnboardArtistPanel />} />
         </CustomRoutes>
         <Resource
             name="users"
@@ -136,6 +144,12 @@ const AdminApp = () => (
             edit={BlockedTermEdit}
             create={BlockedTermCreate}
             icon={BlockIcon}
+        />
+        <Resource
+            name="notification-logs"
+            options={{ label: 'Sent Notifications' }}
+            list={NotificationLogList}
+            icon={MarkEmailReadIcon}
         />
     </Admin>
 );

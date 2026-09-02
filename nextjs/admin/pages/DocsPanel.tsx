@@ -27,7 +27,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import { api } from '@/utils/api';
+import { adminService, DocContent, DocFile, DocFolder } from '@/services/adminService';
 import mermaid from 'mermaid';
 
 // Initialize mermaid
@@ -238,24 +238,6 @@ const MermaidDiagram: React.FC<{ chart: string }> = ({ chart }) => {
   );
 };
 
-interface DocFile {
-  id: string;
-  filename: string;
-  title: string;
-  size: number;
-  modified: number;
-}
-
-interface DocFolder {
-  name: string;
-  title: string;
-  files: DocFile[];
-}
-
-interface DocContent extends DocFile {
-  content: string;
-}
-
 const DocsPanel: React.FC = () => {
   const [docs, setDocs] = useState<DocFile[]>([]);
   const [folders, setFolders] = useState<DocFolder[]>([]);
@@ -272,7 +254,7 @@ const DocsPanel: React.FC = () => {
   const fetchDocs = async () => {
     try {
       setLoading(true);
-      const data = await api.get<{ files: DocFile[]; folders: DocFolder[] }>('/admin/docs');
+      const data = await adminService.getDocs();
       setDocs(data.files || []);
       setFolders(data.folders || []);
       // Auto-expand all folders by default
@@ -293,7 +275,7 @@ const DocsPanel: React.FC = () => {
   const fetchDocContent = async (docId: string) => {
     try {
       setLoadingContent(true);
-      const data = await api.get<DocContent>(`/admin/docs/${docId}`);
+      const data = await adminService.getDoc(docId);
       setSelectedDoc(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load document');

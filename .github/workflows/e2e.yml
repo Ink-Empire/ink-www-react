@@ -42,7 +42,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests (fixture-based only)
-        run: npx playwright test dashboard.spec.ts registration.spec.ts
+        run: npx playwright test dashboard.spec.ts registration.spec.ts admin.spec.ts
         env:
           CI: true
           TEST_BASE_URL: http://localhost:4000

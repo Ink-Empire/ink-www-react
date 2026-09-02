@@ -14,7 +14,7 @@ import {
   Divider,
   CircularProgress,
 } from '@mui/material';
-import { api } from '@/utils/api';
+import { adminService } from '@/services/adminService';
 
 const MODELS = [
   { id: 'Artist', name: 'Artist' },
@@ -56,11 +56,7 @@ export const ElasticPanel = () => {
 
     setLoading(true);
     try {
-      const endpoint = bypass ? '/admin/elastic/rebuild-bypass' : '/admin/elastic/rebuild';
-      const response = await api.post<{ message?: string; indexed?: number; missing_ids?: number[] }>(endpoint, {
-        model,
-        ids: idArray,
-      });
+      const response = await adminService.rebuildByIds(model, idArray, bypass);
 
       if (bypass) {
         // A bypass rebuild reports what it actually indexed. Nothing indexed
@@ -88,9 +84,7 @@ export const ElasticPanel = () => {
     setLoading(true);
     try {
       // Use scout:import via the reindex endpoint
-      await api.post('/elastic/reindex', {
-        model,
-      });
+      await adminService.reindex(model);
       showMessage('success', `Full reindex started for ${model}`);
     } catch (error: any) {
       showMessage('error', error?.message || 'Failed to trigger full reindex');
@@ -103,7 +97,7 @@ export const ElasticPanel = () => {
     setOrphanLoading(true);
     setOrphanResult(null);
     try {
-      const response = await api.post<{ es_total: number; db_total: number; orphan_count: number; orphan_ids: number[]; warnings?: string[] }>('/admin/elastic/find-orphans', { model });
+      const response = await adminService.findOrphans(model);
       setOrphanResult(response);
       if (response.orphan_count === 0) {
         showMessage('success', `No orphans found in ${model} index`);
@@ -120,11 +114,7 @@ export const ElasticPanel = () => {
     if (!confirm(`Are you sure you want to delete ${orphanResult.orphan_count} orphaned documents from the ${model} index?`)) return;
 
     const sendDelete = (force: boolean) =>
-      api.post<{ deleted: number; skipped?: number[]; message?: string }>('/admin/elastic/delete-orphans', {
-        model,
-        ids: orphanResult.orphan_ids,
-        ...(force ? { force: true } : {}),
-      });
+      adminService.deleteOrphans(model, orphanResult.orphan_ids, force);
 
     setOrphanLoading(true);
     try {
@@ -166,7 +156,7 @@ export const ElasticPanel = () => {
 
     setLoading(true);
     try {
-      await api.post('/admin/elastic/migrate', { alias });
+      await adminService.migrateAlias(alias);
       showMessage('success', `Alias migration queued for ${alias}`);
     } catch (error: any) {
       showMessage('error', error?.message || 'Failed to migrate alias');

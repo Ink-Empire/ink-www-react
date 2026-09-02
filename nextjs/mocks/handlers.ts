@@ -145,6 +145,17 @@ export const handlers = [
   }),
 
   // User endpoints
+  // The admin panel re-verifies the session against /users/me on every route
+  // change. This has to sit above the :id route below, which matches "me" too.
+  http.get('*/api/users/me', () => {
+    return HttpResponse.json({
+      id: 1,
+      name: 'Admin User',
+      email: 'admin@example.com',
+      is_admin: true,
+    });
+  }),
+
   http.get('*/api/users/:id', () => {
     return HttpResponse.json(userProfile);
   }),
@@ -223,6 +234,37 @@ export const handlers = [
       }],
       status: 'OK',
     });
+  }),
+
+  // ---------------------------------------------------------------------
+  // Admin panel
+  //
+  // Enough for the panel to authenticate and every screen to render. The
+  // smoke spec asserts the screens come up, not what is in them, so lists
+  // come back empty. Order matters: the named routes have to be declared
+  // before the catch-all resource route below, or it swallows them.
+  // ---------------------------------------------------------------------
+  http.get('*/api/admin/commands', () => {
+    return HttpResponse.json({ commands: [] });
+  }),
+
+  http.get('*/api/admin/docs', () => {
+    return HttpResponse.json({ files: [], folders: [] });
+  }),
+
+  http.get('*/api/admin/docs/*', () => {
+    return HttpResponse.json({
+      id: 'example',
+      filename: 'example.md',
+      title: 'Example',
+      size: 0,
+      modified: 0,
+      content: '# Example',
+    });
+  }),
+
+  http.get('*/api/admin/:resource', () => {
+    return HttpResponse.json({ data: [], total: 0 });
   }),
 
   http.get('*/maps.googleapis.com/maps/api/place/*', () => {

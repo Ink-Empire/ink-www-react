@@ -27,10 +27,11 @@ import {
   useNotify,
   Button,
 } from 'react-admin';
-import { Box, Typography, Divider } from '@mui/material';
+import { Box, Typography, Divider, IconButton, Tooltip } from '@mui/material';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import AutoModeIcon from '@mui/icons-material/AutoMode';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { api } from '@/utils/api';
 
 const userTypeChoices = [
@@ -42,6 +43,35 @@ const UserTypeField = () => {
   const record = useRecordContext();
   if (!record) return null;
   return <span>{record.type_id === 2 ? 'Artist' : 'Client'}</span>;
+};
+
+/**
+ * Opens the artist's public page. Only artists have one, and the route is
+ * keyed on slug rather than username or id.
+ */
+const ViewProfileButton = () => {
+  const record = useRecordContext();
+
+  if (!record) return null;
+
+  // Only artists (type_id: 2) have a public page.
+  if (record.type_id !== 2 || !record.slug) return null;
+
+  return (
+    <Tooltip title="View Profile">
+      <IconButton
+        size="small"
+        component="a"
+        href={`/artists/${record.slug}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        // The row is clickable and navigates to the edit screen.
+        onClick={e => e.stopPropagation()}
+      >
+        <VisibilityIcon fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  );
 };
 
 const RebuildUserButton = () => {
@@ -171,6 +201,7 @@ export const UserList = () => (
       <BooleanField source="is_demo" label="Demo" />
       <TextField source="location" />
       <DateField source="created_at" label="Created" />
+      <ViewProfileButton />
       <RebuildUserButton />
       <SendPasswordResetButton />
       <ResendVerificationButton />
@@ -211,10 +242,10 @@ export const UserEdit = () => (
               </Box>
 
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
-                <NumberInput source="artist_settings.hourly_rate" label="Hourly Rate (cents)" />
-                <NumberInput source="artist_settings.deposit_amount" label="Deposit Amount (cents)" />
-                <NumberInput source="artist_settings.consultation_fee" label="Consultation Fee (cents)" />
-                <NumberInput source="artist_settings.minimum_session" label="Minimum Session (minutes)" />
+                <NumberInput source="artist_settings.hourly_rate" label="Hourly Rate ($)" />
+                <NumberInput source="artist_settings.deposit_amount" label="Deposit Amount ($)" />
+                <NumberInput source="artist_settings.consultation_fee" label="Consultation Fee ($)" />
+                <NumberInput source="artist_settings.minimum_session" label="Minimum Session (hours)" />
               </Box>
             </Box>
           )

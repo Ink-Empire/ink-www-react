@@ -1,6 +1,7 @@
 // Service Layer Barrel Exports
 // All API interactions should go through these services
 
+export { adminService } from './adminService';
 export { artistService } from './artistService';
 export { appointmentService } from './appointmentService';
 export { imageService } from './imageService';

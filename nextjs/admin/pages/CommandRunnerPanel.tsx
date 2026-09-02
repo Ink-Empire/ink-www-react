@@ -21,35 +21,13 @@ import {
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import { api } from '@/utils/api';
-
-interface CommandOption {
-  name: string;
-  description: string;
-  accepts_value: boolean;
-  default: string | boolean | null;
-}
-
-interface CommandArgument {
-  name: string;
-  description: string;
-  required: boolean;
-  default: string | null;
-}
-
-interface Command {
-  name: string;
-  description: string;
-  arguments: CommandArgument[];
-  options: CommandOption[];
-  destructive: boolean;
-}
-
-interface RunResult {
-  output: string;
-  exit_code: number;
-  duration_ms: number;
-}
+import {
+  adminService,
+  Command,
+  CommandArgument,
+  CommandOption,
+  RunResult,
+} from '@/services/adminService';
 
 export const CommandRunnerPanel = () => {
   const [commands, setCommands] = useState<Command[]>([]);
@@ -76,7 +54,7 @@ export const CommandRunnerPanel = () => {
 
   const fetchCommands = async () => {
     try {
-      const data = await api.get<{ commands: Command[] }>('/admin/commands', { useCache: false });
+      const data = await adminService.getCommands();
       setCommands(data.commands);
     } catch (error: any) {
       setMessage({ type: 'error', text: error?.message || 'Failed to load commands' });
@@ -151,10 +129,7 @@ export const CommandRunnerPanel = () => {
 
     try {
       const options = buildOptions(cmd);
-      const result = await api.post<RunResult>('/admin/commands/run', {
-        command: cmdName,
-        options,
-      });
+      const result = await adminService.runCommand(cmdName, options);
       setResults(prev => ({ ...prev, [cmdName]: result }));
       if (result.exit_code === 0) {
         showMessage('success', `${cmdName} completed successfully`);
