@@ -44,6 +44,10 @@ interface LocationAutocompleteProps {
   initialState?: string;
   // Pre-fill coordinates when opening manual entry
   initialLatLong?: string;
+  // The surface this renders on. The app is dark, so that stays the default.
+  // The admin panel is MUI's light theme, where the dark palette's near-white
+  // option text is invisible against the white dropdown.
+  surface?: 'dark' | 'light';
 }
 
 const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
@@ -59,7 +63,40 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   onManualEntryClose,
   initialState = '',
   initialLatLong = '',
+  surface = 'dark',
 }) => {
+  // Light values match MUI's default light theme so the field sits alongside
+  // the admin panel's other inputs rather than standing out in gold.
+  const palette = surface === 'light'
+    ? {
+      text: 'rgba(0, 0, 0, 0.87)',
+      textSecondary: 'rgba(0, 0, 0, 0.6)',
+      surface: '#fff',
+      border: 'rgba(0, 0, 0, 0.23)',
+      borderHover: 'rgba(0, 0, 0, 0.87)',
+      borderFocused: '#1976d2',
+      label: 'rgba(0, 0, 0, 0.6)',
+      labelFocused: '#1976d2',
+      optionHover: 'rgba(0, 0, 0, 0.04)',
+      paperBorder: 'rgba(0, 0, 0, 0.12)',
+      divider: 'rgba(0, 0, 0, 0.12)',
+      accent: colors.accent,
+    }
+    : {
+      text: colors.textPrimary,
+      textSecondary: colors.textSecondary,
+      surface: colors.surface,
+      border: 'rgba(232, 219, 197, 0.5)',
+      borderHover: colors.textSecondary,
+      borderFocused: colors.accent,
+      label: colors.textSecondary,
+      labelFocused: colors.accent,
+      optionHover: 'rgba(201, 169, 98, 0.1)',
+      paperBorder: 'rgba(232, 219, 197, 0.2)',
+      divider: colors.border,
+      accent: colors.accent,
+    };
+
   const [inputValue, setInputValue] = useState(value);
   const [options, setOptions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -261,7 +298,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
             ...params.InputProps,
             endAdornment: (
               <>
-                {loading ? <CircularProgress size={20} sx={{ color: colors.accent }} /> : null}
+                {loading ? <CircularProgress size={20} sx={{ color: palette.accent }} /> : null}
                 {params.InputProps.endAdornment}
               </>
             ),
@@ -269,20 +306,23 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
           sx={{
             '& .MuiOutlinedInput-root': {
               '& fieldset': {
-                borderColor: 'rgba(232, 219, 197, 0.5)',
+                borderColor: palette.border,
               },
               '&:hover fieldset': {
-                borderColor: colors.textSecondary,
+                borderColor: palette.borderHover,
               },
               '&.Mui-focused fieldset': {
-                borderColor: colors.accent,
+                borderColor: palette.borderFocused,
               },
             },
             '& .MuiInputLabel-root': {
-              color: colors.textSecondary,
+              color: palette.label,
               '&.Mui-focused': {
-                color: colors.accent,
+                color: palette.labelFocused,
               },
+            },
+            '& .MuiOutlinedInput-input': {
+              color: palette.text,
             },
           }}
         />
@@ -299,31 +339,31 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
             py: 1,
             px: 2,
             ...(option.placeId === 'manual-entry' && {
-              borderTop: `1px solid ${colors.border}`,
+              borderTop: `1px solid ${palette.divider}`,
               mt: 1,
             }),
             '&:hover': {
-              backgroundColor: 'rgba(201, 169, 98, 0.1)',
+              backgroundColor: palette.optionHover,
             },
           }}
         >
           {option.placeId === 'manual-entry' ? (
-            <EditLocationIcon sx={{ color: colors.accent, fontSize: 20 }} />
+            <EditLocationIcon sx={{ color: palette.accent, fontSize: 20 }} />
           ) : (
-            <LocationOnIcon sx={{ color: colors.accent, fontSize: 20 }} />
+            <LocationOnIcon sx={{ color: palette.accent, fontSize: 20 }} />
           )}
           <Box>
             <Typography
               variant="body1"
               sx={{
-                color: option.placeId === 'manual-entry' ? colors.accent : colors.textPrimary,
+                color: option.placeId === 'manual-entry' ? palette.accent : palette.text,
                 fontStyle: option.placeId === 'manual-entry' ? 'italic' : 'normal',
               }}
             >
               {option.mainText}
             </Typography>
             {option.secondaryText && (
-              <Typography variant="caption" sx={{ color: colors.textSecondary }}>
+              <Typography variant="caption" sx={{ color: palette.textSecondary }}>
                 {option.secondaryText}
               </Typography>
             )}
@@ -337,11 +377,11 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       }
       sx={{
         '& .MuiAutocomplete-listbox': {
-          backgroundColor: colors.surface,
+          backgroundColor: palette.surface,
         },
         '& .MuiAutocomplete-paper': {
-          backgroundColor: colors.surface,
-          border: `1px solid rgba(232, 219, 197, 0.2)`,
+          backgroundColor: palette.surface,
+          border: `1px solid ${palette.paperBorder}`,
         },
       }}
     />
@@ -353,17 +393,17 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       maxWidth="sm"
       PaperProps={{
         sx: {
-          bgcolor: colors.surface,
+          bgcolor: palette.surface,
           m: { xs: 2, sm: 3 },
           width: { xs: 'calc(100% - 32px)', sm: 'auto' },
         },
       }}
     >
-      <DialogTitle sx={{ color: colors.textPrimary, pb: 1 }}>
+      <DialogTitle sx={{ color: palette.text, pb: 1 }}>
         Enter your location
       </DialogTitle>
       <DialogContent sx={{ pt: 1 }}>
-        <Typography sx={{ color: colors.textSecondary, fontSize: '0.875rem', mb: 2 }}>
+        <Typography sx={{ color: palette.textSecondary, fontSize: '0.875rem', mb: 2 }}>
           We couldn&apos;t find your exact city. Please enter it manually.
         </Typography>
         <TextField
@@ -386,7 +426,7 @@ const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       <DialogActions sx={{ p: 2, pt: 1 }}>
         <Button
           onClick={handleCloseManualEntry}
-          sx={{ color: colors.textSecondary }}
+          sx={{ color: palette.textSecondary }}
         >
           Cancel
         </Button>

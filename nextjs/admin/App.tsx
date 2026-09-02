@@ -10,6 +10,7 @@ import BrushIcon from '@mui/icons-material/Brush';
 import EmailIcon from '@mui/icons-material/Email';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TerminalIcon from '@mui/icons-material/Terminal';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CellTowerIcon from '@mui/icons-material/CellTower';
 
 import authProvider from './authProvider';
@@ -26,6 +27,7 @@ import ElasticPanel from './pages/ElasticPanel';
 import EmailTestPanel from './pages/EmailTestPanel';
 import DocsPanel from './pages/DocsPanel';
 import CommandRunnerPanel from './pages/CommandRunnerPanel';
+import OnboardArtistPanel from './pages/OnboardArtistPanel';
 
 const CustomMenu = () => (
     <Menu>
@@ -40,6 +42,7 @@ const CustomMenu = () => (
         <Menu.Item to="/elastic" primaryText="Elasticsearch" leftIcon={<StorageIcon />} />
         <Menu.Item to="/email-test" primaryText="Email Testing" leftIcon={<EmailIcon />} />
         <Menu.Item to="/docs" primaryText="Documentation" leftIcon={<DescriptionIcon />} />
+        <Menu.Item to="/onboard-artist" primaryText="Onboard Artist" leftIcon={<PersonAddIcon />} />
         <Menu.Item to="/commands" primaryText="Commands" leftIcon={<TerminalIcon />} />
     </Menu>
 );
@@ -68,6 +71,7 @@ const Dashboard = () => (
                     <li><a href="#/tags?filter=%7B%22is_pending%22%3Atrue%7D">Review Pending Tags</a></li>
                     <li><a href="#/elastic">Elasticsearch Management</a></li>
                     <li><a href="#/email-test">Email Testing</a></li>
+                    <li><a href="#/onboard-artist">Onboard an Artist</a></li>
                     <li><a href="#/commands">Commands</a></li>
                 </ul>
             </div>
@@ -88,6 +92,7 @@ const AdminApp = () => (
             <Route path="/email-test" element={<EmailTestPanel />} />
             <Route path="/docs" element={<DocsPanel />} />
             <Route path="/commands" element={<CommandRunnerPanel />} />
+            <Route path="/onboard-artist" element={<OnboardArtistPanel />} />
         </CustomRoutes>
         <Resource
             name="users"
