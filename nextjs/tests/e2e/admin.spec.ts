@@ -50,8 +50,12 @@ const IGNORED_TEXT = [
 const IGNORED_URLS = [
   '/api/places/config',
   'maps.googleapis.com',
-  // Vercel analytics, which 403s outside a Vercel deployment.
+  // Vercel analytics, which cannot load outside a Vercel deployment. It is
+  // requested from two different places: the dev build pulls the script from
+  // vercel-scripts.com, and a production build asks the app to serve it from
+  // /_vercel, which is what CI runs.
   'va.vercel-scripts.com',
+  '/_vercel/insights',
 ];
 
 /**
