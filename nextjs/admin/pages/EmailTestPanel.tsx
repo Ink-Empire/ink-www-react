@@ -13,7 +13,7 @@ import {
   Box,
   CircularProgress,
 } from '@mui/material';
-import { api } from '@/utils/api';
+import { adminService } from '@/services/adminService';
 
 const EMAIL_TYPES = [
   { id: 'welcome', name: 'Welcome Email' },
@@ -52,10 +52,7 @@ export const EmailTestPanel = () => {
 
     setLoading(true);
     try {
-      const response = await api.post<{ success: boolean; message: string }>('/admin/email-test/send', {
-        type: emailType,
-        email: recipient,
-      });
+      const response = await adminService.sendTestEmail(emailType, recipient);
       showMessage('success', response.message || 'Test email sent successfully');
     } catch (error: any) {
       showMessage('error', error?.message || 'Failed to send test email');
