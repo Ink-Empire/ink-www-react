@@ -39,5 +39,20 @@ target 'InkedinApp' do
       # :ccache_enabled => true
     )
 
+    # Xcode 26 enables Swift explicit modules for all targets by default, which
+    # breaks React Native precompiled builds. See the RN 0.81 release notes.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
+      end
+    end
+    installer.generated_projects.each do |project|
+      project.targets.each do |t|
+        t.build_configurations.each do |config|
+          config.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
+        end
+      end
+    end
+
   end
 end
