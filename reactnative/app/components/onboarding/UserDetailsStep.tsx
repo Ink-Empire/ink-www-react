@@ -80,6 +80,7 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
         width: 800,
         height: 800,
         compressImageQuality: 0.8,
+        forceJpg: true,
       });
 
       setProfileImageUri(image.path);

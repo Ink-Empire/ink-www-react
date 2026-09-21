@@ -195,6 +195,7 @@ export default function UploadScreen({ navigation }: any) {
         path: images[index].uri,
         freeStyleCropEnabled: true,
         compressImageQuality: 1.0,
+        forceJpg: true,
       });
       const croppedFile: ImageFile = {
         uri: cropped.path,

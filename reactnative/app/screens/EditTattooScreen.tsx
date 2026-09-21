@@ -277,6 +277,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         path: img.uri,
         freeStyleCropEnabled: true,
         compressImageQuality: 1.0,
+        forceJpg: true,
       });
       const croppedFile: ImageFile = {
         uri: cropped.path,
@@ -299,6 +300,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         path: newImages[index].uri,
         freeStyleCropEnabled: true,
         compressImageQuality: 1.0,
+        forceJpg: true,
       });
       const croppedFile: ImageFile = {
         uri: cropped.path,

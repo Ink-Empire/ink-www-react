@@ -135,6 +135,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated,
         width: 800,
         height: 800,
         compressImageQuality: 0.8,
+        forceJpg: true,
       });
 
       setStudioPhotoUri(image.path);

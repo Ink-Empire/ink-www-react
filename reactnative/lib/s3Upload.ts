@@ -44,11 +44,21 @@ export type UploadProgress = {
   error?: string;
 };
 
+// The presign endpoint only accepts image/jpeg, image/png, image/webp and
+// image/gif, so anything else has to be mapped to one of them or the request
+// is rejected outright.
+//
+// This relabels the header, it does not transcode. A HEIC file sent through
+// here would reach S3 with bytes that do not match its declared type, which
+// breaks anything downstream that trusts the header — OpenAI's vision API
+// among them. Conversion happens at the picker instead: every openPicker,
+// openCamera and openCropper call passes forceJpg, which makes iOS hand back
+// a real JPEG. This mapping is the last resort for an unexpected type, not
+// the HEIC strategy.
 function normalizeContentType(type: string): string {
   const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   if (allowed.includes(type)) return type;
   if (type === 'image/jpg') return 'image/jpeg';
-  // iOS HEIC/HEIF photos default to jpeg
   return 'image/jpeg';
 }
 
