@@ -1,6 +1,14 @@
 import { api } from './api';
 import { compressImage } from './compressImage';
 
+// Matches the presign endpoint's validation. Exported so file inputs can use
+// the same list for their accept attribute rather than image/*, which lets a
+// browser offer HEIC that the upload will then refuse.
+export const ACCEPTED_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+export const ACCEPTED_UPLOAD_ACCEPT_ATTR =
+  'image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif';
+
 interface PresignedUrlResponse {
   success: boolean;
   data: {
@@ -87,6 +95,28 @@ export async function uploadImagesToS3(
         quality: 0.85,
       }))
     );
+
+    // The presign endpoint only accepts these four, and answers anything else
+    // with a validation error that does not say which file was at fault.
+    // Checked here so the person is told the filename and what to do about it.
+    //
+    // HEIC is the case this exists for: an iPhone photo arrives at a file
+    // input as image/heic, and compressImage cannot re-encode it because most
+    // browsers will not decode HEIC at all.
+    const unsupported = compressedFiles.filter(
+      file => !ACCEPTED_UPLOAD_TYPES.includes(file.type)
+    );
+
+    if (unsupported.length > 0) {
+      const names = unsupported.map(file => file.name).join(', ');
+      const isHeic = unsupported.some(file => /hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name));
+
+      throw new Error(
+        isHeic
+          ? `${names} is in HEIC format, which cannot be uploaded. On iPhone, set Camera > Formats to "Most Compatible", or save the photo as JPEG first.`
+          : `${names} is not a supported image. Use a JPEG, PNG, WebP or GIF.`
+      );
+    }
 
     // Step 2: Get presigned URLs (batched in groups of 10 to respect API limit)
     const PRESIGN_BATCH_SIZE = 10;

@@ -109,6 +109,7 @@ export default function EditProfileScreen({ navigation }: any) {
       width: 800,
       height: 800,
       compressImageQuality: 0.8,
+      forceJpg: true,
     };
 
     try {

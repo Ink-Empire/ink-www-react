@@ -5,6 +5,7 @@ import { fetchCsrfToken, getCsrfToken } from '../utils/api';
 import { getToken } from '../utils/auth';
 import { useRouter } from 'next/router';
 import { colors } from '@/styles/colors';
+import { ACCEPTED_UPLOAD_ACCEPT_ATTR } from '@/utils/s3Upload';
 
 interface TattooUploadProps {
   onClose: () => void;
@@ -203,7 +204,7 @@ const TattooUpload: React.FC<TattooUploadProps> = ({ onClose }) => {
             <input
               type="file"
               multiple
-              accept="image/*"
+              accept={ACCEPTED_UPLOAD_ACCEPT_ATTR}
               hidden
               onChange={handleFileChange}
             />

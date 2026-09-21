@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import { colors } from '@/styles/colors';
+import { ACCEPTED_UPLOAD_ACCEPT_ATTR } from '@/utils/s3Upload';
 
 interface BannerEditorProps {
   bannerPreview?: string | null;
@@ -75,7 +76,7 @@ const BannerEditor: React.FC<BannerEditorProps> = ({
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept={ACCEPTED_UPLOAD_ACCEPT_ATTR}
         onChange={handleFile}
         style={{ display: 'none' }}
       />

@@ -34,7 +34,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useStyles } from '../contexts/StyleContext';
 import { tattooService } from '../services/tattooService';
-import { uploadImagesToS3, UploadProgress } from '../utils/s3Upload';
+import { uploadImagesToS3, UploadProgress, ACCEPTED_UPLOAD_ACCEPT_ATTR } from '../utils/s3Upload';
 import { colors, inputStyles } from '@/styles/colors';
 import { api } from '../utils/api';
 import { stylesService } from '../services/stylesService';
@@ -709,7 +709,7 @@ const TattooCreateWizard: React.FC<TattooCreateWizardProps> = ({ open, onClose, 
           )}
           <input
             type="file"
-            accept="image/*"
+            accept={ACCEPTED_UPLOAD_ACCEPT_ATTR}
             multiple
             hidden
             onChange={handleFileInputChange}

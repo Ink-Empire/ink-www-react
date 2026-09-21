@@ -28,6 +28,7 @@ import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
 import { getPlaceDetails } from '@/services/googlePlacesService';
 import { studioService } from '@/services/studioService';
 import { api } from '@/utils/api';
+import { ACCEPTED_UPLOAD_ACCEPT_ATTR } from '@/utils/s3Upload';
 import type { StudioCreationPayload } from './OnboardingWizard';
 import ImageCropperModal from '../ImageCropperModal';
 
@@ -727,7 +728,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={ACCEPTED_UPLOAD_ACCEPT_ATTR}
               onChange={handleImageChange}
               style={{ display: 'none' }}
             />

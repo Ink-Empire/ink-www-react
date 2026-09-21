@@ -176,6 +176,7 @@ export default function DraftsScreen({ navigation, route }: any) {
         path: selectedItem.thumbnail_url,
         freeStyleCropEnabled: true,
         compressImageQuality: 1.0,
+        forceJpg: true,
       });
 
       const imageFile: ImageFile = {
