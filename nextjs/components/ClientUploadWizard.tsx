@@ -13,7 +13,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { colors, inputStyles } from '@/styles/colors';
 import { LocationAutocomplete } from '@/components/SearchFilters/LocationAutocomplete';
-import { uploadImagesToS3, UploadedImage, UploadProgress } from '@/utils/s3Upload';
+import { uploadImagesToS3, UploadedImage, UploadProgress, ACCEPTED_UPLOAD_ACCEPT_ATTR } from '@/utils/s3Upload';
 import { messageService } from '@/services/messageService';
 import { tattooService } from '@/services/tattooService';
 import { userService } from '@/services/userService';
@@ -645,7 +645,7 @@ export default function ClientUploadWizard({ open, onClose, onSuccess, seekingMo
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept={ACCEPTED_UPLOAD_ACCEPT_ATTR}
                   multiple
                   onChange={handleFileSelect}
                   style={{ display: 'none' }}

@@ -9,6 +9,7 @@ import { useStyles } from '@/contexts/StyleContext';
 import { useImageCache } from '@/contexts/ImageCacheContext';
 import { fetchCsrfToken, getCsrfToken } from '@/utils/api';
 import { getToken } from '@/utils/auth';
+import { ACCEPTED_UPLOAD_ACCEPT_ATTR } from '@/utils/s3Upload';
 import { deleteTattoo } from '@/hooks/useTattoos';
 import {
   Box,
@@ -742,7 +743,7 @@ export default function UpdateTattoo() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={ACCEPTED_UPLOAD_ACCEPT_ATTR}
               multiple
               style={{ display: 'none' }}
               onChange={(e) => {

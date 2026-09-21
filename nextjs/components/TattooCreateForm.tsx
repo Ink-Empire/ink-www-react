@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/api';
+import { ACCEPTED_UPLOAD_ACCEPT_ATTR } from '../utils/s3Upload';
 import { tattooService } from '../services/tattooService';
 import { stylesService } from '../services/stylesService';
 import { useRouter } from 'next/router';
@@ -340,7 +341,7 @@ const TattooCreateForm: React.FC<TattooCreateFormProps> = ({ onSuccess }) => {
               <input
                 type="file"
                 multiple
-                accept="image/*"
+                accept={ACCEPTED_UPLOAD_ACCEPT_ATTR}
                 hidden
                 onChange={handleFileSelect}
               />

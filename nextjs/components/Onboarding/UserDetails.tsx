@@ -21,6 +21,7 @@ import {
 import { useAppGeolocation } from '../../utils/geolocation';
 import { colors } from '@/styles/colors';
 import { api } from '@/utils/api';
+import { ACCEPTED_UPLOAD_ACCEPT_ATTR } from '@/utils/s3Upload';
 import LocationAutocomplete from '../LocationAutocomplete';
 import StudioAutocomplete, { StudioOption } from '../StudioAutocomplete';
 import ImageCropperModal from '../ImageCropperModal';
@@ -426,7 +427,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={ACCEPTED_UPLOAD_ACCEPT_ATTR}
               onChange={handleImageChange}
               style={{ display: 'none' }}
             />
