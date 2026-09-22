@@ -73,6 +73,10 @@ export interface User {
   email_verified_at?: string;
   is_email_verified?: boolean;
   last_login_at?: string;
+  // Set on accounts created for someone else, by the setup mailbox or the
+  // admin onboarding screen. They sign in with a temporary password from an
+  // email and have to replace it before they can use the platform.
+  force_password_reset?: boolean;
   created_at?: string;
   updated_at?: string;
 }

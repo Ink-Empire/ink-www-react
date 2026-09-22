@@ -20,6 +20,7 @@ import MainTabs from './app/navigation/MainTabs';
 import InboxStack from './app/navigation/InboxStack';
 import LoadingScreen from './app/components/common/LoadingScreen';
 import VerifyEmailGate from './app/components/auth/VerifyEmailGate';
+import SetPasswordGate from './app/components/auth/SetPasswordGate';
 import Snackbar from './app/components/common/Snackbar';
 import MessageNotificationBanner from './app/components/common/MessageNotificationBanner';
 import PushNotificationBanner from './app/components/common/PushNotificationBanner';
@@ -235,6 +236,19 @@ function RootNavigator(): React.JSX.Element {
       <View style={styles.flex}>
         <StatusBar barStyle="light-content" backgroundColor={colors.background} />
         <VerifyEmailGate email={user?.email || ''} />
+        <Snackbar />
+      </View>
+    );
+  }
+
+  // Accounts created for somebody else arrive with a temporary password from
+  // an email. Checked after verification because those accounts are already
+  // verified, so this is the only gate they meet.
+  if (isAuthenticated && user?.force_password_reset) {
+    return (
+      <View style={styles.flex}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        <SetPasswordGate />
         <Snackbar />
       </View>
     );
