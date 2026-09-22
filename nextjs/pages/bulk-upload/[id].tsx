@@ -63,13 +63,17 @@ export default function BulkUploadReviewPage() {
     type: 'success',
   });
   const [publishSuccess, setPublishSuccess] = useState<number | null>(null);
+  const [wrongAccount, setWrongAccount] = useState(false);
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated. The id has to survive the round trip or
+  // someone following the link in their receipt email signs in and lands on
+  // the upload list instead of the upload they were sent to.
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login?redirect=/bulk-upload');
+      const target = id ? `/bulk-upload/${id}` : '/bulk-upload';
+      router.push(`/login?redirect=${encodeURIComponent(target)}`);
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, id]);
 
   // Load upload data
   const loadUpload = useCallback(async () => {
@@ -77,7 +81,18 @@ export default function BulkUploadReviewPage() {
     try {
       const data = await getUpload(Number(id));
       setUpload(data);
-    } catch (err) {
+      setWrongAccount(false);
+    } catch (err: any) {
+      // The endpoint scopes to the signed-in artist, so an upload belonging to
+      // someone else is indistinguishable from one that does not exist: both
+      // come back 404. Following the link from a receipt email while signed in
+      // as a different account is the likely way to land here, and the raw
+      // "No query results for model" told nobody anything.
+      if (err?.status === 404) {
+        setWrongAccount(true);
+        return;
+      }
+
       setError(err instanceof Error ? err.message : 'Failed to load upload');
     }
   }, [id, getUpload]);
@@ -260,6 +275,52 @@ export default function BulkUploadReviewPage() {
       setSelectedItem(items[currentIndex - 1]);
     }
   };
+
+  // Has to come before the loading guard below, which otherwise spins forever
+  // when the upload never arrives.
+  if (wrongAccount) {
+    return (
+      <Layout>
+        <Head>
+          <title>Upload not found | InkedIn</title>
+        </Head>
+
+        <Box sx={{ maxWidth: 560, mx: 'auto', py: 8, px: 2, textAlign: 'center' }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: colors.textPrimary, mb: 2 }}>
+            We couldn&apos;t find this upload on your account
+          </Typography>
+
+          <Typography variant="body1" sx={{ color: colors.textSecondary, mb: 1 }}>
+            Uploads belong to the account they were sent to. If you followed a link
+            from an email, sign in with the address that email arrived at.
+          </Typography>
+
+          {user?.email && (
+            <Typography variant="body2" sx={{ color: colors.textSecondary, mb: 4 }}>
+              You are signed in as {user.email}.
+            </Typography>
+          )}
+
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/bulk-upload/${id}`)}`)}
+              sx={{ bgcolor: colors.accent, color: colors.background, '&:hover': { bgcolor: colors.accentHover } }}
+            >
+              Sign in to a different account
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => router.push('/bulk-upload')}
+              sx={{ color: colors.textPrimary, borderColor: colors.border }}
+            >
+              Go to my uploads
+            </Button>
+          </Box>
+        </Box>
+      </Layout>
+    );
+  }
 
   if (authLoading || !upload) {
     return (
