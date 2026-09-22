@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '@/styles/colors';
-import { api } from '../utils/api';
+import { userService } from '@/services/userService';
 
 type FormValues = {
   current_password: string;
@@ -43,7 +43,7 @@ const ChangePasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await api.put('/password', data);
+      await userService.changePassword(data);
       // Update local user state so the redirect guard doesn't loop
       setUserDirectly({ ...user!, force_password_reset: false });
       router.push('/dashboard');
