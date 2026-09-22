@@ -243,6 +243,15 @@ export function createUserService(api: ApiClient) {
     update: (id: number, data: Partial<User>) =>
       api.put<{ user: User }>(`/users/${id}`, data, { requiresAuth: true }),
 
+    // The route lives under the users prefix. The web page that duplicated
+    // this call inline got that wrong and 404'd for every artist onboarded
+    // with a temporary password, so it belongs in one place.
+    changePassword: (data: {
+      current_password: string;
+      password: string;
+      password_confirmation: string;
+    }) => api.put('/users/password', data, { requiresAuth: true }),
+
     updateStyles: (userId: number, styleIds: number[]) =>
       api.put(`/users/${userId}/styles`, { styles: styleIds }, { requiresAuth: true }),
 

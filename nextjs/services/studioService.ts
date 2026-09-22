@@ -76,8 +76,11 @@ export const studioService = {
   },
 
   // Update a studio (requires auth)
+  // The route is studios/studio/{id}, not studios/{id}, which does not exist.
+  // updateDetails below already had this right; this one did not, and it is
+  // the one the profile page calls, so saving a studio address failed.
   update: async (idOrSlug: number | string, data: Partial<StudioType>): Promise<StudioType> => {
-    return api.put<StudioType>(`/studios/${idOrSlug}`, data, {
+    return api.put<StudioType>(`/studios/studio/${idOrSlug}`, data, {
       requiresAuth: true,
       headers: { 'X-Account-Type': 'studio' }
     });
