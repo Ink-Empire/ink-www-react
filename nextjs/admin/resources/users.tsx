@@ -201,6 +201,7 @@ export const UserList = () => (
       <BooleanField source="is_demo" label="Demo" />
       <TextField source="location" />
       <DateField source="created_at" label="Created" />
+      <TextField source="signup_ip" label="Signup IP" emptyText="-" />
       <ViewProfileButton />
       <RebuildUserButton />
       <SendPasswordResetButton />
@@ -224,6 +225,31 @@ export const UserEdit = () => (
       <TextInput source="phone" />
       <TextInput source="location" />
       <TextInput source="about" multiline rows={4} />
+
+      <Box sx={{ width: '100%', mt: 3 }}>
+        <Divider sx={{ mb: 2 }} />
+        <Typography variant="h6" sx={{ mb: 2 }}>Signup</Typography>
+
+        {/*
+          Read-only on purpose. adminUpdate writes through any fillable field
+          present in the payload, so an input here would let an edit overwrite
+          the record of where the account came from.
+        */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          <Labeled label="Platform">
+            <TextField source="signup_platform" emptyText="-" />
+          </Labeled>
+          <Labeled label="IP Address">
+            <TextField source="signup_ip" emptyText="-" />
+          </Labeled>
+        </Box>
+
+        <Box sx={{ mt: 2 }}>
+          <Labeled label="User Agent">
+            <TextField source="signup_user_agent" emptyText="-" />
+          </Labeled>
+        </Box>
+      </Box>
 
       <FormDataConsumer>
         {({ formData }) =>
