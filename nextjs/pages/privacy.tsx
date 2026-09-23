@@ -106,7 +106,7 @@ export default function PrivacyPage() {
             color: textLight,
             letterSpacing: '0.02em',
           }}>
-            Effective Date: September 1, 2026
+            Effective Date: September 23, 2026
           </Typography>
         </Box>
 
@@ -178,6 +178,7 @@ export default function PrivacyPage() {
                 <tr><td>Portfolio &amp; Images</td><td>Photos, tattoo designs, and portfolio images you upload to the Platform.</td></tr>
                 <tr><td>Messages</td><td>Content of messages exchanged between users through the Platform&apos;s messaging feature.</td></tr>
                 <tr><td>Usage Data</td><td>Search queries, pages visited, features used, device information, and interaction patterns.</td></tr>
+                <tr><td>Security Information</td><td>The network address and the browser or device identifier your device sends when you create an account. We use these to investigate fraudulent or abusive signups. The network address is deleted after 90 days.</td></tr>
                 <tr><td>Calendar Data</td><td>If you connect a Google Calendar, the start time, end time, all-day flag, status, and title of events on that calendar, plus the email address of the connected Google account. Connecting a calendar is optional.</td></tr>
               </tbody>
             </Box>
@@ -187,6 +188,7 @@ export default function PrivacyPage() {
           <Section number="02" title="How We Use Your Information">
             <p>We use the information we collect to operate and improve the Platform, connect tattoo enthusiasts with artists, personalise your experience, and communicate with you about your account and our services.</p>
             <p>Specifically, we use your information to facilitate artist discovery and search, enable messaging and collaboration between users, send transactional notifications such as booking confirmations and messages, analyse usage patterns to improve Platform features and performance, and ensure the security and integrity of the Platform.</p>
+            <p>We record the network address used to create an account so that we can identify accounts created in bulk or used to abuse the Platform.</p>
             <p>We use automated analysis to suggest descriptive tags for uploaded images, so that work can be found in search. These suggestions are shown to you and do not make decisions about you.</p>
             <p>We do not sell your personal information to third parties. We do not use your data for automated decision-making or profiling that produces legal effects.</p>
           </Section>
@@ -241,6 +243,7 @@ export default function PrivacyPage() {
           {/* Section 6 */}
           <Section number="06" title="Data Retention">
             <p>We retain your personal information for as long as your account is active or as needed to provide you with our services. If you delete your account, we will remove your personal data within 30 days, except where we are required to retain it by law or for legitimate business purposes such as resolving disputes or enforcing our agreements.</p>
+            <p>Some information expires sooner than your account. The network address recorded when you created your account is deleted after 90 days.</p>
             <p>Portfolio images and messages associated with deleted accounts will be removed or anonymised.</p>
           </Section>
 
