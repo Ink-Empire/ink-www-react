@@ -6,6 +6,7 @@ import { colors } from '../../../lib/colors';
 import { authApi } from '../../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
+import CorrectEmailForm from '../../components/auth/CorrectEmailForm';
 import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'VerifyEmail'>;
@@ -15,6 +16,7 @@ const POLL_INTERVAL_MS = 5000;
 export default function VerifyEmailScreen({ route, navigation }: Props) {
   const { email } = route.params;
   const { refreshUser } = useAuth();
+  const [currentEmail, setCurrentEmail] = useState(email);
   const [resending, setResending] = useState(false);
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
     setResending(true);
     setMessage(null);
     try {
-      await authApi.resendVerification(email);
+      await authApi.resendVerification(currentEmail);
       if (mountedRef.current) {
         setMessage('Verification email sent! Check your inbox.');
         setMessageType('success');
@@ -83,6 +85,12 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleEmailCorrected = (newEmail: string) => {
+    setCurrentEmail(newEmail);
+    setMessage('Email updated. Check your inbox for a new verification link.');
+    setMessageType('success');
+  };
+
   const messageColor =
     messageType === 'success' ? colors.success :
     messageType === 'error' ? colors.error :
@@ -98,7 +106,7 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
       <Text style={styles.body}>
         We've sent a verification link to:
       </Text>
-      <Text style={styles.email}>{email}</Text>
+      <Text style={styles.email}>{currentEmail}</Text>
       <Text style={styles.body}>
         Click the link in the email to verify your account. This page will update automatically once verified.
       </Text>
@@ -129,6 +137,8 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
         variant="secondary"
         style={styles.button}
       />
+
+      <CorrectEmailForm currentEmail={currentEmail} onCorrected={handleEmailCorrected} />
     </View>
   );
 }

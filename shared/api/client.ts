@@ -217,6 +217,20 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface CorrectEmailData {
+  email: string;
+  password: string;
+  new_email: string;
+}
+
+export interface CorrectEmailResponse {
+  message: string;
+  verification: {
+    email: string;
+    requires_verification: boolean;
+  };
+}
+
 export interface RegisterData {
   name: string;
   email: string;
@@ -306,6 +320,13 @@ export function createAuthApi(api: ReturnType<typeof createApiClient>) {
 
     resendVerification: async (email: string): Promise<{ message: string }> => {
       return api.post('/email/verification-notification', { email });
+    },
+
+    // Fix an address mistyped at registration and get a fresh verification
+    // link. Unauthenticated: an unverified account cannot reach anything
+    // behind auth, so the old address and password are the credential.
+    correctEmail: async (data: CorrectEmailData): Promise<CorrectEmailResponse> => {
+      return api.post('/email/correct', data);
     },
   };
 }

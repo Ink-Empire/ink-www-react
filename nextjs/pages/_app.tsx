@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AppProps } from 'next/app';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { Analytics } from '@vercel/analytics/next';
@@ -13,6 +14,9 @@ import { preloadGoogleMaps } from '../services/googlePlacesService';
 import FeedbackFAB from '../components/FeedbackFAB';
 import theme from '../styles/theme';
 import '../styles/globals.css';
+
+// Pages where the feedback FAB would sit on top of the content it overlaps.
+const FAB_HIDDEN_ROUTES = ['/verify-email'];
 
 // Initialize MSW for browser-side mocking in tests.
 // The start promise is memoized: module scope, useEffect, and StrictMode
@@ -41,6 +45,7 @@ if (process.env.NEXT_PUBLIC_MSW_ENABLED === 'true') {
 }
 
 function MyApp({ Component, pageProps }: AppProps) {
+  const router = useRouter();
   const [mswReady, setMswReady] = useState(
     process.env.NEXT_PUBLIC_MSW_ENABLED !== 'true'
   );
@@ -76,7 +81,7 @@ function MyApp({ Component, pageProps }: AppProps) {
               <TagProvider>
                 <DialogProvider>
                   <Component {...pageProps} />
-                  <FeedbackFAB />
+                  {!FAB_HIDDEN_ROUTES.includes(router.pathname) && <FeedbackFAB />}
                 </DialogProvider>
               </TagProvider>
             </StyleProvider>
