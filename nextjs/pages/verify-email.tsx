@@ -13,6 +13,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import { colors } from '@/styles/colors';
 import Navbar from '@/components/Navbar';
+import CorrectEmailForm from '@/components/CorrectEmailForm';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { setToken } from '@/utils/auth';
@@ -122,6 +123,13 @@ export default function VerifyEmailPage() {
     }
   };
 
+  const handleEmailCorrected = (newEmail: string) => {
+    setResendEmail(newEmail);
+    setStatus('pending');
+    setErrorMessage(null);
+    showSuccess('Email updated. Check your inbox for a new verification link.', 'Email Sent');
+  };
+
   const handleContinue = () => {
     router.push(redirectUrl);
   };
@@ -166,6 +174,11 @@ export default function VerifyEmailPage() {
               >
                 Resend Verification Email
               </Button>
+
+              <CorrectEmailForm
+                currentEmail={user?.email || resendEmail}
+                onCorrected={handleEmailCorrected}
+              />
             </Box>
           )}
 
@@ -271,6 +284,11 @@ export default function VerifyEmailPage() {
                   Back to Home
                 </Button>
               </Box>
+
+              <CorrectEmailForm
+                currentEmail={user?.email || resendEmail}
+                onCorrected={handleEmailCorrected}
+              />
             </Box>
           )}
         </Container>

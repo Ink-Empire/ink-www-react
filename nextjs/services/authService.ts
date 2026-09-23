@@ -33,6 +33,20 @@ export interface ResetPasswordData {
   password_confirmation: string;
 }
 
+export interface CorrectEmailData {
+  email: string;
+  password: string;
+  new_email: string;
+}
+
+export interface CorrectEmailResponse {
+  message: string;
+  verification: {
+    email: string;
+    requires_verification: boolean;
+  };
+}
+
 export const authService = {
   // Login user
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
@@ -72,5 +86,12 @@ export const authService = {
   // Send verification notification (for re-sending verification email)
   sendVerificationNotification: async (email: string): Promise<void> => {
     return api.post('/email/verification-notification', { email });
+  },
+
+  // Fix an address mistyped at registration and get a fresh verification link.
+  // Unauthenticated: an unverified account cannot reach anything behind auth,
+  // so the old address and password are the credential.
+  correctEmail: async (data: CorrectEmailData): Promise<CorrectEmailResponse> => {
+    return api.post('/email/correct', data);
   },
 };
