@@ -180,19 +180,22 @@ function usePendingStudio() {
         let studioResponse: any;
         if (pendingData.studioResult?.id) {
           studioResponse = await studioService.claim(pendingData.studioResult.id, {
-            bio: pendingData.bio,
+            about: pendingData.bio,
             phone: pendingData.phone,
           });
         } else {
-          studioResponse = await studioService.lookupOrCreate({
+          // lookupOrCreate resolves a Google Places listing and needs a
+          // place_id. Creating a studio the owner typed out goes to create,
+          // the same endpoint the web signup uses.
+          studioResponse = await studioService.create({
             name: pendingData.name,
-            username: pendingData.username,
-            bio: pendingData.bio,
+            slug: pendingData.username,
+            about: pendingData.bio,
             email: pendingData.email,
             phone: pendingData.phone,
             location: pendingData.location,
             location_lat_long: pendingData.locationLatLong,
-          });
+          } as any);
         }
 
         const studioId = studioResponse?.studio?.id;
