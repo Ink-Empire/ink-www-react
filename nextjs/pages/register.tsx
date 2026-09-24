@@ -108,7 +108,6 @@ const RegisterPage: React.FC = () => {
             about: data.studioDetails?.bio || '',
             location: data.studioDetails?.location || '',
             location_lat_long: data.studioDetails?.locationLatLong || '',
-            owner_id: data.studioOwner.existingAccountId,
           };
 
           if (data.studioDetails?.email) {

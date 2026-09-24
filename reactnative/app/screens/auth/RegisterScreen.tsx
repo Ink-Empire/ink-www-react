@@ -178,21 +178,24 @@ export default function RegisterScreen({ navigation }: Props) {
         try {
           if (studioDetails.studioResult?.id) {
             studioResponse = await studioService.claim(studioDetails.studioResult.id, {
-              bio: studioDetails.bio,
+              about: studioDetails.bio,
               phone: studioDetails.phone,
               ...(uploadedImageId && { image_id: uploadedImageId }),
             });
           } else {
-            studioResponse = await studioService.lookupOrCreate({
+            // lookupOrCreate resolves a Google Places listing and needs a
+            // place_id. Creating a studio the owner typed out goes to create,
+            // the same endpoint the web signup uses.
+            studioResponse = await studioService.create({
               name: studioDetails.name,
-              username: studioDetails.username,
-              bio: studioDetails.bio,
+              slug: studioDetails.username,
+              about: studioDetails.bio,
               email: studioDetails.email,
               phone: studioDetails.phone,
               location: studioDetails.location,
               location_lat_long: studioDetails.locationLatLong,
               ...(uploadedImageId && { image_id: uploadedImageId }),
-            });
+            } as any);
           }
         } catch (err: any) {
           claimError = err.data?.error || err.data?.message || err.message || 'Failed to create studio.';
