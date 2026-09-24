@@ -34,15 +34,21 @@ import AutoModeIcon from '@mui/icons-material/AutoMode';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { api } from '@/utils/api';
 
+// Studio was missing here, so every studio account rendered as Client and the
+// filter could not select them. Worse, the edit and create forms share this
+// array: a SelectInput whose value is absent from its choices renders blank,
+// which is a route to reassigning a studio's type by saving the form.
 const userTypeChoices = [
   { id: 1, name: 'Client' },
   { id: 2, name: 'Artist' },
+  { id: 3, name: 'Studio' },
 ];
 
 const UserTypeField = () => {
   const record = useRecordContext();
   if (!record) return null;
-  return <span>{record.type_id === 2 ? 'Artist' : 'Client'}</span>;
+  const choice = userTypeChoices.find((type) => type.id === record.type_id);
+  return <span>{choice ? choice.name : `Unknown (${record.type_id})`}</span>;
 };
 
 /**
