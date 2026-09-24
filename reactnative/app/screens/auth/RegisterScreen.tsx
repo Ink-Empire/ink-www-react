@@ -99,6 +99,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
   const handleSubmit = async (credentials: {
     email: string;
+    email_confirmation: string;
     password: string;
     password_confirmation: string;
     has_accepted_toc: boolean;
@@ -111,6 +112,7 @@ export default function RegisterScreen({ navigation }: Props) {
       await register({
         name: data.userDetails.name,
         email: credentials.email,
+        email_confirmation: credentials.email_confirmation,
         password: credentials.password,
         password_confirmation: credentials.password_confirmation,
         username: data.userDetails.username,
@@ -224,6 +226,7 @@ export default function RegisterScreen({ navigation }: Props) {
         const response = await register({
           name: studioDetails.name,
           email: studioDetails.accountEmail || studioDetails.email,
+          email_confirmation: studioDetails.accountEmailConfirmation || studioDetails.email,
           password: studioDetails.password || '',
           password_confirmation: studioDetails.password_confirmation || '',
           username: studioDetails.username,

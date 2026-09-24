@@ -10,6 +10,7 @@ import PasswordRequirements, { allRequirementsMet } from './PasswordRequirements
 interface AccountSetupStepProps {
   onComplete: (credentials: {
     email: string;
+    email_confirmation: string;
     password: string;
     password_confirmation: string;
     has_accepted_toc: boolean;
@@ -22,6 +23,7 @@ interface AccountSetupStepProps {
 
 export default function AccountSetupStep({ onComplete, onBack, userType = 'client', loading = false }: AccountSetupStepProps) {
   const [email, setEmail] = useState('');
+  const [emailConfirmation, setEmailConfirmation] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -77,6 +79,12 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
       newErrors.email = 'This email is already registered';
     }
 
+    if (!emailConfirmation.trim()) {
+      newErrors.emailConfirmation = 'Please confirm your email';
+    } else if (email.trim().toLowerCase() !== emailConfirmation.trim().toLowerCase()) {
+      newErrors.emailConfirmation = 'Email addresses do not match';
+    }
+
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (!allRequirementsMet(password)) {
@@ -99,6 +107,7 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
     if (!validate()) return;
     onComplete({
       email: email.trim().toLowerCase(),
+      email_confirmation: emailConfirmation.trim().toLowerCase(),
       password,
       password_confirmation: passwordConfirmation,
       has_accepted_toc: acceptedToc,
@@ -143,6 +152,17 @@ export default function AccountSetupStep({ onComplete, onBack, userType = 'clien
         />
         {renderEmailIndicator()}
       </View>
+
+      <Input
+        label="Confirm Email Address"
+        value={emailConfirmation}
+        onChangeText={(text) => setEmailConfirmation(text.replace(/\s/g, ''))}
+        placeholder="Re-enter your email address"
+        error={errors.emailConfirmation}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        autoCorrect={false}
+      />
 
       <Input
         label="Password"

@@ -18,6 +18,7 @@ import { api } from '@/utils/api';
 interface AccountSetupProps {
   onStepComplete: (credentials: {
     email: string;
+    email_confirmation: string;
     password: string;
     password_confirmation: string;
     has_accepted_toc: boolean;
@@ -42,6 +43,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
   userType
 }) => {
   const [email, setEmail] = useState('');
+  const [emailConfirmation, setEmailConfirmation] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,6 +132,12 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
       newErrors.email = 'This email is already registered';
     }
 
+    if (!emailConfirmation.trim()) {
+      newErrors.emailConfirmation = 'Please confirm your email address';
+    } else if (email.trim().toLowerCase() !== emailConfirmation.trim().toLowerCase()) {
+      newErrors.emailConfirmation = 'Email addresses do not match';
+    }
+
     if (!password.trim()) {
       newErrors.password = 'Password is required';
     } else if (!allPasswordRequirementsMet()) {
@@ -162,6 +170,7 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
     try {
       await onStepComplete({
         email: email.trim(),
+        email_confirmation: emailConfirmation.trim(),
         password: password.trim(),
         password_confirmation: passwordConfirmation.trim(),
         has_accepted_toc: acceptedToc,
@@ -279,6 +288,42 @@ const AccountSetup: React.FC<AccountSetupProps> = ({
                 {emailAvailable === true ? '✓ Email is available' : 'This will be used to log in to your account'}
               </Typography>
             )}
+          </Box>
+
+          {/* Confirm Email Field */}
+          <Box>
+            <TextField
+              label="Confirm Email Address"
+              name="email_confirmation"
+              type="email"
+              value={emailConfirmation}
+              onChange={(e) => setEmailConfirmation(e.target.value)}
+              placeholder="Re-enter your email address"
+              error={!!errors.emailConfirmation}
+              helperText={errors.emailConfirmation}
+              fullWidth
+              required
+              autoComplete="off"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: errors.emailConfirmation ? colors.error : colors.border,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: errors.emailConfirmation ? colors.error : colors.textSecondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: errors.emailConfirmation ? colors.error : colors.accent,
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: colors.textSecondary,
+                  '&.Mui-focused': {
+                    color: colors.accent,
+                  },
+                },
+              }}
+            />
           </Box>
 
           {/* Password Field */}
