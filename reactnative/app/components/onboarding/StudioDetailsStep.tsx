@@ -32,6 +32,7 @@ export interface StudioDetailsData {
   bio: string;
   email: string;
   accountEmail?: string;
+  accountEmailConfirmation?: string;
   phone: string;
   location: string;
   locationLatLong: string;
@@ -65,6 +66,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated,
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [accountEmail, setAccountEmail] = useState('');
+  const [accountEmailConfirmation, setAccountEmailConfirmation] = useState('');
   const [accountEmailStatus, setAccountEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountEmailDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -225,6 +227,12 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated,
       } else if (accountEmailStatus === 'taken') {
         newErrors.accountEmail = 'This email is already registered';
       }
+
+      if (!accountEmailConfirmation.trim()) {
+        newErrors.accountEmailConfirmation = 'Please confirm your account email';
+      } else if (accountEmail.trim().toLowerCase() !== accountEmailConfirmation.trim().toLowerCase()) {
+        newErrors.accountEmailConfirmation = 'Email addresses do not match';
+      }
     }
 
     if (!isAuthenticated) {
@@ -252,6 +260,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated,
       bio: bio.trim(),
       email: email.trim().toLowerCase(),
       accountEmail: !isAuthenticated ? accountEmail.trim().toLowerCase() : undefined,
+      accountEmailConfirmation: !isAuthenticated ? accountEmailConfirmation.trim().toLowerCase() : undefined,
       phone: phone.trim(),
       location: location.trim(),
       locationLatLong,
@@ -445,6 +454,17 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated,
           <Text style={styles.fieldHint}>
             Your personal login email. Can be the same as the studio email.
           </Text>
+
+          <Input
+            label="Confirm Account Email"
+            value={accountEmailConfirmation}
+            onChangeText={(text) => setAccountEmailConfirmation(text.replace(/\s/g, ''))}
+            placeholder="Re-enter your login email"
+            error={errors.accountEmailConfirmation}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoCorrect={false}
+          />
 
           <Input
             label="Password"

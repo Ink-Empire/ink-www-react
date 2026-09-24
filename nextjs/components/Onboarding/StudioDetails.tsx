@@ -40,6 +40,7 @@ interface StudioDetailsData {
   location: string;
   locationLatLong: string;
   email?: string;
+  email_confirmation?: string;
   phone?: string;
   existingStudioId?: number; // If claiming an existing unclaimed studio
   // Account credentials (only for new studio accounts)
@@ -75,6 +76,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [email, setEmail] = useState('');
+  const [emailConfirmation, setEmailConfirmation] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -486,6 +488,13 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
 
     // Password validation for new accounts only
     if (!isAuthenticated) {
+      // This address doubles as the account login, so a typo locks the owner out.
+      if (!emailConfirmation.trim()) {
+        newErrors.emailConfirmation = 'Please confirm your email address';
+      } else if (email.trim().toLowerCase() !== emailConfirmation.trim().toLowerCase()) {
+        newErrors.emailConfirmation = 'Email addresses do not match';
+      }
+
       if (!password) {
         newErrors.password = 'Password is required';
       } else if (password.length < 8) {
@@ -547,6 +556,7 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
       location: location.trim(),
       locationLatLong: locationLatLong,
       email: email.trim() || undefined,
+      ...(!isAuthenticated ? { email_confirmation: emailConfirmation.trim() } : {}),
       phone: phone.trim() || undefined,
       existingStudioId: selectedGoogleStudio?.id, // Pass existing studio ID if claiming
       // Include password only for new accounts (not authenticated)
@@ -930,9 +940,45 @@ const StudioDetails: React.FC<StudioDetailsProps> = ({
             }}
           />
 
-          {/* Password Fields - Only for new accounts */}
+          {/* Confirm Email and Password Fields - Only for new accounts */}
           {!isAuthenticated && (
             <>
+              <TextField
+                label="Confirm Studio Email"
+                name="studio_email_confirmation"
+                type="email"
+                value={emailConfirmation}
+                onChange={(e) => setEmailConfirmation(e.target.value.toLowerCase())}
+                placeholder="Re-enter your email address"
+                error={!!errors.emailConfirmation}
+                helperText={errors.emailConfirmation || 'This is the address you will log in with.'}
+                fullWidth
+                required
+                autoComplete="off"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: errors.emailConfirmation ? colors.error : colors.border,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: errors.emailConfirmation ? colors.error : colors.textSecondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: errors.emailConfirmation ? colors.error : colors.accent,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: colors.textSecondary,
+                    '&.Mui-focused': {
+                      color: colors.accent,
+                    },
+                  },
+                  '& .MuiFormHelperText-root': {
+                    color: errors.emailConfirmation ? colors.error : colors.textSecondary,
+                  },
+                }}
+              />
+
               <TextField
                 label="Password"
                 name="password"

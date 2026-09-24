@@ -41,6 +41,7 @@ export interface OnboardingData {
   };
   credentials?: {
     email: string;
+    email_confirmation: string;
     password: string;
     password_confirmation: string;
     has_accepted_toc: boolean;
@@ -55,6 +56,7 @@ export interface OnboardingData {
     location: string;
     locationLatLong: string;
     email?: string; // Optional contact email for the studio
+    email_confirmation?: string; // Confirmation of the email, for new studio accounts only
     phone?: string; // Optional phone number for the studio
     existingStudioId?: number; // If claiming an existing unclaimed studio
   };

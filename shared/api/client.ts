@@ -234,6 +234,7 @@ export interface CorrectEmailResponse {
 export interface RegisterData {
   name: string;
   email: string;
+  email_confirmation?: string;
   password: string;
   password_confirmation: string;
   username: string;
