@@ -100,7 +100,7 @@ test.fixme('should complete beginner enthusiast registration flow', async ({ pag
 
       // Step 6: Account Setup
       await expect(page.getByRole('heading', { name: /set up your account/i })).toBeVisible({ timeout: 5000 });
-      await page.getByRole('textbox', { name: 'Email Address' }).fill(testUser.email);
+      await page.getByRole('textbox', { name: 'Email Address', exact: true }).fill(testUser.email);
       await page.getByRole('textbox', { name: 'Password', exact: true }).fill(testUser.password);
       await page.getByRole('textbox', { name: 'Confirm Password' }).fill(testUser.password);
 
@@ -157,7 +157,7 @@ test.fixme('should complete experienced enthusiast registration flow', async ({ 
 
       // Account setup
       await expect(page.getByRole('heading', { name: /set up your account/i })).toBeVisible({ timeout: 5000 });
-      await page.getByRole('textbox', { name: 'Email Address' }).fill(testUser.email);
+      await page.getByRole('textbox', { name: 'Email Address', exact: true }).fill(testUser.email);
       await page.getByRole('textbox', { name: 'Password', exact: true }).fill(testUser.password);
       await page.getByRole('textbox', { name: 'Confirm Password' }).fill(testUser.password);
 
@@ -206,7 +206,7 @@ test.fixme('should complete artist registration flow', async ({ page }) => {
 
       // Step 4: Account Setup
       await expect(page.getByRole('heading', { name: /set up your.*account/i })).toBeVisible({ timeout: 5000 });
-      await page.getByRole('textbox', { name: 'Email Address' }).fill(testUser.email);
+      await page.getByRole('textbox', { name: 'Email Address', exact: true }).fill(testUser.email);
       await page.getByRole('textbox', { name: 'Password', exact: true }).fill(testUser.password);
       await page.getByRole('textbox', { name: 'Confirm Password' }).fill(testUser.password);
 
@@ -304,7 +304,7 @@ test.fixme('should complete new studio owner registration flow', async ({ page }
 
       // Should show login form
       await expect(page.getByRole('heading', { name: /Log In/i })).toBeVisible({ timeout: 5000 });
-      await expect(page.getByRole('textbox', { name: 'Email Address' })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Email Address', exact: true })).toBeVisible();
       await expect(page.getByRole('textbox', { name: 'Password', exact: true })).toBeVisible();
     });
   });
@@ -347,7 +347,7 @@ test.fixme('should complete new studio owner registration flow', async ({ page }
 
       // Account setup - enter invalid email
       await expect(page.getByRole('heading', { name: /set up your.*account/i })).toBeVisible({ timeout: 5000 });
-      await page.getByRole('textbox', { name: 'Email Address' }).fill('invalid-email');
+      await page.getByRole('textbox', { name: 'Email Address', exact: true }).fill('invalid-email');
       await page.getByRole('textbox', { name: 'Password', exact: true }).fill(testUser.password);
       await page.getByRole('textbox', { name: 'Confirm Password' }).fill(testUser.password);
 
@@ -392,7 +392,7 @@ test.fixme('should complete new studio owner registration flow', async ({ page }
 
       // Account setup - enter weak password
       await expect(page.getByRole('heading', { name: /set up your.*account/i })).toBeVisible({ timeout: 5000 });
-      await page.getByRole('textbox', { name: 'Email Address' }).fill(testUser.email);
+      await page.getByRole('textbox', { name: 'Email Address', exact: true }).fill(testUser.email);
       await page.getByRole('textbox', { name: 'Password', exact: true }).fill('weak');
       await page.getByRole('textbox', { name: 'Confirm Password' }).fill('weak');
 
@@ -429,7 +429,7 @@ test.fixme('should complete new studio owner registration flow', async ({ page }
 
       // Account setup - mismatched passwords
       await expect(page.getByRole('heading', { name: /set up your.*account/i })).toBeVisible({ timeout: 5000 });
-      await page.getByRole('textbox', { name: 'Email Address' }).fill(testUser.email);
+      await page.getByRole('textbox', { name: 'Email Address', exact: true }).fill(testUser.email);
       await page.getByRole('textbox', { name: 'Password', exact: true }).fill(testUser.password);
       await page.getByRole('textbox', { name: 'Confirm Password' }).fill('DifferentPassword123!');
 
