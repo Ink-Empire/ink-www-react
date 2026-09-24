@@ -88,6 +88,24 @@ export interface CreateStudioData {
   location_lat_long?: string | null;
 }
 
+export interface StudioHold {
+  id: number;
+  name: string;
+  slug: string | null;
+  hold_status: 'active' | 'on_hold';
+  is_on_hold: boolean;
+  hold_reason: string | null;
+  held_at: string | null;
+  held_by?: { id: number; name: string; email: string };
+  hold_lifted_at: string | null;
+  hold_lifted_by?: { id: number; name: string; email: string };
+}
+
+export interface HoldStudioResult {
+  data: StudioHold;
+  owner_notified: boolean;
+}
+
 export interface OnboardArtistImage {
   content: string;
   mime: string;
@@ -187,5 +205,23 @@ export const adminService = {
 
   onboardArtist: async (data: OnboardArtistData): Promise<OnboardArtistResult> => {
     return api.post<OnboardArtistResult>('/admin/artists/onboard', data, { requiresAuth: true });
+  },
+
+  // Studio holds
+  //
+  // A hold takes a studio out of public view while its owner is asked to
+  // establish that they run the business. Nothing is deleted, and releaseStudio
+  // puts every surface back. The reason is recorded against the studio, so it
+  // is written for whoever reads the audit trail later.
+  holdStudio: async (id: number, reason: string): Promise<HoldStudioResult> => {
+    return api.post<HoldStudioResult>(`/admin/studios/${id}/hold`, { reason }, {
+      requiresAuth: true,
+    });
+  },
+
+  releaseStudio: async (id: number): Promise<{ data: StudioHold }> => {
+    return api.post<{ data: StudioHold }>(`/admin/studios/${id}/release`, {}, {
+      requiresAuth: true,
+    });
   },
 };
