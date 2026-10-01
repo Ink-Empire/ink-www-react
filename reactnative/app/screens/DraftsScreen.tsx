@@ -183,6 +183,7 @@ export default function DraftsScreen({ navigation, route }: any) {
         uri: cropped.path,
         type: cropped.mime || 'image/jpeg',
         name: cropped.filename || `cropped_${Date.now()}.jpg`,
+        size: cropped.size,
       };
 
       const uploaded = await uploadImagesToS3(api, [imageFile], 'tattoo');

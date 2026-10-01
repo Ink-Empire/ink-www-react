@@ -293,6 +293,7 @@ export default function ConversationScreen({ route, navigation }: any) {
         uri: img.path,
         type: img.mime || 'image/jpeg',
         name: img.filename || `photo_${Date.now()}.jpg`,
+        size: img.size,
       }));
 
       setPendingAttachments((prev) => [...prev, ...newImages].slice(0, MAX_ATTACHMENTS));

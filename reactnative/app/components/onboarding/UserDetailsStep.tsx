@@ -88,6 +88,7 @@ export default function UserDetailsStep({ onComplete, onBack, userType }: UserDe
         uri: image.path,
         type: image.mime || 'image/jpeg',
         name: image.filename || 'profile.jpg',
+        size: image.size,
       });
     } catch {
       // User cancelled or error
