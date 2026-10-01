@@ -126,6 +126,7 @@ export default function EditProfileScreen({ navigation }: any) {
           uri: image.path,
           type: image.mime || 'image/jpeg',
           name: image.filename || `profile_${Date.now()}.jpg`,
+          size: image.size,
         };
         const uploaded = await uploadImagesToS3(api, [imageFile], 'profile');
         await userService.uploadProfilePhoto(uploaded[0].id);

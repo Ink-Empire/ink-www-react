@@ -243,6 +243,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         uri: img.path,
         type: img.mime || 'image/jpeg',
         name: img.filename || `photo_${Date.now()}.jpg`,
+        size: img.size,
       }));
       setNewImages(prev => [...prev, ...imgs].slice(0, MAX_IMAGES - visibleExistingImages.length));
     } catch {
@@ -263,7 +264,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
       });
       setNewImages(prev => [
         ...prev,
-        { uri: image.path, type: image.mime || 'image/jpeg', name: image.filename || `photo_${Date.now()}.jpg` },
+        { uri: image.path, type: image.mime || 'image/jpeg', name: image.filename || `photo_${Date.now()}.jpg`, size: image.size },
       ]);
     } catch {
       // User cancelled
@@ -283,6 +284,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         uri: cropped.path,
         type: cropped.mime || 'image/jpeg',
         name: cropped.filename || `cropped_${Date.now()}.jpg`,
+        size: cropped.size,
       };
       // Remove the existing image and add the cropped version as a new image
       setDeletedImageIds(prev => [...prev, img.id]);
@@ -306,6 +308,7 @@ export default function EditTattooScreen({ navigation, route }: any) {
         uri: cropped.path,
         type: cropped.mime || 'image/jpeg',
         name: cropped.filename || `cropped_${Date.now()}.jpg`,
+        size: cropped.size,
       };
       setNewImages(prev => prev.map((img, i) => (i === index ? croppedFile : img)));
     } catch (err: any) {

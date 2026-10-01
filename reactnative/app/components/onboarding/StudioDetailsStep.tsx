@@ -145,6 +145,7 @@ export default function StudioDetailsStep({ onComplete, onBack, isAuthenticated,
         uri: image.path,
         type: image.mime || 'image/jpeg',
         name: image.filename || 'studio.jpg',
+        size: image.size,
       });
     } catch {
       // User cancelled

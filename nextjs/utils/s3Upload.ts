@@ -9,24 +9,21 @@ export const ACCEPTED_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/webp', '
 export const ACCEPTED_UPLOAD_ACCEPT_ATTR =
   'image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif';
 
-interface PresignedUrlResponse {
-  success: boolean;
-  data: {
-    upload_url: string;
-    filename: string;
-    public_url: string;
-    expires_in: number;
-  };
+// The upload is a signed POST rather than a PUT. S3 checks the file against
+// the policy in `fields` before storing it, which is what bounds the size, so
+// the fields have to be posted alongside the file exactly as they arrive.
+interface PresignedUpload {
+  upload_url: string;
+  fields: Record<string, string>;
+  filename: string;
+  public_url: string;
 }
 
 interface PresignedUrlsResponse {
   success: boolean;
   data: {
-    uploads: Array<{
-      upload_url: string;
-      filename: string;
-      public_url: string;
-    }>;
+    uploads: PresignedUpload[];
+    max_bytes: number;
     expires_in: number;
   };
 }
@@ -57,6 +54,35 @@ export type UploadProgress = {
   status: 'idle' | 'getting-urls' | 'uploading' | 'confirming' | 'complete' | 'error';
   error?: string;
 };
+
+function formatBytes(bytes: number): string {
+  return `${Math.round(bytes / (1024 * 1024))}MB`;
+}
+
+// S3 answers a policy violation with an XML body naming the condition that
+// failed. EntityTooLarge means the file was over content-length-range, which
+// is worth saying plainly since the pre-check above can miss it when the
+// limit changes between presign and upload.
+async function uploadErrorMessage(
+  response: Response,
+  filename: string,
+  maxBytes: number
+): Promise<string> {
+  let body = '';
+
+  try {
+    body = await response.text();
+  } catch {
+    // Body already consumed or unreadable; fall through to the generic message
+  }
+
+  if (body.includes('EntityTooLarge')) {
+    const limit = maxBytes > 0 ? ` (${formatBytes(maxBytes)} limit)` : '';
+    return `${filename} is too large to upload${limit}.`;
+  }
+
+  return `Failed to upload ${filename}: ${response.statusText}`;
+}
 
 /**
  * Upload multiple images directly to S3 using presigned URLs.
@@ -118,9 +144,10 @@ export async function uploadImagesToS3(
       );
     }
 
-    // Step 2: Get presigned URLs (batched in groups of 10 to respect API limit)
+    // Step 2: Get signed upload forms (batched in groups of 10 to respect API limit)
     const PRESIGN_BATCH_SIZE = 10;
-    const uploads: PresignedUrlsResponse['data']['uploads'] = [];
+    const uploads: PresignedUpload[] = [];
+    let maxBytes = 0;
 
     for (let i = 0; i < compressedFiles.length; i += PRESIGN_BATCH_SIZE) {
       const batch = compressedFiles.slice(i, i + PRESIGN_BATCH_SIZE);
@@ -139,25 +166,39 @@ export async function uploadImagesToS3(
       }
 
       uploads.push(...presignedResponse.data.uploads);
+      maxBytes = presignedResponse.data.max_bytes ?? maxBytes;
     }
 
-    // Step 3: Upload each file directly to S3 in parallel
+    // Step 3: Check sizes against the server's limit before sending anything.
+    // S3 enforces the same number from the signed policy, so this is only here
+    // to name the file and the limit instead of showing a bare S3 rejection.
+    if (maxBytes > 0) {
+      const oversized = compressedFiles.filter(file => file.size > maxBytes);
+
+      if (oversized.length > 0) {
+        const names = oversized.map(file => file.name).join(', ');
+        throw new Error(
+          `${names} is larger than the ${formatBytes(maxBytes)} limit. Try a smaller image.`
+        );
+      }
+    }
+
+    // Step 4: Upload each file directly to S3 in parallel
     updateProgress({ status: 'uploading', completed: 0, current: 'Uploading images...' });
 
     const uploadPromises = compressedFiles.map(async (file, index) => {
-      const { upload_url, filename } = uploads[index];
+      const { upload_url, fields, filename } = uploads[index];
 
-      const response = await fetch(upload_url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type || 'image/jpeg',
-          'Cache-Control': 'max-age=31536000',
-        },
-      });
+      // The policy fields have to come before the file in the form, and the
+      // file has to be last, or S3 rejects the POST.
+      const form = new FormData();
+      Object.entries(fields).forEach(([key, value]) => form.append(key, value));
+      form.append('file', file);
+
+      const response = await fetch(upload_url, { method: 'POST', body: form });
 
       if (!response.ok) {
-        throw new Error(`Failed to upload ${file.name}: ${response.statusText}`);
+        throw new Error(await uploadErrorMessage(response, file.name, maxBytes));
       }
 
       updateProgress({
@@ -171,7 +212,7 @@ export async function uploadImagesToS3(
 
     const filenames = await Promise.all(uploadPromises);
 
-    // Step 4: Confirm uploads and create Image records (batched in groups of 10)
+    // Step 5: Confirm uploads and create Image records (batched in groups of 10)
     updateProgress({ status: 'confirming', current: 'Confirming uploads...' });
 
     const allImages: ConfirmUploadsResponse['data']['images'] = [];

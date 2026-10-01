@@ -154,6 +154,7 @@ export default function ClientUploadScreen({ navigation }: any) {
         uri: img.path,
         type: img.mime || 'image/jpeg',
         name: img.filename || `photo_${Date.now()}.jpg`,
+        size: img.size,
       }));
       setImages(prev => [...prev, ...newImages].slice(0, MAX_IMAGES));
     } catch {
@@ -174,7 +175,7 @@ export default function ClientUploadScreen({ navigation }: any) {
       });
       setImages(prev => [
         ...prev,
-        { uri: image.path, type: image.mime || 'image/jpeg', name: image.filename || `photo_${Date.now()}.jpg` },
+        { uri: image.path, type: image.mime || 'image/jpeg', name: image.filename || `photo_${Date.now()}.jpg`, size: image.size },
       ].slice(0, MAX_IMAGES));
     } catch (err: any) {
       if (err?.code === 'E_PICKER_CANCELLED') return;
@@ -210,6 +211,7 @@ export default function ClientUploadScreen({ navigation }: any) {
         uri: cropped.path,
         type: cropped.mime || 'image/jpeg',
         name: cropped.filename || `cropped_${Date.now()}.jpg`,
+        size: cropped.size,
       };
       setImages(prev => prev.map((img, i) => (i === index ? croppedFile : img)));
     } catch (err: any) {
